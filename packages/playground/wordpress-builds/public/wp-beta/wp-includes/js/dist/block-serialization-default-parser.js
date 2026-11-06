@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).blockSerializationDefaultParser = (() => {
@@ -28,7 +29,7 @@ var wp;
   var offset;
   var output;
   var stack;
-  var tokenizer = /<!--\s+(\/)?wp:([a-z][a-z0-9_-]*\/)?([a-z][a-z0-9_-]*)\s+({(?:(?=([^}]+|}+(?=})|(?!}\s+\/?-->)[^])*)\5|[^]*?)}\s+)?(\/)?-->/g;
+  var tokenizer = /<!--[ \t\f\r\n]+(\/)?wp:([a-z][a-z0-9_-]*\/)?([a-z][a-z0-9_-]*)[ \t\f\r\n]+({(?:(?=([^}]+|}+(?=})|(?!}[ \t\f\r\n]+\/?-->)[^])*)\5|[^]*?)}[ \t\f\r\n]+)?(\/)?-->/g;
   function Block(blockName, attrs, innerBlocks, innerHTML, innerContent) {
     return {
       blockName,
@@ -225,4 +226,6 @@ var wp;
     output.push(block);
   }
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).blockSerializationDefaultParser = wp.blockSerializationDefaultParser;
 })();

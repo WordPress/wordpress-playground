@@ -60,7 +60,93 @@ jobs:
             - run: npx nx affected --target=lint
             - run: npx nx affected --target=typecheck
             - run: npx nx check-orphan-pages docs-site
+            - run: npx nx run docs-site:test-plugins
+            - run: npx nx run playground-website:test:wordpress-frame-router
+            - run: npx nx run playground-website:test:static-file-ranges
             - run: bash tools/check-node-engine-alignment.sh
+
+    test-node-file-lock-fallback:
+        name: 'File locks without native binaries (Node ${{ matrix.node }})'
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 15
+        permissions:
+            contents: read
+        strategy:
+            fail-fast: false
+            matrix:
+                node: ['24', 'node']
+        env:
+            PHP: '8.3'
+            NX_SKIP_NX_CACHE: 'true'
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/prepare-playground
+            - name: Build and check the published optional dependency
+              run: |
+                  npx nx run php-wasm-node:build
+                  node --input-type=commonjs <<'JS'
+                  const assert = require('node:assert/strict');
+                  const pkg = require('./dist/packages/php-wasm/node/package.json');
+                  assert(pkg.optionalDependencies?.['fs-ext-extra-prebuilt']);
+                  assert.equal(pkg.dependencies?.['fs-ext-extra-prebuilt'], undefined);
+                  JS
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: ${{ matrix.node }}
+            - name: Exercise PHP locks with the native package absent
+              shell: bash
+              run: |
+                  # Restore the package before prepare-playground saves its shared cache.
+                  mv node_modules/fs-ext-extra-prebuilt "$RUNNER_TEMP/fs-ext-extra-prebuilt"
+                  trap 'mv "$RUNNER_TEMP/fs-ext-extra-prebuilt" node_modules/fs-ext-extra-prebuilt' EXIT
+                  npx nx run php-wasm-node:test-file-locking-asyncify --testFiles=create-file-lock-manager.spec.ts,file-lock-manager-fallback.spec.ts,php-file-locking.spec.ts
+                  npx nx run playground-cli:test-playground-cli --testFiles=file-locking.spec.ts
+
+    # Unit tests for the PR auto-labeling logic (packages/meta/src/pr-labels).
+    # These run with node:test, not nx: packages/meta is not an nx project, so
+    # `nx affected --target=test` never covers them. The suite is self-contained
+    # (one pinned dependency, no build) and runs in seconds, so it gets its own
+    # tiny job rather than a place in the nx matrix.
+    test-pr-labels:
+        name: 'Test PR auto-labeling'
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: read # Required to clone the repo.
+        steps:
+            - uses: actions/checkout@v4
+            - name: Install label matcher dependencies
+              run: npm ci --no-audit --no-fund --ignore-scripts --prefix packages/meta/src/pr-labels
+            - name: Run PR auto-labeling unit tests
+              run: node --test packages/meta/src/pr-labels/*.test.mjs
+
+    # Unit tests for the changelog generator (packages/meta/src/changelog.ts).
+    # Like the PR-labeling tests, packages/meta is not an nx project, so they are
+    # not covered by `nx affected --target=test`. They cover the changelog
+    # generator (including the escaping that protects the deployed changelog), so
+    # they run on every PR here in addition to the update-changelog release-time
+    # gate.
+    test-changelog:
+        name: 'Changelog generator unit tests'
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: read # Required to clone the repo.
+        steps:
+            - uses: actions/checkout@v4
+            # The generator imports runtime dependencies that must resolve for
+            # the spec to load, so use the shared action to install them.
+            - uses: ./.github/actions/prepare-playground
+              with:
+                  node-version: 24
+            - name: Install bun
+              run: curl -fsSL https://bun.sh/install | bash
+            - name: Run changelog generator unit tests
+              run: PATH="${PATH}:${HOME}/.bun/bin" bun test packages/meta/src/changelog.spec.ts
+
     test-unit-asyncify:
         needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
@@ -111,7 +197,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 20
+                  node-version: 24
             - run: node --expose-gc node_modules/nx/bin/nx affected --target=${{ matrix.target }}
               env:
                   MYSQL_DATABASE: test_db
@@ -191,7 +277,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
+                  node-version: 24
             - name: Run full test suite
               run: node node_modules/nx/bin/nx affected --target=test-playground-cli
     test-file-locking:
@@ -216,7 +302,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
+                  node-version: 24
             - name: Run full test suite
               run: node node_modules/nx/bin/nx affected --target=test-file-locking-${{ matrix.async-strategy }}
     test-e2e-php-wasm-web-jspi:
@@ -245,68 +331,107 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - run: sudo npx playwright install
             - run: sudo CI=true npx nx e2e php-wasm-web
-    test-e2e:
+    test-reprint-bridge:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
-        timeout-minutes: 30
+        timeout-minutes: 10
         permissions:
             contents: read # Required to clone the repo.
-        # Run as root to allow node to bind to port 80
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version-file: '.nvmrc'
+            - uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.3'
+                  extensions: sqlite3, pdo_sqlite, curl, zip
+                  tools: none
+            - name: Download and verify the pinned Reprint client
+              run: |
+                  # Use the website's release lock and checksum verification.
+                  node --input-type=module <<'JS'
+                  import { copyFileSync, readFileSync } from 'node:fs';
+                  import { bundleReprint } from './packages/playground/website/bin/reprint-assets.mts';
+                  const release = JSON.parse(readFileSync('packages/playground/website/src/lib/reprint/release.json', 'utf8'));
+                  const directory = new URL('file:///tmp/playground-reprint-assets/');
+                  await bundleReprint(release, directory);
+                  copyFileSync(new URL(`reprint-${release.sha256}.phar`, directory), '/tmp/playground-reprint.phar');
+                  JS
+            - name: Run the native PHP bridge checks
+              run: php packages/playground/website/src/lib/reprint/bridge-test.php
+
+    test-e2e-reprint-import:
+        name: 'Reprint import (wordpress-frame)'
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        runs-on: ubuntu-latest
+        timeout-minutes: 40
+        permissions:
+            contents: read # Required to clone the repo.
         steps:
             - uses: actions/checkout@v4
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
-            - run: sudo ./node_modules/.bin/cypress install --force
-            - run: sudo CYPRESS_CI=1 npx nx e2e playground-website --configuration=ci --verbose
-            # Upload the Cypress screenshots as artifacts if the job fails
+            - name: Install PHP for the source site
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.3'
+                  extensions: sqlite3, pdo_sqlite, gd, mbstring, curl, zip, xml
+                  tools: none
+            - name: Resolve the local prototype hosts in every browser
+              run: echo '127.0.0.1 playground.localhost wp.playground.localhost' | sudo tee -a /etc/hosts
+            - name: Install Playwright Browser
+              run: sudo npx playwright install chromium --with-deps
+            - name: Build app for E2E tests
+              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
+            - name: Build the WordPress-only origin setup
+              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx run playground-website:build:wordpress-frame
+            - name: Serve a WordPress site with Reprint Server
+              run: |
+                  bash packages/playground/website/playwright/reprint-site/serve.sh > /tmp/reprint-site.log 2>&1 &
+                  for _ in $(seq 1 120); do
+                      if curl -sf http://127.0.0.1:8181/playground-e2e-manifest.json > /dev/null; then
+                          exit 0
+                      fi
+                      sleep 2
+                  done
+                  echo "The source site did not come up:"
+                  cat /tmp/reprint-site.log
+                  exit 1
+            - name: Run Playwright reprint-import tests
+              run: sudo CI=true PLAYWRIGHT_TEST_GROUP=reprint-import REPRINT_E2E_SITE_URL=http://127.0.0.1:8181/ npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts --project=chromium
+            - name: Source site log
+              if: ${{ failure() }}
+              run: cat /tmp/reprint-site.log
             - uses: actions/upload-artifact@v4
               if: ${{ failure() }}
               with:
-                  name: cypress-screenshots
-                  path: dist/cypress/packages/playground/website/screenshots
+                  name: playwright-report-reprint-import-wordpress-frame
+                  path: packages/playground/website/playwright-report/
+                  if-no-files-found: ignore
+                  retention-days: 7
+
     # E2E Playwright tests - builds inline per runner for faster parallel execution
     # Previously used a prepare job + artifact sharing, but inline builds allow
     # all shards to start immediately in parallel, reducing total wall time.
     test-e2e-playwright:
+        name: 'Website E2E (wordpress-frame, ${{ matrix.browser }}, ${{ matrix.lane }})'
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         runs-on: ubuntu-latest
-        timeout-minutes: 30
+        # Storage tests run one at a time; allow build time plus the full storage suite.
+        timeout-minutes: ${{ matrix.lane == 'storage' && 45 || 30 }}
         permissions:
             contents: read # Required to clone the repo.
         strategy:
             fail-fast: false
             matrix:
-                # 3 shards per browser for balanced parallel execution
-                # (4 shards caused uneven distribution due to serial test files)
-                include:
-                    - browser: 'chromium'
-                      shard: '1/3'
-                      shard_name: '1-of-3'
-                    - browser: 'chromium'
-                      shard: '2/3'
-                      shard_name: '2-of-3'
-                    - browser: 'chromium'
-                      shard: '3/3'
-                      shard_name: '3-of-3'
-                    - browser: 'firefox'
-                      shard: '1/3'
-                      shard_name: '1-of-3'
-                    - browser: 'firefox'
-                      shard: '2/3'
-                      shard_name: '2-of-3'
-                    - browser: 'firefox'
-                      shard: '3/3'
-                      shard_name: '3-of-3'
-                    - browser: 'webkit'
-                      shard: '1/3'
-                      shard_name: '1-of-3'
-                    - browser: 'webkit'
-                      shard: '2/3'
-                      shard_name: '2-of-3'
-                    - browser: 'webkit'
-                      shard: '3/3'
-                      shard_name: '3-of-3'
+                # Keep three balanced shards for non-storage tests. Storage tests
+                # have their own unsharded lane because OPFS is browser-scoped.
+                # That lane uses one worker, so Playwright can retry only the
+                # failed test without allowing storage tests to overlap.
+                browser: [chromium, firefox, webkit]
+                lane: ['1', '2', '3', storage]
         steps:
             - name: Free up runner disk space
               shell: bash
@@ -325,33 +450,49 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+            - name: Resolve the local prototype hosts in every browser
+              run: echo '127.0.0.1 playground.localhost wp.playground.localhost' | sudo tee -a /etc/hosts
             - name: Install Playwright Browser
               run: sudo npx playwright install ${{ matrix.browser }} --with-deps
             - name: Build app for E2E tests
               run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
-            - name: Run Playwright tests - ${{ matrix.browser }}${{ matrix.shard && format(' (shard {0})', matrix.shard) || '' }}
+            - name: Build the WordPress-only origin setup
+              run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx run playground-website:build:wordpress-frame
+            - name: Run every website E2E test in its assigned lane
               run: |
                   SHARD_ARG=""
-                  if [ -n "${{ matrix.shard }}" ]; then
-                    SHARD_ARG="--shard=${{ matrix.shard }}"
+                  TEST_GROUP=storage
+                  if [ "${{ matrix.lane }}" != "storage" ]; then
+                    TEST_GROUP=regular
+                    SHARD_ARG="--shard=${{ matrix.lane }}/3"
                   fi
                   if [ "${{ matrix.browser }}" = "firefox" ]; then
-                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
+                    sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true PLAYWRIGHT_TEST_GROUP=$TEST_GROUP npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts --project=${{ matrix.browser }} $SHARD_ARG
                   else
-                    sudo CI=true npx playwright test --config=packages/playground/website/playwright/playwright.ci.config.ts --project=${{ matrix.browser }} $SHARD_ARG
+                    sudo CI=true PLAYWRIGHT_TEST_GROUP=$TEST_GROUP npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts --project=${{ matrix.browser }} $SHARD_ARG
                   fi
+            - name: Check the live Vite cross-origin setup once
+              if: matrix.browser == 'chromium' && matrix.lane == 'storage'
+              run: sudo CI=true NX_DAEMON=false npx playwright test --config=packages/playground/website/playwright/playwright.dev-origin.config.ts
+            # Only upload reports and snapshots for failed runs — they exist
+            # to debug failures and update snapshots, and uploading them on
+            # every run is the repository's largest source of artifact storage.
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ failure() }}
               with:
-                  name: playwright-report-${{ matrix.browser }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
-                  path: packages/playground/website/playwright-report/
+                  name: playwright-report-wordpress-frame-${{ matrix.browser }}-${{ matrix.lane }}
+                  path: |
+                      packages/playground/website/playwright-report/
+                      dist/wordpress-frame-dev-e2e/
                   if-no-files-found: ignore
+                  retention-days: 7
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ failure() }}
               with:
-                  name: playwright-snapshots-${{ matrix.browser }}${{ matrix.shard_name && format('-shard-{0}', matrix.shard_name) || '' }}
+                  name: playwright-snapshots-wordpress-frame-${{ matrix.browser }}-${{ matrix.lane }}
                   path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
                   if-no-files-found: ignore
+                  retention-days: 7
 
     test-e2e-personal-wp:
         runs-on: ubuntu-latest
@@ -368,11 +509,12 @@ jobs:
             - name: Run personal-wp Playwright e2e tests
               run: CI=true npx playwright test --config=packages/playground/personal-wp/playwright/playwright.config.ts --project=chromium
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ failure() }}
               with:
                   name: playwright-personal-wp-report
                   path: packages/playground/personal-wp/playwright-report/
                   if-no-files-found: ignore
+                  retention-days: 7
 
     test-e2e-components:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
@@ -390,11 +532,12 @@ jobs:
             - name: Run Playwright tests for components
               run: npx nx e2e playground-components
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ failure() }}
               with:
                   name: playwright-components-report
                   path: packages/playground/components/playwright-report/
                   if-no-files-found: ignore
+                  retention-days: 7
 
     # Run MCP e2e tests independently from other tests because running a local version of the MCP server from TypeScript files requires Node 22+
     test-e2e-mcp:
@@ -408,17 +551,18 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: '22'
+                  node-version: 24
             - name: Install Playwright Browsers
               run: npx playwright install --with-deps chromium
             - name: Run MCP e2e tests
               run: npx nx test:mcp playground-mcp
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ failure() }}
               with:
                   name: playwright-mcp-report
                   path: packages/playground/mcp/playwright-report/
                   if-no-files-found: ignore
+                  retention-days: 7
 
     test-docs-api-reference:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
@@ -436,11 +580,12 @@ jobs:
             - name: Verify docs API reference
               run: npx nx run docs-site:api-e2e
             - uses: actions/upload-artifact@v4
-              if: ${{ !cancelled() }}
+              if: ${{ failure() }}
               with:
                   name: docs-api-e2e-report
                   path: packages/docs/site/test-results/
                   if-no-files-found: ignore
+                  retention-days: 7
 
     test-built-npm-packages:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
@@ -454,7 +599,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
+                  node-version: 24
             - name: Validate publish package overrides
               run: node tools/scripts/check-publish-package-overrides.mjs
             - name: Install Playwright Browsers
@@ -474,7 +619,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
+                  node-version: 24
             - name: Verify bundled client declarations
               run: |
                   npm exec -- nx run playground-client:test:rollup-declarations
@@ -492,7 +637,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 22
+                  node-version: 24
             - run: packages/playground/cli/tests/test-running-unbuilt-cli.sh
 
     test-php-wasm-cli-smoke:
@@ -507,7 +652,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 20
+                  node-version: 24
             - run: packages/php-wasm/cli/tests/smoke-test.sh
 
     detect-compile-extension-helper-changes:
@@ -541,7 +686,7 @@ jobs:
 
                   git fetch --no-tags --depth=1 origin "$base_sha"
 
-                  if git diff --name-only "$base_sha" "$GITHUB_SHA" -- packages/php-wasm/compile-extension/ | grep -q .; then
+                  if git diff --name-only "$base_sha" "$GITHUB_SHA" -- packages/php-wasm/compile-extension/ packages/php-wasm/compile/php/ | grep -q .; then
                     echo "changed=true" >> "$GITHUB_OUTPUT"
                   else
                     echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -586,6 +731,8 @@ jobs:
               run: node --expose-gc node_modules/nx/bin/nx run php-wasm-compile-extension:test-lazy-docker-asset-fetch --output-style=stream
             - name: Build and load PHP.wasm extension fixtures
               run: node --expose-gc node_modules/nx/bin/nx affected --target=test-compile-extension-integration --parallel=1 --output-style=stream
+            - name: Load external extension against freshly built PHP 8.5 JSPI runtime
+              run: node --expose-gc node_modules/nx/bin/nx run php-wasm-compile-extension:test-external-extension-abi --output-style=stream
 
     test-legacy-wp-version-boot:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
@@ -693,7 +840,7 @@ jobs:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
               with:
-                  node-version: 20
+                  node-version: 24
             - run: |
                   if ADDITIONAL_REMOTE_ORIGINS=invalid-origin npx nx build playground-client; then
                     echo "The Playground client build should have failed due to an invalid additional origin."
@@ -712,7 +859,11 @@ jobs:
             github.ref == 'refs/heads/trunk' &&
             github.event_name == 'push'
         # Add a dependency to the build job
-        needs: [test-unit-asyncify, test-e2e, test-e2e-components, build]
+        needs:
+            - test-unit-asyncify
+            - test-e2e-playwright
+            - test-e2e-components
+            - build
         name: 'Deploy doc site'
 
         # Grant GITHUB_TOKEN the permissions required to make a Pages deployment

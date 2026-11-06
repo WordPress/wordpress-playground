@@ -13,17 +13,8 @@ import type {
 	PointerEvent as ReactPointerEvent,
 } from 'react';
 import { CSSTransition } from 'react-transition-group';
-import { Icon } from '@wordpress/components';
-import {
-	close,
-	external,
-	grid,
-	list,
-	page,
-	pencil,
-	plus,
-	wordpress,
-} from '@wordpress/icons';
+import { Icon, Tooltip } from '@wordpress/components';
+import { close, code, pencil, plus } from '@wordpress/icons';
 import type { DockPaneSection } from '../../lib/state/redux/slice-ui';
 import {
 	setDockOperationNotice,
@@ -35,6 +26,7 @@ import {
 	readDockFullWidth,
 	writeDockFullWidth,
 } from '../../lib/dock-full-width';
+import { readDockMode } from '../../lib/dock-mode';
 import {
 	getActiveClientInfo,
 	selectActiveSiteError,
@@ -44,10 +36,12 @@ import {
 } from '../../lib/state/redux/store';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
+import { buildPlaygroundAnnotationMetadata } from '../../lib/oai-annotations';
 import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
 import { SiteManager } from '../site-manager';
+import type { ToolHeaderState } from '../site-manager/site-info-panel/site-tool-renderers';
 import {
 	useRecentAutosaveNudgeVisible,
 	useSetRecentAutosaveNudgeAnchor,
@@ -65,16 +59,9 @@ import {
 	getDockOperationToastStyle,
 	getDockPaneStyle,
 } from './dock-positioning';
-import { DockBlueprintIcon, DockDatabaseIcon } from './icons';
+import { DOCK_TOOLS, getDockTool } from './tool-registry';
+import { useDeveloperTools } from './use-developer-tools';
 import css from './style.module.css';
-
-type DockItem = {
-	section: DockPaneSection;
-	label: string;
-	ariaLabel: string;
-	icon: JSX.Element;
-	isPrimary?: boolean;
-};
 
 export type DockProps = {
 	paneCloseBlocked: boolean;
@@ -84,103 +71,6 @@ export type DockProps = {
 const DRAG_THRESHOLD = 4;
 const CORNER_OVERDRAG = 36;
 const MOBILE_QUERY = '(max-width: 1024px)';
-
-const DOCK_ITEMS: DockItem[] = [
-	{
-		section: 'new',
-		label: 'New',
-		ariaLabel: 'New Playground',
-		icon: <Icon icon={plus} size={24} />,
-		isPrimary: true,
-	},
-	{
-		section: 'playgrounds',
-		label: 'Playgrounds',
-		ariaLabel: 'Your Playgrounds',
-		icon: <Icon icon={grid} size={22} />,
-	},
-	{
-		section: 'blueprint',
-		label: 'Blueprint',
-		ariaLabel: 'Current Blueprint',
-		icon: <DockBlueprintIcon />,
-	},
-	{
-		section: 'settings',
-		label: 'Site Settings',
-		ariaLabel: 'Site Settings',
-		icon: <Icon icon={wordpress} size={24} />,
-	},
-	{
-		section: 'database',
-		label: 'Database',
-		ariaLabel: 'Database',
-		icon: <DockDatabaseIcon />,
-	},
-	{
-		section: 'files',
-		label: 'Files',
-		ariaLabel: 'Files',
-		icon: <Icon icon={page} size={24} />,
-	},
-	{
-		section: 'logs',
-		label: 'Logs',
-		ariaLabel: 'Logs',
-		icon: <Icon icon={list} size={24} />,
-	},
-	{
-		section: 'share',
-		label: 'Export',
-		ariaLabel: 'Export',
-		icon: <Icon icon={external} size={24} />,
-	},
-];
-
-const PANE_COPY: Record<
-	DockPaneSection,
-	{ title: string; description: string }
-> = {
-	new: {
-		title: 'New Playground',
-		description: 'Spin up a fresh Playground or start from a Blueprint.',
-	},
-	playgrounds: {
-		title: 'Your Playgrounds',
-		description: 'Switch between your recent and saved Playgrounds.',
-	},
-	blueprint: {
-		title: 'Blueprint',
-		description:
-			'Review and edit the Blueprint that describes this Playground.',
-	},
-	settings: {
-		title: 'Site Settings',
-		description:
-			'Change this Playground’s WordPress, PHP, language, and network settings.',
-	},
-	database: {
-		title: 'Database',
-		description:
-			'Inspect and edit the SQLite database behind this Playground.',
-	},
-	files: {
-		title: 'Files',
-		description: 'Browse and edit the active Playground filesystem.',
-	},
-	logs: {
-		title: 'PHP error log',
-		description: 'Errors, warnings, and notices from your site.',
-	},
-	share: {
-		title: 'Export',
-		description: '',
-	},
-	save: {
-		title: 'Store permanently',
-		description: '',
-	},
-};
 
 /**
  * Hosts every website tool in one bottom Dock while leaving each tool's domain
@@ -203,22 +93,42 @@ export function Dock({
 			setNewPlaygroundHeaderOverride(header),
 		[]
 	);
+	const [toolBack, setToolBack] = useState<ToolHeaderState>();
+	const {
+		action: toolAction,
+		hideHeader: toolHidesHeader,
+		...toolHeader
+	} = toolBack ?? {};
 	const activeSite = useActiveSite();
 	const clientInfo = useAppSelector(getActiveClientInfo);
-	const paneCopy = PANE_COPY[section];
+	const paneCopy = getDockTool(section);
 	const paneTitle = paneCopy.title;
 	const isMobile = useIsMobileDock();
-	const isEditorSection = section === 'blueprint' || section === 'files';
-	// Logs hold long monospace records, so they get a wider pane.
-	const isWideSection = section === 'logs';
+	const isEditorSection = paneCopy.layout === 'editor';
+	const isWideSection = paneCopy.layout === 'wide';
 	const isFixedHeightSection =
-		section === 'new' || (section === 'share' && shareExportOpen);
-	const showSharedHeader = !isEditorSection;
+		Boolean(paneCopy.fixedHeight) ||
+		(section === 'share' && shareExportOpen);
+	const showSharedHeader =
+		!isEditorSection && !(section === 'transfer' && toolHidesHeader);
 	const siteSettingsVisible = dockPaneIsOpen && section === 'settings';
 	const playgroundTitle =
 		activeSite?.metadata.storage === 'none'
 			? 'Unsaved Playground'
 			: activeSite?.metadata.name;
+	const dockAnnotationMetadata = useMemo(
+		() =>
+			buildPlaygroundAnnotationMetadata({
+				siteSlug: activeSite?.slug,
+				storage: activeSite?.metadata.storage,
+				wpVersion: activeSite?.metadata.runtimeConfiguration.wpVersion,
+				phpVersion:
+					activeSite?.metadata.runtimeConfiguration.phpVersion,
+				currentUrl: clientInfo?.url,
+				activeDockPane: dockPaneIsOpen ? section : null,
+			}),
+		[activeSite, clientInfo?.url, dockPaneIsOpen, section]
+	);
 	const savingDisabled = isSiteSavingDisabled();
 	const inlineRename = useInlineRename();
 	const canManageActiveSite = activeSite?.metadata.storage !== 'none';
@@ -237,6 +147,18 @@ export function Dock({
 	const focusBeforePaneRef = useRef<HTMLElement | null>(null);
 	const hasOpenedPaneRef = useRef(false);
 	const collapseButtonRef = useRef<HTMLButtonElement>(null);
+	const developerToggleRef = useRef<HTMLButtonElement>(null);
+	const developerToolsRef = useRef<HTMLDivElement>(null);
+	// Keep the natural width until measured, including without ResizeObserver.
+	const [developerToolsWidth, setDeveloperToolsWidth] = useState<number>();
+	const developerTools = useDeveloperTools({
+		developerPaneOpen: dockPaneIsOpen && paneCopy.group === 'developer',
+		paneCloseBlocked,
+		onCloseDeveloperPane: () => {
+			focusBeforePaneRef.current = developerToggleRef.current;
+			dispatch(setDockPaneOpen(false));
+		},
+	});
 	const dragCleanupRef = useRef<(() => void) | null>(null);
 	const dragArmedRef = useRef(false);
 	const draggedRef = useRef(false);
@@ -264,7 +186,9 @@ export function Dock({
 			? newPlaygroundHeaderOverride
 			: section === 'share' && shareExportOpen
 				? githubExportHeaderOverride
-				: undefined;
+				: section === 'transfer' && toolBack
+					? { title: paneTitle, ...toolHeader }
+					: undefined;
 
 	const [dockSize, setDockSize] = useState({ width: 0, height: 0 });
 	const [paneHeight, setPaneHeight] = useState(0);
@@ -277,10 +201,25 @@ export function Dock({
 		height: window.innerHeight,
 	}));
 	const [dockCenter, setDockCenter] = useState<number | null>(null);
-	const [isCollapsed, setIsCollapsed] = useState(false);
-	const [isFullWidth, setIsFullWidth] = useState(readDockFullWidth);
+	const [initialDockMode] = useState(readDockMode);
+	const [isCollapsed, setIsCollapsed] = useState(
+		initialDockMode === 'collapsed' ||
+			initialDockMode === 'full-width-collapsed'
+	);
+	const [isFullWidth, setIsFullWidth] = useState(() =>
+		initialDockMode === undefined
+			? readDockFullWidth()
+			: initialDockMode === 'full-width' ||
+				initialDockMode === 'full-width-collapsed'
+	);
 	const [isDragging, setIsDragging] = useState(false);
-	const [cornerSide, setCornerSide] = useState<'left' | 'right' | null>(null);
+	// `?dock=minimized` starts in the left corner launcher. Mobile and an open
+	// pane still reset this through the effects below, as they do after a drag.
+	const [cornerSide, setCornerSide] = useState<'left' | 'right' | null>(() =>
+		initialDockMode === 'minimized' && !isMobile && !dockPaneIsOpen
+			? 'left'
+			: null
+	);
 	const [isModeSwitching, setIsModeSwitching] = useState(false);
 	const [isFolding, setIsFolding] = useState(false);
 	const [isUnfolding, setIsUnfolding] = useState(false);
@@ -297,6 +236,9 @@ export function Dock({
 		const observer = new ResizeObserver(() => {
 			const dock = dockRef.current;
 			const tools = toolsRef.current;
+			if (developerToolsRef.current) {
+				setDeveloperToolsWidth(developerToolsRef.current.offsetWidth);
+			}
 			if (dock) {
 				setDockSize({
 					width: dock.offsetWidth,
@@ -315,6 +257,9 @@ export function Dock({
 		}
 		if (toolsRef.current) {
 			observer.observe(toolsRef.current);
+		}
+		if (developerToolsRef.current) {
+			observer.observe(developerToolsRef.current);
 		}
 		return () => observer.disconnect();
 	}, []);
@@ -438,7 +383,25 @@ export function Dock({
 		} else if (isCollapsed) {
 			setRecentAutosaveNudgeAnchor(dockStatusRef.current);
 		} else {
-			setRecentAutosaveNudgeAnchor(playgroundsButtonRef.current);
+			const button = playgroundsButtonRef.current;
+			const dock = dockRef.current;
+			if (button && dock) {
+				setRecentAutosaveNudgeAnchor({
+					ownerDocument: button.ownerDocument,
+					getBoundingClientRect: () => {
+						const buttonRect = button.getBoundingClientRect();
+						const dockRect = dock.getBoundingClientRect();
+						// Point toward Playgrounds without covering the address
+						// and save controls in the row above it.
+						return new DOMRect(
+							buttonRect.x,
+							dockRect.y,
+							buttonRect.width,
+							0
+						);
+					},
+				});
+			}
 		}
 		return () => setRecentAutosaveNudgeAnchor(null);
 	}, [isCollapsed, cornerSide, setRecentAutosaveNudgeAnchor]);
@@ -661,6 +624,7 @@ export function Dock({
 		const rect = dock.getBoundingClientRect();
 		const startX = event.clientX;
 		const startCenter = rect.left + rect.width / 2;
+		const initialDockCenter = dockCenter;
 		const halfWidth = dock.offsetWidth / 2;
 		const pointerId = event.pointerId;
 		const capturePointer = () => {
@@ -708,7 +672,12 @@ export function Dock({
 		};
 
 		/** Finishes a drag without also activating the pressed Dock control. */
-		const finishDockDrag = () => {
+		const finishDockDrag = () => completeDockDrag(false);
+
+		/** Restores the Dock when pointer ownership ends without a pointerup. */
+		const cancelDockDrag = () => completeDockDrag(true);
+
+		const completeDockDrag = (cancelled: boolean) => {
 			dragCleanupRef.current?.();
 			dragCleanupRef.current = null;
 			// Let the next click target the restored corner launcher instead of
@@ -751,6 +720,14 @@ export function Dock({
 				setDockSheen(0);
 			}
 
+			if (cancelled) {
+				dragSideRef.current = null;
+				setCornerSide(null);
+				setDockCenter(initialDockCenter);
+				setDockSheen(0);
+				return;
+			}
+
 			if (dragSideRef.current !== null && dockPaneIsOpen) {
 				// An open pane owns the expanded Dock. Refuse a fold that would hide
 				// both the tool in use and its launcher.
@@ -770,11 +747,15 @@ export function Dock({
 		dragCleanupRef.current = () => {
 			window.removeEventListener('pointermove', moveDock, true);
 			window.removeEventListener('pointerup', finishDockDrag, true);
-			window.removeEventListener('pointercancel', finishDockDrag, true);
+			window.removeEventListener('pointercancel', cancelDockDrag, true);
+			window.removeEventListener('blur', cancelDockDrag);
+			dock.removeEventListener('lostpointercapture', cancelDockDrag);
 		};
 		window.addEventListener('pointermove', moveDock, true);
 		window.addEventListener('pointerup', finishDockDrag, true);
-		window.addEventListener('pointercancel', finishDockDrag, true);
+		window.addEventListener('pointercancel', cancelDockDrag, true);
+		window.addEventListener('blur', cancelDockDrag);
+		dock.addEventListener('lostpointercapture', cancelDockDrag);
 	};
 
 	/** Reveals the grab sheen, softened while the pointer is over a control. */
@@ -1035,6 +1016,34 @@ export function Dock({
 		isWideSection,
 	});
 
+	function renderTool(item: (typeof DOCK_TOOLS)[number]) {
+		return (
+			<DockItemButton
+				key={item.section}
+				ref={
+					item.section === 'playgrounds'
+						? playgroundsButtonRef
+						: undefined
+				}
+				label={item.label}
+				ariaLabel={item.ariaLabel}
+				icon={item.icon}
+				isPrimary={item.isPrimary}
+				isActive={dockPaneIsOpen && section === item.section}
+				disabled={paneCloseBlocked}
+				hasNotification={
+					item.section === 'playgrounds' && recentAutosaveNudgeVisible
+				}
+				notificationAriaSuffix="recent autosave available"
+				onClick={(event) => {
+					// Safari needs explicit focus so closing a pane returns to its launcher.
+					event.currentTarget.focus();
+					openSection(item.section);
+				}}
+			/>
+		);
+	}
+
 	return (
 		<>
 			{operationNotice && (
@@ -1094,6 +1103,8 @@ export function Dock({
 				<DockPane
 					ref={paneRef}
 					title={paneTitle}
+					annotatableSection={section}
+					annotationMetadata={dockAnnotationMetadata}
 					description={
 						section === 'settings' && activeSite
 							? undefined
@@ -1149,6 +1160,8 @@ export function Dock({
 								<Icon icon={plus} size={20} />
 								New Playground
 							</button>
+						) : section === 'transfer' ? (
+							toolAction
 						) : undefined
 					}
 					headerOverride={paneHeaderOverride}
@@ -1156,17 +1169,12 @@ export function Dock({
 						[css.hostPaneHidden]:
 							Boolean(activeSiteError) ||
 							(!dockPaneIsOpen && paneExitComplete),
-						[css.paneSave]: section === 'save',
 						[css.paneWide]: isWideSection,
 					})}
 					style={paneStyle}
 					isEditor={isEditorSection}
 					isFixedHeight={isFixedHeightSection}
-					isCompact={
-						section === 'settings' ||
-						section === 'share' ||
-						section === 'save'
-					}
+					isCompact={paneCopy.layout === 'compact'}
 					showHeader={showSharedHeader}
 					closeDisabled={paneCloseBlocked}
 					closeTitle={
@@ -1184,6 +1192,7 @@ export function Dock({
 						isVisible={paneContentVisible}
 						mobileUi={isMobile}
 						onPaneCloseBlockedChange={onPaneCloseBlockedChange}
+						onToolBackChange={setToolBack}
 						onNewPlaygroundHeaderChange={
 							handleNewPlaygroundHeaderChange
 						}
@@ -1256,6 +1265,9 @@ export function Dock({
 				onPointerMove={updateDockSheen}
 				onPointerLeave={hideDockSheen}
 				aria-label="Playground tools"
+				oai-annotation-container=""
+				oai-annotatable="playground-dock"
+				oai-annotation-metadata={dockAnnotationMetadata}
 			>
 				<div className={css.dockSheen} aria-hidden="true" />
 				<div className={css.dockBody}>
@@ -1264,7 +1276,9 @@ export function Dock({
 							<AddressBar
 								url={clientInfo?.url}
 								isMobile={isMobile}
-								disabled={!clientInfo}
+								// A running transfer changes the site: no navigation
+								// and no quick-navigation popover meanwhile.
+								disabled={!clientInfo || paneCloseBlocked}
 								onUpdate={
 									clientInfo
 										? (newUrl) =>
@@ -1306,36 +1320,69 @@ export function Dock({
 						/>
 					</div>
 					<div className={css.dockTools} ref={toolsRef}>
-						{DOCK_ITEMS.map((item, index) => (
-							<DockItemButton
-								key={item.section}
-								ref={
-									item.section === 'playgrounds'
-										? playgroundsButtonRef
-										: undefined
-								}
-								label={item.label}
-								ariaLabel={item.ariaLabel}
-								icon={item.icon}
-								isPrimary={item.isPrimary}
-								isActive={
-									dockPaneIsOpen && section === item.section
-								}
-								disabled={paneCloseBlocked}
-								hasNotification={
-									item.section === 'playgrounds' &&
-									recentAutosaveNudgeVisible
-								}
-								notificationAriaSuffix="recent autosave available"
-								hasSeparator={index === 2}
-								onClick={(event) => {
-									// Safari does not focus buttons on click. Do it here so
-									// closing a pane returns focus to its Dock control.
-									event.currentTarget.focus();
-									openSection(item.section);
+						<div
+							className={css.dockToolRow}
+							aria-label="Playground actions"
+							role="group"
+						>
+							{DOCK_TOOLS.filter(
+								(item) => item.group === 'main'
+							).map(renderTool)}
+							<Tooltip text="Developer tools">
+								<button
+									type="button"
+									ref={developerToggleRef}
+									className={classNames(
+										css.dockItem,
+										css.developerToggle,
+										css.withSeparator,
+										{
+											[css.dockItemActive]:
+												developerTools.isVisible,
+										}
+									)}
+									aria-label="Dev Tools"
+									aria-expanded={developerTools.isVisible}
+									aria-controls="playground-developer-tools"
+									disabled={paneCloseBlocked}
+									onClick={(event) => {
+										event.currentTarget.focus();
+										developerTools.toggle();
+									}}
+								>
+									<span
+										className={css.dockIcon}
+										aria-hidden="true"
+									>
+										<Icon icon={code} />
+									</span>
+									<span className={css.dockLabel}>
+										Dev Tools
+									</span>
+								</button>
+							</Tooltip>
+							<div
+								id="playground-developer-tools"
+								className={css.developerTools}
+								style={{
+									width: developerTools.isVisible
+										? developerToolsWidth
+										: 0,
 								}}
-							/>
-						))}
+								role="group"
+								aria-label="Developer tools"
+								hidden={!developerTools.isVisible}
+							>
+								<div
+									className={css.developerToolsContent}
+									ref={developerToolsRef}
+								>
+									{DOCK_TOOLS.filter(
+										(item) => item.group === 'developer'
+									).map(renderTool)}
+								</div>
+							</div>
+						</div>
 					</div>
 				</div>
 			</nav>

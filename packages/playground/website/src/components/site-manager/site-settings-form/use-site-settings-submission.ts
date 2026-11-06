@@ -6,7 +6,7 @@ import type { SiteFormData } from './unconnected-site-settings-form';
  * them. A ref closes the same-render double-click window before React can paint
  * the disabled state.
  */
-export function useSiteSettingsSubmission(onSuccess?: () => void) {
+export function useSiteSettingsSubmission(onSubmit?: () => void) {
 	const pendingRef = useRef(false);
 	const [isPending, setIsPending] = useState(false);
 	const [error, setError] = useState<string>();
@@ -23,21 +23,23 @@ export function useSiteSettingsSubmission(onSuccess?: () => void) {
 			setIsPending(true);
 			setError(undefined);
 			try {
-				await action(data);
-			} catch (cause) {
-				setError(
-					cause instanceof Error
-						? cause.message
-						: 'Could not update Playground settings. Please try again.'
-				);
-				return;
+				onSubmit?.();
+				try {
+					await action(data);
+				} catch (cause) {
+					setError(
+						cause instanceof Error
+							? cause.message
+							: 'Could not update Playground settings. Please try again.'
+					);
+					return;
+				}
 			} finally {
 				pendingRef.current = false;
 				setIsPending(false);
 			}
-			onSuccess?.();
 		},
-		[onSuccess]
+		[onSubmit]
 	);
 
 	return { error, isPending, run };

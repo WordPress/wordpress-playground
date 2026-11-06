@@ -8,20 +8,65 @@ The `PlaygroundClient` object implements the `UniversalPHP` interface. All the m
 
 Broadly speaking, you can use the client to perform three types of operations:
 
--   Running PHP code
--   Customizing `PHP.ini`
--   Managing files and directories
+- Running PHP code
+- Customizing `PHP.ini`
+- Managing files and directories
+
+## SharedWorker runtime
+
+`startPlaygroundWeb()` uses a dedicated worker by default. Applications can opt into
+sharing one PHP runtime across tabs on the same origin and browser storage partition.
+Serve the matching client and remote runtime from the application's own deployment:
+
+```js
+const client = await startPlaygroundWeb({
+	iframe: document.getElementById('wp'),
+	remoteUrl: new URL('/remote.html', window.location.href).href,
+	workerMode: 'shared',
+	scope: 'my-site',
+});
+```
+
+Shared mode requires browser SharedWorker support and an explicit `scope`. Tabs using
+the same scope and build share the initialized site; use different scopes for independent
+runtimes. Only the initializing connection runs its startup Blueprint. Closing its tab
+once initialization finishes does not interrupt the other tabs. The main Playground
+website continues to use dedicated workers.
+
+By default, both version options use the remote runtime's build version. Applications
+that check deployments themselves can pass `sharedWorkerVersion` for the current deployment
+and `sharedWorkerClientVersion` for the build loaded by the connecting application. If they
+differ, the tab must reload before connecting. A new deployment discovers the previous
+worker through localStorage and waits for its shutdown confirmation before replacement.
+If that identity is lost or the worker cannot be reached, a replacement may start while
+the previous runtime is still running; there is no ownership lock.
+
+The embedding application must handle same-origin `playground-reload-required` messages
+from its remote iframe and offer a tab reload. The message's `ready` field indicates
+whether shutdown is complete; otherwise wait for `playground-runtime-closed` before
+allowing reload. A `shared-runtime-retirement-error` message reports a retirement failure.
+Validate the message origin and source against the embedded remote iframe.
+
+`await client.shutdownSharedRuntime()` explicitly retires the runtime for all connected
+tabs: it rejects new work, drains active operations, flushes OPFS, and disposes PHP. It
+rejects if retirement fails and is a no-op in dedicated mode. The
+`shouldRunStartupBlueprint()` and `finishSharedRuntimeInitialization()` methods are
+internal startup coordination hooks; applications should let `startPlaygroundWeb()` call them.
 
 ## Running PHP code
 
 The two methods you can use to run PHP code are:
 
--   [`run()`](#the-run-method) - runs PHP code and returns the output
--   [`request()`](#the-request-method) - makes an HTTP request to the website
+- [`run()`](#the-run-method) - runs PHP code and returns the output
+- [`request()`](#the-request-method) - makes an HTTP request to the website
 
 In Node.js, you can also use the [`cli()`](#the-cli-method) method to run PHP in a CLI mode.
 
 ### The `run()` method
+
+<!-- The handbook imports static/handbook/playground-api-client.md, generated
+from this page and TypeDoc by bin/generate-handbook-api-client.js. Keep the
+TSDocstring components here so the generated API descriptions stay in sync. -->
 
 import TSDocstring from '@site/src/components/TSDocstring';
 
@@ -73,7 +118,7 @@ For a complete list of these methods, refer to the `PlaygroundClient` interface.
 
 You can pass messages from PHP to JavaScript using the `post_message_to_js()` function. It accepts one argument:
 
--   `$data` (string) – Data to pass to JavaScript.
+- `$data` (string) – Data to pass to JavaScript.
 
 For example, here's how you would send a message with a JSON-encoded post ID and title:
 

@@ -77,6 +77,37 @@ describe('Blueprint step wpCLI', () => {
 			})
 		).rejects.toThrow('Error: Command failed');
 	});
+
+	it('should reject STDIN reads before a command can mutate state', async () => {
+		const originalName = await wpCLI(php, {
+			command: 'wp option get blogname --no-color',
+		});
+
+		await expect(
+			wpCLI(php, {
+				command: 'wp option update blogname --no-color',
+			})
+		).rejects.toThrow('does not support interactive input');
+
+		const currentName = await wpCLI(php, {
+			command: 'wp option get blogname --no-color',
+		});
+		expect(currentName.text).toBe(originalName.text);
+	});
+
+	it('should run wp db query through $wpdb instead of the mysql binary', async () => {
+		const result = await wpCLI(php, {
+			command:
+				'wp db query "SELECT COUNT(*) AS posts FROM wp_posts" --no-color',
+		});
+		expect(result.text).toContain('| posts |');
+
+		await expect(
+			wpCLI(php, {
+				command: 'wp db query "SELECT nope FROM wp_options" --no-color',
+			})
+		).rejects.toThrow('no such column: nope');
+	});
 });
 
 describe('splitShellCommand', () => {

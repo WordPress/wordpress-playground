@@ -106,10 +106,10 @@ This docs hub is focused on starting with WordPress Playground and is divided in
 - **[কন্ট্রিবিউটিং](/contributing)**: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড একটি ওপেন-সোর্স প্রজেক্ট যেখানে সব ধরনের কন্ট্রিবিউটরদের স্বাগত জানানো হয়—কোড থেকে ডিজাইন, ডকুমেন্টেশন থেকে ট্রায়াজ। এখানে কীভাবে কন্ট্রিবিউট করবেন তা শিখুন।
 
 <!--
--   **[Links and resources](/resources)**: A nice compilation of useful links and resources related to WordPress Playground.
+-   **[Links and resources](/links-and-resources)**: A nice compilation of useful links and resources related to WordPress Playground.
 -->
 
-- **[লিংক এবং রিসোর্স](/resources)**: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড সম্পর্কিত দরকারী লিংক এবং রিসোর্সের একটি সুন্দর সংকলন।
+- **[লিংক এবং রিসোর্স](/links-and-resources)**: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড সম্পর্কিত দরকারী লিংক এবং রিসোর্সের একটি সুন্দর সংকলন।
 
 <!--
 ## First steps
@@ -165,7 +165,7 @@ If you're a developer or tech user, you may want to check directly the APIs avai
 
 <!--
 -   Read about [Playground APIs](/developers/apis/) and basic concepts
--   Review [links and resources](/resources)
+-   Review [links and resources](/links-and-resources)
 -   Choose the right API for your app:
     - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
     - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file
@@ -174,7 +174,7 @@ If you're a developer or tech user, you may want to check directly the APIs avai
 -->
 
 - [প্লেগ্রাউন্ড API](/developers/apis/) এবং মৌলিক ধারণাগুলো সম্পর্কে পড়ুন
-- [লিংক এবং রিসোর্স](/resources) রিভিউ করুন
+- [লিংক এবং রিসোর্স](/links-and-resources) রিভিউ করুন
 - আপনার অ্যাপের জন্য সঠিক API বেছে নিন:
     - [Query API](/developers/apis/query-api) enable basic operations using only query parameters
     - [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file

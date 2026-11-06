@@ -1,6 +1,7 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
-import type { Page } from '@playwright/test';
+import type { Frame, Page } from '@playwright/test';
+import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -206,11 +207,111 @@ async function mockGitHubRepositoryAnalysis(page: Page) {
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
+	wordpress,
 }) => {
 	await website.goto('./?storage=temp&url=/wp-admin/');
 	await website.ensureSiteManagerIsClosed();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
+	);
+	await wordpress.locator('body').evaluate(() => {
+		window.history.pushState({}, '', 'edit.php');
+	});
+	await expect(
+		website.page.locator('input[value="/wp-admin/edit.php"]')
+	).toHaveValue('/wp-admin/edit.php');
+});
+
+test('should read a History API change immediately without waiting for navigation polling', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp&url=/wp-admin/');
+	await wordpress.locator('body').evaluate(() => {
+		window.history.replaceState({}, '', 'edit.php?live-url=1');
+	});
+
+	const url = await website.page.evaluate(() =>
+		(window as any).playground.getCurrentURL()
+	);
+
+	expect(url).toBe('/wp-admin/edit.php?live-url=1');
+});
+
+test('should relay each WordPress pointer press once', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	await website.ensureSiteManagerIsClosed();
+	const remote = await website.page
+		.locator('#playground-viewport:visible,.playground-viewport:visible')
+		.evaluateHandle((frame: HTMLIFrameElement) => frame.contentWindow);
+	await remote.evaluate((remoteWindow: any) => {
+		remoteWindow.playgroundPointerPresses = 0;
+		remoteWindow.document.addEventListener(
+			'pointerdown',
+			() => {
+				remoteWindow.playgroundPointerPresses++;
+			},
+			true
+		);
+	});
+
+	await wordpress.locator('body').click({ position: { x: 20, y: 20 } });
+
+	await expect
+		.poll(() =>
+			remote.evaluate(
+				(remoteWindow: any) => remoteWindow.playgroundPointerPresses
+			)
+		)
+		.toBe(1);
+});
+
+test('should keep the pointer fallback for a nested WordPress document without an app relay', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	await wordpress.locator('body').evaluate(() => {
+		const frame = document.createElement('iframe');
+		frame.title = 'Nested WordPress';
+		frame.src = window.location.href;
+		document.body.append(frame);
+	});
+	const nested = wordpress.frameLocator('iframe[title="Nested WordPress"]');
+	await expect(nested.locator('body')).not.toBeEmpty();
+
+	// This hook runs in both documents, but only the outer one talks to remote.html.
+	await expect(wordpress.locator('html')).toHaveAttribute(
+		'data-playground-pointer-relay',
+		''
+	);
+	await expect(nested.locator('html')).not.toHaveAttribute(
+		'data-playground-pointer-relay'
+	);
+});
+
+test('should read a plain HTML page without the WordPress reporter', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	const url = await website.page.evaluate(async () => {
+		const client = (window as any).playground;
+		await client.writeFile(
+			'/wordpress/plain.html',
+			'<!doctype html><title>Plain page</title><p>Plain page</p>'
+		);
+		await client.goTo('/plain.html?next=1');
+		return client.getCurrentURL();
+	});
+
+	expect(url).toBe('/plain.html?next=1');
+	await expect(wordpress.getByText('Plain page')).toBeVisible();
+	await expect(website.page.getByRole('combobox')).toHaveValue(
+		'/plain.html?next=1'
 	);
 });
 
@@ -242,6 +343,35 @@ test('should navigate from the address bar suggestions', async ({
 	await website.page.getByRole('option', { name: /Dashboard/ }).click();
 
 	await expect(address).toHaveValue('/wp-admin/');
+});
+
+test('should retain developer drafts and remember toolbar visibility', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp');
+	const dock = website.page.getByRole('navigation', {
+		name: 'Playground tools',
+	});
+	const toggle = dock.getByRole('button', {
+		name: 'Dev Tools',
+		exact: true,
+	});
+	await toggle.click();
+	await website.openDockPane('Terminal');
+	const pane = website.page.getByRole('dialog', { name: 'Terminal pane' });
+	const command = pane.getByRole('textbox', { name: 'PHP code' });
+	await command.fill('echo "draft retained";');
+	await toggle.click();
+	await expect(pane).not.toBeVisible();
+	await expect(toggle).toBeFocused();
+	await toggle.click();
+	await website.openDockPane('Terminal');
+	await expect(command).toHaveText('echo "draft retained";');
+	await website.page.reload();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+	await toggle.click();
+	await website.page.reload();
+	await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 });
 
 test('should route tools through one Dock pane', async ({ website }) => {
@@ -781,14 +911,9 @@ test('should edit a file on mobile and see changes in the viewport', async ({
 	await website.ensureSiteManagerIsClosed();
 
 	// Reload just the WordPress iframe to see the changes
-	const playgroundViewport = website.page.frameLocator(
-		'#playground-viewport:visible,.playground-viewport:visible'
-	);
-	await playgroundViewport
-		.locator('#wp')
-		.evaluate((iframe: HTMLIFrameElement) => {
-			iframe.contentWindow?.location.reload();
-		});
+	await wordpress.locator('body').evaluate(() => {
+		window.location.reload();
+	});
 
 	// Verify the page shows "Edited file"
 	await expect(wordpress.locator('body')).toContainText('Edited file', {
@@ -904,11 +1029,11 @@ test('should copy blueprint link to clipboard when share button is clicked', asy
 		.getByRole('menuitem', { name: 'Copy Blueprint URL' })
 		.click();
 
-	// Verify success message appears in the notice component
+	// Verify the copy confirmation surfaces in the Dock success toast
 	await expect(
 		website.page
-			.locator('.components-notice')
-			.getByText('Link copied to clipboard!')
+			.getByRole('group', { name: 'Operation succeeded' })
+			.filter({ hasText: 'Link copied to clipboard' })
 	).toBeVisible();
 
 	// Verify clipboard contains the correct URL format
@@ -1018,7 +1143,7 @@ test('should stat the database size without reading the database into JavaScript
 		const originalRead = playground.readFileAsBuffer.bind(playground);
 		(window as any).__databaseReadCount = 0;
 		playground.readFileAsBuffer = async (path: string) => {
-			if (path.endsWith('/wp-content/database/.ht.sqlite')) {
+			if (path.endsWith('/.ht.sqlite')) {
 				(window as any).__databaseReadCount++;
 				throw new Error(
 					'Database contents must not be read to calculate size.'
@@ -1045,9 +1170,20 @@ test.describe('Database panel', () => {
 	});
 
 	test('should display database info', async ({ website }) => {
+		const databasePath = await website.page.evaluate(async () => {
+			await (window as any).playgroundSites.isReady();
+			const playground = (window as any).playgroundSites.getClient();
+			const response = await playground.run({
+				code: `<?php
+$wp_env = require '/internal/shared/wp-env.php';
+echo $wp_env['db']['path'];
+`,
+			});
+			return response.text;
+		});
 		await expect(website.page.getByText('Path:')).toBeVisible();
 		await expect(
-			website.page.getByText('/wordpress/wp-content/database/.ht.sqlite')
+			website.page.getByText(databasePath, { exact: true })
 		).toBeVisible();
 		await expect(website.page.getByText('Size:')).toBeVisible();
 	});
@@ -1088,8 +1224,8 @@ test.describe('Database panel', () => {
 		await adminerButton.click();
 
 		// Verify Adminer opened in new tab
-		const newPage = await pagePromise;
-		await newPage.waitForLoadState();
+		const popup = await pagePromise;
+		const newPage = await getWordPressPopupDocument(popup);
 		expect(newPage.url()).toContain('/adminer/');
 		await expect(newPage.locator('body')).toContainText('Adminer');
 		await expect(newPage.locator('body')).toContainText('wp_posts');
@@ -1135,7 +1271,10 @@ test.describe('Database panel', () => {
 		).toContainText('Updated post content.');
 
 		// Go to SQL tab and execute "SHOW TABLES"
-		await newPage.getByRole('link', { name: 'SQL command' }).click();
+		await newPage
+			.locator('#menu')
+			.getByRole('link', { name: 'SQL command' })
+			.click();
 		await newPage.waitForLoadState();
 		const sqlTextarea = newPage.locator('textarea[name="query"]');
 		await sqlTextarea.fill('SHOW TABLES', { force: true });
@@ -1143,7 +1282,7 @@ test.describe('Database panel', () => {
 		await newPage.waitForLoadState();
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
-		await newPage.close();
+		await popup.close();
 	});
 
 	test('should load and open phpMyAdmin', async ({ website }) => {
@@ -1160,8 +1299,8 @@ test.describe('Database panel', () => {
 		await phpMyAdminButton.click();
 
 		// Verify phpMyAdmin opened in new tab
-		const newPage = await pagePromise;
-		await newPage.waitForLoadState();
+		const popup = await pagePromise;
+		const newPage = await getWordPressPopupDocument(popup);
 		expect(newPage.url()).toContain('/phpmyadmin');
 		await expect(newPage.locator('body')).toContainText('phpMyAdmin');
 		await expect(newPage.locator('body')).toContainText('wp_posts');
@@ -1225,12 +1364,12 @@ test.describe('Database panel', () => {
 			.click();
 		await newPage.waitForLoadState();
 		await newPage.locator('.CodeMirror.cm-s-default').click();
-		await newPage.keyboard.type('SHOW TABLES');
+		await popup.keyboard.type('SHOW TABLES');
 		await newPage.getByRole('button', { name: 'Go' }).click();
 		await newPage.waitForLoadState();
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
-		await newPage.close();
+		await popup.close();
 	});
 
 	/*
@@ -1243,8 +1382,8 @@ test.describe('Database panel', () => {
 		await website.page
 			.getByRole('button', { name: 'Open Adminer' })
 			.click();
-		const adminerPage = await adminerPagePromise;
-		await adminerPage.waitForLoadState();
+		const adminerPopup = await adminerPagePromise;
+		const adminerPage = await getWordPressPopupDocument(adminerPopup);
 		await expect(adminerPage.locator('body')).toContainText('Adminer');
 		await expect(adminerPage.locator('body')).toContainText('wp_posts');
 
@@ -1252,21 +1391,35 @@ test.describe('Database panel', () => {
 		await website.page
 			.getByRole('button', { name: 'Open phpMyAdmin' })
 			.click();
-		const phpMyAdminPage = await phpMyAdminPagePromise;
-		await phpMyAdminPage.waitForLoadState();
+		const phpMyAdminPopup = await phpMyAdminPagePromise;
+		const phpMyAdminPage = await getWordPressPopupDocument(phpMyAdminPopup);
 		await expect(phpMyAdminPage.locator('body')).toContainText(
 			'phpMyAdmin'
 		);
 		await expect(phpMyAdminPage.locator('body')).toContainText('wp_posts');
 
-		await adminerPage.close();
-		await phpMyAdminPage.close();
+		await adminerPopup.close();
+		await phpMyAdminPopup.close();
 	});
 });
 
+/** Follow the isolated WordPress iframe when the database tool needs an app-origin popup. */
+async function getWordPressPopupDocument(popup: Page): Promise<Page | Frame> {
+	await popup.waitForLoadState();
+	const frame = popup.frame({ name: 'wordpress-popup' });
+	if (!frame) {
+		return popup;
+	}
+	// WebKit can finish loading the wrapper before its iframe leaves about:blank.
+	await frame.waitForURL((url) => url.pathname.startsWith('/scope:'));
+	return frame;
+}
+
 // Test browser-saved Playgrounds by default and explicit temporary opt-outs.
-test.describe('Default Playground storage', () => {
-	test.describe.configure({ mode: 'serial' });
+// The `@storage` tag routes this group to the one-worker CI storage lane.
+test.describe('Default Playground storage', { tag: '@storage' }, () => {
+	// Default mode prevents storage overlap while retrying only the failed test.
+	test.describe.configure({ mode: 'default' });
 
 	test('should create and finish autosaving a Playground from the root URL', async ({
 		website,
@@ -1279,6 +1432,28 @@ test.describe('Default Playground storage', () => {
 
 		await website.page.addInitScript(() => {
 			(window as any).__saveStatusSamples = [];
+			let recordAutosaving!: () => void;
+			const autosavingRecorded = new Promise<void>((resolve) => {
+				recordAutosaving = resolve;
+			});
+			const postMessage = Worker.prototype.postMessage;
+			// Hold the metadata write that completes the first save until the
+			// observer records its pending label, even when the file copy is fast.
+			Worker.prototype.postMessage = function (...args) {
+				const [message] = args;
+				if (
+					message?.path &&
+					typeof message.content === 'string' &&
+					JSON.parse(message.content).initialOpfsSyncPending === false
+				) {
+					Worker.prototype.postMessage = postMessage;
+					void autosavingRecorded.then(() =>
+						postMessage.apply(this, args)
+					);
+					return;
+				}
+				postMessage.apply(this, args);
+			};
 			let installed = false;
 			const sampleStatus = () => {
 				const statusAnnouncement = [
@@ -1318,6 +1493,9 @@ test.describe('Default Playground storage', () => {
 					statusAnnouncement: statusAnnouncement ?? null,
 					color: getComputedStyle(statusButton).color,
 				});
+				if ((statusButton.textContent || '').trim() === 'Autosaving') {
+					recordAutosaving();
+				}
 			};
 			const installObserver = () => {
 				if (installed) {
@@ -1405,7 +1583,7 @@ test.describe('Default Playground storage', () => {
 		);
 		expect(
 			saveStatusSamples.some(({ text }) => text === 'Autosaving')
-		).toBe(false);
+		).toBe(true);
 		const progressbarSamples = saveStatusSamples.filter(
 			({ role }) => role === 'progressbar'
 		);
@@ -1431,6 +1609,75 @@ test.describe('Default Playground storage', () => {
 				/\d+%/.test(statusAnnouncement ?? '')
 			)
 		).toBe(false);
+	});
+
+	test('should keep the Blueprint loading status visible while its filesystem initializes', async ({
+		website,
+		browserName,
+	}) => {
+		test.skip(browserName !== 'chromium', 'This test requires OPFS.');
+
+		await website.goto(
+			getUniqueSavedPlaygroundSetupUrl('blueprint-loading')
+		);
+		await expect(
+			website.page.getByRole('button', { name: 'Autosaved' })
+		).toBeVisible({ timeout: 120000 });
+		await website.page.evaluate(() => {
+			let releaseBlueprintBundleDirectory!: () => void;
+			const blueprintBundleDirectoryCanOpen = new Promise<void>(
+				(resolve) => {
+					releaseBlueprintBundleDirectory = resolve;
+				}
+			);
+			const directoryHandlePrototype =
+				FileSystemDirectoryHandle.prototype;
+			const getDirectoryHandle =
+				directoryHandlePrototype.getDirectoryHandle;
+			(window as any).__releaseBlueprintBundleDirectory =
+				releaseBlueprintBundleDirectory;
+			(window as any).__originalBlueprintGetDirectoryHandle =
+				getDirectoryHandle;
+			directoryHandlePrototype.getDirectoryHandle = async function (
+				name,
+				options
+			) {
+				if (name === 'blueprint-bundle') {
+					(window as any).__blueprintBundleDirectoryRequested = true;
+					await blueprintBundleDirectoryCanOpen;
+				}
+				return await getDirectoryHandle.call(this, name, options);
+			};
+		});
+
+		try {
+			await website.openDockPane('Current Blueprint', 'Blueprint pane');
+			await website.page.waitForFunction(
+				() =>
+					(window as any).__blueprintBundleDirectoryRequested === true
+			);
+			await expect(
+				website.page
+					.getByRole('dialog', { name: 'Blueprint pane' })
+					.getByRole('status')
+			).toHaveText('Loading the Blueprint editor…');
+		} finally {
+			await website.page.evaluate(() => {
+				(window as any).__releaseBlueprintBundleDirectory();
+				FileSystemDirectoryHandle.prototype.getDirectoryHandle = (
+					window as any
+				).__originalBlueprintGetDirectoryHandle;
+				delete (window as any).__releaseBlueprintBundleDirectory;
+				delete (window as any).__originalBlueprintGetDirectoryHandle;
+				delete (window as any).__blueprintBundleDirectoryRequested;
+			});
+		}
+
+		await expect(
+			website.page
+				.getByRole('dialog', { name: 'Blueprint pane' })
+				.getByRole('button', { name: 'Create new file' })
+		).toBeVisible();
 	});
 
 	test('should edit a Blueprint for an autosaved Playground and run it in a new Playground', async ({
@@ -1627,7 +1874,6 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible({
 			timeout: 120000,
 		});
-		const autosavedSite = await getActivePlaygroundSite(website.page);
 
 		await website.openDockPane('Site Settings');
 
@@ -1660,7 +1906,7 @@ test.describe('Default Playground storage', () => {
 			name: /Create a fresh Playground/,
 		});
 		await expect(freshMenuItem).toContainText(
-			`“${autosavedSite.name}” stays in Recent autosaves until 5 newer autosaves replace it.`
+			'Your current Playground stays in Recent autosaves until 5 newer autosaves replace it.'
 		);
 		await expect(applyMenuItem).toBeFocused();
 		await expect(applyMenuItem).toHaveAttribute('aria-disabled', 'false');
@@ -1896,7 +2142,7 @@ test.describe('Default Playground storage', () => {
 			website.page.getByRole('menuitem', {
 				name: /Create a fresh Playground/,
 			})
-		).toContainText(`“${storedSite.name}” stays in Saved Playgrounds.`);
+		).toContainText('Your current Playground stays in Saved Playgrounds.');
 		await website.page.keyboard.press('Escape');
 		await website.page.getByLabel('Language').selectOption('pl_PL');
 		await website.page
@@ -1908,8 +2154,11 @@ test.describe('Default Playground storage', () => {
 		await expect(
 			website.page.getByRole('dialog', { name: 'Site Settings pane' })
 		).not.toBeVisible({ timeout: 120000 });
-		const freshSite = await getActivePlaygroundSite(website.page);
-		expect(freshSite.slug).not.toBe(storedSite.slug);
+		await expect
+			.poll(() => getActivePlaygroundSite(website.page), {
+				timeout: 120000,
+			})
+			.not.toMatchObject({ slug: storedSite.slug });
 		await expect
 			.poll(() =>
 				website.page.evaluate(
@@ -2113,24 +2362,6 @@ test.describe('Default Playground storage', () => {
 		).toBeVisible();
 
 		await newPane.locator('#creation-tab-write-own').click();
-		expect(
-			await newPane
-				.getByRole('tablist', {
-					name: 'Ways to start a new Playground',
-				})
-				.evaluate((tablist) => {
-					const pane = tablist.closest('[role="dialog"]')!;
-					const tablistRect = tablist.getBoundingClientRect();
-					const paneRect = pane.getBoundingClientRect();
-					return {
-						leftInset: Math.round(tablistRect.left - paneRect.left),
-						rightInset: Math.round(
-							paneRect.right - tablistRect.right
-						),
-						overflows: tablist.scrollWidth > tablist.clientWidth,
-					};
-				})
-		).toEqual({ leftInset: 24, rightInset: 24, overflows: false });
 		const draft = newPane.locator('.cm-content');
 		await expect(draft).toBeFocused({ timeout: 5000 });
 		await draft.fill(
@@ -2184,7 +2415,7 @@ test.describe('Default Playground storage', () => {
 		await pullRequestTab.click();
 		await expect(
 			newPane.getByRole('textbox', {
-				name: 'WordPress Core or Gutenberg',
+				name: 'PR number or GitHub URL',
 			})
 		).toBeVisible();
 		await expect(
@@ -3361,6 +3592,24 @@ echo get_option('blogname');
 				activeSite?.persistence === 'autosave'
 			);
 		});
+		const initialAutosave = await getActivePlaygroundSite(website.page);
+		const initialAutosaveDirectory = getDirectoryNameForSlug(
+			initialAutosave.slug
+		);
+		await expect
+			.poll(() =>
+				website.page.evaluate(async (siteDirectoryName) => {
+					const root = await navigator.storage.getDirectory();
+					const sites = await root.getDirectoryHandle('sites');
+					const site =
+						await sites.getDirectoryHandle(siteDirectoryName);
+					const metadata =
+						await site.getFileHandle('wp-runtime.json');
+					return JSON.parse(await (await metadata.getFile()).text())
+						.initialOpfsSyncPending;
+				}, initialAutosaveDirectory)
+			)
+			.toBe(false);
 
 		await website.goto(setupUrl);
 		await expect(

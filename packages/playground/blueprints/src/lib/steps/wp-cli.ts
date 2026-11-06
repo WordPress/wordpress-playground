@@ -1,11 +1,11 @@
 import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
 import type { StepHandler } from '.';
 import { joinPaths, phpVar } from '@php-wasm/util';
-import type { FileReference } from '../v1/resources';
+import type { UrlReference } from '../v1/resources';
 import { logger } from '@php-wasm/logger';
 
 export const defaultWpCliPath = '/tmp/wp-cli.phar';
-export const defaultWpCliResource: FileReference = {
+export const defaultWpCliResource: UrlReference = {
 	resource: 'url',
 	/**
 	 * Use compression for downloading the wp-cli.phar file.
@@ -19,6 +19,72 @@ export const defaultWpCliResource: FileReference = {
 	 */
 	url: 'https://playground.wordpress.net/wp-cli.phar',
 };
+
+const stdinUnsupportedMessage =
+	'This WP-CLI command tried to read from STDIN, but the wp-cli Blueprint ' +
+	'step does not support interactive input. Provide all required arguments.';
+
+const wpCliOverridesPath = '/tmp/playground-wp-cli-overrides.php';
+
+/**
+ * Loaded via `--require` before WP-CLI dispatches the command.
+ *
+ * `wp db query` normally shells out to the `mysql` binary, which does not
+ * exist in Playground and whose spawn traps the WASM runtime. Re-register it
+ * on top of $wpdb so the query runs against the SQLite-backed database.
+ */
+const wpCliOverrides = `<?php
+if ( ! class_exists( 'WP_CLI' ) ) {
+	return;
+}
+
+WP_CLI::add_command(
+	'db query',
+	function ( $args, $assoc_args ) {
+		global $wpdb;
+
+		$sql = isset( $args[0] ) ? trim( $args[0] ) : '';
+		if ( '' === $sql ) {
+			WP_CLI::error(
+				'Pass the SQL query as an argument. Reading it from STDIN ' .
+				'is not supported in Playground.'
+			);
+		}
+
+		$suppressed = $wpdb->suppress_errors( true );
+		$rows       = $wpdb->get_results( $sql, ARRAY_A );
+		$wpdb->suppress_errors( $suppressed );
+		if ( '' !== $wpdb->last_error ) {
+			// The SQLite driver reports errors as an HTML debug dump. Surface
+			// only the underlying database error message.
+			$error = $wpdb->last_error;
+			if ( preg_match( '/class="error_message"[^>]*>(.*?)<\\/div>/s', $error, $m ) ) {
+				$error = $m[1];
+			}
+			WP_CLI::error( trim( wp_strip_all_tags( $error ) ) );
+		}
+
+		if ( ! empty( $rows ) ) {
+			WP_CLI\\Utils\\format_items( 'table', $rows, array_keys( $rows[0] ) );
+		} elseif ( ! preg_match( '/^(SELECT|SHOW|DESCRIBE|DESC|EXPLAIN|PRAGMA)\\b/i', $sql ) ) {
+			WP_CLI::success(
+				sprintf( 'Query OK, %d rows affected.', $wpdb->rows_affected )
+			);
+		}
+	},
+	array(
+		'shortdesc' => 'Executes a query against the database.',
+		'synopsis'  => array(
+			array(
+				'type'     => 'positional',
+				'name'     => 'sql',
+				'optional' => false,
+			),
+		),
+		'when'      => 'after_wp_load',
+	)
+);
+`;
 
 export const assertWpCli = async (
 	playground: UniversalPHP,
@@ -122,6 +188,7 @@ This will ensure your code works reliably regardless of the current working dire
 
 	await playground.writeFile('/tmp/stdout', '');
 	await playground.writeFile('/tmp/stderr', '');
+	await playground.writeFile(wpCliOverridesPath, wpCliOverrides);
 	await playground.writeFile(
 		joinPaths(documentRoot, 'run-cli.php'),
 		`<?php
@@ -136,12 +203,54 @@ This will ensure your code works reliably regardless of the current working dire
 		// Set the argv global.
 		$GLOBALS['argv'] = array_merge([
 		  "/tmp/wp-cli.phar",
-		  "--path=${documentRoot}"
+		  "--path=${documentRoot}",
+		  "--require=${wpCliOverridesPath}"
 		], ${phpVar(argsWithRewrittenPaths)});
 
-		// Provide stdin, stdout, stderr streams outside of
-		// the CLI SAPI.
-		define('STDIN', fopen('php://stdin', 'rb'));
+		// Fail before a command can treat missing interactive input as an empty
+		// value. The Blueprint step has no way to provide STDIN.
+		class Playground_No_Stdin_Stream {
+			public $context;
+
+			public function stream_open($path, $mode, $options, &$opened_path) {
+				return true;
+			}
+
+			public function stream_eof() {
+				throw new RuntimeException(
+					${phpVar(stdinUnsupportedMessage)}
+				);
+			}
+
+			public function stream_read($count) {
+				return $this->stream_eof();
+			}
+
+			public function stream_stat() {
+				return [];
+			}
+		}
+
+		$playground_no_stdin_scheme =
+			'playground-no-stdin-' . str_replace('.', '-', uniqid('', true));
+		if (
+			!stream_wrapper_register(
+				$playground_no_stdin_scheme,
+				Playground_No_Stdin_Stream::class
+			)
+		) {
+			throw new RuntimeException(${phpVar(stdinUnsupportedMessage)});
+		}
+		$playground_no_stdin = fopen(
+			$playground_no_stdin_scheme . '://input',
+			'rb'
+		);
+		if (!is_resource($playground_no_stdin)) {
+			throw new RuntimeException(${phpVar(stdinUnsupportedMessage)});
+		}
+		define('STDIN', $playground_no_stdin);
+
+		// Provide stdout and stderr streams outside of the CLI SAPI.
 		define('STDOUT', fopen('php://stdout', 'wb'));
 		define('STDERR', fopen('php://stderr', 'wb'));
 

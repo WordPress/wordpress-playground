@@ -116,8 +116,7 @@ The `@wp-playground/client` package provides a JavaScript API you can use to ful
 ```html
 <iframe id="wp" style="width: 100%; height: 300px; border: 1px solid #000;"></iframe>
 <script type="module">
-	// Use unpkg for convenience
-	import { startPlaygroundWeb } from 'https://playground.wordpress.net/client/index.js';
+	const { startPlaygroundWeb } = await import('https://playground.wordpress.net/client/index.js');
 
 	const client = await startPlaygroundWeb({
 		iframe: document.getElementById('wp'),

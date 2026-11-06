@@ -9,7 +9,9 @@ import {
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
 import { SavedPlaygroundsPanel } from '../saved-playgrounds-panel';
 import { SaveSiteModal } from '../save-site-modal';
-import { SiteInfoPanel, type SiteInfoTabName } from './site-info-panel';
+import { SiteInfoPanel } from './site-info-panel';
+import type { SiteToolPanelProps } from './site-info-panel/site-tool-renderers';
+import { isSiteToolSection } from '../dock/tool-registry';
 import { SiteSharePanel } from './site-share-panel';
 import css from './style.module.css';
 
@@ -18,6 +20,7 @@ export type SiteManagerProps = {
 	isVisible: boolean;
 	mobileUi: boolean;
 	onPaneCloseBlockedChange: (isBlocked: boolean) => void;
+	onToolBackChange?: SiteToolPanelProps['onBackChange'];
 	onNewPlaygroundHeaderChange: (
 		header: DockPaneHeaderOverride | undefined
 	) => void;
@@ -32,6 +35,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 			mobileUi,
 			onPaneCloseBlockedChange,
 			onNewPlaygroundHeaderChange,
+			onToolBackChange,
 		},
 		ref
 	) {
@@ -40,14 +44,9 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 		const activeSection = useAppSelector(
 			(state) => state.ui.dockPaneSection
 		);
-		const selectedSiteTab: SiteInfoTabName | null =
-			activeSection === 'settings' ||
-			activeSection === 'files' ||
-			activeSection === 'blueprint' ||
-			activeSection === 'database' ||
-			activeSection === 'logs'
-				? activeSection
-				: null;
+		const selectedSiteTab = isSiteToolSection(activeSection)
+			? activeSection
+			: null;
 		const activeSiteTab = isVisible ? selectedSiteTab : null;
 		const [mountedSiteSlug, setMountedSiteSlug] = useState<string | null>(
 			null
@@ -57,7 +56,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 		const [lastSavedPlaygroundsPanel, setLastSavedPlaygroundsPanel] =
 			useState<'new' | 'playgrounds'>('playgrounds');
 		const [sharePanelMounted, setSharePanelMounted] = useState(false);
-		const closeSavePane = useCallback(
+		const closeDockPane = useCallback(
 			() => dispatch(setDockPaneOpen(false)),
 			[dispatch]
 		);
@@ -86,7 +85,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 				isVisible && activeSite ? (
 					<SaveSiteModal
 						asPane
-						onClose={closeSavePane}
+						onClose={closeDockPane}
 						onCloseBlockedChange={onPaneCloseBlockedChange}
 					/>
 				) : null;
@@ -117,7 +116,7 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 									? activeSection
 									: lastSavedPlaygroundsPanel
 							}
-							onClose={() => dispatch(setDockPaneOpen(false))}
+							onClose={closeDockPane}
 							onPaneHeaderChange={onNewPlaygroundHeaderChange}
 						/>
 					</div>
@@ -138,6 +137,8 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 							site={activeSite}
 							activeTabName={activeSiteTab}
 							mobileUi={mobileUi}
+							onBackChange={onToolBackChange}
+							onCloseBlockedChange={onPaneCloseBlockedChange}
 						/>
 					)}
 			</div>

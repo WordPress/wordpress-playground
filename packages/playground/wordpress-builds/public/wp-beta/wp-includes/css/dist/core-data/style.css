@@ -1,0 +1,103 @@
+/**
+ * Colors
+ */
+/**
+ * SCSS Variables.
+ *
+ * Please use variables from this sheet to ensure consistency across the UI.
+ * Don't add to this sheet unless you're pretty sure the value will be reused in many places.
+ * For example, don't add rules to this sheet that affect block visuals. It's purely for UI.
+ */
+/**
+ * Fonts & basic variables.
+ */
+/**
+ * Typography
+ */
+/**
+ * Grid System.
+ * https://make.wordpress.org/design/2019/10/31/proposal-a-consistent-spacing-system-for-wordpress/
+ */
+/**
+ * Radius scale.
+ */
+/**
+ * Elevation scale.
+ */
+/**
+ * Dimensions.
+ */
+/**
+ * Mobile specific styles
+ */
+/**
+ * Editor styles.
+ */
+/**
+ * Block & Editor UI.
+ */
+/**
+ * Block paddings.
+ */
+/**
+ * React Native specific.
+ * These variables do not appear to be used anywhere else.
+ */
+.entities-saved-states__panel-header {
+  box-sizing: border-box;
+  background: #fff;
+  padding-left: 16px;
+  padding-right: 16px;
+  height: 64px;
+  border-bottom: 1px solid #ddd;
+}
+
+.entities-saved-states__text-prompt {
+  padding: 16px;
+  padding-bottom: 4px;
+}
+.entities-saved-states__text-prompt .entities-saved-states__text-prompt--header {
+  display: block;
+  margin-bottom: 12px;
+}
+
+.entities-saved-states__panel.is-inline .entities-saved-states__text-prompt {
+  padding: 0;
+}
+.entities-saved-states__panel.is-inline .entities-saved-states__panel-body {
+  padding-left: 0;
+  padding-right: 0;
+  border: 0;
+}
+.entities-saved-states__panel.is-inline .entities-saved-states__panel-body > h2 {
+  margin-left: -16px;
+  margin-right: -16px;
+  margin-bottom: 0;
+}
+.entities-saved-states__panel.is-inline .entities-saved-states__panel-body > h2 button {
+  font-size: 11px;
+  text-transform: uppercase;
+}
+.entities-saved-states__panel.is-inline .entities-saved-states__text-prompt--header-wrapper {
+  display: none;
+}
+.entities-saved-states__panel.is-inline .entities-saved-states__text-prompt--changes-count {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+.entities-saved-states__panel.is-inline .entities-saved-states__panel-footer {
+  margin-top: 16px;
+}
+
+.entities-saved-states__change-control {
+  flex: 1;
+}
+
+.entities-saved-states__changes {
+  font-size: 13px;
+  margin: 4px 16px 0 24px;
+  list-style: disc;
+}
+.entities-saved-states__changes li {
+  margin-bottom: 4px;
+}

@@ -44,7 +44,7 @@
  * These variables do not appear to be used anywhere else.
  */
 :root :where(.wp-block-template-part.has-background) {
-  padding: 1.25em 2.375em;
+  padding: var(--wp--style--block-background-padding, 1.25em 2.375em);
   margin-top: 0;
   margin-bottom: 0;
 }

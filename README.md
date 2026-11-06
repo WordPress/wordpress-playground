@@ -149,6 +149,8 @@ PHP=7.4 npx @php-wasm/cli -v
 npx @php-wasm/cli phpcbf
 ```
 
+For debug build examples and an explanation of the Emscripten flags, see [Debug builds](https://developer.wordpress.org/playground/developers/architecture/wasm-php-compiling/#debug-builds).
+
 ### Test offline support
 
 To test the offline support you need to build the website and run a local server:

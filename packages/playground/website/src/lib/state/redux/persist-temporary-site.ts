@@ -1,6 +1,5 @@
 import { logger } from '@php-wasm/logger';
-import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
-import type { PHPConstants } from '@wp-playground/blueprints';
+import type { MountDescriptor } from '@wp-playground/remote';
 import { saveDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	opfsSiteStorage,
@@ -29,6 +28,7 @@ import type { SiteStorageType } from './slice-sites';
 import { setActiveModal } from './slice-ui';
 import { getSetupUrlFromSite } from '../playground-identity';
 import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
+import { getPlaygroundDefinedPHPConstants } from './playground-defined-php-constants';
 
 /**
  * Copies the running Playground into a durable storage backend.
@@ -396,26 +396,4 @@ function getOriginalUrlParamsFromUrl(
 		searchParams,
 		hash: url.hash,
 	};
-}
-
-/**
- * Returns constants registered through Playground's live PHP API.
- *
- * Calls to `playground.defineConstant()` are persisted in consts.json after the
- * iframe has already booted. Examples include `PLAYGROUND_AUTO_LOGIN_AS_USER`
- * from the login step, `WPLANG` from the language step, and caller-defined
- * constants such as `WP_DEBUG`. Saved sites need to replay them on reload, but
- * writing them into `runtimeConfiguration` during autosave would change the
- * running iframe's boot fingerprint and force an unnecessary reboot.
- */
-async function getPlaygroundDefinedPHPConstants(playground: PlaygroundClient) {
-	let constants: PHPConstants = {};
-	try {
-		constants = JSON.parse(
-			await playground.readFileAsText('/internal/shared/consts.json')
-		);
-	} catch {
-		// The file is absent until code defines constants through Playground.
-	}
-	return constants;
 }

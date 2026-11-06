@@ -4,6 +4,7 @@ import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clien
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { useAppSelector } from '../../../lib/state/redux/store';
 import { SiteToolPanels, type SiteInfoTabName } from './site-tool-panels';
+import type { SiteToolPanelProps } from './site-tool-renderers';
 import css from './style.module.css';
 
 export type { SiteInfoTabName } from './site-tool-panels';
@@ -14,10 +15,14 @@ export function SiteInfoPanel({
 	site,
 	activeTabName,
 	mobileUi,
+	onBackChange,
+	onCloseBlockedChange,
 }: {
 	className: string;
 	site: SiteInfo;
 	mobileUi: boolean;
+	onBackChange?: SiteToolPanelProps['onBackChange'];
+	onCloseBlockedChange?: SiteToolPanelProps['onCloseBlockedChange'];
 	activeTabName: SiteInfoTabName | null;
 }) {
 	const clientInfo = useAppSelector((state) =>
@@ -52,6 +57,8 @@ export function SiteInfoPanel({
 						playground={playground}
 						activeTabName={activeTabName}
 						mobileUi={mobileUi}
+						onBackChange={onBackChange}
+						onCloseBlockedChange={onCloseBlockedChange}
 					/>
 				</FlexItem>
 			</Flex>

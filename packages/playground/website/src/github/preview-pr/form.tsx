@@ -88,7 +88,7 @@ export const targetParams = {
 	gutenberg: {
 		repo: 'gutenberg',
 		workflow: 'Build%20Gutenberg%20Plugin%20Zip',
-		artifact: 'gutenberg-plugin',
+		artifact: 'gutenberg.zip',
 		pull: 'github.com/wordpress/gutenberg/pull',
 	},
 };
@@ -238,9 +238,7 @@ export default function PreviewPRForm({
 			? '/plugin-proxy.php'
 			: 'https://playground.wordpress.net/plugin-proxy.php';
 		// For WordPress PRs: artifact name is wordpress-build-{PR_NUMBER}
-		// For Gutenberg PRs: artifact name is always gutenberg-plugin
-		// For Gutenberg branches: artifact name is always gutenberg-plugin
-		//   (we use prefix matching with trailing dash for branches)
+		// For Gutenberg PRs and branches: artifact name is gutenberg.zip
 		let artifactSuffix = '';
 		if (repo === 'wordpress') {
 			// WordPress only supports PRs, not branches
@@ -255,7 +253,7 @@ export default function PreviewPRForm({
 	 * Pull requests must have a usable preview build. Missing or incomplete
 	 * artifacts are translated into an error or a scheduled retry, depending on
 	 * their state. Gutenberg branches skip this verification because the proxy
-	 * selects their most recent artifact by prefix.
+	 * selects the most recent run's matching artifact for the branch.
 	 *
 	 * Repository detection may provide `knownVerification`. Reusing it avoids a
 	 * duplicate request while preserving the same error and retry behavior as a
@@ -280,7 +278,7 @@ export default function PreviewPRForm({
 		setLoadingMessage('Checking GitHub for a preview build…');
 		setSubmitting(true);
 
-		// For branches, skip verification since we'll use the most recent artifact with prefix matching
+		// For branches, skip verification since we'll use the most recent matching artifact
 		// For PRs, verify that the specific PR build exists
 		if (!isBranch) {
 			let verification: PrVerification;
@@ -508,18 +506,23 @@ export default function PreviewPRForm({
 		return { ok: false, error: 'unexpected_response' };
 	}
 
-	const inputLabel = inline
-		? 'WordPress Core or Gutenberg'
-		: target === 'wordpress'
+	const inputLabel =
+		target === 'wordpress'
 			? 'PR number or URL'
 			: 'PR number, URL, or a branch name';
 
 	return (
-		<form onSubmit={handleSubmit}>
+		<form
+			className={inline ? css.inlineForm : undefined}
+			onSubmit={handleSubmit}
+		>
+			{inline && <h3>Preview a pull request</h3>}
 			<div>
 				<TextControl
+					__nextHasNoMarginBottom={inline}
 					disabled={submitting}
-					label={inputLabel}
+					hideLabelFromVision={inline}
+					label={inline ? 'PR number or GitHub URL' : inputLabel}
 					placeholder={inline ? 'PR number or GitHub URL' : undefined}
 					value={value}
 					autoFocus={!inline}
@@ -640,12 +643,18 @@ export default function PreviewPRForm({
 						<div>{feedback.message}</div>
 					))}
 			</div>
+			{inline && (
+				<p className={css.inlineDescription}>
+					Enter a WordPress Core or Gutenberg PR number or GitHub URL
+					to open it in a fresh Playground.
+				</p>
+			)}
 			{inline && repositoryMatches.length === 0 && !resolvedSource ? (
 				<div className={css.inlineActions}>
 					<Button
 						variant="primary"
 						type="submit"
-						disabled={submitting}
+						disabled={submitting || !value.trim()}
 					>
 						{isBarePrNumber ? 'Find pull request' : 'Preview'}
 					</Button>

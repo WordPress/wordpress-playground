@@ -11,6 +11,7 @@ import {
 } from '@wordpress/components';
 import {
 	moreVertical,
+	download,
 	upload,
 	link,
 	pencil,
@@ -38,6 +39,7 @@ import {
 import { usePlaygroundClient } from '../../lib/use-playground-client';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
+import { transitionClonePane } from '../dock/transition-clone-pane';
 import { logger } from '@php-wasm/logger';
 import {
 	useActiveSite,
@@ -59,6 +61,7 @@ import {
 	setDockOperationNotice,
 	setDockPaneOpen,
 	setDockPaneSection,
+	setCloneRequested,
 	setSiteSlugToDelete,
 	setWriteOwnBlueprintDraft,
 	setWriteOwnSeededSlug,
@@ -69,6 +72,7 @@ import useFetch from '../../lib/hooks/use-fetch';
 import { PlaygroundRoute, redirectTo } from '../../lib/state/url/router';
 import { OverlaySection } from '../overlay';
 import { TruncatedText } from '../truncated-text';
+import { MenuItemWithDescription } from '../menu-item-with-description';
 import { isOpfsAvailable } from '../../lib/state/opfs/opfs-site-storage';
 import type { DockPaneHeaderOverride } from '../dock/dock-pane';
 
@@ -326,6 +330,12 @@ export function SavedPlaygroundsPanel({
 		}
 	};
 
+	/**
+	 * Imports a ZIP and reports readiness before any initial browser save finishes.
+	 *
+	 * A rejection after readiness replaces the success notice instead of
+	 * reopening the import pane, which closed when the import started.
+	 */
 	const importZipFile = useCallback(
 		async (file: File) => {
 			if (zipImportPendingRef.current) {
@@ -346,24 +356,36 @@ export function SavedPlaygroundsPanel({
 			setIsImportingZip(true);
 			setZipImportError(undefined);
 			onClose();
+			let playgroundLoaded = false;
 			try {
-				const importedSiteSlug =
-					await sitesAPI.createNewSiteFromZip(file);
-				const importedSite = sitesAPI
-					.list()
-					.find((site) => site.slug === importedSiteSlug);
-				dispatch(
-					setDockOperationNotice({
-						status: 'success',
-						title: 'Playground imported',
-						message:
-							importedSite?.storage === 'temporary'
-								? 'Your Playground is ready. It’s available until you close this page.'
-								: 'Your Playground is ready. It’s autosaved in this browser.',
-					})
-				);
+				await sitesAPI.createNewSiteFromZip(file, {
+					onPlaygroundLoaded: (storage) => {
+						playgroundLoaded = true;
+						dispatch(
+							setDockOperationNotice({
+								status: 'success',
+								title: 'Playground imported',
+								message:
+									storage === 'temporary'
+										? 'Your Playground is ready. It’s available until you close this page.'
+										: 'Your Playground is ready. Autosave will finish in the background.',
+							})
+						);
+					},
+				});
 			} catch (error) {
 				logger.error(error);
+				if (playgroundLoaded) {
+					dispatch(
+						setDockOperationNotice({
+							status: 'error',
+							title: 'Couldn’t autosave imported Playground',
+							message:
+								'The imported page was ready, but its browser autosave failed.',
+						})
+					);
+					return;
+				}
 				setZipImportError(
 					'Unable to import this file. Is it a valid WordPress Playground export?'
 				);
@@ -466,7 +488,7 @@ export function SavedPlaygroundsPanel({
 		isLoading: blueprintsLoading,
 		isError: blueprintsError,
 	} = useFetch<Record<string, BlueprintsIndexEntry>>(
-		'/proxy/network-first-fetch/https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json'
+		'/blueprints-index.json'
 	);
 
 	const allBlueprints: BlueprintsIndexEntry[] = [
@@ -694,6 +716,19 @@ export function SavedPlaygroundsPanel({
 			getRuntimeLabel(site),
 			`Started from ${getSourceLabel(site)}`,
 		].join(' · ');
+	};
+
+	// Each lifecycle state wears its own monochrome pill: dashed = unsaved,
+	// outlined = autosaved, filled = saved. The pill's substance (not a color)
+	// encodes how permanent the Playground is.
+	const getCurrentSiteStatusPill = (site: SiteInfo) => {
+		if (site.metadata.storage === 'none') {
+			return { label: 'Unsaved', className: css.statusPillUnsaved };
+		}
+		if (isAutosavedSite(site)) {
+			return { label: 'Autosaved', className: css.statusPillAutosaved };
+		}
+		return { label: 'Saved', className: css.statusPillSaved };
 	};
 
 	const getRuntimeLabel = (site: SiteInfo) => {
@@ -1009,6 +1044,16 @@ export function SavedPlaygroundsPanel({
 		setActiveCreationTab(tabId);
 	};
 
+	const handleCloneClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+		const pane =
+			event.currentTarget.closest<HTMLElement>('[role="dialog"]')!;
+		transitionClonePane(pane, 'forward', () => {
+			dispatch(setCloneRequested({}));
+			dispatch(setDockPaneSection('transfer'));
+			dispatch(setDockPaneOpen(true));
+		});
+	};
+
 	const inactiveStoredSites = storedSites.filter(
 		(site) => site.slug !== activeSite?.slug
 	);
@@ -1052,6 +1097,7 @@ export function SavedPlaygroundsPanel({
 		const isAutosave = isAutosavedSite(site);
 		const isTemporary = site.metadata.storage === 'none';
 		const isStored = !isTemporary;
+		const isActiveSite = site.slug === activeSite?.slug;
 		// Temporary Playgrounds have not chosen storage yet, so they show both
 		// destinations and explain any unavailable option. A stored Playground's
 		// backend is fixed. An autosave can only be kept permanently in place.
@@ -1068,7 +1114,7 @@ export function SavedPlaygroundsPanel({
 					label={`Actions for ${site.metadata.name}`}
 					className={css.siteRowMenu}
 					toggleProps={{ disabled: isImportingZip }}
-					popoverProps={{ placement: 'bottom-end' }}
+					popoverProps={{ placement: 'top-end' }}
 				>
 					{({ onClose: closeMenu }) => (
 						<>
@@ -1172,14 +1218,30 @@ export function SavedPlaygroundsPanel({
 									>
 										Rename
 									</MenuItem>
-									<MenuItem
+									{/* You can't delete the Playground you're currently in:
+									    deleting it would swap the view out from under you.
+									    Switch away first, then delete it as an ordinary
+									    background Playground. */}
+									<MenuItemWithDescription
 										className={css.dangerMenuItem}
-										onClick={() =>
-											handleDeleteSite(site, closeMenu)
+										info={
+											isActiveSite
+												? 'Switch to another Playground first to delete this one.'
+												: undefined
+										}
+										aria-disabled={isActiveSite}
+										onClick={
+											isActiveSite
+												? undefined
+												: () =>
+														handleDeleteSite(
+															site,
+															closeMenu
+														)
 										}
 									>
 										Delete
-									</MenuItem>
+									</MenuItemWithDescription>
 								</MenuGroup>
 							)}
 						</>
@@ -1251,9 +1313,7 @@ export function SavedPlaygroundsPanel({
 
 	function renderCurrentSiteRow(site: SiteInfo) {
 		const meta = getCurrentSiteDetails(site);
-		// A temporary Playground is lost on refresh — call that out right on its
-		// row so the list mirrors the dock's yellow "Unsaved" status.
-		const isUnsaved = site.metadata.storage === 'none';
+		const statusPill = getCurrentSiteStatusPill(site);
 		return (
 			<div
 				data-playground-row={site.slug}
@@ -1264,11 +1324,14 @@ export function SavedPlaygroundsPanel({
 					<div className={css.siteRowInfo}>
 						<span className={css.currentSiteNameLine}>
 							{renderSiteRowName(site)}
-							{isUnsaved && (
-								<span className={css.unsavedBadge}>
-									Unsaved
-								</span>
-							)}
+							<span
+								className={classNames(
+									css.statusPill,
+									statusPill.className
+								)}
+							>
+								{statusPill.label}
+							</span>
 						</span>
 						{activeSiteSyncLabel ? (
 							<span className={css.siteRowSaving}>
@@ -1387,41 +1450,72 @@ export function SavedPlaygroundsPanel({
 			>
 				<div
 					hidden={isGitHubImportOpen}
-					className={css.creationTabs}
-					role="tablist"
-					aria-label="Ways to start a new Playground"
+					className={css.creationMethods}
 				>
-					{creationMethods.map((method) => (
-						<button
-							key={method.id}
-							id={`creation-tab-${method.id}`}
-							type="button"
-							role="tab"
-							aria-selected={activeCreationTab === method.id}
-							aria-controls="creation-panel"
-							tabIndex={method.id === rovingTabId ? 0 : -1}
-							className={classNames(css.creationButton, {
-								[css.creationButtonActive]:
-									activeCreationTab === method.id,
-							})}
-							onPointerDown={handleCreationTabPointerDown}
-							onClick={() => handleCreationTabClick(method.id)}
-							onKeyDown={handleCreationTabKeyDown}
-							disabled={method.disabled || isImportingZip}
-							title={
-								method.disabled
-									? 'Needs an internet connection — unavailable offline'
-									: undefined
-							}
-						>
-							<span className={css.creationIcon}>
-								{method.icon}
-							</span>
-							<span className={css.creationTitle}>
-								{method.label}
-							</span>
-						</button>
-					))}
+					<div
+						className={css.creationTabs}
+						role="tablist"
+						aria-label="Ways to start a new Playground"
+					>
+						{creationMethods.map((method) => (
+							<button
+								key={method.id}
+								id={`creation-tab-${method.id}`}
+								type="button"
+								role="tab"
+								aria-selected={activeCreationTab === method.id}
+								aria-controls="creation-panel"
+								tabIndex={method.id === rovingTabId ? 0 : -1}
+								className={classNames(css.creationButton, {
+									[css.creationButtonActive]:
+										activeCreationTab === method.id,
+								})}
+								onPointerDown={handleCreationTabPointerDown}
+								onClick={() =>
+									handleCreationTabClick(method.id)
+								}
+								onKeyDown={handleCreationTabKeyDown}
+								disabled={method.disabled || isImportingZip}
+								title={
+									method.disabled
+										? 'Needs an internet connection — unavailable offline'
+										: undefined
+								}
+							>
+								<span className={css.creationIcon}>
+									{method.icon}
+								</span>
+								<span className={css.creationTitle}>
+									{method.label}
+								</span>
+							</button>
+						))}
+					</div>
+					<div className={css.creationDivider} aria-hidden="true">
+						or
+					</div>
+					<button
+						type="button"
+						id="clone-site-launcher"
+						className={classNames(
+							css.creationButton,
+							css.creationLauncher
+						)}
+						disabled={offline || isImportingZip}
+						title={
+							offline
+								? 'Needs an internet connection — unavailable offline'
+								: undefined
+						}
+						onClick={handleCloneClick}
+					>
+						<span className={css.creationIcon}>
+							<Icon icon={download} size={20} />
+						</span>
+						<span className={css.creationTitle}>
+							Clone a live site
+						</span>
+					</button>
 				</div>
 				<div
 					id="creation-panel"
@@ -1584,6 +1678,7 @@ export function SavedPlaygroundsPanel({
 				return (
 					<div className={css.inlineForm}>
 						<GitHubImportForm
+							inline
 							playground={playground!}
 							showRepositoryDetails={isGitHubImportDetailsOpen}
 							onRepositoryResolved={() => {

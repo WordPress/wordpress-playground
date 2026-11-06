@@ -14,6 +14,7 @@ import {
 	resolveRuntimeConfiguration,
 	InvalidBlueprintError,
 	BlueprintFetchError,
+	type GitDirectoryReference,
 } from '@wp-playground/blueprints';
 import {
 	type BlueprintSource,
@@ -31,10 +32,11 @@ import { logger } from '@php-wasm/logger';
 import { setActiveSiteError, type SiteError } from './slice-ui';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import { findFirewallErrorInCauseChain } from './error-utils';
-import { deriveSlugFromSiteName, getUniqueSiteSlug } from './site-slug';
+import { getUniqueSiteSlug } from './site-slug';
 import {
 	getAutosavedSitesToPrune,
 	getSitesSortedByRecency,
+	hasUnfinishedInitialOpfsSyncFromStorage,
 	isAutosavedSite,
 	isStoredSite,
 	isTemporarySite,
@@ -53,6 +55,7 @@ export {
 	getSiteRecencyTimestamp,
 	getSitesSortedByRecency,
 	getSitePublicPersistence,
+	hasUnfinishedInitialOpfsSyncFromStorage,
 	isAutosavedSite,
 	isExplicitlySavedSite,
 	isOpfsBackedSite,
@@ -155,13 +158,6 @@ export const OPFSSitesLoaded = (sites: SiteInfo[]) => {
 export const getSitesLoadingState = (state: {
 	sites: ReturnType<typeof sitesSlice.reducer>;
 }) => state.sites.opfsSitesLoadingState;
-
-export function deriveSiteNameFromSlug(slug: string) {
-	return slug
-		.replaceAll('-', ' ')
-		.replaceAll(/\b\w/g, (c) => c.toUpperCase())
-		.replaceAll(/WordPress/gi, 'WordPress');
-}
 
 /**
  * Updates site metadata in redux and, for stored sites, in OPFS.
@@ -408,15 +404,19 @@ export function pruneAutosavedSites(
 /**
  * Checks whether a stored Playground may be offered as an autosave.
  *
- * A Blueprint run uses autosave persistence before its initial OPFS copy
- * succeeds. Its return target marks it unfinished, so callers withhold it from
- * Recent and matching-setup restore suggestions until that copy succeeds.
+ * An unfinished first OPFS copy loaded from storage cannot boot yet. A
+ * Blueprint run also uses autosave persistence before that copy succeeds.
+ * Callers withhold both from Recent and matching-setup restore suggestions.
  *
  * @param site The Playground whose autosave lifecycle should be checked.
  * @returns Whether the Playground is a restorable autosave.
  */
 export function isRestorableAutosavedSite(site: SiteInfo) {
-	return isAutosavedSite(site) && !isUnfinishedBlueprintRun(site);
+	return (
+		isAutosavedSite(site) &&
+		!hasUnfinishedInitialOpfsSyncFromStorage(site) &&
+		!isUnfinishedBlueprintRun(site)
+	);
 }
 
 /**
@@ -515,7 +515,11 @@ export function setTemporarySiteSpec(
 		};
 
 		const currentTemporarySite = selectTemporarySite(getState());
-		if (currentTemporarySite && !options.replaceExisting) {
+		if (
+			currentTemporarySite &&
+			!options.replaceExisting &&
+			!preferredSlug
+		) {
 			// If the current temporary site is the same as the site we're setting,
 			// then we don't need to create a new site.
 			if (
@@ -526,23 +530,15 @@ export function setTemporarySiteSpec(
 			}
 		}
 
-		// Temporary sites are removed before the new one is added, so they
-		// should not force the replacement site to take a numeric suffix.
 		const storedSites = selectAllSites(getState()).filter(
 			(site) => site.metadata.storage !== 'none'
 		);
-		const unavailableSlugs = storedSites.map((site) => site.slug);
-		if (currentTemporarySite && options.replaceExisting) {
-			// Reserve the old slug so selecting the replacement changes the active
-			// slug and React boots a fresh iframe for it.
-			unavailableSlugs.push(currentTemporarySite.slug);
-		}
 		const unavailableNames = storedSites.map((site) => site.metadata.name);
-		const getAvailableSiteSlug = (name: string) =>
-			getUniqueSiteSlug(preferredSlug || deriveSlugFromSiteName(name), {
-				unavailableSlugs,
-			});
-		let siteSlug = getAvailableSiteSlug(siteName);
+		// Reserve the current temporary slug too, even though its record is removed
+		// below. A fresh slug makes React boot a fresh iframe for the new site.
+		const siteSlug = getUniqueSiteSlug(preferredSlug, {
+			unavailableSlugs: selectSiteSlugs(getState()),
+		});
 
 		const sites = getState().sites.entities;
 
@@ -585,19 +581,17 @@ export function setTemporarySiteSpec(
 				playgroundUrlWithQueryApiArgs
 			);
 			let displayName = siteName;
-			let slugBaseName = siteName;
 			if (!preferredSlug) {
-				slugBaseName = getDefaultSiteNameFromBlueprint(
+				const defaultName = getDefaultSiteNameFromBlueprint(
 					resolvedBlueprint.blueprint,
 					siteName
 				);
 				displayName = getSiteNameWithCreationTimeIfDuplicate(
-					slugBaseName,
+					defaultName,
 					unavailableNames,
 					new Date()
 				);
 			}
-			siteSlug = getAvailableSiteSlug(slugBaseName);
 			const newSiteInfo: SiteInfo = {
 				slug: siteSlug,
 				originalUrlParams: newSiteUrlParams,
@@ -689,21 +683,40 @@ export function createStoredSite(
 		const runtimeConfiguration =
 			await resolveRuntimeConfiguration(blueprint);
 		const now = Date.now();
-		const sites = selectAllSites(getState());
+		// Redux belongs to this tab, while OPFS is shared across same-origin
+		// tabs. Read metadata from storage so records created after this tab
+		// loaded still participate in allocation.
+		const sitesBySlug = new Map<string, SiteInfo>(
+			selectAllSites(getState()).map((site) => [site.slug, site])
+		);
+		try {
+			for (const site of await opfsSiteStorage.listMetadata()) {
+				// Fresh OPFS metadata replaces the same site's Redux snapshot.
+				sitesBySlug.set(site.slug, site);
+			}
+		} catch (error) {
+			logger.warn(
+				'Unable to list stored Playgrounds before choosing a new site slug.',
+				error
+			);
+			// Creating the OPFS record still refuses to overwrite an occupied slug.
+		}
+		const sites = [...sitesBySlug.values()];
 		let displayName = siteName;
-		let slugBaseName = siteName;
 		if (!preferredSlug) {
-			slugBaseName = getDefaultSiteNameFromBlueprint(blueprint, siteName);
+			const defaultName = getDefaultSiteNameFromBlueprint(
+				blueprint,
+				siteName
+			);
 			displayName = getSiteNameWithCreationTimeIfDuplicate(
-				slugBaseName,
+				defaultName,
 				sites.map((site) => site.metadata.name),
 				new Date(now)
 			);
 		}
-		const siteSlug = getUniqueSiteSlug(
-			preferredSlug || deriveSlugFromSiteName(slugBaseName),
-			{ unavailableSlugs: sites.map((site) => site.slug) }
-		);
+		const siteSlug = getUniqueSiteSlug(preferredSlug, {
+			unavailableSlugs: sites.map((site) => site.slug),
+		});
 		const blueprintBundle = isTraversableFilesystemBackend(blueprint)
 			? blueprint
 			: undefined;
@@ -912,6 +925,12 @@ export interface SiteMetadata {
 	runtimeConfiguration: RuntimeConfiguration;
 	originalBlueprint: unknown;
 	originalBlueprintSource: BlueprintSource;
+	/**
+	 * Plugin/theme folders installed from a `git:directory` Blueprint
+	 * resource, keyed by their absolute install path (as it appears in the
+	 * Files browser, e.g. `/wordpress/wp-content/plugins/hello-dolly`).
+	 */
+	gitDirectorySources?: Record<string, GitDirectoryReference>;
 }
 
 /**

@@ -33,6 +33,7 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 import { analyticsInjectionPlugin } from './vite-analytics-plugin';
+import { safariModulePreloadWorkaround } from './vite-safari-module-preload';
 
 const exec = promisify(execCb);
 
@@ -146,10 +147,9 @@ export default defineConfig(({ command, mode }) => {
 
 	return {
 		root: __dirname,
-		// Split traffic from this server on dev so that the iframe content and
-		// outer content can be served from the same origin. In production it's
-		// already the same host, but dev builds run two separate servers. See proxy
-		// config above.
+		// Keep the SPA's module graph under /website-server/ so runtime module
+		// requests can be proxied to remote without losing the app origin. PHP
+		// and native handles need that shared origin; rendered WordPress does not.
 		base: mode === 'production' ? '/' : '/website-server/',
 
 		assetsInclude: ['**/*.so', '**/*.dat'],
@@ -173,6 +173,8 @@ export default defineConfig(({ command, mode }) => {
 
 		server: {
 			port: websiteDevServerPort,
+			// Remote host routing identifies app requests by this fixed port.
+			strictPort: true,
 			host: serverHost,
 			allowedHosts: [
 				'playground.test',
@@ -196,11 +198,12 @@ export default defineConfig(({ command, mode }) => {
 					target: `http://${websiteExtrasDevServerHost}:${websiteExtrasDevServerPort}`,
 					changeOrigin: true,
 				},
-				// Proxy requests to the remote content through this server for dev
-				// builds. See base config below.
+				// App-origin runtime modules still come from the remote Vite server.
+				// Keep the app Host header so it can distinguish these requests from
+				// direct WordPress-origin requests, which may not load app documents.
 				'^[/]((?!website-server|php-next).)': {
 					target: `http://${remoteDevServerHost}:${remoteDevServerPort}`,
-					changeOrigin: true,
+					changeOrigin: false,
 				},
 			},
 			fs: {
@@ -249,7 +252,7 @@ export default defineConfig(({ command, mode }) => {
 				root: '../../../',
 			}),
 			viteIgnoreImports({
-				extensions: ['wasm', 'so', 'dat'],
+				extensions: ['so', 'dat'],
 			}),
 			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),
@@ -262,6 +265,24 @@ export default defineConfig(({ command, mode }) => {
 			{
 				name: 'configure-server',
 				configureServer(server: ViteDevServer) {
+					// Production serves api.html from the origin root. Preserve that
+					// URL in development even though the website uses a Vite base.
+					server.middlewares.use((req, res, next) => {
+						// User HTML must never execute with the app's OPFS access,
+						// including before the app service worker takes control.
+						if (req.url?.startsWith('/scope:')) {
+							res.statusCode = 404;
+							res.end('Not found');
+							return;
+						}
+						if (
+							req.url === '/api.html' ||
+							req.url?.startsWith('/api.html?')
+						) {
+							req.url = `/website-server${req.url}`;
+						}
+						next();
+					});
 					if (process.env['PLAYGROUND_PR_PREVIEW_MOCKS'] === 'true') {
 						registerPrPreviewMockMiddleware(server);
 					}
@@ -281,7 +302,7 @@ export default defineConfig(({ command, mode }) => {
 							);
 							res.end(
 								`export * from ${JSON.stringify(
-									`/@fs/${clientIndexPath}`
+									`${server.config.base}@fs${clientIndexPath}`
 								)};`
 							);
 						}
@@ -349,6 +370,7 @@ export default defineConfig(({ command, mode }) => {
 				},
 			} as Plugin,
 			analyticsInjectionPlugin(),
+			safariModulePreloadWorkaround(),
 			{
 				name: 'inject-commit-id',
 				transformIndexHtml(html) {
@@ -378,6 +400,7 @@ export default defineConfig(({ command, mode }) => {
 			sourcemap: true,
 			rollupOptions: {
 				input: {
+					api: fileURLToPath(new URL('./api.html', import.meta.url)),
 					index: fileURLToPath(
 						new URL('./index.html', import.meta.url)
 					),
@@ -454,6 +477,25 @@ export default defineConfig(({ command, mode }) => {
 						if (id.includes('blueprint-editor')) {
 							return 'optional/blueprint-editor';
 						}
+
+						// Vite builds api.html and the website in one Rollup graph. In Rollup 4,
+						// a manual chunk also claims its static dependencies by default.
+						// The Blueprint editor and api.html both depend on OPFS storage, so without
+						// this rule the editor chunk claims that shared code. As a result, api.html
+						// must preload the large editor and CodeMirror chunks just to use OPFS.
+						//
+						// The proper fix is to enable `onlyExplicitManualChunks`, which makes manual
+						// chunks claim only the modules explicitly assigned to them. With our current
+						// imports, that produces circular chunks between the application and CodeMirror
+						// code, making their execution order unsafe. We must untangle those imports
+						// before enabling the option globally.
+						//
+						// Until then, assign the API entry to its own manual chunk. This keeps its static
+						// dependency graph, including OPFS storage, out of the optional editor chunk.
+						// See https://rollupjs.org/configuration-options/#output-onlyexplicitmanualchunks
+						if (id.endsWith('/src/lib/boot-playground-api.ts')) {
+							return 'opfs-site-storage';
+						}
 					},
 					assetFileNames: (chunkInfo) => {
 						// Split Extensions or associated shared files into separate chunks
@@ -468,7 +510,12 @@ export default defineConfig(({ command, mode }) => {
 						return 'assets/[name]-[hash][extname]';
 					},
 				},
-				external: [],
+				/*
+				 * PHP runs in the remote iframe, never in this page. Bundling
+				 * the version packages here would only duplicate the 16 loaders
+				 * and the 16 .wasm files they resolve with new URL().
+				 */
+				external: [/^@php-wasm\/web-\d+-\d+$/],
 			},
 		},
 

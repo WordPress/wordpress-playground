@@ -1,5 +1,41 @@
 // packages/interactivity-router/build-module/index.mjs
-import { store, privateApis, getConfig } from "@wordpress/interactivity";
+import { store, privateApis as privateApis2, getConfig } from "@wordpress/interactivity";
+
+// packages/interactivity-router/build-module/html-directive-element.mjs
+import { privateApis } from "@wordpress/interactivity";
+var { parseDirectiveName } = privateApis(
+  "I acknowledge that using private APIs means my theme or plugin will inevitably break in the next version of WordPress."
+);
+var directivePrefix = "data-wp-";
+function closestHtmlDirectiveElement(element) {
+  for (let current = element; current; current = current.parentElement) {
+    if (!current.closest("[data-wp-interactive]")) {
+      return null;
+    }
+    let hasDefaultHtmlDirective = false;
+    let hasConflict = false;
+    for (const { name } of current.attributes) {
+      if (!name[directivePrefix.length] || !name.startsWith(directivePrefix)) {
+        continue;
+      }
+      const parsed = parseDirectiveName(name);
+      if (!parsed) {
+        continue;
+      }
+      const { prefix, suffix } = parsed;
+      if (prefix === "html" && suffix === null) {
+        hasDefaultHtmlDirective = true;
+      }
+      if (["text", "each", "router-region"].includes(prefix)) {
+        hasConflict = true;
+      }
+    }
+    if (hasDefaultHtmlDirective && !hasConflict) {
+      return current;
+    }
+  }
+  return null;
+}
 
 // packages/interactivity-router/build-module/assets/scs.mjs
 function shortestCommonSupersequence(X, Y, isEqual = (a, b) => a === b) {
@@ -328,7 +364,7 @@ function resolve(id, parentUrl) {
   return resolveImportMap(importMap, urlResolved || id, parentUrl) || id;
 }
 
-// node_modules/es-module-lexer/dist/lexer.js
+// node_modules/.store/es-module-lexer@1.7.0-gHi57fYnqFW7Bwxoq90PCA/node_modules/es-module-lexer/dist/lexer.js
 var ImportType;
 !(function(A2) {
   A2[A2.Static = 1] = "Static", A2[A2.Dynamic = 2] = "Dynamic", A2[A2.ImportMeta = 3] = "ImportMeta", A2[A2.StaticSourcePhase = 4] = "StaticSourcePhase", A2[A2.DynamicSourcePhase = 5] = "DynamicSourcePhase", A2[A2.StaticDeferPhase = 6] = "StaticDeferPhase", A2[A2.DynamicDeferPhase = 7] = "DynamicDeferPhase";
@@ -444,7 +480,7 @@ function resolveDeps(load, seen) {
   if (!imports.length) {
     resolvedSource += source;
   } else {
-    let pushStringTo = function(originalIndex) {
+    let pushStringTo2 = function(originalIndex) {
       while (dynamicImportEndStack.length && dynamicImportEndStack[dynamicImportEndStack.length - 1] < originalIndex) {
         const dynamicImportEnd = dynamicImportEndStack.pop();
         resolvedSource += `${source.slice(
@@ -456,6 +492,7 @@ function resolveDeps(load, seen) {
       resolvedSource += source.slice(lastIndex, originalIndex);
       lastIndex = originalIndex;
     };
+    var pushStringTo = pushStringTo2;
     let lastIndex = 0;
     let depIndex = 0;
     const dynamicImportEndStack = [];
@@ -485,7 +522,7 @@ function resolveDeps(load, seen) {
             );
           }
         }
-        pushStringTo(start - 1);
+        pushStringTo2(start - 1);
         resolvedSource += `/*${source.slice(
           start - 1,
           statementEnd
@@ -498,7 +535,7 @@ function resolveDeps(load, seen) {
       } else if (dynamicImportIndex === -2) {
         throw Error("The import.meta property is not supported.");
       } else {
-        pushStringTo(statementStart);
+        pushStringTo2(statementStart);
         resolvedSource += `wpInteractivityRouterImport(`;
         dynamicImportEndStack.push(statementEnd - 1);
         lastIndex = start;
@@ -509,7 +546,7 @@ function resolveDeps(load, seen) {
 ;import{u$_}from'${load.shellUrl}';try{u$_({${exports.filter((e) => e.ln).map(({ s, e, ln }) => `${source.slice(s, e)}:${ln}`).join(",")}})}catch(_){};
 `;
     }
-    pushStringTo(source.length);
+    pushStringTo2(source.length);
   }
   let hasSourceURL = false;
   resolvedSource = resolvedSource.replace(
@@ -668,6 +705,7 @@ var {
   getRegionRootFragment,
   initialVdomPromise,
   toVdom,
+  parseDirectiveValue,
   render,
   parseServerData,
   populateServerData,
@@ -676,26 +714,42 @@ var {
   h: createElement,
   navigationSignal,
   sessionId,
-  warn
-} = privateApis(
+  warn,
+  afterNextFrame,
+  getScope
+} = privateApis2(
   "I acknowledge that using private APIs means my theme or plugin will inevitably break in the next version of WordPress."
 );
 var regionAttr = `data-wp-router-region`;
 var interactiveAttr = `data-wp-interactive`;
 var regionsSelector = `[${interactiveAttr}][${regionAttr}], [${interactiveAttr}] [${interactiveAttr}][${regionAttr}]`;
+var discoverRegions = (dom) => Array.from(dom.querySelectorAll(regionsSelector)).filter(
+  (region) => !closestHtmlDirectiveElement(region.parentElement)
+);
 var pages = /* @__PURE__ */ new Map();
 var getPagePath = (url) => {
   const u = new URL(url, window.location.href);
   return u.pathname + u.search;
 };
 var parseRegionAttribute = (region) => {
-  const value = region.getAttribute(regionAttr);
-  try {
-    const { id, attachTo } = JSON.parse(value);
-    return { id, attachTo };
-  } catch {
+  const { value } = parseDirectiveValue(
+    region.getAttribute(regionAttr) ?? ""
+  );
+  if (typeof value === "string") {
     return { id: value };
   }
+  return {
+    id: value.id,
+    attachTo: value.attachTo
+  };
+};
+var parseRegionId = (value) => {
+  if (value === null) {
+    return null;
+  }
+  const { value: parsedValue } = parseDirectiveValue(value);
+  const id = typeof parsedValue === "string" ? parsedValue : parsedValue.id;
+  return typeof id === "string" && id ? id : null;
 };
 var cloneRouterRegionContent = (vdom) => {
   if (!vdom) {
@@ -714,11 +768,32 @@ var cloneRouterRegionContent = (vdom) => {
 var regionsToAttachByParent = /* @__PURE__ */ new WeakMap();
 var rootFragmentsByParent = /* @__PURE__ */ new WeakMap();
 var initialRegionsToAttach = /* @__PURE__ */ new Set();
+var isValidPageResponse = (response) => {
+  if (response.status !== 200) {
+    return false;
+  }
+  try {
+    if (new URL(response.url).origin !== window.location.origin) {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+  const contentType = response.headers.get("content-type") ?? "";
+  if (contentType.includes(",") || contentType.split(";")[0].trim().toLowerCase() !== "text/html") {
+    return false;
+  }
+  return true;
+};
 var fetchPage = async (url, { html }) => {
   try {
     if (!html) {
-      const res = await window.fetch(url);
-      if (res.status !== 200) {
+      const requestUrl = new URL(url, window.location.href);
+      if (requestUrl.origin !== window.location.origin) {
+        return false;
+      }
+      const res = await window.fetch(requestUrl.href);
+      if (!isValidPageResponse(res)) {
         return false;
       }
       html = await res.text();
@@ -731,9 +806,9 @@ var fetchPage = async (url, { html }) => {
 };
 var preparePage = async (url, dom, { vdom } = {}) => {
   dom.querySelectorAll("noscript").forEach((el) => el.remove());
-  const regions = {};
-  const regionsToAttach = {};
-  dom.querySelectorAll(regionsSelector).forEach((region) => {
+  const regions = /* @__PURE__ */ Object.create(null);
+  const regionsToAttach = /* @__PURE__ */ Object.create(null);
+  discoverRegions(dom).forEach((region) => {
     const { id, attachTo } = parseRegionAttribute(region);
     if (region.parentElement.closest(`[${regionAttr}]`)) {
       regions[id] = void 0;
@@ -760,9 +835,23 @@ var preparePage = async (url, dom, { vdom } = {}) => {
     url
   };
 };
+var resolveAttachTarget = (selector) => {
+  try {
+    for (const element of document.querySelectorAll(selector)) {
+      if (!closestHtmlDirectiveElement(element)) {
+        return element;
+      }
+    }
+  } catch {
+  }
+  return null;
+};
 var renderPage = (page) => {
   applyStyles(page.styles);
-  const regionsToAttach = { ...page.regionsToAttach };
+  const regions = Object.assign(
+    /* @__PURE__ */ Object.create(null),
+    page.regions
+  );
   batch(() => {
     populateServerData(page.initialData);
     navigationSignal.value += 1;
@@ -770,29 +859,33 @@ var renderPage = (page) => {
       signal.value = null;
     });
     const parentsToUpdate = /* @__PURE__ */ new Set();
-    for (const id in regionsToAttach) {
-      const parent = document.querySelector(regionsToAttach[id]);
+    for (const id in page.regionsToAttach) {
+      const parent = resolveAttachTarget(page.regionsToAttach[id]);
+      if (!parent) {
+        delete regions[id];
+        continue;
+      }
       if (!regionsToAttachByParent.has(parent)) {
         regionsToAttachByParent.set(parent, []);
       }
-      const regions = regionsToAttachByParent.get(parent);
-      if (!regions.includes(id)) {
-        regions.push(id);
+      const ids = regionsToAttachByParent.get(parent);
+      if (!ids.includes(id)) {
+        ids.push(id);
         parentsToUpdate.add(parent);
       }
     }
-    for (const id in page.regions) {
+    for (const id in regions) {
       if (routerRegions.has(id)) {
         routerRegions.get(id).value = cloneRouterRegionContent(
-          page.regions[id]
+          regions[id]
         );
       }
     }
     parentsToUpdate.forEach((parent) => {
       const ids = regionsToAttachByParent.get(parent);
-      const vdoms = ids.map((id) => page.regions[id]);
+      const vdoms = ids.map((id) => regions[id]);
       if (!rootFragmentsByParent.has(parent)) {
-        const regions = vdoms.map(({ props, type }) => {
+        const roots = vdoms.map(({ props, type }) => {
           const elementType = typeof type === "function" ? props.type : type;
           const region = document.createElement(elementType);
           parent.appendChild(region);
@@ -800,7 +893,7 @@ var renderPage = (page) => {
         });
         rootFragmentsByParent.set(
           parent,
-          getRegionRootFragment(regions)
+          getRegionRootFragment(roots)
         );
       }
       const fragment = rootFragmentsByParent.get(parent);
@@ -816,19 +909,74 @@ var forcePageReload = (href) => {
   return new Promise(() => {
   });
 };
+var LIFECYCLE_RELEASE_BOUND = 1e4;
+var reloadAndDischarge = (token) => {
+  try {
+    window.location.reload();
+  } finally {
+    if (currentNavigationId === token && (state.navigating || state.initiator !== null && state.initiator !== void 0)) {
+      batch(() => {
+        if (state.navigating) {
+          state.navigating = false;
+        }
+        if (state.initiator !== null) {
+          state.initiator = null;
+        }
+      });
+    }
+  }
+};
 window.addEventListener("popstate", async () => {
   const pagePath = getPagePath(window.location.href);
-  const page = pages.has(pagePath) && await pages.get(pagePath);
-  if (page) {
+  const token = ++navigationId;
+  currentNavigationId = token;
+  setTimeout(() => {
+    if (currentNavigationId === token && state.navigating) {
+      state.navigating = false;
+    }
+  }, LIFECYCLE_RELEASE_BOUND);
+  if (!pages.has(pagePath)) {
+    reloadAndDischarge(token);
+    return;
+  }
+  try {
+    if (state.initiator !== null && state.initiator !== void 0) {
+      state.initiator = null;
+    }
+    const page = await pages.get(pagePath);
+    if (!page) {
+      reloadAndDischarge(token);
+      return;
+    }
+    if (currentNavigationId === token) {
+      batch(() => {
+        state.navigating = true;
+        state.initiator = null;
+      });
+    }
     batch(() => {
       state.url = window.location.href;
       renderPage(page);
     });
-  } else {
-    window.location.reload();
+    if (currentNavigationId === token) {
+      afterNextFrame(() => {
+        if (currentNavigationId === token) {
+          state.navigating = false;
+        }
+      });
+    }
+  } catch (error) {
+    if (currentNavigationId === token && state.navigating) {
+      afterNextFrame(() => {
+        if (currentNavigationId === token) {
+          state.navigating = false;
+        }
+      });
+    }
+    throw error;
   }
 });
-document.querySelectorAll(regionsSelector).forEach((region) => {
+discoverRegions(document).forEach((region) => {
   const { id, attachTo } = parseRegionAttribute(region);
   if (attachTo) {
     initialRegionsToAttach.add(id);
@@ -847,10 +995,38 @@ window.document.querySelectorAll("script[type=module][src]").forEach(({ src }) =
   );
 })();
 var navigatingTo = "";
+var navigationId = 0;
+var currentNavigationId = 0;
 var hasLoadedNavigationTextsData = false;
 var navigationTexts = {
   loading: "Loading page, please wait.",
   loaded: "Page Loaded."
+};
+var resolveInitiator = (declared) => {
+  if (typeof declared === "string" && declared !== "") {
+    return declared;
+  }
+  if (declared === null) {
+    return null;
+  }
+  if (declared === void 0) {
+    const scope = getScope();
+    const element = scope?.ref?.current;
+    if (typeof element?.closest !== "function") {
+      return null;
+    }
+    const region = element.closest(`[${regionAttr}]`);
+    if (!region) {
+      return null;
+    }
+    return parseRegionId(region.getAttribute(regionAttr));
+  }
+  if (true) {
+    warn(
+      "The `initiator` option of `actions.navigate()` must be a nonempty string or null. Ignoring the value."
+    );
+  }
+  return null;
 };
 var { state: privateState } = store(
   "core/router/private",
@@ -866,6 +1042,10 @@ var { state: privateState } = store(
 );
 var { state, actions } = store("core/router", {
   state: {
+    // `navigating` and `initiator` are deliberately not declared here.
+    // Giving them an idle value would change a tracked signal from
+    // `undefined` to a value when the router module lazily loads, which
+    // would re-run every watcher already bound to them.
     get navigation() {
       if (true) {
         warn(
@@ -891,14 +1071,17 @@ var { state, actions } = store("core/router", {
      * @param [options.timeout]                  Time until the navigation is aborted, in milliseconds. Default is 10000.
      * @param [options.loadingAnimation]         Whether an animation should be shown while navigating. Default to `true`.
      * @param [options.screenReaderAnnouncement] Whether a message for screen readers should be announced while navigating. Default to `true`.
+     * @param [options.initiator]                Who started the navigation. A nonempty string is used as is; `null` suppresses attribution silently; omitting it derives the value from the directive scope. An empty string or any other invalid value warns when `SCRIPT_DEBUG` is enabled, resolves to `null`, and never derives an initiator.
      *
      * @return  Promise that resolves once the navigation is completed or aborted.
      */
     *navigate(href, options = {}) {
+      options = Object.assign(/* @__PURE__ */ Object.create(null), options);
       const { clientNavigationDisabled } = getConfig();
       if (clientNavigationDisabled) {
         yield forcePageReload(href);
       }
+      const initiator = resolveInitiator(options.initiator);
       const pagePath = getPagePath(href);
       const { navigation } = privateState;
       const {
@@ -923,34 +1106,55 @@ var { state, actions } = store("core/router", {
           a11ySpeak("loading");
         }
       }, 400);
-      const page = yield Promise.race([
-        pages.get(pagePath),
-        timeoutPromise
-      ]);
-      clearTimeout(loadingTimeout);
-      if (navigatingTo !== href) {
-        return;
-      }
-      if (page && !page.initialData?.config?.["core/router"]?.clientNavigationDisabled) {
-        yield importScriptModules(page.scriptModules);
+      const token = ++navigationId;
+      currentNavigationId = token;
+      try {
         batch(() => {
-          state.url = href;
-          if (loadingAnimation) {
-            navigation.hasStarted = false;
-            navigation.hasFinished = true;
-          }
-          renderPage(page);
+          state.navigating = true;
+          state.initiator = initiator;
         });
-        window.history[options.replace ? "replaceState" : "pushState"]({ wpInteractivityId: sessionId }, "", href);
-        if (screenReaderAnnouncement) {
-          a11ySpeak("loaded");
+        const page = yield Promise.race([
+          pages.get(pagePath),
+          timeoutPromise
+        ]);
+        clearTimeout(loadingTimeout);
+        if (navigatingTo !== href) {
+          return;
         }
-        const { hash } = new URL(href, window.location.href);
-        if (hash) {
-          document.querySelector(hash)?.scrollIntoView();
+        if (page && !page.initialData?.config?.["core/router"]?.clientNavigationDisabled) {
+          yield importScriptModules(page.scriptModules);
+          batch(() => {
+            state.url = href;
+            if (loadingAnimation) {
+              navigation.hasStarted = false;
+              navigation.hasFinished = true;
+            }
+            renderPage(page);
+          });
+          window.history[options.replace ? "replaceState" : "pushState"]({ wpInteractivityId: sessionId }, "", href);
+          if (screenReaderAnnouncement) {
+            a11ySpeak("loaded");
+          }
+          const { hash } = new URL(href, window.location.href);
+          if (hash) {
+            document.querySelector(hash)?.scrollIntoView();
+          }
+        } else {
+          setTimeout(() => {
+            if (currentNavigationId === token && state.navigating) {
+              state.navigating = false;
+            }
+          }, LIFECYCLE_RELEASE_BOUND);
+          yield forcePageReload(href);
         }
-      } else {
-        yield forcePageReload(href);
+      } finally {
+        if (currentNavigationId === token) {
+          afterNextFrame(() => {
+            if (currentNavigationId === token) {
+              state.navigating = false;
+            }
+          });
+        }
       }
     },
     /**
@@ -967,6 +1171,7 @@ var { state, actions } = store("core/router", {
      * @return  Promise that resolves once the page has been fetched.
      */
     *prefetch(url, options = {}) {
+      options = Object.assign(/* @__PURE__ */ Object.create(null), options);
       const { clientNavigationDisabled } = getConfig();
       if (clientNavigationDisabled) {
         return;
@@ -986,12 +1191,12 @@ state.url = state.url || window.location.href;
 function a11ySpeak(messageKey) {
   if (!hasLoadedNavigationTextsData) {
     hasLoadedNavigationTextsData = true;
-    const content = document.getElementById(
-      "wp-script-module-data-@wordpress/interactivity-router"
-    )?.textContent;
-    if (content) {
+    const script = document.querySelector(
+      'script[id="wp-script-module-data-@wordpress/interactivity-router"]'
+    );
+    if (script instanceof HTMLScriptElement) {
       try {
-        const parsed = JSON.parse(content);
+        const parsed = JSON.parse(script.text);
         if (typeof parsed?.i18n?.loading === "string") {
           navigationTexts.loading = parsed.i18n.loading;
         }

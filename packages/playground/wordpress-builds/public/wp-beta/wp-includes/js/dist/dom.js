@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).dom = (() => {
@@ -98,6 +99,18 @@ var wp;
     ].join(",");
   }
   function isVisible(element) {
+    if (typeof element.checkVisibility === "function") {
+      if (!element.checkVisibility({ visibilityProperty: true })) {
+        return false;
+      }
+    } else {
+      const visibility = element.ownerDocument.defaultView?.getComputedStyle(
+        element
+      ).visibility;
+      if (visibility === "hidden" || visibility === "collapse") {
+        return false;
+      }
+    }
     return element.offsetWidth > 0 || element.offsetHeight > 0 || element.getClientRects().length > 0;
   }
   function isValidFocusableArea(element) {
@@ -108,25 +121,21 @@ var wp;
     const img = element.ownerDocument.querySelector(
       'img[usemap="#' + map.name + '"]'
     );
-    return !!img && isVisible(img);
+    return !!img && !img.closest("[inert]") && isVisible(img);
   }
   function find(context, { sequential = false } = {}) {
-    const elements = context.querySelectorAll(buildSelector(sequential));
+    const elements = context.querySelectorAll(
+      buildSelector(sequential)
+    );
     return Array.from(elements).filter((element) => {
-      if (!isVisible(element)) {
-        return false;
+      const { nodeName } = element;
+      if ("AREA" === nodeName) {
+        return isValidFocusableArea(element);
       }
       if (element.closest("[inert]")) {
         return false;
       }
-      const { nodeName } = element;
-      if ("AREA" === nodeName) {
-        return isValidFocusableArea(
-          /** @type {HTMLAreaElement} */
-          element
-        );
-      }
-      return true;
+      return isVisible(element);
     });
   }
 
@@ -252,35 +261,70 @@ var wp;
         furthestBottom - furthestTop
       );
     }
-    const { startContainer } = range;
+    const { startContainer, startOffset } = range;
     const { ownerDocument } = startContainer;
-    if (startContainer.nodeName === "BR") {
-      const { parentNode } = startContainer;
-      assertIsDefined(parentNode, "parentNode");
-      const index = (
-        /** @type {Node[]} */
-        Array.from(parentNode.childNodes).indexOf(startContainer)
-      );
-      assertIsDefined(ownerDocument, "ownerDocument");
+    assertIsDefined(ownerDocument, "ownerDocument");
+    if (startContainer.nodeType !== startContainer.TEXT_NODE && !startContainer.childNodes.length && startContainer.parentNode) {
       range = ownerDocument.createRange();
-      range.setStart(parentNode, index);
-      range.setEnd(parentNode, index);
+      range.setStartBefore(startContainer);
+      range.collapse(true);
+      return getRectangleFromRange(range);
+    }
+    if (startContainer.nodeType !== startContainer.TEXT_NODE) {
+      let before = startContainer.childNodes[startOffset - 1];
+      while (before?.lastChild) {
+        before = before.lastChild;
+      }
+      let after = startContainer.childNodes[startOffset];
+      while (after?.firstChild) {
+        after = after.firstChild;
+      }
+      let beforeRange;
+      if (before && before.nodeType === before.TEXT_NODE) {
+        beforeRange = ownerDocument.createRange();
+        beforeRange.setStart(before, before.length);
+        beforeRange.collapse(true);
+      }
+      let afterRange;
+      if (after && after.nodeType === after.TEXT_NODE) {
+        afterRange = ownerDocument.createRange();
+        afterRange.setStart(after, 0);
+        afterRange.collapse(true);
+      }
+      if (beforeRange && afterRange) {
+        const beforeRect = beforeRange.getClientRects()[0];
+        const afterRect = afterRange.getClientRects()[0];
+        if (beforeRect && afterRect && beforeRect.bottom <= afterRect.top) {
+          return null;
+        }
+      }
+      if (afterRange) {
+        range = afterRange;
+      } else if (beforeRange) {
+        range = beforeRange;
+      } else {
+        return null;
+      }
     }
     const rects = range.getClientRects();
     if (rects.length > 1) {
       return null;
     }
-    let rect = rects[0];
-    if (!rect || rect.height === 0) {
+    if (rects.length === 1 && startContainer.nodeType === startContainer.TEXT_NODE && range.startOffset > 0 && range.startOffset < startContainer.length) {
       assertIsDefined(ownerDocument, "ownerDocument");
-      const padNode = ownerDocument.createTextNode("\u200B");
-      range = range.cloneRange();
-      range.insertNode(padNode);
-      rect = range.getClientRects()[0];
-      assertIsDefined(padNode.parentNode, "padNode.parentNode");
-      padNode.parentNode.removeChild(padNode);
+      const measure = (start, end) => {
+        const charRange = ownerDocument.createRange();
+        charRange.setStart(startContainer, start);
+        charRange.setEnd(startContainer, end);
+        return charRange.getBoundingClientRect();
+      };
+      const before = measure(range.startOffset - 1, range.startOffset);
+      const after = measure(range.startOffset, range.startOffset + 1);
+      if (before.bottom <= after.top) {
+        return null;
+      }
     }
-    return rect;
+    return rects[0] ?? null;
   }
 
   // packages/dom/build-module/dom/compute-caret-rect.mjs
@@ -324,8 +368,7 @@ var wp;
       "email",
       "time"
     ];
-    return isHTMLInputElement(node) && node.type && !nonTextInputs.includes(node.type) || node.nodeName === "TEXTAREA" || /** @type {HTMLElement} */
-    node.contentEditable === "true";
+    return isHTMLInputElement(node) && node.type && !nonTextInputs.includes(node.type) || node.nodeName === "TEXTAREA" || node.contentEditable === "true";
   }
 
   // packages/dom/build-module/dom/input-field-has-uncollapsed-selection.mjs
@@ -334,10 +377,7 @@ var wp;
       return false;
     }
     try {
-      const { selectionStart, selectionEnd } = (
-        /** @type {HTMLInputElement | HTMLTextAreaElement} */
-        element
-      );
+      const { selectionStart, selectionEnd } = element;
       return (
         // `null` means the input type doesn't implement selection, thus we
         // cannot determine whether the selection is collapsed, so we
@@ -393,35 +433,27 @@ var wp;
     if (node.ownerDocument === node.parentNode) {
       return node;
     }
-    return getScrollContainer(
-      /** @type {Element} */
-      node.parentNode,
-      direction
-    );
+    return getScrollContainer(node.parentNode, direction);
+  }
+
+  // packages/dom/build-module/dom/is-element.mjs
+  function isElement(node) {
+    return !!node && node.nodeType === node.ELEMENT_NODE;
   }
 
   // packages/dom/build-module/dom/get-offset-parent.mjs
   function getOffsetParent(node) {
-    let closestElement;
-    while (closestElement = /** @type {Node} */
-    node.parentNode) {
-      if (closestElement.nodeType === closestElement.ELEMENT_NODE) {
-        break;
-      }
+    let closestElement = node.parentNode;
+    while (closestElement && !isElement(closestElement)) {
+      closestElement = closestElement.parentNode;
     }
     if (!closestElement) {
       return null;
     }
-    if (getComputedStyle(
-      /** @type {Element} */
-      closestElement
-    ).position !== "static") {
+    if (getComputedStyle(closestElement).position !== "static") {
       return closestElement;
     }
-    return (
-      /** @type {Node & { offsetParent: Node }} */
-      closestElement.offsetParent
-    );
+    return closestElement.offsetParent;
   }
 
   // packages/dom/build-module/dom/is-input-or-text-area.mjs
@@ -457,10 +489,7 @@ var wp;
     }
     const lastChild = element.lastChild;
     assertIsDefined(lastChild, "lastChild");
-    const endContainerContentLength = endContainer.nodeType === endContainer.TEXT_NODE ? (
-      /** @type {Text} */
-      endContainer.data.length
-    ) : endContainer.childNodes.length;
+    const endContainerContentLength = endContainer.nodeType === endContainer.TEXT_NODE ? endContainer.data.length : endContainer.childNodes.length;
     return isDeepChild(startContainer, element, "firstChild") && isDeepChild(endContainer, element, "lastChild") && startOffset === 0 && endOffset === endContainerContentLength;
   }
   function isDeepChild(query, container, propName) {
@@ -557,19 +586,6 @@ var wp;
     return range;
   }
 
-  // packages/dom/build-module/dom/scroll-if-no-range.mjs
-  function scrollIfNoRange(container, alignToTop, callback) {
-    let range = callback();
-    if (!range || !range.startContainer || !container.contains(range.startContainer)) {
-      container.scrollIntoView(alignToTop);
-      range = callback();
-      if (!range || !range.startContainer || !container.contains(range.startContainer)) {
-        return null;
-      }
-    }
-    return range;
-  }
-
   // packages/dom/build-module/dom/is-edge.mjs
   function isEdge(container, isReverse, onlyVertical = false) {
     if (isInputOrTextArea(container) && typeof container.selectionStart === "number") {
@@ -607,16 +623,28 @@ var wp;
     if (!isCollapsed && rangeHeight && rangeHeight > collapsedRangeRect.height && isForward === isReverse) {
       return false;
     }
+    const contentRange = ownerDocument.createRange();
+    contentRange.selectNodeContents(container);
+    const hasLineBeyond = Array.from(contentRange.getClientRects()).some(
+      (rect) => rect.height > 0 && (isReverse ? rect.bottom <= rangeRect.top + 1 : rect.top >= rangeRect.bottom - 1)
+    );
+    if (hasLineBeyond) {
+      return false;
+    }
+    if (onlyVertical) {
+      return true;
+    }
     const isReverseDir = isRTL(container) ? !isReverse : isReverse;
     const containerRect = container.getBoundingClientRect();
     const x = isReverseDir ? containerRect.left + 1 : containerRect.right - 1;
-    const y = isReverse ? containerRect.top + 1 : containerRect.bottom - 1;
-    const testRange = scrollIfNoRange(
-      container,
-      isReverse,
-      () => hiddenCaretRangeFromPoint(ownerDocument, x, y, container)
+    const y = isReverse ? rangeRect.top + 1 : rangeRect.bottom - 1;
+    const testRange = hiddenCaretRangeFromPoint(
+      ownerDocument,
+      x,
+      y,
+      container
     );
-    if (!testRange) {
+    if (!testRange || !container.contains(testRange.startContainer)) {
       return false;
     }
     const testRect = getRectangleFromRange(testRange);
@@ -629,7 +657,7 @@ var wp;
     const horizontalDiff = testRect[horizontalSide] - collapsedRangeRect[horizontalSide];
     const hasVerticalDiff = Math.abs(verticalDiff) <= 1;
     const hasHorizontalDiff = Math.abs(horizontalDiff) <= 1;
-    return onlyVertical ? hasVerticalDiff : hasVerticalDiff && hasHorizontalDiff;
+    return hasVerticalDiff && hasHorizontalDiff;
   }
 
   // packages/dom/build-module/dom/is-horizontal-edge.mjs
@@ -650,6 +678,19 @@ var wp;
   // packages/dom/build-module/dom/is-vertical-edge.mjs
   function isVerticalEdge(container, isReverse) {
     return isEdge(container, isReverse, true);
+  }
+
+  // packages/dom/build-module/dom/scroll-if-no-range.mjs
+  function scrollIfNoRange(container, alignToTop, callback) {
+    let range = callback();
+    if (!range || !range.startContainer || !container.contains(range.startContainer)) {
+      container.scrollIntoView(alignToTop);
+      range = callback();
+      if (!range || !range.startContainer || !container.contains(range.startContainer)) {
+        return null;
+      }
+    }
+    return range;
   }
 
   // packages/dom/build-module/dom/place-caret-at-edge.mjs
@@ -804,10 +845,7 @@ var wp;
         } else if (!element.hasChildNodes()) {
           return true;
         }
-        return (
-          /** @type {Element[]} */
-          Array.from(element.childNodes).every(isEmpty)
-        );
+        return Array.from(element.childNodes).every(isEmpty);
       default:
         return true;
     }
@@ -953,11 +991,6 @@ var wp;
     return textContentSchema.hasOwnProperty(tag) || tag === "span";
   }
 
-  // packages/dom/build-module/dom/is-element.mjs
-  function isElement(node) {
-    return !!node && node.nodeType === node.ELEMENT_NODE;
-  }
-
   // packages/dom/build-module/dom/clean-node-list.mjs
   var noop = () => {
   };
@@ -975,7 +1008,11 @@ var wp;
               allowEmpty
             } = schema[tag];
             if (children && !allowEmpty && isEmpty(node)) {
-              remove(node);
+              if (isPhrasingContent(node) && node.hasChildNodes()) {
+                unwrap(node);
+              } else {
+                remove(node);
+              }
               return;
             }
             if (node.hasAttributes()) {
@@ -1083,4 +1120,6 @@ var wp;
   // packages/dom/build-module/index.mjs
   var focus = { focusable: focusable_exports, tabbable: tabbable_exports };
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).dom = wp.dom;
 })();

@@ -1,0 +1,10 @@
+{
+	"name": "@wp-playground/pr-labels",
+	"version": "0.0.0",
+	"private": true,
+	"type": "module",
+	"description": "Path/package/type label logic for the Auto-label workflow. Standalone (not an npm workspace member) so the workflow can install its runtime dependencies here, on their own, without touching the repo's workspaces.",
+	"dependencies": {
+		"minimatch": "9.0.5"
+	}
+}

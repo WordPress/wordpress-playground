@@ -1,6 +1,6 @@
 ---
 title: Getting Started with Xdebug
-slug: /developers/xdebug/getting-started
+slug: /developers/xdebug/xdebug-getting-started
 description: Before you can start debugging, you need to run WordPress Playground with Xdebug enabled. This guide covers the basics.
 ---
 
@@ -77,6 +77,19 @@ If you don't have a `.vscode/launch.json` file, the terminal will create a file 
 Now, you can go to your code, add the breakpoints, start the debugging session named by your IDE, and happy testing.
 
 ![Xdebug in action on VS Code](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
+
+### PhpStorm troubleshooting
+
+If PhpStorm pauses on the first line of unmapped files or scripts outside your project, you can disable these optional settings under **Settings > PHP > Debug > Xdebug**:
+
+- **Force break at first line when no path mapping specified**.
+- **Force break at first line when a script is outside the project**.
+
+If requests that do not hit a breakpoint produce unwanted notifications, disable **Notify if debug session was finished without being paused** under **Settings > PHP > Debug > Settings** (called **Advanced settings** in the current JetBrains documentation). When this setting is disabled and no breakpoint is hit, PhpStorm runs the script without pausing or establishing a debugging session.
+
+These options suppress unwanted pauses or notifications. They do not fix path mappings or configure breakpoints: you still need correct path mappings and enabled breakpoints in the code you want to debug.
+
+For more details, see [JetBrains' debug settings reference](https://www.jetbrains.com/help/phpstorm/debug.html) and the [PhpStorm examples](https://github.com/WordPress/wordpress-playground/blob/trunk/examples/xdebug/ide/README.md#phpstorm).
 
 ## Early Access: DevTools debugger
 

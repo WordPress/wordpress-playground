@@ -81,8 +81,10 @@ console.log(await response.stdoutText);
 
 For a browser build, use the corresponding package, such as
 `@php-wasm/web-8-4`, with the same `getPHPLoaderModule()` and
-`loadPHPRuntime()` flow. Configure the browser bundler to emit imported
-`.wasm` and `.so` files as assets, as described in the
+`loadPHPRuntime()` flow. The loader resolves its `.wasm` file with
+`new URL(..., import.meta.url)`, so the browser bundle must be an ES module.
+Configure the browser bundler to emit imported `.so` files as assets, as
+described in the
 [`@php-wasm/web` bundler guidance](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/php-wasm/web#usage-with-bundlers).
 Adapt package references in that configuration to the version-specific name;
 for example, exclude `@php-wasm/web-8-4` instead of `@php-wasm/web`.

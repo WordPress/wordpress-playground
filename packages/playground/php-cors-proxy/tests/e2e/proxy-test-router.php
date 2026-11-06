@@ -14,4 +14,10 @@ function is_private_ip($ip) {
     return false;
 }
 
+// Simulate a header set by a deployment's config or auto_prepend_file.
+// When the proxy replaces the target's response with its own error, it
+// must keep headers like this one, which were set before the target was
+// contacted. The e2e tests check that its 413 and 502 responses do.
+header('X-Deployment-Header: kept');
+
 require __DIR__ . '/../../cors-proxy.php';

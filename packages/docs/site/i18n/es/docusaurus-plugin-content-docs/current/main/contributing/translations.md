@@ -214,7 +214,7 @@ Como guía, un idioma solo debe estar públicamente disponible en el selector cu
 -   [About Playground](https://wordpress.github.io/wordpress-playground/about)
 -   [Guides](https://wordpress.github.io/wordpress-playground/guides)
 -   [Contributing](https://wordpress.github.io/wordpress-playground/contributing)
--   [Links and Resources](https://wordpress.github.io/wordpress-playground/resources)
+-   [Links and Resources](https://wordpress.github.io/wordpress-playground/links-and-resources)
 -->
 
 - [Guía de inicio rápido](https://wordpress.github.io/wordpress-playground/quick-start-guide)
@@ -222,7 +222,7 @@ Como guía, un idioma solo debe estar públicamente disponible en el selector cu
 - [Acerca de Playground](https://wordpress.github.io/wordpress-playground/about)
 - [Guías](https://wordpress.github.io/wordpress-playground/guides)
 - [Contribuir](https://wordpress.github.io/wordpress-playground/contributing)
-- [Enlaces y Recursos](https://wordpress.github.io/wordpress-playground/resources)
+- [Enlaces y Recursos](https://wordpress.github.io/wordpress-playground/links-and-resources)
 
 <!--
 All languages are available once the i18n setup for a language is complete and the correct file structure is in place under `i18n`.

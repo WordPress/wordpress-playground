@@ -1,105 +1,152 @@
 #!/bin/bash
-
 set -euo pipefail
 
-# Explicitly use the site's declared PHP version.
-# Otherwise, we've seen this defaulting to PHP 7.4 which breaks our custom-redirects script.
-SITE_PHP="/usr/local/php${PHP_VERSION}/bin/php"
-SITE_API_BASE="$( "$SITE_PHP" -r 'require "/scripts/env.php"; echo SITE_API_BASE;')"
+# The workflow passes the same origins used for the browser build. Paths and
+# platform settings can be supplied to run this full script against a test site.
+APP_ORIGIN="${1:?Expected app origin}"
+WORDPRESS_ORIGIN="${2:?Expected WordPress origin}"
+BUILD="${3:-$HOME/updated-playground-files}"
+WEB_ROOT="${4:-/srv/htdocs}"
+BACKUPS="${5:-$HOME/website-backups}"
+DEPLOYMENT="$(cd "$(dirname "$0")" && pwd)"
+# Explicitly use the site's declared PHP version. The SSH default has been 7.4,
+# which cannot run this handler. Tests may supply their installed PHP binary.
+SITE_PHP="${SITE_PHP:-/usr/local/php${PHP_VERSION}/bin/php}"
+SITE_API_BASE="${SITE_API_BASE:-$( "$SITE_PHP" -r 'require "/scripts/env.php"; echo SITE_API_BASE;')}"
 
-echo Setting up staging directory
-cd ~
-rm -rf website-update
-
-echo Moving updated Playground files to staging directory
-mv updated-playground-files website-update
-mkdir website-update/static-files-to-serve-via-php
-
-echo Copy supporting files for WP Cloud
-cp -r ~/website-deployment/__wp__ ~/website-update/
-cp ~/website-deployment/custom-redirects-lib.php ~/website-update/
-cp ~/website-deployment/custom-redirects.php ~/website-update/
-cp ~/website-deployment/cors-proxy-config.php ~/website-update/
-
-# Generate mime-types.php from mime-types.json in case the PHP can be opcached
-echo Generating mime-types.php
-cat ~/website-deployment/mime-types.json | "$SITE_PHP" -r '
-    $raw_json = file_get_contents( "php://stdin" );
-    if ( false === $raw_json ) {
-        fprintf( STDERR, "Unable to read MIME type JSON\n" );
-        die( -1 );
-    }
-    $types = json_decode( $raw_json, JSON_OBJECT_AS_ARRAY );
-    if ( null === $types ) {
-        fprintf( STDERR, "Unable to decode MIME type JSON\n" );
-        die( -1 );
-    }
-
-    echo "<?php\n";
-    echo "\$mime_types = array(\n";
-    foreach ( $types as $extension => $mime_type ) {
-        echo "  \"$extension\" => \"$mime_type\",\n";
-    }
-    echo ");\n";
-' > ~/website-deployment/mime-types.php
-
-echo Checking mime-types.php
-(
-    cd ~/website-deployment
-    "$SITE_PHP" -r '
-        require( "mime-types.php" );
-        if (
-            $mime_types["_default"] !== "application/octet-stream" ||
-            $mime_types["html"] !== "text/html" ||
-            $mime_types["jpeg"] !== "image/jpeg"
-        ) {
-            fprintf( STDERR, "mime-types.php looks broken\n" );
-            die( -1 );
-        }
-    '
-)
-echo Adding mime-types.php to updated website files
-cp ~/website-deployment/mime-types.php ~/website-update/
-
-function match_static_files_to_serve_via_php() (
-    cd ~/website-deployment
-
-    "$SITE_PHP" -r '
-    require "custom-redirects-lib.php";
-    while ( $path = fgets( STDIN ) ) {
-        $path = trim( $path );
-        if ( playground_is_static_file_needing_special_treatment($path) ) {
-            echo "$path\n";
+# A bad origin could put app documents on the sandbox host or import platform
+# scripts from the wrong host. Reject it before touching the running release.
+"$SITE_PHP" -r '
+    foreach (array_slice($argv, 1) as $origin) {
+        $parts = parse_url($origin);
+        if (!filter_var($origin, FILTER_VALIDATE_URL) ||
+            ($parts["scheme"] ?? null) !== "https" ||
+            isset($parts["user"]) || isset($parts["pass"]) ||
+            isset($parts["path"]) || isset($parts["query"]) || isset($parts["fragment"])) {
+            throw new RuntimeException("Expected an HTTPS origin without a path: " . $origin);
         }
     }
-    '
-)
+    if (strcasecmp(parse_url($argv[1], PHP_URL_HOST), parse_url($argv[2], PHP_URL_HOST)) === 0) {
+        throw new RuntimeException("The app and WordPress must use different hostnames");
+    }
+' "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
 
-function set_aside_static_files_to_serve_via_php() {
-    while read FILE_TO_SERVE_VIA_PHP; do
-        echo "  php-served: $FILE_TO_SERVE_VIA_PHP"
-        TARGET_DIR="static-files-to-serve-via-php/$(dirname "$FILE_TO_SERVE_VIA_PHP")"
-        mkdir -p "$TARGET_DIR"
-        mv "$FILE_TO_SERVE_VIA_PHP" "$TARGET_DIR/"
+# A partial upload must not replace the running site.
+for file in index.html api.html remote.html sw.js wordpress-sandbox/wordpress-bridge.html wordpress-sandbox/sw.js; do
+    test -s "$BUILD/$file"
+done
+
+# Web PHP cannot read the SSH home directory. Hidden paths under htdocs are
+# mounted there, but MUST be denied by Nginx, including encoded path variants.
+mkdir -p -m 755 "$WEB_ROOT/.playground-releases"
+PROBE="$(mktemp "$WEB_ROOT/.playground-releases/probe.XXXXXXXX")"
+HIDDEN_PROBE=''
+trap 'rm -f "$PROBE" "$HIDDEN_PROBE"' EXIT
+# Hidden server files, such as editor swap files, stay in htdocs. Check that
+# Nginx denies those too, not just the private release directory.
+HIDDEN_PROBE="$(mktemp "$WEB_ROOT/.playground-probe.XXXXXXXX")"
+HIDDEN_PROBE_NAME="$(basename "$HIDDEN_PROBE")"
+# mktemp creates mode 600. A permissions-based 403 must not stand in for the
+# Nginx rule that has to protect readable build files.
+for probe in "$PROBE" "$HIDDEN_PROBE"; do
+    printf 'This private deployment probe must not be served.\n' > "$probe"
+    chmod 644 "$probe"
+done
+for origin in "$APP_ORIGIN" "$WORDPRESS_ORIGIN"; do
+    for path in \
+        "/.playground-releases/$(basename "$PROBE")" \
+        "/%2eplayground-releases/$(basename "$PROBE")" \
+        "/%2eplayground-releases%2f$(basename "$PROBE")" \
+        "/$HIDDEN_PROBE_NAME" \
+        "/%2e${HIDDEN_PROBE_NAME:1}"; do
+        status="$(curl --silent --show-error --path-as-is --max-time 15 \
+            --output /dev/null --write-out '%{http_code}' \
+            "$origin$path")"
+        if [ "$status" != 403 ]; then
+            echo "Refusing deployment: $origin$path returned $status, expected 403." >&2
+            exit 1
+        fi
     done
-}
+    # An alias redirect can happen after Nginx's hidden-path rejection. Check a
+    # normal URL too, without following redirects or reusing an old cached 301.
+    status="$(curl --silent --show-error --max-time 15 \
+        --output /dev/null --write-out '%{http_code}' \
+        "$origin/sw.js?playground-deployment=$(basename "$PROBE")")"
+    if [ "$status" != 200 ] && [ "$status" != 404 ]; then
+        echo "Refusing deployment: $origin/sw.js returned $status; check domain mapping and canonicalize_aliases." >&2
+        exit 1
+    fi
+done
 
-echo Configure which files should be served by Nginx and which by PHP
-cd ~/website-update
-find -type f |
-    grep -v static-files-to-serve-via-php |   # avoid files that are moved as part of this pipeline
-    sed 's#^\.##' |                    # filter '.' from './' so paths are like request URIs
-    match_static_files_to_serve_via_php |
-    sed 's#^/##' |                     # remove the leading '/' to get paths relative to current dir
-    set_aside_static_files_to_serve_via_php
+RELEASE="$(mktemp -d "$WEB_ROOT/.playground-releases/release.XXXXXXXX")"
+chmod 755 "$RELEASE"
+mv "$BUILD" "$RELEASE/files"
+cp "$DEPLOYMENT/custom-redirects-lib.php" "$RELEASE/"
+# Retain the existing PHP MIME map so opcache can cache it. Both website layouts
+# use the same response-header code in custom-redirects-lib.php.
+"$SITE_PHP" -r '
+    $types = json_decode(file_get_contents($argv[1]), true, 512, JSON_THROW_ON_ERROR);
+    if (($types["_default"] ?? null) !== "application/octet-stream" ||
+        ($types["html"] ?? null) !== "text/html" ||
+        ($types["jpeg"] ?? null) !== "image/jpeg") {
+        throw new RuntimeException("MIME map is missing required entries");
+    }
+    echo "<?php\n\$mime_types = " . var_export($types, true) . ";\n";
+' "$DEPLOYMENT/mime-types.json" > "$RELEASE/mime-types.php"
+# Select this exact build in the existing request handler. Once PHP loads this
+# entry, it keeps using this release even if another deployment replaces the
+# public entry. Personal WP still uses the existing no-argument entry.
+"$SITE_PHP" -r '
+    $relative = "/.playground-releases/" . basename($argv[1]);
+    echo "<?php\nif (\"cli\" === php_sapi_name()) { return; }\n";
+    echo "define(\"PLAYGROUND_DEBUG\", false);\n";
+    echo "require_once __DIR__ . " . var_export($relative . "/custom-redirects-lib.php", true) . ";\n";
+    echo "playground_handle_request(__DIR__ . " . var_export($relative . "/files", true) . ", " . var_export($argv[2], true) . ");\n";
+' "$RELEASE" "$WORDPRESS_ORIGIN" > "$RELEASE/public-entry.php"
+for file in "$RELEASE/"*.php; do
+    "$SITE_PHP" -l "$file"
+done
 
-echo Syncing staged files to production
-rsync -av --delete --no-perms --omit-dir-times ~/website-update/ /srv/htdocs/
+BACKUP="$BACKUPS/$(basename "$RELEASE")"
+mkdir -p "$BACKUP"
+if [ -f "$WEB_ROOT/custom-redirects.php" ]; then
+    cp "$WEB_ROOT/custom-redirects.php" "$BACKUP/"
+fi
+# Old public HTML or assets would bypass the router on the WordPress host.
+# Move them outside htdocs. Leave Nginx-blocked hidden server files in place:
+# WP Cloud can protect them from removal, and they are not public build files.
+# Preserve the platform's PHP fallback too.
+# Do not use find -exec here: an individual mv failure must stop activation.
+shopt -u dotglob
+shopt -s nullglob
+# Until the entry rename succeeds, the old entry still needs its public files.
+# Restore missing files on failure. A failed cross-device move may leave an
+# incomplete backup, so never overwrite originals that are still in place.
+# After activation, restoring public files would bypass the sandbox rule. The
+# staged entry disappears in that rename, so no separate flag can drift.
+# WP Cloud permits file writes but not chmod or directory timestamp changes on
+# htdocs. Restore file contents without trying to apply the backup's attributes.
+trap '
+    status=$?
+    if [ -f "$RELEASE/public-entry.php" ]; then
+        rsync -a --no-perms --omit-dir-times --ignore-existing --exclude=/custom-redirects.php "$BACKUP/" "$WEB_ROOT/" ||
+            echo "Failed to restore public files from $BACKUP" >&2
+    fi
+    rm -f "$PROBE" "$HIDDEN_PROBE"
+    exit "$status"
+' EXIT
+for path in "$WEB_ROOT"/*; do
+    case "$(basename "$path")" in
+        __wp__|custom-redirects.php) continue ;;
+    esac
+    mv "$path" "$BACKUP/"
+done
+mkdir -p "$WEB_ROOT/__wp__"
+cp "$DEPLOYMENT/__wp__/index.php" "$WEB_ROOT/__wp__/index.php"
+mv -f "$RELEASE/public-entry.php" "$WEB_ROOT/custom-redirects.php"
+printf 'Activated %s; previous entry and public files: %s\n' "$RELEASE" "$BACKUP"
 
-echo Purging edge cache
-curl -sS -X POST -H "Auth: $ATOMIC_SITE_API_KEY" "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge" \
-        > /dev/null \
-        && echo "Edge cache purged" \
-        || (>&2 echo "Failed to purge edge cache" && false)
-
-echo Done!
+# Do not report a complete deployment when the old edge responses remain cached.
+curl --fail --silent --show-error --max-time 60 -X POST \
+    -H "Auth: $ATOMIC_SITE_API_KEY" "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge" > /dev/null
+echo 'Edge cache purged'

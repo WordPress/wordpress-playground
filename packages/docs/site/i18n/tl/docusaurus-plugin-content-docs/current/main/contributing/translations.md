@@ -107,7 +107,7 @@ Dapat itago muna sa language switcher ang mga bersyon ng wika na may kulang pang
 - [About Playground](https://wordpress.github.io/wordpress-playground/about)
 - [Guides](https://wordpress.github.io/wordpress-playground/guides)
 - [Contributing](https://wordpress.github.io/wordpress-playground/contributing)
-- [Links and Resources](https://wordpress.github.io/wordpress-playground/resources)
+- [Links and Resources](https://wordpress.github.io/wordpress-playground/links-and-resources)
 
 Kahit hindi nakikita sa language switcher ang isang wika, maaari pa ring magpatuloy ang trabaho sa pagdagdag ng naisaling pahina, dahil magiging available ang mga isinaling pahina kapag na-merge na ang mga PR na naglalaman ng mga naisaling file.
 

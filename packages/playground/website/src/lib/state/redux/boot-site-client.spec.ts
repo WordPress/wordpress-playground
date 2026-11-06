@@ -470,13 +470,135 @@ describe('bootSiteClient', () => {
 		);
 	});
 
-	it('clears the return target after the initial OPFS copy succeeds', async () => {
+	it('replays live auto-login constants after a saved site finishes its initial OPFS copy', async () => {
+		const firstPlayground = createPlaygroundClient({
+			fileExists: vi.fn(async () => true),
+			readFileAsText: vi.fn(async () =>
+				JSON.stringify({
+					PLAYGROUND_AUTO_LOGIN_AS_USER: 'admin',
+				})
+			),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(firstPlayground);
+				return firstPlayground;
+			}
+		);
+		const site = createSite('auto-login', {
+			metadata: { initialOpfsSyncPending: true },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient('auto-login', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+		await vi.waitFor(() =>
+			expect(
+				state.sites.entities['auto-login'].metadata
+					.playgroundDefinedConstants
+			).toEqual({
+				PLAYGROUND_AUTO_LOGIN_AS_USER: 'admin',
+			})
+		);
+		expect(opfsSiteStorage!.update).toHaveBeenCalledWith('auto-login', {
+			metadata: expect.objectContaining({
+				initialOpfsSyncPending: false,
+				playgroundDefinedConstants: {
+					PLAYGROUND_AUTO_LOGIN_AS_USER: 'admin',
+				},
+			}),
+		});
+
+		const reloadedSite = {
+			...state.sites.entities['auto-login'],
+			loadedFromStorage: true,
+		};
+		const reloadedState = createState(reloadedSite);
+		await bootSiteClient('auto-login', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(createDispatch(reloadedState), () => reloadedState);
+
+		expect(startPlaygroundWeb).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				blueprint: expect.objectContaining({
+					constants: expect.objectContaining({
+						PLAYGROUND_AUTO_LOGIN_AS_USER: 'admin',
+					}),
+				}),
+			})
+		);
+	});
+
+	it('keeps the initial OPFS copy pending when live constants cannot be read', async () => {
+		const constantsError = new Error('Unable to read live constants');
+		const playground = createPlaygroundClient({
+			fileExists: vi.fn(async () => true),
+			readFileAsText: vi.fn(async () => {
+				throw constantsError;
+			}),
+		});
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(playground);
+				return playground;
+			}
+		);
+		const site = createSite('constants-read-failed', {
+			metadata: { initialOpfsSyncPending: true },
+		});
+		const state = createState(site);
+		const dispatch = createDispatch(state);
+
+		await bootSiteClient(
+			'constants-read-failed',
+			document.createElement('iframe'),
+			{ signal: new AbortController().signal }
+		)(dispatch, () => state);
+		await vi.waitFor(() =>
+			expect(dispatch).toHaveBeenCalledWith(
+				expect.objectContaining({
+					type: 'clients/updateClientInfo',
+					payload: expect.objectContaining({
+						siteSlug: 'constants-read-failed',
+						changes: {
+							opfsSync: {
+								status: 'error',
+								operation: 'autosave',
+							},
+						},
+					}),
+				})
+			)
+		);
+
+		expect(
+			state.sites.entities['constants-read-failed'].metadata
+				.initialOpfsSyncPending
+		).toBe(true);
+		expect(opfsSiteStorage!.update).not.toHaveBeenCalledWith(
+			'constants-read-failed',
+			{
+				metadata: expect.objectContaining({
+					initialOpfsSyncPending: false,
+				}),
+			}
+		);
+	});
+
+	it('keeps the initial OPFS sync pending until the final flush succeeds', async () => {
 		let resolveMount = () => {};
 		const mountFinished = new Promise<void>((resolve) => {
 			resolveMount = resolve;
 		});
+		let resolveFlush = () => {};
+		const flushFinished = new Promise<void>((resolve) => {
+			resolveFlush = resolve;
+		});
 		const playground = createPlaygroundClient({
 			mountOpfs: vi.fn(() => mountFinished),
+			flushOpfs: vi.fn(() => flushFinished),
 		});
 		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
 			async (options: any) => {
@@ -505,11 +627,33 @@ describe('bootSiteClient', () => {
 		).toBe('source-site');
 		resolveMount();
 		await vi.waitFor(() =>
+			expect(playground.flushOpfs).toHaveBeenCalledWith('/wordpress')
+		);
+		expect(
+			state.sites.entities['blueprint-run'].metadata
+				.siteSlugToReturnToIfBlueprintFails
+		).toBe('source-site');
+		expect(
+			state.sites.entities['blueprint-run'].metadata
+				.initialOpfsSyncPending
+		).toBe(true);
+		expect(state.clients.entities['blueprint-run']?.opfsSync?.status).toBe(
+			'syncing'
+		);
+		resolveFlush();
+		await vi.waitFor(() => {
 			expect(
 				state.sites.entities['blueprint-run'].metadata
 					.siteSlugToReturnToIfBlueprintFails
-			).toBeUndefined()
-		);
+			).toBeUndefined();
+			expect(
+				state.sites.entities['blueprint-run'].metadata
+					.initialOpfsSyncPending
+			).toBe(false);
+			expect(
+				state.clients.entities['blueprint-run']?.opfsSync
+			).toBeUndefined();
+		});
 	});
 
 	it('keeps Blueprint recovery behind private repository authentication', async () => {
@@ -677,6 +821,118 @@ describe('bootSiteClient', () => {
 		);
 	});
 
+	it('stores captured emails newest first', async () => {
+		const { client, emitSendmail } = createSendmailPlaygroundClient();
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(client);
+				return client;
+			}
+		);
+		const state = createState(
+			createSite('email-order', { loadedFromStorage: true })
+		);
+		const dispatch = createDispatch(state);
+		let closeOlderEmail = () => {};
+		const olderEmailStream = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(createRawEmail('Older'));
+				closeOlderEmail = () => controller.close();
+			},
+		});
+
+		await bootSiteClient('email-order', document.createElement('iframe'), {
+			signal: new AbortController().signal,
+		})(dispatch, () => state);
+
+		emitSendmail(olderEmailStream);
+		emitSendmail(createEmailStream('Newer'));
+		// Complete the newer message first. Only a sequential queue keeps the
+		// still-open older message ahead of it.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		closeOlderEmail();
+
+		await vi.waitFor(() =>
+			expect(
+				state.clients.entities['email-order']?.emails.map(
+					(email) => email.subject
+				)
+			).toEqual(['Newer', 'Older'])
+		);
+	});
+
+	it('continues capturing emails after a parse failure', async () => {
+		const { client, emitSendmail } = createSendmailPlaygroundClient();
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(client);
+				return client;
+			}
+		);
+		const state = createState(
+			createSite('email-failure', { loadedFromStorage: true })
+		);
+		const dispatch = createDispatch(state);
+		const failedEmailStream = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.error(new Error('Email stream failed'));
+			},
+		});
+
+		await bootSiteClient(
+			'email-failure',
+			document.createElement('iframe'),
+			{ signal: new AbortController().signal }
+		)(dispatch, () => state);
+
+		emitSendmail(failedEmailStream);
+		emitSendmail(createEmailStream('Still captured'));
+
+		await vi.waitFor(() =>
+			expect(
+				state.clients.entities['email-failure']?.emails.map(
+					(email) => email.subject
+				)
+			).toEqual(['Still captured'])
+		);
+	});
+
+	it('does not store an email parsed after abort', async () => {
+		const { client, emitSendmail } = createSendmailPlaygroundClient();
+		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+			async (options: any) => {
+				options.onClientConnected(client);
+				return client;
+			}
+		);
+		const state = createState(
+			createSite('email-abort', { loadedFromStorage: true })
+		);
+		const dispatch = createDispatch(state);
+		const abortController = new AbortController();
+		let closeEmail = () => {};
+		const emailStream = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(createRawEmail('Discarded'));
+				closeEmail = () => controller.close();
+			},
+		});
+
+		await bootSiteClient('email-abort', document.createElement('iframe'), {
+			signal: abortController.signal,
+		})(dispatch, () => state);
+
+		emitSendmail(emailStream);
+		// Let parsing start before the abort so the post-parse check is what
+		// discards the message.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		abortController.abort();
+		closeEmail();
+		await new Promise((resolve) => setTimeout(resolve, 0));
+
+		expect(state.clients.entities['email-abort']?.emails).toEqual([]);
+	});
+
 	it('does not capture a thumbnail after the initial OPFS copy fails', async () => {
 		let rejectMount!: (error: Error) => void;
 		const mountFinished = new Promise<void>((_, reject) => {
@@ -835,8 +1091,57 @@ function createSite(
 
 function createPlaygroundClient(overrides: Record<string, unknown> = {}): any {
 	return {
+		addEventListener: vi.fn(async () => undefined),
+		fileExists: vi.fn(async () => false),
 		mountOpfs: vi.fn(async () => undefined),
+		flushOpfs: vi.fn(async () => undefined),
 		onNavigation: vi.fn(),
 		...overrides,
 	};
+}
+
+function createSendmailPlaygroundClient() {
+	let sendmailListener:
+		| ((event: { stdin: ReadableStream<Uint8Array> }) => void)
+		| undefined;
+	const client = createPlaygroundClient({
+		addEventListener: vi.fn(
+			async (
+				eventType: string,
+				listener: (event: { stdin: ReadableStream<Uint8Array> }) => void
+			) => {
+				if (eventType === 'sendmail.spawned') {
+					sendmailListener = listener;
+				}
+			}
+		),
+	});
+	return {
+		client,
+		emitSendmail(stdin: ReadableStream<Uint8Array>) {
+			sendmailListener!({ stdin });
+		},
+	};
+}
+
+function createEmailStream(subject: string) {
+	return new ReadableStream<Uint8Array>({
+		start(controller) {
+			controller.enqueue(createRawEmail(subject));
+			controller.close();
+		},
+	});
+}
+
+function createRawEmail(subject: string) {
+	return new TextEncoder().encode(
+		[
+			'From: sender@example.com',
+			'To: recipient@example.com',
+			`Subject: ${subject}`,
+			'',
+			'Body',
+			'',
+		].join('\r\n')
+	);
 }

@@ -44,7 +44,7 @@ export default defineConfig({
 			pathsToAliases: false,
 		}),
 		viteIgnoreImports({
-			extensions: ['wasm', 'so', 'dat'],
+			extensions: ['so', 'dat'],
 		}),
 		...viteGlobalExtensions,
 		// @wp-playground/client doesn't actually use the remote-config virtual

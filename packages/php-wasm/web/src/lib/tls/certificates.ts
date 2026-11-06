@@ -1,4 +1,4 @@
-import { concatUint8Arrays } from '@php-wasm/util';
+import { concatUint8Arrays, encodeUint8ArrayAsBase64 } from '@php-wasm/util';
 
 /**
  * Generates an X.509 certificate from the given description.
@@ -24,14 +24,14 @@ export function generateCertificate(
 
 export function certificateToPEM(certificate: Uint8Array): string {
 	return `-----BEGIN CERTIFICATE-----\n${formatPEM(
-		encodeUint8ArrayAsBase64(certificate.buffer)
+		encodeUint8ArrayAsBase64(certificate)
 	)}\n-----END CERTIFICATE-----`;
 }
 
 export async function privateKeyToPEM(privateKey: CryptoKey): Promise<string> {
 	const pkcs8 = await crypto.subtle.exportKey('pkcs8', privateKey);
 	return `-----BEGIN PRIVATE KEY-----\n${formatPEM(
-		encodeUint8ArrayAsBase64(pkcs8)
+		encodeUint8ArrayAsBase64(new Uint8Array(pkcs8))
 	)}\n-----END PRIVATE KEY-----`;
 }
 
@@ -708,11 +708,6 @@ export type GeneratedCertificate = {
 	tbsDescription: TBSCertificateDescription;
 	tbsCertificate: TBSCertificate;
 };
-
-// Helper functions
-function encodeUint8ArrayAsBase64(bytes: ArrayBuffer) {
-	return btoa(String.fromCodePoint(...new Uint8Array(bytes)));
-}
 
 function formatPEM(pemString: string): string {
 	return pemString.match(/.{1,64}/g)?.join('\n') || pemString;

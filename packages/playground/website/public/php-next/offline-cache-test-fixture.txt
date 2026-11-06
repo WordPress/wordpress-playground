@@ -1,0 +1,8 @@
+This placeholder makes the offline-cache E2E test exercise the /php-next/ exclusion.
+
+CI does not download the large, generated PHP-next runtimes. Without a file in this
+directory, the test would still pass if /php-next/ were accidentally added back to the
+pre-emptive offline manifest. The file contents are never used.
+
+Local development and production deployments run sync-php-next-assets.mjs, which replaces
+this directory with the real PHP-next runtime files.

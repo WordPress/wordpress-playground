@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => {
 			isConnected: vi.fn(),
 			isReady: vi.fn(),
 			onDownloadProgress: vi.fn(),
+			shouldRunStartupBlueprint: vi.fn(),
+			goTo: vi.fn(),
 		},
 		compileBlueprintForExecution: vi.fn(),
 		resolveBlueprintV2WordPressSource: vi.fn(),
@@ -68,6 +70,26 @@ describe('BlueprintsV2Handler', () => {
 			networking: true,
 		});
 		mocks.consumeAPI.mockReturnValue(mocks.playground);
+	});
+
+	it('attaches a shared tab at the declared landing page without rerunning startup', async () => {
+		mocks.playground.shouldRunStartupBlueprint.mockResolvedValue(false);
+		const iframe = createIframe();
+		const handler = new BlueprintsV2Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			workerMode: 'shared',
+			scope: 'test-scope',
+			blueprint: {
+				version: 2,
+				applicationOptions: {
+					'wordpress-playground': { landingPage: '/wp-admin/' },
+				},
+			},
+		});
+		await handler.bootPlayground(iframe, createProgressTracker());
+		expect(mocks.playground.goTo).toHaveBeenCalledWith('/wp-admin/');
+		expect(mocks.compiledRun).not.toHaveBeenCalled();
 	});
 
 	it('boots and runs Blueprint v2 declarations through the native compiler', async () => {

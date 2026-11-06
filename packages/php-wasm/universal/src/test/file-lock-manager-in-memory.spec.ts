@@ -20,6 +20,54 @@ describe('FileLockManagerInMemory', () => {
 	});
 
 	describe('lockWholeFile', () => {
+		it.each([
+			['exclusive', 'shared'],
+			['shared', 'exclusive'],
+		] as const)(
+			'preserves a %s lock when another handle requests %s',
+			(heldType, requestedType) => {
+				const first = { pid: 1, fd: 1, type: heldType };
+				expect(lockManager.lockWholeFile(TEST_FILE1, first)).toBe(true);
+				expect(
+					lockManager.lockWholeFile(TEST_FILE1, {
+						pid: 1,
+						fd: 2,
+						type: requestedType,
+					})
+				).toBe(false);
+				lockManager.releaseLocksOnFdClose(1, 2, TEST_FILE1);
+				expect(
+					lockManager.lockWholeFile(TEST_FILE1, {
+						pid: 2,
+						fd: 3,
+						type: 'exclusive',
+					})
+				).toBe(false);
+				expect(
+					lockManager.lockWholeFile(TEST_FILE1, {
+						...first,
+						type: requestedType,
+					})
+				).toBe(true);
+			}
+		);
+
+		it('denies an exclusive upgrade while another handle in the same process holds a shared lock', () => {
+			for (const fd of [1, 2]) {
+				expect(
+					lockManager.lockWholeFile(TEST_FILE1, {
+						pid: 1,
+						fd,
+						type: 'shared',
+					})
+				).toBe(true);
+			}
+			const upgrade = { pid: 1, fd: 1, type: 'exclusive' as const };
+			expect(lockManager.lockWholeFile(TEST_FILE1, upgrade)).toBe(false);
+			lockManager.releaseLocksOnFdClose(1, 2, TEST_FILE1);
+			expect(lockManager.lockWholeFile(TEST_FILE1, upgrade)).toBe(true);
+		});
+
 		describe('exclusive', () => {
 			it('allows when unlocked', async () => {
 				const result = lockManager.lockWholeFile(TEST_FILE1, {

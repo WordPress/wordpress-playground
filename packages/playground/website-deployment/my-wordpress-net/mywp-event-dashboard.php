@@ -8,9 +8,49 @@ const MYWP_EVENT_DASHBOARD_STATE_TTL = 600;
 const MYWP_EVENT_DASHBOARD_PATH = '/mywp-event-dashboard.php';
 const MYWP_EVENT_DASHBOARD_ALLOWED_RANGES = array( 7, 30, 90 );
 const MYWP_EVENT_DASHBOARD_ALLOWED_GRANULARITIES = array( 'day', 'hour' );
+const MYWP_EVENT_DASHBOARD_ALLOWED_FORMATS = array( 'html', 'json' );
 const MYWP_EVENT_DASHBOARD_CURL_CONNECT_TIMEOUT = 5;
 const MYWP_EVENT_DASHBOARD_CURL_TIMEOUT = 10;
 const MYWP_EVENT_DASHBOARD_SAFE_PLUGIN_SLUG_PATTERN = '/^[a-z0-9][a-z0-9-]{0,100}$/';
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_METRICS = array(
+	'wordpress_installed:referrer_source',
+	'returning_visit:referrer_source',
+);
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_OTHER = 'other-external';
+/**
+ * Referring hosts are stored as they arrive, but a host seen fewer times than
+ * this in the selected range is shown folded into `other-external`. A host
+ * that sent one visit cannot indicate a traffic source, and reporting it on
+ * its own alongside the timeline would come close to reporting the visit.
+ */
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MIN_VIEWS = 5;
+/* Reported in place of a host, so never folded away. */
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MARKERS = array(
+	'direct',
+	'internal',
+	'private-address',
+	'unknown',
+);
+const MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_ALWAYS_SHOW_HOSTS = array(
+	'alex.kirk.at',
+	'wpapps.kirk.at',
+	'wordpress.org',
+	'make.wordpress.org',
+	'automattic.com',
+	'activitypub.blog',
+);
+const MYWP_EVENT_DASHBOARD_STREAK_TRACKING_START_DATE = '2026-09-03';
+
+/**
+ * Plugin slugs that changed when an app was renamed. The stats tables keep the
+ * raw values that were reported at install time, so the dashboard folds the
+ * previous slug into the current one while reading them and each app shows up
+ * as a single entry.
+ */
+const MYWP_EVENT_DASHBOARD_RENAMED_PLUGIN_SLUGS = array(
+	'travel-app' => 'traveler',
+	'wordcamp-companion' => 'session-planner-for-wordcamps',
+);
 
 if ( 'cli' !== php_sapi_name() ) {
 	mywp_event_dashboard_handle_request();
@@ -51,6 +91,12 @@ function mywp_event_dashboard_handle_request() {
 
 	$range = mywp_event_dashboard_get_range();
 	$granularity = mywp_event_dashboard_get_granularity();
+	$format = mywp_event_dashboard_get_format();
+	// Sent before the HEAD check so a HEAD request advertises the same type
+	// the matching GET would return.
+	if ( 'json' === $format ) {
+		header( 'Content-Type: application/json; charset=utf-8' );
+	}
 
 	try {
 		$stats = mywp_event_dashboard_load_stats(
@@ -63,6 +109,11 @@ function mywp_event_dashboard_handle_request() {
 	}
 
 	if ( 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
+		return;
+	}
+
+	if ( 'json' === $format ) {
+		mywp_event_dashboard_render_json( $stats );
 		return;
 	}
 
@@ -548,6 +599,13 @@ function mywp_event_dashboard_get_granularity() {
 		: 'day';
 }
 
+function mywp_event_dashboard_get_format() {
+	$format = $_GET['format'] ?? 'html';
+	return in_array( $format, MYWP_EVENT_DASHBOARD_ALLOWED_FORMATS, true )
+		? $format
+		: 'html';
+}
+
 function mywp_event_dashboard_load_stats( $dbh, $range, $granularity ) {
 	$table = 'hour' === $granularity
 		? 'mywp_event_stats_hourly'
@@ -573,17 +631,25 @@ function mywp_event_dashboard_load_stats( $dbh, $range, $granularity ) {
 			$time_column,
 			$since,
 			'day' === $granularity ? '%Y-%m-%d' : '%Y-%m-%d %H:00'
-		),
-		'blueprint_plugin_slug_timeline' => mywp_event_dashboard_query_metric_timeline(
-			$dbh,
-			$table,
-			$time_column,
-			$since,
-			'day' === $granularity ? '%Y-%m-%d' : '%Y-%m-%d %H:00',
-			'blueprint_installed:plugin_slug'
-		),
-	);
-}
+			),
+			'blueprint_plugin_slug_timeline' => mywp_event_dashboard_query_metric_timeline(
+				$dbh,
+				$table,
+				$time_column,
+				$since,
+				'day' === $granularity ? '%Y-%m-%d' : '%Y-%m-%d %H:00',
+				'blueprint_installed:plugin_slug'
+			),
+			'daily_streak_length_timeline' => mywp_event_dashboard_query_metric_timeline(
+				$dbh,
+				$table,
+				$time_column,
+				$since,
+				'day' === $granularity ? '%Y-%m-%d' : '%Y-%m-%d %H:00',
+				'daily_streak:length'
+			),
+		);
+	}
 
 function mywp_event_dashboard_query_rollup(
 	$dbh,
@@ -617,7 +683,9 @@ function mywp_event_dashboard_query_rollup(
 	}
 	mysqli_stmt_close( $statement );
 
-	return $rows;
+	return mywp_event_dashboard_fold_rare_referrer_source_rows(
+		mywp_event_dashboard_fold_renamed_plugin_slug_rows( $rows )
+	);
 }
 
 function mywp_event_dashboard_query_event_timeline(
@@ -673,7 +741,141 @@ function mywp_event_dashboard_query_metric_timeline(
 	}
 	mysqli_stmt_close( $statement );
 
+	if ( 'blueprint_installed:plugin_slug' === $metric_name ) {
+		return mywp_event_dashboard_fold_renamed_plugin_slug_timeline( $rows );
+	}
+
 	return $rows;
+}
+
+/**
+ * Merges referring hosts below the reporting threshold into a single
+ * `other-external` row, keeping the order the query uses. The stored rows are
+ * left alone; this only bounds what the dashboard and the JSON output show.
+ */
+function mywp_event_dashboard_fold_rare_referrer_source_rows( $rows ) {
+	$folded = array();
+	foreach ( $rows as $row ) {
+		if (
+			in_array(
+				$row['name'],
+				MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_METRICS,
+				true
+			) &&
+			$row['views'] < MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MIN_VIEWS &&
+			! in_array(
+				$row['value'],
+				MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_MARKERS,
+				true
+			) &&
+			! in_array(
+				$row['value'],
+				MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_ALWAYS_SHOW_HOSTS,
+				true
+			)
+		) {
+			$row['value'] = MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_OTHER;
+		}
+
+		$key = $row['name'] . "\n" . $row['value'];
+		if ( isset( $folded[ $key ] ) ) {
+			$folded[ $key ]['views'] += $row['views'];
+			continue;
+		}
+
+		$folded[ $key ] = $row;
+	}
+
+	return mywp_event_dashboard_sort_rollup_rows( array_values( $folded ) );
+}
+
+/**
+ * Merges rollup rows whose plugin slug changed into the row for the current
+ * slug, keeping the `name` ASC, `views` DESC, `value` ASC order the query uses.
+ */
+function mywp_event_dashboard_fold_renamed_plugin_slug_rows( $rows ) {
+	$folded = array();
+	foreach ( $rows as $row ) {
+		if ( 'blueprint_installed:plugin_slug' === $row['name'] ) {
+			$row['value'] = mywp_event_dashboard_canonical_plugin_slug(
+				$row['value']
+			);
+		}
+
+		$key = $row['name'] . "\n" . $row['value'];
+		if ( isset( $folded[ $key ] ) ) {
+			$folded[ $key ]['views'] += $row['views'];
+			continue;
+		}
+
+		$folded[ $key ] = $row;
+	}
+
+	return mywp_event_dashboard_sort_rollup_rows( array_values( $folded ) );
+}
+
+/**
+ * Restores the `name` ASC, `views` DESC, `value` ASC order the rollup query
+ * returns, which folding rows together disturbs.
+ */
+function mywp_event_dashboard_sort_rollup_rows( $rows ) {
+	usort(
+		$rows,
+		function ( $a, $b ) {
+			if ( $a['name'] !== $b['name'] ) {
+				return strcmp( $a['name'], $b['name'] );
+			}
+			if ( $a['views'] !== $b['views'] ) {
+				return $b['views'] - $a['views'];
+			}
+			return strcmp( $a['value'], $b['value'] );
+		}
+	);
+
+	return $rows;
+}
+
+/**
+ * Merges timeline rows whose plugin slug changed into the row for the current
+ * slug, keeping the `period` ASC, `value` ASC order the query uses.
+ */
+function mywp_event_dashboard_fold_renamed_plugin_slug_timeline( $rows ) {
+	$folded = array();
+	foreach ( $rows as $row ) {
+		$row['value'] = mywp_event_dashboard_canonical_plugin_slug(
+			$row['value']
+		);
+
+		$key = $row['period'] . "\n" . $row['value'];
+		if ( isset( $folded[ $key ] ) ) {
+			$folded[ $key ]['views'] += $row['views'];
+			continue;
+		}
+
+		$folded[ $key ] = $row;
+	}
+
+	$folded = array_values( $folded );
+	usort(
+		$folded,
+		function ( $a, $b ) {
+			if ( $a['period'] !== $b['period'] ) {
+				return strcmp( $a['period'], $b['period'] );
+			}
+			return strcmp( $a['value'], $b['value'] );
+		}
+	);
+
+	return $folded;
+}
+
+function mywp_event_dashboard_canonical_plugin_slug( $plugin_slug ) {
+	if ( ! is_string( $plugin_slug ) ) {
+		return $plugin_slug;
+	}
+
+	return MYWP_EVENT_DASHBOARD_RENAMED_PLUGIN_SLUGS[ $plugin_slug ]
+		?? $plugin_slug;
 }
 
 function mywp_event_dashboard_group_rows( $rows ) {
@@ -686,6 +888,76 @@ function mywp_event_dashboard_group_rows( $rows ) {
 		$groups[ $name ][] = $row;
 	}
 	return $groups;
+}
+
+/**
+ * Emits the same numbers the HTML dashboard renders, without the navigation
+ * chrome, so a spike can be analysed by a script instead of by reading bars.
+ * Every area's breakdown is included at once because the JSON consumer has no
+ * area to switch between.
+ */
+function mywp_event_dashboard_render_json( $stats ) {
+	$groups = mywp_event_dashboard_group_rows( $stats['rows'] );
+	$events = $groups['event'] ?? array();
+
+	$metrics = array();
+	foreach ( $groups as $name => $rows ) {
+		if ( 'event' !== $name ) {
+			$metrics[ $name ] = mywp_event_dashboard_json_views_by_value( $rows );
+		}
+	}
+
+	echo json_encode(
+		array(
+			'schema' => 'mywp-event-dashboard/v1',
+			'generated_at' => gmdate( 'c' ),
+			'range' => $stats['range'],
+			'granularity' => $stats['granularity'],
+			'since' => $stats['since'],
+			'total_events' => mywp_event_dashboard_sum_views( $events ),
+			'events' => mywp_event_dashboard_json_views_by_value( $events ),
+				'metrics' => (object) $metrics,
+				'timeline' => mywp_event_dashboard_json_timeline( $stats['timeline'] ),
+				'blueprint_plugin_slug_timeline' => mywp_event_dashboard_json_timeline(
+					$stats['blueprint_plugin_slug_timeline']
+				),
+				'daily_streak_length_timeline' => mywp_event_dashboard_json_timeline(
+					$stats['daily_streak_length_timeline']
+				),
+			),
+			JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+		);
+	}
+
+function mywp_event_dashboard_json_views_by_value( $rows ) {
+	$views = array();
+	foreach ( $rows as $row ) {
+		$views[ $row['value'] ] = $row['views'];
+	}
+	return (object) $views;
+}
+
+function mywp_event_dashboard_json_timeline( $rows ) {
+	$periods = array();
+	foreach ( $rows as $row ) {
+		$period = $row['period'];
+		if ( ! isset( $periods[ $period ] ) ) {
+			$periods[ $period ] = array(
+				'period' => $period,
+				'total' => 0,
+				'values' => array(),
+			);
+		}
+		$periods[ $period ]['values'][ $row['value'] ] = $row['views'];
+		$periods[ $period ]['total'] += $row['views'];
+	}
+
+	$timeline = array();
+	foreach ( $periods as $period ) {
+		$period['values'] = (object) $period['values'];
+		$timeline[] = $period;
+	}
+	return $timeline;
 }
 
 function mywp_event_dashboard_render( $stats, $current_user ) {
@@ -897,6 +1169,27 @@ function mywp_event_dashboard_render( $stats, $current_user ) {
 			.metric {
 				margin-bottom: 16px;
 			}
+			.metric-value {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+			}
+			.info-marker {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				width: 16px;
+				height: 16px;
+				border: 1px solid var(--border);
+				border-radius: 50%;
+				color: var(--muted);
+				font-family: sans-serif;
+				font-size: 11px;
+				font-style: normal;
+				font-weight: 700;
+				line-height: 1;
+				cursor: help;
+			}
 			.kpi-detail {
 				margin-top: 8px;
 				color: var(--muted);
@@ -981,7 +1274,9 @@ function mywp_event_dashboard_get_current_area( $groups ) {
 	}
 
 	if ( 'plugin' === $area ) {
-		$plugin_slug = $_GET['plugin_slug'] ?? '';
+		$plugin_slug = mywp_event_dashboard_canonical_plugin_slug(
+			$_GET['plugin_slug'] ?? ''
+		);
 		if ( mywp_event_dashboard_is_safe_plugin_slug( $plugin_slug ) ) {
 			return mywp_event_dashboard_area( 'plugin', $plugin_slug );
 		}
@@ -996,6 +1291,7 @@ function mywp_event_dashboard_get_current_area( $groups ) {
 				'new-installs',
 				'returning-visitors',
 				'blueprint-installs',
+				'engagement',
 				'remote-access',
 				'health-check',
 				'sidebar',
@@ -1016,6 +1312,7 @@ function mywp_event_dashboard_area( $type, $plugin_slug = null ) {
 		'new-installs' => 'New installs',
 		'returning-visitors' => 'Returning visitors',
 		'blueprint-installs' => 'Blueprint installs',
+		'engagement' => 'Engagement',
 		'remote-access' => 'Remote Access',
 		'health-check' => 'Health Check',
 		'sidebar' => 'Site Tools',
@@ -1048,6 +1345,7 @@ function mywp_event_dashboard_render_area_controls(
 		mywp_event_dashboard_area( 'new-installs' ),
 		mywp_event_dashboard_area( 'returning-visitors' ),
 		mywp_event_dashboard_area( 'blueprint-installs' ),
+		mywp_event_dashboard_area( 'engagement' ),
 		mywp_event_dashboard_area( 'remote-access' ),
 		mywp_event_dashboard_area( 'health-check' ),
 		mywp_event_dashboard_area( 'sidebar' ),
@@ -1143,6 +1441,7 @@ function mywp_event_dashboard_render_area(
 				'First-use events for new Personal WP sites.',
 				'wordpress_installed',
 				array(
+					'wordpress_installed:referrer_source',
 					'wordpress_installed:original_blueprint_source',
 					'wordpress_installed:site_age_bucket',
 					'wordpress_installed:previous_visit_age_bucket',
@@ -1159,6 +1458,7 @@ function mywp_event_dashboard_render_area(
 				'Visits to existing Personal WP sites.',
 				'returning_visit',
 				array(
+					'returning_visit:referrer_source',
 					'returning_visit:previous_visit_age_bucket',
 					'returning_visit:site_age_bucket',
 				),
@@ -1178,7 +1478,17 @@ function mywp_event_dashboard_render_area(
 					'blueprint_installed:trigger',
 					'blueprint_installed:request_source',
 					'blueprint_installed:blueprint_source',
+					'blueprint_installed:previous_visit_age_bucket',
+					'blueprint_installed:site_age_bucket',
 				),
+				$stats,
+				$groups,
+				$metric_definitions
+			);
+			return;
+
+		case 'engagement':
+			mywp_event_dashboard_render_engagement_area(
 				$stats,
 				$groups,
 				$metric_definitions
@@ -1264,9 +1574,148 @@ function mywp_event_dashboard_render_overview_area( $stats, $groups ) {
 			<p class="muted">New installs, returning visits, and blueprint installs over time.</p>
 		</div>
 		<div class="panel">
-			<?php mywp_event_dashboard_render_timeline( $stats['timeline'] ); ?>
+			<?php
+			mywp_event_dashboard_render_timeline(
+				mywp_event_dashboard_filter_timeline_values(
+					$stats['timeline'],
+					mywp_event_dashboard_primary_event_values()
+				)
+			);
+			?>
 		</div>
 	</section>
+	<?php
+}
+
+function mywp_event_dashboard_render_engagement_area(
+	$stats,
+	$groups,
+	$metric_definitions
+) {
+	$today = gmdate( 'Y-m-d' );
+	$seven_days_ago = gmdate( 'Y-m-d', time() - 6 * 24 * 60 * 60 );
+	$daily_streak_today = mywp_event_dashboard_timeline_value_count_on_date(
+		$stats['timeline'],
+		'daily_streak',
+		$today
+	);
+	$daily_streak_3_day_today = mywp_event_dashboard_timeline_numeric_value_count_at_least_on_date(
+		$stats['daily_streak_length_timeline'],
+		3,
+		$today
+	);
+	$daily_streak_last_7_days = mywp_event_dashboard_timeline_value_count_between_dates(
+		$stats['timeline'],
+		'daily_streak',
+		$seven_days_ago,
+		$today
+	);
+	$daily_streak_selected_range = mywp_event_dashboard_event_count(
+		$groups,
+		'daily_streak'
+	);
+	$weekly_streak_selected_range = mywp_event_dashboard_event_count(
+		$groups,
+		'weekly_streak'
+	);
+	$monthly_streak_selected_range = mywp_event_dashboard_event_count(
+		$groups,
+		'monthly_streak'
+	);
+	$timeline = mywp_event_dashboard_filter_timeline_values(
+		$stats['timeline'],
+		array( 'daily_streak', 'weekly_streak', 'monthly_streak' )
+	);
+	?>
+	<section class="dashboard-section">
+		<div class="section-heading">
+			<h2>Engagement</h2>
+			<p class="muted">
+				The daily streak event is the clearest signal for current
+				engagement: each local site reports at most one daily streak ping
+				per UTC day. Weekly and monthly streak events are period-level
+				pings, so they are shown as context rather than as comparable
+				active-site totals.
+			</p>
+			<p class="muted">
+				Streak tracking started on
+				<?php echo mywp_event_dashboard_h(
+					mywp_event_dashboard_format_date(
+						MYWP_EVENT_DASHBOARD_STREAK_TRACKING_START_DATE
+					)
+				); ?>. Every site's streak began at 1 from that date, so
+				expect low streak numbers for a while &mdash; they don't yet
+				reflect how long sites had actually been used before then.
+			</p>
+		</div>
+		<div class="grid">
+			<div class="panel">
+				<div class="muted">Daily streak visitors today</div>
+				<div class="stat-number"><?php echo mywp_event_dashboard_number( $daily_streak_today ); ?></div>
+				<div class="kpi-detail">Daily streak pings on <?php echo mywp_event_dashboard_h( $today ); ?> UTC</div>
+			</div>
+			<div class="panel">
+				<div class="muted">3+ day streak visitors today</div>
+				<div class="stat-number"><?php echo mywp_event_dashboard_number( $daily_streak_3_day_today ); ?></div>
+				<div class="kpi-detail">Daily streak pings with length 3 or more today</div>
+			</div>
+			<div class="panel">
+				<div class="muted">Daily streak visitor-days, last 7 days</div>
+				<div class="stat-number"><?php echo mywp_event_dashboard_number( $daily_streak_last_7_days ); ?></div>
+				<div class="kpi-detail">Sum of daily streak pings since <?php echo mywp_event_dashboard_h( $seven_days_ago ); ?> UTC</div>
+			</div>
+			<div class="panel">
+				<div class="muted">Daily streak visitor-days, selected range</div>
+				<div class="stat-number"><?php echo mywp_event_dashboard_number( $daily_streak_selected_range ); ?></div>
+				<div class="kpi-detail">Sum of daily streak pings in the selected range</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="dashboard-section">
+		<div class="section-heading">
+			<h2>Period pings</h2>
+			<p class="muted">One-ping-per-period streak volume in the selected range.</p>
+		</div>
+		<div class="grid">
+			<div class="panel">
+				<div class="muted">Daily streak pings</div>
+				<div class="stat-number"><?php echo mywp_event_dashboard_number( $daily_streak_selected_range ); ?></div>
+				<div class="kpi-detail">One ping per active local site per UTC day</div>
+			</div>
+			<div class="panel">
+				<div class="muted">Weekly streak pings</div>
+				<div class="stat-number"><?php echo mywp_event_dashboard_number( $weekly_streak_selected_range ); ?></div>
+				<div class="kpi-detail">One ping per active local site per UTC week</div>
+			</div>
+			<div class="panel">
+				<div class="muted">Monthly streak pings</div>
+				<div class="stat-number"><?php echo mywp_event_dashboard_number( $monthly_streak_selected_range ); ?></div>
+				<div class="kpi-detail">One ping per active local site per UTC month</div>
+			</div>
+		</div>
+	</section>
+
+	<section class="dashboard-section">
+		<div class="section-heading">
+			<h2>Engagement trend</h2>
+		</div>
+		<div class="panel">
+			<?php mywp_event_dashboard_render_timeline( $timeline ); ?>
+		</div>
+	</section>
+
+	<?php mywp_event_dashboard_render_metric_section(
+		'Streak distribution',
+		'Consecutive periods in a row each reporting site has been active for.',
+		array(
+			'daily_streak:length',
+			'weekly_streak:length',
+			'monthly_streak:length',
+		),
+		$groups,
+		$metric_definitions
+	); ?>
 	<?php
 }
 
@@ -1367,6 +1816,69 @@ function mywp_event_dashboard_filter_timeline_values( $rows, $values ) {
 			}
 		)
 	);
+}
+
+function mywp_event_dashboard_timeline_value_count_on_date( $rows, $value, $date ) {
+	return mywp_event_dashboard_timeline_value_count_between_dates(
+		$rows,
+		$value,
+		$date,
+		$date
+	);
+}
+
+function mywp_event_dashboard_timeline_value_count_between_dates(
+	$rows,
+	$value,
+	$start_date,
+	$end_date
+) {
+	$total = 0;
+	foreach ( $rows as $row ) {
+		if ( $value !== $row['value'] ) {
+			continue;
+		}
+
+		$row_date = substr( $row['period'], 0, 10 );
+		if ( $row_date >= $start_date && $row_date <= $end_date ) {
+			$total += $row['views'];
+		}
+	}
+
+	return $total;
+}
+
+function mywp_event_dashboard_timeline_numeric_value_count_at_least_on_date(
+	$rows,
+	$minimum,
+	$date
+) {
+	$total = 0;
+	foreach ( $rows as $row ) {
+		$row_date = substr( $row['period'], 0, 10 );
+		if ( $row_date !== $date ) {
+			continue;
+		}
+
+		$value = mywp_event_dashboard_numeric_metric_value( $row['value'] );
+		if ( null !== $value && $value >= $minimum ) {
+			$total += $row['views'];
+		}
+	}
+
+	return $total;
+}
+
+function mywp_event_dashboard_numeric_metric_value( $value ) {
+	if ( is_string( $value ) && str_ends_with( $value, '+' ) ) {
+		$value = substr( $value, 0, -1 );
+	}
+
+	if ( is_string( $value ) && preg_match( '/^\d+$/', $value ) ) {
+		return (int) $value;
+	}
+
+	return null;
 }
 
 function mywp_event_dashboard_metric_value_count( $groups, $metric_name, $value ) {
@@ -1535,8 +2047,8 @@ function mywp_event_dashboard_render_timeline_legend( $event_values ) {
 	echo '</div>';
 }
 
-function mywp_event_dashboard_order_event_values( $event_values ) {
-	$preferred_order = array(
+function mywp_event_dashboard_primary_event_values() {
+	return array(
 		'wordpress_installed',
 		'returning_visit',
 		'blueprint_installed',
@@ -1545,6 +2057,10 @@ function mywp_event_dashboard_order_event_values( $event_values ) {
 		'sidebar_opened',
 		'backup_restored',
 	);
+}
+
+function mywp_event_dashboard_order_event_values( $event_values ) {
+	$preferred_order = mywp_event_dashboard_primary_event_values();
 	$ordered_values = array();
 	foreach ( $preferred_order as $event_value ) {
 		if ( in_array( $event_value, $event_values, true ) ) {
@@ -1560,20 +2076,62 @@ function mywp_event_dashboard_order_event_values( $event_values ) {
 	return $ordered_values;
 }
 
-function mywp_event_dashboard_render_metric_table( $rows ) {
+function mywp_event_dashboard_render_metric_table( $rows, $metric_name ) {
 	$max_views = max( array_column( $rows, 'views' ) );
 	echo '<table><thead><tr><th>Value</th><th>Views</th></tr></thead><tbody>';
 	foreach ( $rows as $row ) {
 		$width = $max_views > 0 ? ( $row['views'] / $max_views ) * 100 : 0;
-		echo '<tr><td><code>' .
-			mywp_event_dashboard_h( $row['value'] ) .
-			'</code><div class="bar"><span style="width:' .
+		echo '<tr><td>' .
+			mywp_event_dashboard_render_metric_value(
+				$metric_name,
+				$row['value']
+			) .
+			'<div class="bar"><span style="width:' .
 			mywp_event_dashboard_h( sprintf( '%.2f%%', $width ) ) .
 			'"></span></div></td><td>' .
 			mywp_event_dashboard_number( $row['views'] ) .
 			'</td></tr>';
 	}
 	echo '</tbody></table>';
+}
+
+function mywp_event_dashboard_render_metric_value( $metric_name, $value ) {
+	$info = mywp_event_dashboard_referrer_source_info( $metric_name, $value );
+	$output = '<span class="metric-value"><code>' .
+		mywp_event_dashboard_h( $value ) .
+		'</code>';
+
+	if ( $info ) {
+		$output .= '<span class="info-marker" title="' .
+			mywp_event_dashboard_h( $info ) .
+			'" aria-label="' .
+			mywp_event_dashboard_h( $info ) .
+			'">i</span>';
+	}
+
+	return $output . '</span>';
+}
+
+function mywp_event_dashboard_referrer_source_info( $metric_name, $value ) {
+	if (
+		! in_array(
+			$metric_name,
+			MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_METRICS,
+			true
+		)
+	) {
+		return null;
+	}
+
+	$descriptions = array(
+		'direct' => 'No referrer was sent by the browser.',
+		'internal' => 'The referrer was another page on my.wordpress.net.',
+		'private-address' => 'The referrer looked like a private host, local name, or IP address.',
+		'unknown' => 'The referrer could not be parsed as a reportable web URL.',
+		MYWP_EVENT_DASHBOARD_REFERRER_SOURCE_OTHER => 'External referrer hosts below the reporting threshold are grouped here.',
+	);
+
+	return $descriptions[ $value ] ?? null;
 }
 
 function mywp_event_dashboard_sum_views( $rows ) {
@@ -1622,7 +2180,7 @@ function mywp_event_dashboard_render_metric_section(
 			<?php foreach ( $available_metric_names as $metric_name ) : ?>
 				<div class="panel metric">
 					<h2><?php echo mywp_event_dashboard_h( $metric_definitions[ $metric_name ] ?? $metric_name ); ?></h2>
-					<?php mywp_event_dashboard_render_metric_table( $groups[ $metric_name ] ); ?>
+					<?php mywp_event_dashboard_render_metric_table( $groups[ $metric_name ], $metric_name ); ?>
 				</div>
 			<?php endforeach; ?>
 		</div>
@@ -1635,6 +2193,8 @@ function mywp_event_dashboard_metric_sections() {
 		'Growth and Retention' => array(
 			'description' => 'Signals that explain new-site and returning-site usage.',
 			'metrics' => array(
+				'wordpress_installed:referrer_source',
+				'returning_visit:referrer_source',
 				'wordpress_installed:original_blueprint_source',
 				'wordpress_installed:site_age_bucket',
 				'wordpress_installed:previous_visit_age_bucket',
@@ -1649,6 +2209,8 @@ function mywp_event_dashboard_metric_sections() {
 				'blueprint_installed:trigger',
 				'blueprint_installed:request_source',
 				'blueprint_installed:blueprint_source',
+				'blueprint_installed:previous_visit_age_bucket',
+				'blueprint_installed:site_age_bucket',
 			),
 		),
 	);
@@ -1695,6 +2257,9 @@ function mywp_event_dashboard_event_color( $event ) {
 		'health_check_installed' => '#5b5fc7',
 		'sidebar_opened' => '#007cba',
 		'backup_restored' => '#008a20',
+		'daily_streak' => '#0a7a69',
+		'weekly_streak' => '#3858e9',
+		'monthly_streak' => '#b26200',
 	);
 
 	if ( isset( $colors[ $event ] ) ) {
@@ -1723,6 +2288,9 @@ function mywp_event_dashboard_event_label( $event ) {
 		'health_check_installed' => 'Health Check installs',
 		'sidebar_opened' => 'Site Tools opens',
 		'backup_restored' => 'Backup restores',
+		'daily_streak' => 'Daily active',
+		'weekly_streak' => 'Weekly active',
+		'monthly_streak' => 'Monthly active',
 	);
 
 	return $labels[ $event ] ?? $event;
@@ -1734,12 +2302,19 @@ function mywp_event_dashboard_metric_definitions() {
 		'wordpress_installed:site_age_bucket' => 'New Installs: Site Age',
 		'wordpress_installed:previous_visit_age_bucket' => 'New Installs: Previous Visit Age',
 		'wordpress_installed:original_blueprint_source' => 'New Installs: Original Blueprint Source',
+		'wordpress_installed:referrer_source' => 'New Installs: Referrer Source',
+		'returning_visit:referrer_source' => 'Returning Visits: Referrer Source',
 		'returning_visit:site_age_bucket' => 'Returning Visits: Site Age',
 		'returning_visit:previous_visit_age_bucket' => 'Returning Visits: Previous Visit Age',
 		'blueprint_installed:trigger' => 'Blueprint Installs: Trigger',
 		'blueprint_installed:request_source' => 'Blueprint Installs: Request Source',
 		'blueprint_installed:blueprint_source' => 'Blueprint Installs: Source Class',
 		'blueprint_installed:plugin_slug' => 'Blueprint Installs: Plugin Slug',
+		'blueprint_installed:previous_visit_age_bucket' => 'Blueprint Installs: Previous Visit Age',
+		'blueprint_installed:site_age_bucket' => 'Blueprint Installs: Site Age',
+		'daily_streak:length' => 'Daily Streak Length (consecutive days)',
+		'weekly_streak:length' => 'Weekly Streak Length (consecutive weeks)',
+		'monthly_streak:length' => 'Monthly Streak Length (consecutive months)',
 	);
 }
 
@@ -1764,6 +2339,17 @@ function mywp_event_dashboard_filter_url( $range, $granularity, $area = null ) {
 
 function mywp_event_dashboard_number( $value ) {
 	return number_format( (int) $value );
+}
+
+function mywp_event_dashboard_format_date( $date ) {
+	$parsed = DateTime::createFromFormat(
+		'!Y-m-d',
+		$date,
+		new DateTimeZone( 'UTC' )
+	);
+	return false === $parsed
+		? $date
+		: gmdate( 'F j, Y', $parsed->getTimestamp() );
 }
 
 function mywp_event_dashboard_h( $value ) {

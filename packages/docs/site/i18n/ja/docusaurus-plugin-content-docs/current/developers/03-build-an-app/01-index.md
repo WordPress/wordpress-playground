@@ -209,32 +209,23 @@ blueprint={{
 			"password": "password"
 		},
 		{
-			"step": "mkdir",
-			"path": "/wordpress/pr"
-		},
-		{
 			"step": "writeFile",
-			"path": "/wordpress/pr/pr.zip",
+			"path": "/tmp/gutenberg.zip",
 			"data": {
 				"resource": "url",
-				"url": "/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=60819",
-				"caption": "Downloading Gutenberg PR 47739"
+				"url": "/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg.zip&pr=60819",
+				"caption": "Downloading Gutenberg PR 60819"
 			},
 			"progress": {
 				"weight": 2,
-				"caption": "Applying Gutenberg PR 47739"
+				"caption": "Applying Gutenberg PR 60819"
 			}
-		},
-		{
-			"step": "unzip",
-			"zipPath": "/wordpress/pr/pr.zip",
-			"extractToPath": "/wordpress/pr"
 		},
 		{
 			"step": "installPlugin",
 			"pluginData": {
 				"resource": "vfs",
-				"path": "/wordpress/pr/gutenberg.zip"
+				"path": "/tmp/gutenberg.zip"
 			}
 		}
 	]

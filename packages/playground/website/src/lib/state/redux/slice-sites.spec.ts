@@ -5,6 +5,7 @@ import type { TraversableFilesystemBackend } from '@wp-playground/storage';
 describe('stored sites', () => {
 	let createSite: ReturnType<typeof vi.fn>;
 	let deleteSite: ReturnType<typeof vi.fn>;
+	let listMetadata: ReturnType<typeof vi.fn>;
 	let loggerError: ReturnType<typeof vi.fn>;
 	let updateSiteStorage: ReturnType<typeof vi.fn>;
 	let persistBlueprintBundle: ReturnType<typeof vi.fn>;
@@ -15,6 +16,7 @@ describe('stored sites', () => {
 		vi.resetModules();
 		createSite = vi.fn();
 		deleteSite = vi.fn();
+		listMetadata = vi.fn().mockResolvedValue([]);
 		loggerError = vi.fn();
 		updateSiteStorage = vi.fn();
 		updateSiteStorage.mockImplementation(async (slug, changes) => {
@@ -37,6 +39,7 @@ describe('stored sites', () => {
 		vi.doMock('@php-wasm/logger', () => ({
 			logger: {
 				error: loggerError,
+				warn: vi.fn(),
 			},
 		}));
 		vi.doMock('@wp-playground/common', () => ({
@@ -67,6 +70,7 @@ describe('stored sites', () => {
 			opfsSiteStorage: {
 				create: createSite,
 				delete: deleteSite,
+				listMetadata,
 				update: updateSiteStorage,
 			},
 		}));
@@ -107,16 +111,27 @@ describe('stored sites', () => {
 		vi.doUnmock('./store');
 	});
 
-	it('classifies a normal autosave but not an unfinished Blueprint run as restorable', async () => {
+	it('only classifies bootable autosaves as restorable', async () => {
 		const { isRestorableAutosavedSite } = await import('./slice-sites');
 		const autosave = createSiteInfo({ slug: 'autosave' });
 		autosave.metadata.persistence = 'autosave';
+		const inProgressAutosave = createSiteInfo({ slug: 'in-progress' });
+		inProgressAutosave.metadata.persistence = 'autosave';
+		inProgressAutosave.metadata.initialOpfsSyncPending = true;
+		const storedUnfinishedAutosave = createSiteInfo({
+			slug: 'stored-unfinished',
+		});
+		storedUnfinishedAutosave.loadedFromStorage = true;
+		storedUnfinishedAutosave.metadata.persistence = 'autosave';
+		storedUnfinishedAutosave.metadata.initialOpfsSyncPending = true;
 		const unfinishedRun = createSiteInfo({ slug: 'unfinished-run' });
 		unfinishedRun.metadata.persistence = 'autosave';
 		unfinishedRun.metadata.siteSlugToReturnToIfBlueprintFails =
 			'source-site';
 
 		expect(isRestorableAutosavedSite(autosave)).toBe(true);
+		expect(isRestorableAutosavedSite(inProgressAutosave)).toBe(true);
+		expect(isRestorableAutosavedSite(storedUnfinishedAutosave)).toBe(false);
 		expect(isRestorableAutosavedSite(unfinishedRun)).toBe(false);
 	});
 
@@ -504,6 +519,74 @@ describe('stored sites', () => {
 		);
 	});
 
+	it.each([
+		{ requestedSlug: undefined, expectedSlug: 'current-temp', reuse: true },
+		{
+			requestedSlug: 'current-temp',
+			expectedSlug: undefined,
+			reuse: false,
+		},
+		{
+			requestedSlug: 'clone-temp',
+			expectedSlug: 'clone-temp',
+			reuse: false,
+		},
+	])(
+		'handles temporary site reuse for slug $requestedSlug',
+		async ({ requestedSlug, expectedSlug, reuse }) => {
+			const { setTemporarySiteSpec, sitesSlice } =
+				await import('./slice-sites');
+			const currentSite = createSiteInfo({
+				slug: 'current-temp',
+				name: 'Original Playground',
+				originalUrlParams: {
+					searchParams: {
+						storage: 'temp',
+						php: '8.3',
+						networking: 'yes',
+					},
+					hash: '',
+				},
+			});
+			currentSite.metadata.storage = 'none';
+			resolveRuntimeConfiguration.mockResolvedValue(
+				currentSite.metadata.runtimeConfiguration
+			);
+			let state = {
+				sites: sitesSlice.reducer(
+					undefined,
+					sitesSlice.actions.addSite(currentSite)
+				),
+			};
+			const dispatch = vi.fn((action) => {
+				state = { sites: sitesSlice.reducer(state.sites, action) };
+				return action;
+			});
+
+			const site = await setTemporarySiteSpec(
+				'Cloned Playground',
+				new URL(
+					'https://playground.test/?storage=temp&php=8.3&networking=yes'
+				),
+				requestedSlug
+			)(dispatch as any, () => state as any);
+
+			if (expectedSlug) {
+				expect(site.slug).toBe(expectedSlug);
+			} else {
+				expect(site.slug).toMatch(
+					/^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/
+				);
+			}
+			expect(site.metadata.name).toBe(
+				reuse ? 'Original Playground' : 'Cloned Playground'
+			);
+			expect(state.sites.entities['current-temp']).toBe(
+				reuse ? currentSite : undefined
+			);
+		}
+	);
+
 	it('keeps setStoredSiteSpec as the setup URL compatibility alias', async () => {
 		resolveRuntimeConfiguration.mockRejectedValue(
 			new Error('Invalid setup')
@@ -580,7 +663,7 @@ describe('stored sites', () => {
 			}
 		)(dispatch as any, getState as any);
 
-		expect(newSite.slug).toBe('source-site-2');
+		expect(newSite.slug).toMatch(/^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/);
 		expect(newSite.metadata).toMatchObject({
 			name: 'Edited Blueprint',
 			storage: 'opfs',
@@ -592,11 +675,11 @@ describe('stored sites', () => {
 			runtimeConfiguration,
 		});
 		expect(persistBlueprintBundle).toHaveBeenCalledWith(
-			'source-site-2',
+			newSite.slug,
 			editedBundle
 		);
 		expect(createSite).toHaveBeenCalledWith(
-			'source-site-2',
+			newSite.slug,
 			newSite.metadata,
 			undefined
 		);
@@ -604,7 +687,7 @@ describe('stored sites', () => {
 		expect(writes).toEqual(['bundle', 'metadata']);
 		expect(state.sites.entities).toMatchObject({
 			'source-site': sourceSite,
-			'source-site-2': newSite,
+			[newSite.slug]: newSite,
 		});
 	});
 

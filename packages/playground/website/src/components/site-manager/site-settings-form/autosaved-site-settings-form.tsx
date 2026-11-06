@@ -57,7 +57,6 @@ export function AutosavedSiteSettingsForm({
 			footer={(context) => (
 				<SiteSettingsActionFooter
 					{...context}
-					siteName={siteInfo.metadata.name}
 					sitePersistence="autosave"
 					onApply={(data) => submission.run(updateSite, data)}
 					onCreateFresh={(data) =>

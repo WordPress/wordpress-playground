@@ -78,7 +78,7 @@ This docs hub is focused on starting with WordPress Playground and is divided in
 
 -   **[Contributing](/contributing)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute.
 
--   **[Links and resources](/resources)**: A nice compilation of useful links and resources related to WordPress Playground.
+-   **[Links and resources](/links-and-resources)**: A nice compilation of useful links and resources related to WordPress Playground.
 -->
 
 Este hub de documentación está enfocado en comenzar con WordPress Playground y está dividido en las siguientes secciones principales.
@@ -95,7 +95,7 @@ Este hub de documentación está enfocado en comenzar con WordPress Playground y
 
 - **[Contribuir](/contributing)**: WordPress Playground es un proyecto de código abierto que da la bienvenida a todos los contribuidores, desde código hasta diseño, documentación hasta clasificación. Aprende aquí cómo contribuir.
 
-- **[Enlaces y recursos](/resources)**: Una buena recopilación de enlaces útiles y recursos relacionados con WordPress Playground.
+- **[Enlaces y recursos](/links-and-resources)**: Una buena recopilación de enlaces útiles y recursos relacionados con WordPress Playground.
 
 <!--
 ## First steps
@@ -149,13 +149,13 @@ Si eres desarrollador o usuario técnico, es posible que desees revisar directam
 
 <!--
 -   Read about [Playground APIs](/developers/apis/) and basic concepts
--   Review [links and resources](/resources)
+-   Review [links and resources](/links-and-resources)
 -   Choose the right API for your app
 -   Dive into the [architecture](/developers/architecture) and learn how it all works
 -->
 
 - Lee sobre las [APIs de Playground](/developers/apis/) y conceptos básicos
-- Revisa [enlaces y recursos](/resources)
+- Revisa [enlaces y recursos](/links-and-resources)
 - Elige la API adecuada para tu aplicación
     - [Query API](/developers/apis/query-api) enable basic operations using only query parameters
     - [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file

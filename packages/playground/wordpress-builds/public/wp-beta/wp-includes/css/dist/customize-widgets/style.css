@@ -98,6 +98,21 @@
   --wp-block-synced-color--rgb: 122, 0, 223;
   --wp-bound-block-color: var(--wp-block-synced-color);
   --wp-editor-canvas-background: #ddd;
+  --wp-admin-theme-color: #3858e9;
+  --wp-admin-theme-color--rgb: 56, 88, 233;
+  --wp-admin-theme-color-darker-10: rgb(33.0384615385, 68.7307692308, 230.4615384615);
+  --wp-admin-theme-color-darker-10--rgb: 33.0384615385, 68.7307692308, 230.4615384615;
+  --wp-admin-theme-color-darker-20: rgb(23.6923076923, 58.1538461538, 214.3076923077);
+  --wp-admin-theme-color-darker-20--rgb: 23.6923076923, 58.1538461538, 214.3076923077;
+  --wp-admin-border-width-focus: 2px;
+}
+@media (min-resolution: 192dpi) {
+  :root {
+    --wp-admin-border-width-focus: 1.5px;
+  }
+}
+
+body.admin-color-fresh {
   --wp-admin-theme-color: #007cba;
   --wp-admin-theme-color--rgb: 0, 124, 186;
   --wp-admin-theme-color-darker-10: rgb(0, 107, 160.5);
@@ -107,7 +122,7 @@
   --wp-admin-border-width-focus: 2px;
 }
 @media (min-resolution: 192dpi) {
-  :root {
+  body.admin-color-fresh {
     --wp-admin-border-width-focus: 1.5px;
   }
 }
@@ -128,6 +143,23 @@
 
 #customize-theme-controls .customize-pane-child.control-section-sidebar.is-sub-section-open {
   transform: translateX(-100%);
+}
+
+.customize-widgets-error-boundary {
+  font-family: var(--wpds-typography-font-family-body, -apple-system, system-ui, "Segoe UI", "Roboto", "Oxygen-Sans", "Ubuntu", "Cantarell", "Helvetica Neue", sans-serif);
+  padding: var(--wpds-dimension-padding-md, 12px);
+}
+
+.customize-widgets-error-boundary__report {
+  max-height: 420px;
+  overflow: auto;
+  overflow-anchor: none;
+}
+
+.customize-widgets-error-boundary__report-section {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 @media (min-width: 600px) {
@@ -152,31 +184,40 @@
   border: none;
   width: 100%;
   align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+.customize-widgets-header-toolbar > .components-button.has-icon.has-icon.has-icon,
+.customize-widgets-header-toolbar > .components-dropdown > .components-button.has-icon.has-icon {
+  height: 32px;
+  min-width: 32px;
+  padding: 4px;
+}
+.customize-widgets-header-toolbar > .components-button.has-icon.has-icon.has-icon.is-pressed,
+.customize-widgets-header-toolbar > .components-dropdown > .components-button.has-icon.has-icon.is-pressed {
+  background: #1e1e1e;
+}
+.customize-widgets-header-toolbar > .components-button.has-icon.has-icon.has-icon:focus:not(:active),
+.customize-widgets-header-toolbar > .components-dropdown > .components-button.has-icon.has-icon:focus:not(:active) {
+  outline: var(--wpds-border-width-focus, var(--wp-admin-border-width-focus, 2px)) solid var(--focus-color, var(--wpds-color-stroke-focus, var(--wp-admin-theme-color, #3858e9)));
+  outline-offset: var(--wpds-border-width-focus, var(--wp-admin-border-width-focus, 2px));
+}
+.customize-widgets-header-toolbar > .components-button.has-icon.has-icon.has-icon::before,
+.customize-widgets-header-toolbar > .components-dropdown > .components-button.has-icon.has-icon::before {
+  display: none;
 }
 .customize-widgets-header-toolbar .customize-widgets-header-toolbar__inserter-toggle.components-button.has-icon {
   border-radius: 2px;
   color: #fff;
-  padding: 0;
-  min-width: 32px;
-  height: 32px;
   margin: 12px 0 12px auto;
-}
-.customize-widgets-header-toolbar .customize-widgets-header-toolbar__inserter-toggle.components-button.has-icon::before {
-  content: none;
 }
 @media not (prefers-reduced-motion) {
   .customize-widgets-header-toolbar .customize-widgets-header-toolbar__inserter-toggle.components-button.has-icon svg {
     transition: transform cubic-bezier(0.165, 0.84, 0.44, 1) 0.2s;
   }
 }
-.customize-widgets-header-toolbar .customize-widgets-header-toolbar__inserter-toggle.components-button.has-icon.is-pressed {
-  background: #1e1e1e;
-}
 .customize-widgets-header-toolbar .customize-widgets-header-toolbar__inserter-toggle.components-button.has-icon.is-pressed svg {
   transform: rotate(45deg);
-}
-.customize-widgets-header-toolbar .components-button.has-icon.customize-widgets-editor-history-button.redo-button {
-  margin-left: -12px;
 }
 
 #customize-sidebar-outer-content {
