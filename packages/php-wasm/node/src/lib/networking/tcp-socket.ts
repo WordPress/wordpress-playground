@@ -63,6 +63,15 @@ export class TcpSocket extends EventEmitter {
 		this._socket = socket;
 		this.readyState = readyState;
 		socket?.on('data', (data: Buffer) => {
+			// PHP has closed the socket, so nothing will read this data. Reset
+			// the connection like a closed native socket would.
+			if (
+				this.readyState === this.CLOSING ||
+				this.readyState === this.CLOSED
+			) {
+				socket.destroy();
+				return;
+			}
 			// Emscripten ignores messages that aren't marked as binary.
 			this.emit('message', data, true);
 		});
