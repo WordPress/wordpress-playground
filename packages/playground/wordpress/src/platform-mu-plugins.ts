@@ -3,7 +3,7 @@ import type { UniversalPHP } from '@php-wasm/universal';
 /**
  * Writes the database metadata preload and platform mu-plugins that run on every
  * supported PHP/WordPress combination — 0-playground.php,
- * sitemap-redirect.php, inline-tinymce-content-css.php.
+ * inline-tinymce-content-css.php.
  *
  * Both {@link setupPlatformLevelMuPlugins} (modern path) and
  * {@link setupLegacyPlatformLevelMuPlugins} call this to avoid
@@ -151,43 +151,6 @@ export async function writeCommonPlatformMuPlugins(
         }
         define('ERROR_LOG_FILE', $log_file);
         ?>`
-	);
-
-	/**
-	 * WordPress 6.7+ only generates the sitemap.xml → wp-sitemap.xml rewrite
-	 * rule when installed at the domain root. Since Playground may use non-root
-	 * installations, the rule isn't generated. This mu-plugin handles the
-	 * redirect manually by using the site URL to determine the correct base path.
-	 *
-	 * @see https://github.com/WordPress/wordpress-playground/issues/2051
-	 */
-	await php.writeFile(
-		'/internal/shared/mu-plugins/sitemap-redirect.php',
-		`<?php
-		/**
-		 * Redirect sitemap.xml to wp-sitemap.xml for non-root installations.
-		 *
-		 * WordPress seems to only generate the sitemap.xml → wp-sitemap.xml rewrite
-		 * rule when installed at the domain root. This mu-plugin handles the
-		 * redirect for non-root installations.
-		 */
-		if (isset($_SERVER['REQUEST_URI'])) {
-			$site_url = site_url();
-			$parsed = parse_url($site_url);
-			$base_path = isset($parsed['path']) ? rtrim($parsed['path'], '/') : '';
-
-			$request_uri = $_SERVER['REQUEST_URI'];
-			if (
-				$request_uri === $base_path . '/sitemap.xml' ||
-				strpos($request_uri, $base_path . '/sitemap.xml?') === 0 ||
-				strpos($request_uri, $base_path . '/sitemap.xml/') === 0
-			) {
-				$query_string = strpos($request_uri, '?') !== false ? substr($request_uri, strpos($request_uri, '?')) : '';
-				header('Location: ' . $base_path . '/wp-sitemap.xml' . $query_string, true, 301);
-				exit;
-			}
-		}
-		`
 	);
 
 	// TinyMCE's editor iframe uses document.open(), which creates a
