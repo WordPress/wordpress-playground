@@ -1,7 +1,9 @@
 import type { PHP, PHPRequestHandler } from '@php-wasm/universal';
+import { readFile } from 'node:fs/promises';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { ProgressTrackerEvent } from '@php-wasm/progress';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import { enableMultisite } from '../../lib/steps/enable-multisite';
 import { importWordPressFiles } from '../../lib/steps/import-wordpress-files';
 import { replaceSiteUrl } from '../../lib/utils/replace-site-url';
 import { zipWpContent } from '../../lib/steps/zip-wp-content';
@@ -34,6 +36,7 @@ describe('Blueprint step importWordPressFiles', () => {
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: sourceSiteUrl,
+			sapiName: 'cli',
 			wordPressZip: await getWordPressModule(),
 			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
 		});
@@ -81,6 +84,89 @@ describe('Blueprint step importWordPressFiles', () => {
 		const manifest = JSON.parse(result.text);
 		expect(manifest.formatVersion).toBe(2);
 		expect(manifest.siteUrl).toContain(`scope:${sourceScope}`);
+	});
+
+	it('renames the admin only in the hosting archive and preserves the account', async () => {
+		const original = await sourcePHP.run({
+			code: `<?php
+				require '/wordpress/wp-load.php';
+				wp_create_user('taken-name', 'test-password');
+				$user = get_user_by('login', 'admin');
+				echo json_encode([$user->ID, $user->user_nicename, $user->roles, get_post_field('post_author', 1)]);`,
+		});
+
+		await expect(zipWpContent(sourcePHP, 'Admin')).rejects.toThrow(
+			'other than admin'
+		);
+		await expect(zipWpContent(sourcePHP, 'Taken-Name')).rejects.toThrow(
+			'already in use'
+		);
+		const hostingZip = await zipWpContent(sourcePHP, 'site-maintainer');
+		const live = await sourcePHP.run({
+			code: `<?php
+				require '/wordpress/wp-load.php';
+				echo json_encode([!is_wp_error(wp_authenticate('admin', 'password')), get_user_by('login', 'site-maintainer')]);`,
+		});
+		expect(live.json).toEqual([true, false]);
+
+		await importWordPressFiles(targetPHP, {
+			wordPressFilesZip: new File([hostingZip], 'hosting.zip'),
+		});
+		const imported = await targetPHP.run({
+			code: `<?php
+				require '/wordpress/wp-load.php';
+				$user = wp_authenticate('site-maintainer', 'password');
+				echo json_encode([
+					'oldLogin' => get_user_by('login', 'admin'),
+					'account' => [$user->ID, $user->user_nicename, $user->roles, get_post_field('post_author', 1)],
+				]);`,
+		});
+		expect(imported.json).toEqual({
+			oldLogin: false,
+			account: original.json,
+		});
+	});
+
+	it('preserves Multisite super admin grants in the hosting archive', async () => {
+		await sourcePHP.writeFile(
+			'/tmp/wp-cli.phar',
+			await readFile(new URL('../fixtures/wp-cli.phar', import.meta.url))
+		);
+		await enableMultisite(sourcePHP, {});
+		const url = new URL(await sourcePHP.absoluteUrl);
+		const request = {
+			relativeUri: url.pathname,
+			headers: { host: url.host },
+		};
+		const original = await sourcePHP.run({
+			...request,
+			code: `<?php require '/wordpress/wp-load.php';
+				$other = wp_create_user('second-admin', 'test-password');
+				grant_super_admin($other);
+				$id = get_user_by('login', 'admin')->ID;
+				echo json_encode($id);`,
+		});
+		const zip = await zipWpContent(sourcePHP, 'site-maintainer');
+		await sourcePHP.writeFile('/tmp/hosting.zip', zip);
+		const result = await sourcePHP.run({
+			...request,
+			code: `<?php require '/wordpress/wp-load.php';
+				$zip = new ZipArchive();
+				$zip->open('/tmp/hosting.zip');
+				$path = substr(realpath(defined('DB_PATH') ? DB_PATH : FQDB), strlen(ABSPATH));
+				file_put_contents('/tmp/hosting.sqlite', $zip->getFromName($path));
+				$db = new SQLite3('/tmp/hosting.sqlite', SQLITE3_OPEN_READONLY);
+				echo json_encode([
+					'live' => get_super_admins(),
+					'archived' => unserialize($db->querySingle("SELECT meta_value FROM $wpdb->sitemeta WHERE meta_key = 'site_admins'")),
+					'id' => $db->querySingle("SELECT ID FROM $wpdb->users WHERE user_login = 'site-maintainer'"),
+				]);`,
+		});
+		expect(result.json).toEqual({
+			live: ['admin', 'second-admin'],
+			archived: ['site-maintainer', 'second-admin'],
+			id: original.json,
+		});
 	});
 
 	it('should report progress while unpacking the archive', async () => {

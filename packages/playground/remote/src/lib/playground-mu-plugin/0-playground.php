@@ -8,11 +8,15 @@ if (version_compare(PHP_VERSION, '5.3', '<')
 }
 
 /**
- * Add a notice to wp-login.php offering the username and password.
+ * Show the default credentials on wp-login.php only while they still work.
  */
 add_filter(
 	'login_message',
 	function ( $message ) {
+		$admin = get_user_by( 'login', 'admin' );
+		if ( ! $admin || ! wp_check_password( 'password', $admin->user_pass, $admin->ID ) ) {
+			return $message;
+		}
 		return $message . <<<EOT
 <div class="message info">
 	<strong>username:</strong> <code>admin</code><br><strong>password</strong>: <code>password</code>
