@@ -470,12 +470,13 @@ describe('bootSiteClient', () => {
 		);
 	});
 
-	it('replays live auto-login constants after a saved site finishes its initial OPFS copy', async () => {
+	it('replays the auto-login constant but not the network transport flag on a saved site', async () => {
 		const firstPlayground = createPlaygroundClient({
 			fileExists: vi.fn(async () => true),
 			readFileAsText: vi.fn(async () =>
 				JSON.stringify({
 					PLAYGROUND_AUTO_LOGIN_AS_USER: 'admin',
+					USE_FETCH_FOR_REQUESTS: true,
 				})
 			),
 		});
@@ -511,9 +512,17 @@ describe('bootSiteClient', () => {
 			}),
 		});
 
+		const savedSite = state.sites.entities['auto-login'];
 		const reloadedSite = {
-			...state.sites.entities['auto-login'],
+			...savedSite,
 			loadedFromStorage: true,
+			metadata: {
+				...savedSite.metadata,
+				playgroundDefinedConstants: {
+					...savedSite.metadata.playgroundDefinedConstants,
+					USE_FETCH_FOR_REQUESTS: false,
+				},
+			},
 		};
 		const reloadedState = createState(reloadedSite);
 		await bootSiteClient('auto-login', document.createElement('iframe'), {
@@ -523,9 +532,9 @@ describe('bootSiteClient', () => {
 		expect(startPlaygroundWeb).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				blueprint: expect.objectContaining({
-					constants: expect.objectContaining({
+					constants: {
 						PLAYGROUND_AUTO_LOGIN_AS_USER: 'admin',
-					}),
+					},
 				}),
 			})
 		);

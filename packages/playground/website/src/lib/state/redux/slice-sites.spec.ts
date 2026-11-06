@@ -47,11 +47,6 @@ describe('stored sites', () => {
 		}));
 		vi.doMock('@wp-playground/blueprints', () => ({
 			BlueprintFetchError: class BlueprintFetchError extends Error {},
-			BlueprintReflection: {
-				create: vi.fn(async () => ({
-					getVersion: () => 2,
-				})),
-			},
 			InvalidBlueprintError: class InvalidBlueprintError extends Error {},
 			resolveRuntimeConfiguration,
 		}));
@@ -78,7 +73,7 @@ describe('stored sites', () => {
 			getAutosaveFingerprintFromURL: () => 'fingerprint',
 		}));
 		vi.doMock('../url/resolve-blueprint-from-url', () => ({
-			applyQueryOverrides: vi.fn(),
+			applyQueryOverrides: vi.fn(async (blueprint) => blueprint),
 			resolveBlueprintFromURL: vi.fn(async () => ({
 				blueprint: createBundleBlueprint(),
 				source: { type: 'inline-string' },

@@ -9,7 +9,6 @@ import { selectActiveSite, setActiveSite } from './store';
 import { opfsSiteStorage } from '../opfs/opfs-site-storage';
 import type { OriginalUrlParams } from '../original-url-params';
 import {
-	BlueprintReflection,
 	type RuntimeConfiguration,
 	resolveRuntimeConfiguration,
 	InvalidBlueprintError,
@@ -794,25 +793,21 @@ async function resolveSiteBlueprintFromUrl(playgroundUrlWithQueryApiArgs: URL) {
 }
 
 /**
- * Applies URL query overrides before storing Blueprint v1 declarations.
+ * Applies URL query overrides before storing the Blueprint.
  *
  * `resolveBlueprintFromURL()` loads the Blueprint source, but runtime query
- * params such as `php`, `wp`, and `networking` still need to be folded into v1
- * Blueprints so the stored site boots from the same setup the URL requested.
+ * params still need to be folded into the declaration so the site boots from
+ * the setup the URL requested. V2 supports the networking override here; the
+ * other overrides still only apply to v1.
  */
 async function prepareResolvedBlueprint(
 	resolvedBlueprint: ResolvedBlueprint,
 	playgroundUrlWithQueryApiArgs: URL
 ) {
-	const reflection = await BlueprintReflection.create(
-		resolvedBlueprint.blueprint
+	resolvedBlueprint.blueprint = await applyQueryOverrides(
+		resolvedBlueprint.blueprint,
+		playgroundUrlWithQueryApiArgs.searchParams
 	);
-	if (reflection.getVersion() === 1) {
-		resolvedBlueprint.blueprint = await applyQueryOverrides(
-			resolvedBlueprint.blueprint as any,
-			playgroundUrlWithQueryApiArgs.searchParams
-		);
-	}
 	return resolvedBlueprint;
 }
 

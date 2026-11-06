@@ -64,11 +64,11 @@ export function UnconnectedSiteSettingsForm({
 	const mergedDefaults = useMemo<SiteFormData>(
 		() => ({
 			phpVersion: RecommendedPHPVersion as AllPHPVersion,
-			wpVersion: 'latest',
 			language: '',
 			withNetworking: true,
 			multisite: false,
 			...defaultValues,
+			wpVersion: defaultValues.wpVersion || 'latest',
 		}),
 		[defaultValues]
 	);
@@ -89,8 +89,7 @@ export function UnconnectedSiteSettingsForm({
 		() => ({
 			...mergedDefaults,
 			wpVersion:
-				latestWPVersion &&
-				['', 'latest'].includes(mergedDefaults.wpVersion)
+				latestWPVersion && mergedDefaults.wpVersion === 'latest'
 					? latestWPVersion
 					: mergedDefaults.wpVersion,
 		}),
@@ -109,13 +108,13 @@ export function UnconnectedSiteSettingsForm({
 	const forcedPhpVersion = getForcedPhpVersionForWordPress(currentWpVersion);
 
 	useEffect(() => {
-		if (
-			latestWPVersion &&
-			['', 'latest'].includes(getValues('wpVersion'))
-		) {
+		// Applying PHP or networking settings can reset the form to 'latest'.
+		// Resolve just that field. Resetting the whole form when the version
+		// list arrives can discard edits, including an explicitly empty choice.
+		if (latestWPVersion && getValues('wpVersion') === 'latest') {
 			setValue('wpVersion', latestWPVersion);
 		}
-	}, [latestWPVersion, setValue, getValues]);
+	}, [latestWPVersion, currentWpVersion, getValues, setValue]);
 
 	// Lock phpVersion to whatever is compatible with the selected
 	// WordPress release. The callback fires on every wpVersion
