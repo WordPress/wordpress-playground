@@ -15,36 +15,27 @@ This guide assumes your plugin or theme has PHPUnit installed via Composer (`com
 
 ## Running tests
 
-From your plugin or theme directory, run the following command. Replace `themes/THEME_NAME` with the path to your plugin or theme:
+From your plugin or theme directory, run the following command:
 
 ```bash
 npx @wp-playground/cli@latest php \
   --auto-mount \
   -- \
-  /wordpress/wp-content/themes/THEME_NAME/vendor/bin/phpunit \
-  -c /wordpress/wp-content/themes/THEME_NAME/phpunit.xml.dist
+  vendor/bin/phpunit \
+  -c phpunit.xml.dist
 ```
 
-The `--auto-mount` flag detects whether the current directory is a plugin, theme, or WordPress installation and mounts it at the correct path under `/wordpress/wp-content/`. The `--` separates CLI flags from arguments passed to the PHP interpreter, and you can pass any arguments supported by your PHPUnit configuration.
+The `--auto-mount` flag detects whether the current directory is a plugin, theme, or WordPress installation, mounts it at the correct path under `/wordpress/wp-content/`, and uses that single mount as the PHP working directory. The same relative command works for both plugins and themes. The `--` separates CLI flags from arguments passed to the PHP interpreter, and you can pass any arguments supported by your PHPUnit configuration.
 
-For a plugin, the path would use `plugins/` instead:
-
-```bash
-npx @wp-playground/cli@latest php \
-  --auto-mount \
-  -- \
-  /wordpress/wp-content/plugins/MY_PLUGIN/vendor/bin/phpunit \
-  -c /wordpress/wp-content/plugins/MY_PLUGIN/phpunit.xml.dist
-```
-
-You can also use `--mount` to explicitly map a local directory to a path inside the Playground filesystem:
+You can also use `--mount` to explicitly map a local directory to a path inside the Playground filesystem. Set `--cwd` to that virtual path when you want to use relative command arguments:
 
 ```bash
 npx @wp-playground/cli@latest php \
   --mount=.:/wordpress/wp-content/plugins/MY_PLUGIN \
+  --cwd=/wordpress/wp-content/plugins/MY_PLUGIN \
   -- \
-  /wordpress/wp-content/plugins/MY_PLUGIN/vendor/bin/phpunit \
-  -c /wordpress/wp-content/plugins/MY_PLUGIN/phpunit.xml.dist
+  vendor/bin/phpunit \
+  -c phpunit.xml.dist
 ```
 
 ## Choosing PHP and WordPress versions
@@ -57,8 +48,8 @@ npx @wp-playground/cli@latest php \
   --php=8.1 \
   --wp=6.5 \
   -- \
-  /wordpress/wp-content/plugins/MY_PLUGIN/vendor/bin/phpunit \
-  -c /wordpress/wp-content/plugins/MY_PLUGIN/phpunit.xml.dist
+  vendor/bin/phpunit \
+  -c phpunit.xml.dist
 ```
 
 Supported PHP versions range from 7.4 to 8.5. For WordPress, you can use a specific version number, `latest`, `nightly`, or `beta`.
