@@ -13,6 +13,7 @@ import {
 import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
 import { bindUserSpace } from './wasm-user-space';
 import fs from 'fs';
+import { platform } from 'os';
 import { getPHPLoaderModule } from '.';
 import { createFileLockManager } from './create-file-lock-manager';
 import { withNetworking } from './networking/with-networking';
@@ -211,6 +212,28 @@ export async function loadNodeRuntime(
 					? entries
 					: ['.', '..', ...entries];
 			};
+
+			if (platform() === 'win32') {
+				const nameArgumentIndexes = {
+					lookup: 1,
+					mknod: 1,
+					rename: 2,
+					unlink: 1,
+					rmdir: 1,
+					symlink: 1,
+				} as const;
+				for (const [operation, nameIndex] of Object.entries(
+					nameArgumentIndexes
+				)) {
+					const originalOperation = nodeFs.node_ops[operation];
+					nodeFs.node_ops[operation] = (...args: any[]) => {
+						if (args[nameIndex].includes('\\')) {
+							throw new phpRuntime.FS.ErrnoError(44);
+						}
+						return originalOperation.apply(nodeFs.node_ops, args);
+					};
+				}
+			}
 
 			/**
 			 * When users mount a directory using the `mount` function,
