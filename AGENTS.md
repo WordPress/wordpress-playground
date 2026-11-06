@@ -158,6 +158,10 @@ The core architecture uses an iframe-based isolation model:
 Personal WP explicitly opts into SharedWorkers via `startPlaygroundWeb`.
 Its ServiceWorker sends HTTP requests directly to the shared PHP runtime through MessagePorts.
 The main website retains dedicated workers and the existing window relay by default.
+Personal WP browser tests download pinned launch plugins once in Playwright global
+setup and reuse named ZIPs served by the local Vite server across isolated contexts.
+Refresh both revisions in `personal-wp/playwright/global-setup.ts` together when
+updating those fixtures.
 Deployment checks run once per Personal WP document; stale runtimes drain requests and flush
 OPFS before shutting down. Keep shared-runtime behavior behind the explicit opt-in.
 

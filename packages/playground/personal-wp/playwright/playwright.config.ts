@@ -6,6 +6,7 @@ const baseURL =
 	'http://127.0.0.1:5401/website-server/';
 
 export const playwrightConfig: PlaywrightTestConfig = {
+	globalSetup: './global-setup.ts',
 	testDir: './e2e',
 	fullyParallel: true,
 	forbidOnly: !!process.env.CI,
