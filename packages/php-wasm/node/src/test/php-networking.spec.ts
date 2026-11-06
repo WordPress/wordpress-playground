@@ -514,9 +514,16 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						$server = stream_socket_server("tcp://127.0.0.1:${port}");
 						$start = microtime(true);
 						$connection = false;
+						// Accept only after the connection's data has arrived. With
+						// Asyncify, PHP crashes if stream_socket_accept() has to wait.
+						// See https://github.com/WordPress/wordpress-playground/issues/4576.
 						while (!$connection && microtime(true) - $start < 10) {
-							$connection = @stream_socket_accept($server, 0.1, $peer);
-							if (!$connection) {
+							$read = [$server];
+							$write = $except = null;
+							if (stream_select($read, $write, $except, 0, 100000)) {
+								usleep(50000);
+								$connection = stream_socket_accept($server, 0, $peer);
+							} else {
 								usleep(10000);
 							}
 						}
