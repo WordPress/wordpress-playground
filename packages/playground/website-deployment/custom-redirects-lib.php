@@ -240,6 +240,7 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 	// Personal WP keeps its existing public-file headers.
 	$is_shared_asset = null !== $build_directory && 'php' !== $extension && (
 		str_starts_with( $served_path, '/assets/' ) ||
+		playground_is_versioned_php_wasm_path( $served_path ) ||
 		str_ends_with( $served_path, '.js' ) || preg_match( '~^/wp-[^/]+/~', $served_path )
 	);
 	if ( $is_shared_asset ) {
@@ -262,7 +263,10 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		if ( $may_edge_cache ) {
 			$log( "Marking for cache: '$resolved_path'" );
 			header( 'A8C-Edge-Cache: cache' );
-			if ( $is_shared_asset && 'html' !== $extension ) {
+			if ( playground_is_versioned_php_wasm_path( $served_path ) ) {
+				// A release's files never change after it's published.
+				header( 'Cache-Control: public, max-age=31536000, immutable' );
+			} elseif ( $is_shared_asset && 'html' !== $extension ) {
 				header( 'Cache-Control: public, max-age=3600' );
 			}
 		} else {
@@ -574,7 +578,22 @@ function playground_maybe_set_environment( $requested_path ) {
 	return false;
 }
 
+/**
+ * Whether a path is inside a published php-wasm release, such as
+ * /php-wasm/3.1.62/web-8-3/jspi/php_8_3.js. Files there never change, so
+ * pages on other origins can load them and cache them for good.
+ */
+function playground_is_versioned_php_wasm_path( $path ) {
+	return 1 === preg_match( '~^/php-wasm/\d+\.\d+\.\d+/~', $path );
+}
+
 function playground_get_custom_response_headers( $requested_path ) {
+	// Release files keep the immutable caching, whatever their filename (the
+	// packages include an index.js, which the rules below match).
+	if ( playground_is_versioned_php_wasm_path( $requested_path ) ) {
+		return false;
+	}
+
 	$filename = basename( $requested_path );
 
 	if ( 'iframe-worker.html' === $filename ) {

@@ -92,6 +92,27 @@ assert_equal(
     'My WordPress relay endpoint should not be edge cached'
 );
 
+// Files under a php-wasm release are cached for a year. Anything else under
+// /php-wasm/ (an index, a "latest" alias) must not be, or pages would keep a
+// stale copy.
+assert_equal(
+    true,
+    playground_is_versioned_php_wasm_path( '/php-wasm/3.1.62/web-8-3/jspi/php_8_3.js' ),
+    'A php-wasm release file was not treated as versioned'
+);
+assert_equal(
+    false,
+    playground_get_custom_response_headers( '/php-wasm/3.1.62/web-8-3/index.js' ),
+    'A filename rule overrode the caching for a php-wasm release file'
+);
+foreach ( array( '/php-wasm/latest/web-8-3/jspi/php_8_3.js', '/php-wasm/versions.json', '/assets/php-wasm/3.1.62/x.js' ) as $unversioned ) {
+    assert_equal(
+        false,
+        playground_is_versioned_php_wasm_path( $unversioned ),
+        "$unversioned was treated as a php-wasm release file"
+    );
+}
+
 $api_headers = playground_get_custom_response_headers( '/api.html' );
 assert_equal(
     true,

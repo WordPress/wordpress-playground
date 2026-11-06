@@ -66,6 +66,23 @@ Run `npm exec -- nx run playground-website:test:static-file-ranges` with Node 24
 and PHP to check the real HTTP responses. This does not change hostname routing
 or the deployment file layout.
 
+## Versioned php-wasm runtimes
+
+Each deploy adds the published `@php-wasm/web-<php>` npm packages for the
+release in `lerna.json` (the versions `@php-wasm/web` at that release depends
+on), at `/php-wasm/<version>/web-<php>/` (for example
+`/php-wasm/3.1.62/web-8-3/jspi/php_8_3.js`). The deploy workflow downloads
+them after the website build; a release that isn't on npm yet is skipped. Pages on other origins that bundle
+`@php-wasm/universal` at the same version can load PHP from there instead of
+shipping it.
+
+These URLs must not change or disappear between deploys. `apply-update.sh`
+carries the active release's `php-wasm/` versions into the new release as hard
+links, keeps a live version's files even if the new build has the same version,
+and keeps the newest `PHP_WASM_KEEP` versions (26 by default, about six months
+of weekly deploys). The router serves them with CORS and
+`Cache-Control: public, max-age=31536000, immutable`.
+
 ## Secrets
 
 Secrets are provided by a "Persistent Data" feature of WP Cloud and are set manually via a WP Cloud API. Once set, the secrets are synched to the site in an encrypted form which is accessed by `custom-redirects-lib.php` via the `Atomic_Persistent_Data`. Here is an [example of retrieving Slack-related secrets](https://github.com/WordPress/wordpress-playground/blob/776e8bbddecdde287ae7bb1d42d711dedf71f138/packages/playground/website-deployment/custom-redirects-lib.php#L186-L192).
