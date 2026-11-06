@@ -257,6 +257,50 @@ jobs:
                   MYSQL_DATABASE: test_db
                   MYSQL_USER: user
                   MYSQL_PASSWORD: password
+    # Node.js enables JSPI by default from 24.20.0, so the test-unit-asyncify
+    # jobs above load the JSPI build too. Node 24.18.0, the oldest supported
+    # version, still loads the Asyncify build. Run the networking tests there.
+    test-networking-asyncify:
+        needs: set-nx-shas
+        if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
+        name: 'Networking tests with Asyncify (Node 24.18.0)'
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        permissions:
+            contents: read # Required to clone the repo.
+        env:
+            NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
+            NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
+        services:
+            mysql:
+                image: mysql:5.7
+                env:
+                    MYSQL_DATABASE: test_db
+                    MYSQL_USER: user
+                    MYSQL_PASSWORD: password
+                    MYSQL_ROOT_PASSWORD: rootpassword
+                ports:
+                    - 3306:3306
+                options: >-
+                    --health-cmd="mysqladmin ping --silent"
+                    --health-interval=10s
+                    --health-timeout=5s
+                    --health-retries=3
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  submodules: true
+            - uses: ./.github/actions/prepare-playground
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 24.18.0
+            - name: Check that this Node.js version loads the Asyncify build
+              run: node -e "if ('Suspending' in WebAssembly) { console.error('JSPI is enabled, so PHP would load the JSPI build.'); process.exit(1); }"
+            - run: node --expose-gc node_modules/nx/bin/nx affected --target=test-networking-asyncify
+              env:
+                  MYSQL_DATABASE: test_db
+                  MYSQL_USER: user
+                  MYSQL_PASSWORD: password
     test-playground-cli:
         needs: set-nx-shas
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'

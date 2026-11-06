@@ -484,9 +484,11 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				const php = new PHP(await loadNodeRuntime(phpVersion, options));
 				let clientPort = 0;
 				let received = '';
-				// PHP's server starts during php.run(), so retry until it listens.
+				let phpFinished = false;
+				// PHP's server starts during php.run(), so retry until it listens
+				// or PHP stops waiting for a connection.
 				const client = (async () => {
-					for (let attempt = 0; attempt < 100; attempt++) {
+					while (!phpFinished) {
 						try {
 							await new Promise<void>((resolve, reject) => {
 								const socket = net.connect(port, '127.0.0.1');
@@ -512,7 +514,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						$server = stream_socket_server("tcp://127.0.0.1:${port}");
 						$start = microtime(true);
 						$connection = false;
-						while (!$connection && microtime(true) - $start < 5) {
+						while (!$connection && microtime(true) - $start < 10) {
 							$connection = @stream_socket_accept($server, 0.1, $peer);
 							if (!$connection) {
 								usleep(10000);
@@ -525,15 +527,17 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						echo json_encode(['data' => $data, 'peer' => $peer]);
 						`,
 					});
+					phpFinished = true;
 					await client;
 					const { data, peer } = JSON.parse(text);
 					expect(data).toBe('hello from node');
 					expect(peer).toBe(`127.0.0.1:${clientPort}`);
 					expect(received).toBe('hello from php');
 				} finally {
+					phpFinished = true;
 					php.exit();
 				}
-			});
+			}, 15000);
 		});
 
 		describe('Connection failures', () => {
