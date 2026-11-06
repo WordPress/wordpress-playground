@@ -1,9 +1,11 @@
 import { execFile } from 'node:child_process';
+import dns from 'node:dns';
 import net from 'node:net';
 import path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	OutboundTcpSocket,
+	TcpServer,
 	getOutboundTcpSocketUrl,
 } from '../lib/networking/tcp-socket';
 
@@ -25,6 +27,28 @@ describe('OutboundTcpSocket', () => {
 });
 
 describe('TcpServer', () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('does not listen when it closes during a hostname lookup', async () => {
+		const listenSpy = vi.spyOn(net.Server.prototype, 'listen');
+
+		const server = new TcpServer({ host: 'localhost', port: 0 });
+		server.close();
+		// Let the server's own lookup of the same name finish first.
+		await new Promise((resolve) =>
+			dns.lookup('localhost', { family: 4 }, resolve)
+		);
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		try {
+			expect(listenSpy).not.toHaveBeenCalled();
+		} finally {
+			server.close();
+		}
+	});
+
 	it('stops the process when the port is already in use', async () => {
 		const blocker = net.createServer();
 		await new Promise<void>((resolve) =>

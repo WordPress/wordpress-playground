@@ -193,6 +193,7 @@ export interface TcpServerOptions {
 export class TcpServer extends EventEmitter {
 	readonly clients = new Set<TcpSocket>();
 	private readonly server: net.Server;
+	private closed = false;
 
 	constructor({ host, port }: TcpServerOptions) {
 		super();
@@ -214,6 +215,10 @@ export class TcpServer extends EventEmitter {
 			// Emscripten only represents IPv4 addresses. A hostname that resolves
 			// to IPv6 first would make PHP see every client as 0.0.0.0.
 			dns.lookup(host, { family: 4 }, (error, address) => {
+				// PHP or the runtime may have closed the server during the lookup.
+				if (this.closed) {
+					return;
+				}
 				if (error) {
 					this.server.emit('error', error);
 				} else {
@@ -234,6 +239,7 @@ export class TcpServer extends EventEmitter {
 	 * closing a listening socket.
 	 */
 	close(callback?: (error?: Error) => void) {
+		this.closed = true;
 		this.server.close(callback);
 	}
 
