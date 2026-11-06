@@ -594,6 +594,13 @@ try {
     proc_close($destination_proxy_proc);
 }
 
+require_once __DIR__ . '/header-transport-tests.php';
+test_header_transport($proxy_port, $upstream_port, $raw_port);
+if (getenv('CORS_PROXY_TEST_HTTPD')) {
+    require_once __DIR__ . '/apache-test-server.php';
+    test_apache_header_transport(getenv('CORS_PROXY_TEST_HTTPD'), $upstream_port, $raw_port);
+}
+
 // ──────────────────────────────────────────────
 // Clean up
 // ──────────────────────────────────────────────
@@ -673,6 +680,8 @@ function start_server_process($cmd, $port) {
     }
 
     echo "Server on port $port failed to start within 5s\n";
+    echo stream_get_contents($pipes[1]);
+    echo stream_get_contents($pipes[2]);
     proc_terminate($proc);
     proc_close($proc);
     exit(1);
@@ -684,6 +693,14 @@ function start_server_process($cmd, $port) {
  */
 function assert_only_proxy_headers($response, $label) {
     $headers = $response['headers_raw'];
+    assert_true(
+        get_header_list($headers, 'vary') === ['origin'],
+        "$label response should keep Vary: Origin"
+    );
+    assert_true(
+        get_header_list($headers, 'cross-origin-resource-policy') === ['cross-origin'],
+        "$label response should keep the proxy CORP policy"
+    );
     foreach (['x-target-header', 'content-range'] as $name) {
         assert_true(
             get_header_list($headers, $name) === [],
@@ -724,8 +741,9 @@ function get_header_list($headers_raw, $name) {
     return $values;
 }
 
-function proxy_request($proxy_port, $upstream_url, $extra_headers = [], $method = 'GET') {
+function proxy_request($proxy_port, $upstream_url, $extra_headers = [], $method = 'GET', $curl_options = []) {
     $ch = curl_init("http://127.0.0.1:$proxy_port/cors-proxy.php?$upstream_url");
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
     if ($method === 'HEAD') {
         curl_setopt($ch, CURLOPT_NOBODY, true);
     }
@@ -745,6 +763,7 @@ function proxy_request($proxy_port, $upstream_url, $extra_headers = [], $method 
         return strlen($data);
     });
 
+    curl_setopt_array($ch, $curl_options);
     curl_exec($ch);
     // Print errors only when no response arrived, e.g. a refused connection.
     // Tests of truncated responses expect an error after the headers.
