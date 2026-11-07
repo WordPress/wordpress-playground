@@ -1098,10 +1098,7 @@ test('Blueprint with `preferredVersions.wp: false` boots Playground without Word
  * that the redirect works correctly in Playground by verifying that
  * /sitemap.xml returns sitemap content instead of a 404 error.
  */
-test('/sitemap.xml should redirect to /wp-sitemap.xml', async ({
-	wordpress,
-	website,
-}) => {
+test('/sitemap.xml should redirect to /wp-sitemap.xml', async ({ page }) => {
 	const blueprint: Blueprint = {
 		landingPage: '/sitemap.xml',
 		preferredVersions: {
@@ -1111,8 +1108,33 @@ test('/sitemap.xml should redirect to /wp-sitemap.xml', async ({
 	};
 
 	const encodedBlueprint = JSON.stringify(blueprint);
-	await website.goto(`/#${encodedBlueprint}`);
-
-	// The sitemap is rendered with XSLT styling, showing "XML Sitemap" heading
-	await expect(wordpress.locator('body')).toContainText('XML Sitemap');
+	const [sitemap] = await Promise.all([
+		page.waitForResponse(
+			(response) =>
+				response.request().isNavigationRequest() &&
+				new URL(response.url()).pathname.endsWith('/wp-sitemap.xml')
+		),
+		page.goto(`/#${encodedBlueprint}`),
+	]);
+	expect(sitemap.status()).toBe(200);
+	expect(sitemap.headers()['content-type']).toMatch(/^application\/xml/);
+	// Verify the XML itself: browsers no longer universally render XSLT as HTML.
+	expect(
+		await page.evaluate(
+			(xml) => {
+				const document = new DOMParser().parseFromString(
+					xml,
+					'application/xml'
+				);
+				return {
+					name: document.documentElement.localName,
+					namespace: document.documentElement.namespaceURI,
+				};
+			},
+			await sitemap.text()
+		)
+	).toEqual({
+		name: 'sitemapindex',
+		namespace: 'http://www.sitemaps.org/schemas/sitemap/0.9',
+	});
 });
