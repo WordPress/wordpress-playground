@@ -10,11 +10,11 @@ import { getWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge
 
 const sandbox = resolve(
 	__dirname,
-	'../../../../../dist/packages/playground/remote/wordpress-sandbox'
+	'../../../../../dist/packages/playground/wordpress-frame-public'
 );
 const appDirectory = resolve(
 	__dirname,
-	'../../../../../dist/packages/playground/website'
+	'../../../../../dist/packages/playground/wordpress-frame-public'
 );
 const workerPath = resolve(sandbox, 'sw.js');
 const seedDocument = '__previous-wordpress-worker.html';
@@ -22,6 +22,7 @@ const appSeedDocument = '__previous-wordpress-app.html';
 const previousHelper = getWordPressBridgePath('0'.repeat(40));
 const expiredScript = appOrigin + '/assets/wordpress-bridge-expired.js';
 let deployedWorker: Buffer;
+let originalWorker: Buffer | undefined;
 
 test.describe('WordPress helper upgrades', { tag: '@storage' }, () => {
 	test.beforeAll(async () => {
@@ -31,7 +32,16 @@ test.describe('WordPress helper upgrades', { tag: '@storage' }, () => {
 		// Use the real /sw.js URL and options: changing the URL would force an
 		// update and hide the existing-registration case that returning users hit.
 		// Seed the worker itself, not CacheStorage.
-		deployedWorker = await readFile(workerPath);
+		originalWorker = await readFile(workerPath).catch(() => undefined);
+		const selector = await readFile(resolve(sandbox, 'index.html'), 'utf8');
+		const release = JSON.parse(
+			selector.match(
+				/<script id="playground-release" type="application\/json">(.*?)<\/script>/s
+			)![1]
+		).release;
+		deployedWorker = await readFile(
+			resolve(sandbox, 'releases', release, 'sandbox-sw.js')
+		);
 		await writeFile(
 			workerPath,
 			`
@@ -59,7 +69,8 @@ self.addEventListener('fetch', event => {
 	});
 
 	test.afterAll(async () => {
-		await writeFile(workerPath, deployedWorker);
+		if (originalWorker) await writeFile(workerPath, originalWorker);
+		else await rm(workerPath, { force: true });
 		await rm(resolve(sandbox, seedDocument), { force: true });
 		await rm(resolve(appDirectory, appSeedDocument), { force: true });
 	});

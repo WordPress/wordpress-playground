@@ -244,7 +244,7 @@ test('a clone link prefills the public demo and waits for Clone site', async ({
 	page.on('request', (request) => {
 		if (
 			['fetch', 'xhr'].includes(request.resourceType()) &&
-			request.url().includes(new URL(source).hostname)
+			new URL(request.url()).hostname === new URL(source).hostname
 		) {
 			requests.push(request.url());
 		}

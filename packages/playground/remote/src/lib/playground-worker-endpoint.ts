@@ -27,7 +27,7 @@ import {
 	LatestMinifiedWordPressVersion,
 	MinifiedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { playgroundOrigin, wordPressSiteUrl } from './config';
+import { playgroundOrigin, wordPressSiteUrl, assetBaseUrl } from './config';
 import {
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
@@ -485,7 +485,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		) {
 			const listUrl = new URL(
 				joinPaths(wpStaticAssetsDir, 'wordpress-remote-asset-paths'),
-				playgroundOrigin
+				assetBaseUrl
 			);
 			try {
 				const remoteAssetPaths = await fetch(listUrl).then((res) =>

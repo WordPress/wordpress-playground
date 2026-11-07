@@ -8,10 +8,10 @@ import {
 	resolveBlueprintV2WordPressSource,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
-import type { PlaygroundClient, StartPlaygroundWebOptions } from '.';
+import type { AppPlaygroundClient, AppStartPlaygroundWebOptions } from '.';
 
 type WordPressInstallMode = NonNullable<
-	StartPlaygroundWebOptions['wordpressInstallMode']
+	AppStartPlaygroundWebOptions['wordpressInstallMode']
 >;
 
 /**
@@ -19,9 +19,9 @@ type WordPressInstallMode = NonNullable<
  * Blueprint compiler.
  */
 export class BlueprintsV2Handler {
-	private readonly options: StartPlaygroundWebOptions;
+	private readonly options: AppStartPlaygroundWebOptions;
 
-	constructor(options: StartPlaygroundWebOptions) {
+	constructor(options: AppStartPlaygroundWebOptions) {
 		this.options = options;
 	}
 
@@ -50,10 +50,10 @@ export class BlueprintsV2Handler {
 
 		// Connect the Comlink API client to the remote worker,
 		// boot the playground, and run the blueprint steps.
-		const playground = consumeAPI<PlaygroundClient>(
+		const playground = consumeAPI<AppPlaygroundClient>(
 			iframe.contentWindow!,
 			iframe.ownerDocument!.defaultView!
-		) as PlaygroundClient;
+		) as AppPlaygroundClient;
 		await playground.isConnected();
 		if (!disableProgressBar) {
 			progressTracker.pipe(playground);
@@ -172,8 +172,8 @@ function resolveWordPressInstallMode({
 	shouldInstallWordPress,
 	wordpressInstallMode,
 }: {
-	shouldInstallWordPress: StartPlaygroundWebOptions['shouldInstallWordPress'];
-	wordpressInstallMode: StartPlaygroundWebOptions['wordpressInstallMode'];
+	shouldInstallWordPress: AppStartPlaygroundWebOptions['shouldInstallWordPress'];
+	wordpressInstallMode: AppStartPlaygroundWebOptions['wordpressInstallMode'];
 }): WordPressInstallMode {
 	return (
 		wordpressInstallMode ??

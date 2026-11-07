@@ -1,23 +1,28 @@
 import { isURLScoped } from '@php-wasm/scopes';
 import { isDevServer } from './dev-server';
-import { playgroundOrigin } from './config';
+import { playgroundOrigin, assetBaseUrl } from './config';
+import { getReleaseRoot } from '@wp-playground/common';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
 const BLUEPRINTS_INDEX_URL =
 	'https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json';
 const CACHE_NAME_PREFIX = 'playground-cache';
-const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
+const LATEST_CACHE_NAME = getReleaseRoot(assetBaseUrl)
+	? `${CACHE_NAME_PREFIX}-release-assets-v1`
+	: `${CACHE_NAME_PREFIX}-${buildVersion}`;
 
-// We save a top-level Promise because this module is imported by
-// a Service Worker module which does not allow top-level await.
-const promisedOfflineModeCache = caches.open(LATEST_CACHE_NAME);
+// Open storage lazily, after the worker's role and origin have been checked.
+let promisedOfflineModeCache: Promise<Cache> | undefined;
 
 export async function cacheFirstFetch(request: Request): Promise<Response> {
-	const offlineModeCache = await promisedOfflineModeCache;
-	const cachedResponse = await offlineModeCache.match(request, {
-		ignoreSearch: true,
-	});
+	const offlineModeCache = await getOfflineModeCache();
+	const cachedResponse =
+		(await offlineModeCache.match(request, { ignoreSearch: true })) ??
+		// An upgrade can reuse immutable files warmed by an older worker cache.
+		(getReleaseRoot(new URL(request.url))
+			? await caches.match(request, { ignoreSearch: true })
+			: undefined);
 	if (cachedResponse) {
 		return cachedResponse;
 	}
@@ -60,7 +65,7 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 }
 
 export async function networkFirstFetch(request: Request): Promise<Response> {
-	const offlineModeCache = await promisedOfflineModeCache;
+	const offlineModeCache = await getOfflineModeCache();
 	const cachedResponse = await offlineModeCache.match(request, {
 		ignoreSearch: true,
 	});
@@ -108,7 +113,7 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
 
 /** Fetch the directory index without serving upstream HTML or headers on the app origin. */
 export async function fetchBlueprintsIndex(): Promise<Response> {
-	const offlineModeCache = await promisedOfflineModeCache;
+	const offlineModeCache = await getOfflineModeCache();
 	let jsonResponse: Response;
 	try {
 		const response = await fetchFresh(BLUEPRINTS_INDEX_URL, {
@@ -171,26 +176,8 @@ export async function cacheOfflineModeAssetsForCurrentRelease(
 				cache: 'no-store',
 			})
 	);
-	const offlineModeCache = await promisedOfflineModeCache;
+	const offlineModeCache = await getOfflineModeCache();
 	await offlineModeCache.addAll(websiteRequests);
-}
-
-/**
- * Remove outdated files from the cache.
- *
- * We cache data based on `buildVersion` which is updated whenever Playground
- * is built. So when a new version of Playground is deployed, the service
- * worker will remove the old cache and cache the new assets.
- *
- * If your build version doesn't change while developing locally check
- * `buildVersionPlugin` for more details on how it's generated.
- */
-export async function purgeEverythingFromPreviousRelease() {
-	const keys = await caches.keys();
-	const oldKeys = keys.filter(
-		(key) => key.startsWith(CACHE_NAME_PREFIX) && key !== LATEST_CACHE_NAME
-	);
-	return Promise.all(oldKeys.map((key) => caches.delete(key)));
 }
 
 /**
@@ -201,7 +188,7 @@ export async function hasCachedResponse(
 	url: string,
 	queryOptions: CacheQueryOptions = { ignoreSearch: true }
 ): Promise<boolean> {
-	const offlineModeCache = await promisedOfflineModeCache;
+	const offlineModeCache = await getOfflineModeCache();
 	const cachedResponse = await offlineModeCache.match(url, queryOptions);
 	return !!cachedResponse;
 }
@@ -210,7 +197,7 @@ export async function putCachedResponse(
 	request: RequestInfo,
 	response: Response
 ): Promise<void> {
-	const offlineModeCache = await promisedOfflineModeCache;
+	const offlineModeCache = await getOfflineModeCache();
 	await offlineModeCache.put(request, response);
 }
 
@@ -323,4 +310,31 @@ export function isCurrentServiceWorkerActive() {
 	}
 	// @ts-ignore
 	return self.serviceWorker.state === 'activated';
+}
+
+/** Collect only releases with no remaining document or worker clients. */
+export async function pruneOfflineModeCaches(
+	retainedRoots: ReadonlySet<string> | undefined,
+	deletePreviousBuilds: boolean
+) {
+	if (retainedRoots) {
+		const cache = await getOfflineModeCache();
+		for (const request of await cache.keys()) {
+			const root = getReleaseRoot(new URL(request.url))?.pathname;
+			if (root && !retainedRoots.has(root)) await cache.delete(request);
+		}
+	}
+	if (deletePreviousBuilds) {
+		for (const name of await caches.keys()) {
+			if (
+				name.startsWith(`${CACHE_NAME_PREFIX}-`) &&
+				name !== LATEST_CACHE_NAME
+			)
+				await caches.delete(name);
+		}
+	}
+}
+
+function getOfflineModeCache(): Promise<Cache> {
+	return (promisedOfflineModeCache ??= caches.open(LATEST_CACHE_NAME));
 }

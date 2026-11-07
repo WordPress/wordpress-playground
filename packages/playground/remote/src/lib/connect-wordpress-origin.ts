@@ -4,6 +4,9 @@ import { responseTo } from '@php-wasm/web-service-worker';
 import type { RemoteAPI } from '@php-wasm/universal';
 import type { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
 import { wordPressSiteUrl } from './config';
+import { assetBaseUrl } from './config';
+import { getReleaseRoot } from '@wp-playground/common';
+import { joinPaths } from '@php-wasm/util';
 import { getWordPressBridgePath } from './wordpress-bridge-path';
 // @ts-ignore -- Provided by Vite.
 import { buildVersion } from 'virtual:remote-config';
@@ -32,12 +35,9 @@ import { buildVersion } from 'virtual:remote-config';
  * and listener remain for the lifetime of remote.html. If no ready message arrives
  * within 30 seconds, both are removed and the promise rejects.
  *
- * The helper URL includes the buildVersion of the app loading this iframe.
- * A WordPress worker installed during a previous visit may still be running.
- * If the URL names a different buildVersion, that worker must let the request
- * reach the server rather than generate HTML naming its own release's script,
- * which the server may no longer serve. The deployed helper then registers
- * the deployed WordPress worker and waits for it to activate.
+ * Static releases use an immutable helper URL on the WordPress origin. The helper
+ * verifies its dedicated worker before PHP startup completes. Legacy and development
+ * builds retain build-version helper aliases, which bypass incompatible old workers.
  *
  * After connection, reject app-service-worker HTTP requests for this scope with
  * 404. Returning this site's HTML there would let its scripts run on the app
@@ -62,7 +62,12 @@ export async function connectWordPressOrigin(
 	// Put the app's buildVersion in the path, not just a query parameter:
 	// a worker installed during a previous visit can answer /wordpress-bridge.html
 	// itself, without fetching the deployed helper or its script URLs from the server.
-	const url = new URL(getWordPressBridgePath(buildVersion), wordPressSiteUrl);
+	const url = getReleaseRoot(assetBaseUrl)
+		? new URL(
+				new URL('wordpress-bridge.html', assetBaseUrl).pathname,
+				wordPressSiteUrl
+			)
+		: new URL(getWordPressBridgePath(buildVersion), wordPressSiteUrl);
 	url.searchParams.set('scope', scope);
 	bridge.src = url.href;
 	await new Promise<void>((resolve, reject) => {
@@ -122,7 +127,16 @@ export async function connectWordPressOrigin(
 				} else if (method === 'getWordPressModuleDetails') {
 					const { staticAssetsDirectory } =
 						await client.getWordPressModuleDetails();
-					response = { staticAssetsDirectory };
+					response = {
+						staticAssetsDirectory:
+							staticAssetsDirectory &&
+							getReleaseRoot(assetBaseUrl)
+								? joinPaths(
+										assetBaseUrl.pathname,
+										staticAssetsDirectory
+									)
+								: staticAssetsDirectory,
+					};
 				} else {
 					return;
 				}

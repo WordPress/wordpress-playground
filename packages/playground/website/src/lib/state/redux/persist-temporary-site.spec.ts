@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import type { PlaygroundClient } from '@wp-playground/remote';
+import type { AppPlaygroundClient } from '@wp-playground/remote';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { persistTemporarySite } from './persist-temporary-site';
 
@@ -454,5 +454,5 @@ function createPlaygroundWithConstants(contents: string | undefined) {
 			}
 			return contents;
 		}),
-	} as unknown as PlaygroundClient;
+	} as unknown as AppPlaygroundClient;
 }

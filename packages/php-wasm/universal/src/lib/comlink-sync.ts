@@ -392,9 +392,8 @@ export type ProxyOrClone<T> = T extends ProxyMarked ? Remote<T> : T;
 /**
  * Inverse of `ProxyOrClone<T>`.
  */
-export type UnproxyOrClone<T> = T extends RemoteObject<ProxyMarked>
-	? Local<T>
-	: T;
+export type UnproxyOrClone<T> =
+	T extends RemoteObject<ProxyMarked> ? Local<T> : T;
 
 /**
  * Takes the raw type of a remote object in the other thread and returns the type as it is visible
@@ -439,7 +438,7 @@ export type Remote<T> =
 					...args: {
 						[I in keyof TArguments]: UnproxyOrClone<TArguments[I]>;
 					}
-			  ) => Promisify<ProxyOrClone<Unpromisify<TReturn>>>
+				) => Promisify<ProxyOrClone<Unpromisify<TReturn>>>
 			: unknown) &
 		// Handle construct signature (if present)
 		// The return of construct signatures is always proxied (whether marked or not)
@@ -452,7 +451,7 @@ export type Remote<T> =
 							>;
 						}
 					): Promisify<Remote<TInstance>>;
-			  }
+				}
 			: unknown) &
 		// Include additional special comlink methods available on the proxy.
 		ProxyMethods;
@@ -478,8 +477,8 @@ export type Local<T> =
 					...args: {
 						[I in keyof TArguments]: ProxyOrClone<TArguments[I]>;
 					}
-			  ) => // The raw function could either be sync or async, but is always proxied automatically
-			  MaybePromise<UnproxyOrClone<Unpromisify<TReturn>>>
+				) => // The raw function could either be sync or async, but is always proxied automatically
+				MaybePromise<UnproxyOrClone<Unpromisify<TReturn>>>
 			: unknown) &
 		// Handle construct signature (if present)
 		// The return of construct signatures is always proxied (whether marked or not)
@@ -493,7 +492,7 @@ export type Local<T> =
 						}
 					): // The raw constructor could either be sync or async, but is always proxied automatically
 					MaybePromise<Local<Unpromisify<TInstance>>>;
-			  }
+				}
 			: unknown);
 
 const isObject = (val: unknown): val is object =>
@@ -641,10 +640,25 @@ export function expose(
 		const argumentList = (ev.data.argumentList || []).map(fromWireValue);
 		let returnValue;
 		try {
-			const parent = path
-				.slice(0, -1)
-				.reduce((obj, prop) => obj[prop], obj);
-			const rawValue = path.reduce((obj, prop) => obj[prop], obj);
+			// RPC paths must not turn a declared API into access to its realm's constructors.
+			if (
+				!Array.isArray(path) ||
+				path.some(
+					(prop) =>
+						typeof prop !== 'string' ||
+						prop === 'constructor' ||
+						prop === 'prototype' ||
+						prop === '__proto__'
+				)
+			) {
+				throw new TypeError(
+					'RPC prototype properties cannot be accessed.'
+				);
+			}
+			const parent = path.slice(0, -1).reduce(readApiProperty, obj);
+			const rawValue = path.length
+				? readApiProperty(parent, path[path.length - 1])
+				: obj;
 			switch (type) {
 				case MessageType.GET:
 					{
@@ -653,6 +667,8 @@ export function expose(
 					break;
 				case MessageType.SET:
 					{
+						if (!path.length)
+							throw new TypeError('An API property is required.');
 						parent[path.slice(-1)[0]] = fromWireValue(
 							ev.data.value
 						);
@@ -661,7 +677,11 @@ export function expose(
 					break;
 				case MessageType.APPLY:
 					{
-						returnValue = rawValue.apply(parent, argumentList);
+						returnValue = Reflect.apply(
+							rawValue,
+							parent,
+							argumentList
+						);
 					}
 					break;
 				case MessageType.CONSTRUCT:
@@ -722,6 +742,32 @@ export function expose(
 	if (ep.start) {
 		ep.start();
 	}
+}
+
+/** API instances expose their members, never JavaScript's shared object/function machinery. */
+function readApiProperty(object: any, property: string): any {
+	if (typeof object === 'function') {
+		throw new TypeError('API functions can only be called.');
+	}
+	for (let owner = object; owner; owner = Object.getPrototypeOf(owner)) {
+		if (
+			owner === Object.prototype ||
+			Object.getPrototypeOf(owner) === null
+		) {
+			break;
+		}
+		if (Object.prototype.hasOwnProperty.call(owner, property)) {
+			return Reflect.get(object, property);
+		}
+	}
+	// A piped RPC proxy resolves virtual members at its destination. It must not
+	// acquire built-in members locally when its target has no prototype.
+	if (Object.prototype.hasOwnProperty.call(Object.prototype, property)) {
+		throw new TypeError(
+			'Inherited JavaScript properties are not API members.'
+		);
+	}
+	return Reflect.get(object, property);
 }
 
 function isMessagePort(endpoint: Endpoint): endpoint is MessagePort {

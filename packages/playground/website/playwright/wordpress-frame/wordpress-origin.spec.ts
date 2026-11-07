@@ -23,39 +23,50 @@ test.describe('WordPress sandbox by default', { tag: '@storage' }, () => {
 			[page, withoutReprint, 'without Reprint'],
 			[withReprint, sandbox, 'with Reprint'],
 		] as const) {
-			await tab.evaluate(async (text) => {
-				await (window as any).playgroundSites
-					.getClient()
-					.writeFile('/wordpress/origin-mode.txt', text);
-			}, content);
-			expect(
-				await frame.evaluate(async () =>
-					(await fetch('origin-mode.txt')).text()
-				)
-			).toBe(content);
+			await test.step(
+				`WordPress transport ${content}`,
+				async () => {
+					await tab.evaluate(async (text) => {
+						await (window as any).playgroundSites
+							.getClient()
+							.writeFile('/wordpress/origin-mode.txt', text);
+					}, content);
+					expect(
+						await frame.evaluate(async () =>
+							(await fetch('origin-mode.txt')).text()
+						)
+					).toBe(content);
+				},
+				{ timeout: 60000 }
+			);
 		}
 		const sandboxPath = await sandbox.evaluate(
 			() => window.location.pathname
 		);
-		expect(
-			await page.evaluate(
-				async (url) => (await fetch(url)).status,
-				appOrigin + sandboxPath
-			)
-		).toBe(404);
+		await test.step(
+			'Reject WordPress execution on the app origin',
+			async () => {
+				expect(
+					await page.evaluate(
+						async (url) => (await fetch(url)).status,
+						appOrigin + sandboxPath
+					)
+				).toBe(404);
+			},
+			{ timeout: 60000 }
+		);
 
-		const registrations = await Promise.all(
+		// Compare the actual controllers verified by startup, rather than waiting
+		// on a registration's newest active worker through a separate ready promise.
+		const controllers = await Promise.all(
 			[page, withReprint].map((tab) =>
 				tab.evaluate(
-					async () =>
-						(await navigator.serviceWorker.ready).active!.scriptURL
+					() => navigator.serviceWorker.controller!.scriptURL
 				)
 			)
 		);
-		expect(registrations[0]).toBe(registrations[1]);
-		expect(new URL(registrations[0]).searchParams.has('reprint')).toBe(
-			false
-		);
+		expect(controllers[0]).toBe(controllers[1]);
+		expect(new URL(controllers[0]).searchParams.has('reprint')).toBe(false);
 
 		// Changing feature flags in the SPA must not change the WordPress origin.
 		// The URL router starts the replacement site. Do not also start one through
@@ -116,8 +127,20 @@ test.describe('WordPress sandbox by default', { tag: '@storage' }, () => {
 
 /** Require a live WordPress document, not an error page at the expected hostname. */
 async function ready(page: Page, origin: string): Promise<Frame> {
-	await page.waitForFunction(() => Boolean((window as any).playgroundSites));
-	await page.evaluate(() => (window as any).playgroundSites.isReady());
+	await page.waitForFunction(
+		() => Boolean((window as any).playgroundSites),
+		undefined,
+		{ timeout: 60000 }
+	);
+	await test.step(
+		`App client ready at ${page.url()}`,
+		async () => {
+			await page.evaluate(() =>
+				(window as any).playgroundSites.isReady()
+			);
+		},
+		{ timeout: 60000 }
+	);
 	const iframe = page
 		.frameLocator(
 			'#playground-viewport:visible,.playground-viewport:visible'

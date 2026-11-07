@@ -4,6 +4,35 @@
  * whenever making changes here.
  */
 
+/** Handle native endpoints and legacy URLs after Nginx has served ordinary static files. */
+function playground_handle_public_release_request( $web_root, $private, $release ) {
+	$path = parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
+	$host = parse_url( 'https://' . ( $_SERVER['HTTP_HOST'] ?? '' ), PHP_URL_HOST );
+	$is_sandbox = 0 === strcasecmp( $host ?? '', parse_url( $release['wordPressOrigin'], PHP_URL_HOST ) );
+	if ( preg_match( '~^/wordpress-bridge-[a-f0-9]+\.html$~D', $path ) ) {
+		header( 'Content-Type: text/html' );
+		header( 'Cache-Control: no-store' );
+		header_remove( 'X-Frame-Options' );
+		readfile( $web_root . '/wordpress-bridge.html' );
+		exit;
+	}
+	$rewritten = playground_maybe_rewrite( $path ) ?: $path;
+	if ( str_ends_with( strtolower( $rewritten ), '.php' ) ) {
+		if ( $is_sandbox ) {
+			header( 'A8C-Edge-Cache: no-cache' );
+			header( 'Cache-Control: no-store' );
+			http_response_code( 404 );
+			exit;
+		}
+		playground_handle_request( $private . '/files' );
+		exit;
+	}
+	// These stable compatibility URLs may need redirects or external-consumer headers.
+	// Bulk app/runtime downloads use public immutable URLs and never enter PHP.
+	playground_handle_request( $web_root . '/releases/' . $release['release'] );
+	exit;
+}
+
 // Used during deployment to identify files that need to be served in a custom way via PHP
 function playground_is_static_file_needing_special_treatment( $path ) {
 	if ( str_ends_with( $path, '.php' ) ) {
@@ -19,24 +48,15 @@ function playground_is_static_file_needing_special_treatment( $path ) {
 }
 
 /**
- * Apply the deployed website's rewrites, redirects, headers, and PHP setup.
+ * Apply legacy rewrites, redirects, headers, and native PHP environment setup.
  *
- * The configured sandbox host serves the wordpress-sandbox/ subdirectory and
- * versioned WordPress static files, never app documents or PHP endpoints.
- * Other hosts continue through the existing request handling below.
+ * Public-release deployment passes its selected static or native endpoint directory.
+ * Personal WP passes no argument and retains its public/static-files-to-serve-via-php layout.
+ * A missing selected directory must fail rather than fall back to another release.
  *
- * The deployment script passes its private build directory. Personal WP passes no
- * argument and keeps its existing public/static-files-to-serve-via-php layout.
- * A missing private build must fail rather than fall back to public files.
- *
- * Deployment writes the configured sandbox origin into the release entry. Request
- * headers and query parameters must not change that configuration. The build
- * has already pointed the sandbox's script URLs at the shared app origin.
- *
- * @param string|null $build_directory Private main-website build, or null for the public layout.
- * @param string|null $wordpress_origin Configured sandbox origin; null for the legacy layout.
+ * @param string|null $build_directory Selected main-site files, or null for Personal WP.
  */
-function playground_handle_request( $build_directory = null, $wordpress_origin = null ) {
+function playground_handle_request( $build_directory = null ) {
 	// Endpoints and range handling can fail after setting cacheable headers.
 	// Check the final status before output. PHP has only one header callback;
 	// native endpoints must not replace this callback.
@@ -72,48 +92,6 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 	$original_requested_path = $url['path'];
 	$log( "Requested path: '$original_requested_path'" );
 
-	// Do not let this host reach the normal app handler, including its redirects
-	// and PHP endpoints. Shared app bundles keep their app-host URLs. WordPress's
-	// static-file redirects also need the /wp-<version>/ files on this origin.
-	$request_host = parse_url( 'https://' . ( $_SERVER['HTTP_HOST'] ?? '' ), PHP_URL_HOST );
-	if ( null !== $wordpress_origin && is_string( $request_host ) &&
-		0 === strcasecmp( $request_host, parse_url( $wordpress_origin, PHP_URL_HOST ) )
-	) {
-		// Serve built helper/loader files or one WordPress static-asset directory.
-		// Never fall back to app files, redirects, directory indexes, or native PHP.
-		// Scoped WordPress pages come from the browser service worker, not this directory.
-		$wordpress_asset_path = array();
-		$is_wordpress_asset = 1 === preg_match( '~^/(wp-(?:[0-9]+\.[0-9]+|beta|nightly))/~', $original_requested_path, $wordpress_asset_path );
-		$asset_directory = realpath( $directory . ( $is_wordpress_asset
-			? '/' . $wordpress_asset_path[1] : '/wordpress-sandbox' ) );
-		// A helper URL containing the app's buildVersion can bypass a browser worker
-		// installed by a different release. Every alias serves the deployed release's
-		// one helper document; the version never selects another file or release.
-		$sandbox_path = preg_match( '~^/wordpress-bridge-[a-f0-9]+\.html$~D', $original_requested_path )
-			? '/wordpress-bridge.html' : $original_requested_path;
-		$file = $asset_directory ? realpath( ( $is_wordpress_asset ? $directory : $asset_directory ) . $sandbox_path ) : false;
-		if ( ! $file || ! is_file( $file ) ||
-			! str_starts_with( $asset_directory, $directory . '/' ) ||
-			! str_starts_with( $file, $asset_directory . '/' ) ||
-			'php' === strtolower( pathinfo( $file, PATHINFO_EXTENSION ) )
-		) {
-			http_response_code( 404 );
-			exit;
-		}
-		require_once __DIR__ . '/mime-types.php';
-		$extension = strtolower( pathinfo( $file, PATHINFO_EXTENSION ) );
-		header( 'Content-Type: ' . ( $mime_types[ $extension ] ?? $mime_types['_default'] ) );
-		if ( $is_wordpress_asset ) {
-			header( 'A8C-Edge-Cache: cache' );
-			header( 'Cache-Control: public, max-age=3600' );
-		} else {
-			header( 'Cache-Control: private, no-store' );
-		}
-		header( 'X-Content-Type-Options: nosniff' );
-		header_remove( 'X-Frame-Options' );
-		playground_serve_static_file( $file );
-		exit;
-	}
 
 	//
 	// REWRITES
@@ -235,8 +213,8 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		header( "Content-Type: $content_type" );
 	}
 
-	// The private main build shares platform code with the WordPress origin. Add
-	// CORS independently so existing cache/agent-cluster exceptions still run.
+	// Stable SDK/download compatibility URLs still need CORS for external consumers.
+	// Keep this independent of the existing cache and agent-cluster exceptions.
 	// Personal WP keeps its existing public-file headers.
 	$is_shared_asset = null !== $build_directory && 'php' !== $extension && (
 		str_starts_with( $served_path, '/assets/' ) ||

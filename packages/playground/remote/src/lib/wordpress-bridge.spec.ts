@@ -1,5 +1,7 @@
 vi.mock('./config', () => ({
 	playgroundOrigin: 'https://playground.test',
+	wordPressSiteUrl: 'https://wp.playground.test',
+	assetBaseUrl: new URL('https://playground.test/releases/release.A/'),
 }));
 vi.mock('virtual:remote-config', () => ({ buildVersion: 'new-release' }));
 
@@ -16,8 +18,17 @@ describe('WordPress helper worker updates', () => {
 
 	beforeEach(() => {
 		vi.resetModules();
+		vi.stubGlobal(
+			'fetch',
+			vi.fn(() => {
+				throw new TypeError('Offline');
+			})
+		);
 		registration = {
-			active: Object.assign(new EventTarget(), { state: 'activated' }),
+			active: Object.assign(new EventTarget(), {
+				state: 'activated',
+				postMessage: workerStatus,
+			}),
 			installing: null,
 			waiting: null,
 			update: vi.fn(async () => {}),
@@ -43,14 +54,13 @@ describe('WordPress helper worker updates', () => {
 
 	afterEach(() => vi.unstubAllGlobals());
 
-	it('bypasses a previous release cached by the CDN at the unversioned worker URL', async () => {
+	it('selects the immutable worker from loaded code without fetching metadata', async () => {
 		await import('./wordpress-bridge');
 		expect(navigator.serviceWorker.register).toHaveBeenCalledWith(
-			new URL(
-				'https://wp.playground.test/sw.js?build-version=new-release'
-			),
+			new URL('https://wp.playground.test/sandbox-sw-release.A.js'),
 			{ type: 'module', updateViaCache: 'none' }
 		);
+		expect(fetch).not.toHaveBeenCalled();
 	});
 
 	it('waits for the update check and replacement activation with an existing registration', async () => {
@@ -58,6 +68,7 @@ describe('WordPress helper worker updates', () => {
 		// B is not exposed as installing until its network update check finishes.
 		const replacement = Object.assign(new EventTarget(), {
 			state: 'installing',
+			postMessage: workerStatus,
 		});
 		const listen = vi.spyOn(replacement, 'addEventListener');
 		let finishUpdate!: () => void;
@@ -71,7 +82,9 @@ describe('WordPress helper worker updates', () => {
 				})
 		);
 		const startup = import('./wordpress-bridge');
-		await vi.waitFor(() => expect(registration.update).toHaveBeenCalledOnce());
+		await vi.waitFor(() =>
+			expect(registration.update).toHaveBeenCalledOnce()
+		);
 		expect(postMessage).not.toHaveBeenCalled();
 		finishUpdate();
 		await vi.waitFor(() => expect(listen).toHaveBeenCalled());
@@ -101,18 +114,45 @@ describe('WordPress helper worker updates', () => {
 			new TypeError('Offline')
 		);
 		await import('./wordpress-bridge');
-		expect(navigator.serviceWorker.getRegistration).toHaveBeenCalledWith('/');
+		expect(navigator.serviceWorker.getRegistration).toHaveBeenCalledWith(
+			'/'
+		);
 		expect(postMessage).toHaveBeenCalledWith(
 			{ type: 'wordpress-bridge-ready', scope: 'test' },
 			'https://playground.test'
 		);
 	});
 
+	it.each([
+		{ role: 'app' },
+		{ release: 'release.B' },
+		{ appOrigin: 'https://attacker.test' },
+		{ wordPressOrigin: 'https://attacker.test' },
+	])('rejects mismatched installed code %j', async (mismatch) => {
+		Object.assign(registration.active!, {
+			postMessage: (_message: unknown, ports: MessagePort[]) =>
+				ports[0].postMessage({
+					protocol: 1,
+					role: 'sandbox',
+					release: 'release.A',
+					appOrigin: 'https://playground.test',
+					wordPressOrigin: 'https://wp.playground.test',
+					...mismatch,
+				}),
+		});
+		await expect(import('./wordpress-bridge')).rejects.toThrow(
+			'does not match'
+		);
+		expect(postMessage).not.toHaveBeenCalled();
+	});
+
 	it.each(['missing', 'inactive'])(
 		'does not report ready after a registration failure with a %s worker',
 		async (state) => {
 			const error = new TypeError('No installed worker');
-			vi.mocked(navigator.serviceWorker.register).mockRejectedValue(error);
+			vi.mocked(navigator.serviceWorker.register).mockRejectedValue(
+				error
+			);
 			if (state === 'missing') {
 				vi.mocked(
 					navigator.serviceWorker.getRegistration
@@ -133,3 +173,13 @@ describe('WordPress helper worker updates', () => {
 		expect(postMessage).not.toHaveBeenCalled();
 	});
 });
+
+function workerStatus(_message: unknown, ports: MessagePort[]) {
+	ports[0].postMessage({
+		protocol: 1,
+		role: 'sandbox',
+		release: 'release.A',
+		appOrigin: 'https://playground.test',
+		wordPressOrigin: 'https://wp.playground.test',
+	});
+}

@@ -6,6 +6,16 @@ test('the service worker rejects arbitrary-content proxy navigations', async ({
 	// The removed proxy was a service-worker route, not an HTTP server route.
 	await page.goto('/remote.html');
 	await page.waitForFunction(() => !!navigator.serviceWorker.controller);
+	// Worker control precedes the bootstrap's first cached asset fetch.
+	await expect
+		.poll(() =>
+			page.evaluate(async () =>
+				(await caches.keys()).some((name) =>
+					name.startsWith('playground-cache-')
+				)
+			)
+		)
+		.toBe(true);
 
 	const payload =
 		'<script>window.arbitraryProxyScriptExecuted = true</script>';

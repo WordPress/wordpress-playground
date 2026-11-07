@@ -14,10 +14,14 @@
 			}
 		</script>
 		<script type="module">
-			import { bootPlaygroundAPI } from './src/lib/boot-playground-api';
+			import { assertDocumentOrigin } from '../remote/src/lib/deployment';
+			import { playgroundOrigin } from '../remote/src/lib/config';
+			assertDocumentOrigin('app');
 
 			if (window.self !== window.top) {
-				window.playgroundAPI = bootPlaygroundAPI();
+				const { bootPlaygroundAPI } =
+					await import('./src/lib/boot-playground-api');
+				window.playgroundAPI = bootPlaygroundAPI(playgroundOrigin);
 			}
 		</script>
 	</body>

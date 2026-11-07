@@ -1,5 +1,5 @@
 import { domToCanvas } from 'modern-screenshot';
-import { playgroundOrigin, wordPressSiteUrl } from './config';
+import { playgroundOrigin, wordPressSiteUrl, resolveAssetUrl } from './config';
 import type { SiteThumbnail } from './playground-client';
 // @ts-ignore -- Vite resolves this URL import; ambient declarations break package consumers.
 import resourceWorkerUrl from 'modern-screenshot/worker?url';
@@ -100,7 +100,7 @@ async function waitForFonts() {
  * WordPress-writable CacheStorage. One-origin builds use the asset URL directly.
  */
 function getResourceWorkerUrl() {
-	const url = new URL(resourceWorkerUrl, window.location.href);
+	const url = resolveAssetUrl(resourceWorkerUrl);
 	// The service worker uses this marker to serve the bundled worker instead
 	// of treating its URL as a file inside the scoped WordPress site.
 	url.searchParams.set('playground-site-thumbnail-worker', '1');

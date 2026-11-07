@@ -257,6 +257,13 @@
 			"options": {
 				"command": "npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts"
 			}
+		},
+		"e2e:wordpress-frame:fresh": {
+			"executor": "nx:run-commands",
+			"dependsOn": ["build:wordpress-frame"],
+			"options": {
+				"command": "npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts"
+			}
 		}
 	}
 }

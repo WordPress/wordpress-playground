@@ -15,7 +15,9 @@ describe('local directory availability', () => {
 	let root: Root;
 	let availability: LocalFsAvailability | null;
 	const playground = {
-		absoluteUrl: Promise.resolve('http://wp.playground.localhost/scope:site/'),
+		absoluteUrl: Promise.resolve(
+			'http://wpsandbox.wordpress.localhost/scope:site/'
+		),
 	} as unknown as PlaygroundClient;
 
 	beforeEach(() => {
@@ -42,7 +44,7 @@ describe('local directory availability', () => {
 
 	it('rejects directory handles when the PHP iframe is cross-origin', async () => {
 		vi.mocked(getRemoteUrl).mockReturnValue(
-			new URL('http://remote.playground.localhost/remote.html')
+			new URL('http://remote.playground.wordpress.localhost/remote.html')
 		);
 		await act(async () => root.render(<Probe />));
 		expect(availability).toBe('origin-mismatch');

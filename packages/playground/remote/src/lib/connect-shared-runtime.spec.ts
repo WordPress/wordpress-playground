@@ -2,6 +2,11 @@ vi.mock('@php-wasm/web', () => ({ consumeAPI: () => ({}) }));
 vi.mock('./shared-playground-worker.ts?worker&url', () => ({
 	default: '/worker.js',
 }));
+vi.mock('./config', () => ({
+	playgroundOrigin: 'https://example.test',
+	wordPressSiteUrl: 'https://sandbox.test',
+	resolveAssetUrl: (path: string) => new URL(path, location.href),
+}));
 
 import { connectSharedRuntime } from './connect-shared-runtime';
 import { RELOAD_REQUIRED, RUNTIME_CLOSED } from './shared-runtime';

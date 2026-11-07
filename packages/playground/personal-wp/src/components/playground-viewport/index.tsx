@@ -43,7 +43,7 @@ import {
 	setAutoBackupDue,
 	setSiteManagerOpen,
 } from '../../lib/state/redux/slice-ui';
-import type { PlaygroundClient } from '@wp-playground/client';
+import type { AppPlaygroundClient } from '@wp-playground/client';
 import {
 	isMessageFromIframeTree,
 	playgroundLogo,
@@ -1678,7 +1678,7 @@ function AutoBackupPrompt({
 	onDownload,
 	onDismiss,
 }: {
-	playground: PlaygroundClient | null | undefined;
+	playground: AppPlaygroundClient | null | undefined;
 	onDownload: () => void;
 	onDismiss: () => void;
 }) {

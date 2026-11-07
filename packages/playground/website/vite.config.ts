@@ -146,6 +146,11 @@ export default defineConfig(({ command, mode }) => {
 				: '/cors-proxy/?';
 
 	return {
+		define: {
+			'import.meta.env.VITE_PLAYGROUND_APP_ORIGIN': JSON.stringify(
+				process.env['PLAYGROUND_APP_ORIGIN'] || ''
+			),
+		},
 		root: __dirname,
 		// Keep the SPA's module graph under /website-server/ so runtime module
 		// requests can be proxied to remote without losing the app origin. PHP

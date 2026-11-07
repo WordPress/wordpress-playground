@@ -10,7 +10,7 @@ test.describe.configure({ mode: 'serial' });
 const port = 7999;
 const host =
 	process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1'
-		? 'playground.localhost'
+		? 'playground.wordpress.localhost'
 		: 'localhost';
 const url = new URL(`http://${host}:${port}`);
 // Disable login because an old WP build used in this test
@@ -86,7 +86,7 @@ for (const cachingEnabled of [true, false]) {
 				await wordpress
 					.locator('body')
 					.evaluate(() => window.location.origin)
-			).toBe(`http://wp.playground.localhost:${port}`);
+			).toBe(`http://wpsandbox.wordpress.localhost:${port}`);
 		}
 	});
 }
@@ -189,6 +189,6 @@ test('offline mode – the app should load even when the server goes offline', a
 			await wordpress
 				.locator('body')
 				.evaluate(() => window.location.origin)
-		).toBe(`http://wp.playground.localhost:${port}`);
+		).toBe(`http://wpsandbox.wordpress.localhost:${port}`);
 	}
 });

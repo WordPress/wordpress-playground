@@ -148,6 +148,10 @@ test('a concurrent autosave waits for pruning after persistence finishes', async
 		}
 	});
 	await website.goto('./?storage=temp&autosave-timing=1');
+	// Rendering WordPress can finish before Redux receives its active client.
+	await website.page.evaluate(() =>
+		(window as any).playgroundSites.isReady()
+	);
 
 	const result = await website.page.evaluate(async () => {
 		const api = (window as any).playgroundSites;
@@ -174,7 +178,14 @@ test('a concurrent autosave waits for pruning after persistence finishes', async
 
 		try {
 			const firstSave = api.autosaveTemporarySite(siteSlug);
-			await deletionStarted;
+			await Promise.race([
+				deletionStarted,
+				firstSave.then(() => {
+					throw new Error(
+						'Autosave finished without reaching pruning'
+					);
+				}),
+			]);
 			// A second request for the same site must wait for the complete shared
 			// autosave instead of returning early based on the updated storage alone.
 			const secondSave = api.autosaveTemporarySite(siteSlug);

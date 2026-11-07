@@ -1,41 +1,35 @@
 import express from 'express';
 import { isWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path.ts';
+import { getReleaseRoot } from '../../../common/src/public-release.ts';
+import { existsSync, readFileSync } from 'node:fs';
+import { joinPaths as join } from '../../../../php-wasm/util/src/lib/paths.ts';
 
 /**
- * Route the local app and WordPress hosts before either server serves static files.
+ * Serve the same installed static release on the app and WordPress hostnames.
+ * Scoped WordPress pages come from the browser worker, never the static server.
+ * Reject unknown hosts and app-origin scoped URLs before express.static().
  *
- * For example, playground.localhost:9500 serves the SPA, remote.html, PHP bundles,
- * and WordPress downloads. wp.playground.localhost:9500 serves only the hidden
- * HTTP-request helper, a service-worker loader, and the thumbnail-worker
- * loaders. Other WordPress-host requests return 404 from this server: a running
- * site's /scope:site-a/ pages come from the browser's WordPress service worker.
+ * The release-switching tests also serve archived builds. Those retain their
+ * bootstrap-only sandbox directory and cross-origin asset headers below. Resolve
+ * the directory on every request so a test's release switch changes the layout too.
  *
- * Reject /scope:... on the app host too. Otherwise user HTML could load on the
- * same origin as the SPA and read its OPFS. Reject unknown hosts rather than
- * letting the static-file middleware expose the app under another hostname.
- * This middleware must therefore run before every express.static() handler.
- *
- * On the first visit there is no WordPress service worker yet. Serve the small
- * built wordpress-sandbox/ directory, just as the PHP host gate does. Its helper
- * and loaders already import app-origin scripts, keeping one public bundle copy.
- * CORS and CORP headers on app assets allow those cross-origin module fetches.
- * The helper may sit below an external embedder. It exposes HTTP transport only,
- * never the app filesystem API.
- *
- * Both the normal preview and the release-switching test server use these rules.
- * Resolve getSandboxDirectory() on each request so switching releases switches
- * the helper and loaders too; a captured initial path would mix build versions.
- * This is host/path routing, not authorization between WordPress sites. It does
- * not stop WordPress from embedding a fresh document from the app host.
- *
- * @param {() => string} getSandboxDirectory Current release's sandbox document root.
- * @returns Express middleware for the fixed playground.localhost host pair.
+ * @param {() => string} getSandboxDirectory Current public root or archived sandbox root.
+ * @returns Express middleware for the fixed playground.wordpress.localhost host pair.
  */
 export function wordPressFrameMiddleware(getSandboxDirectory) {
 	return (req, res, next) => {
+		const directory = getSandboxDirectory();
+		if (
+			existsSync(join(directory, 'index.html')) &&
+			readFileSync(join(directory, 'index.html'), 'utf8').includes(
+				'id="playground-release"'
+			)
+		) {
+			return servePublicRelease(directory, req, res, next);
+		}
 		res.set('X-Content-Type-Options', 'nosniff');
 		res.set('Cache-Control', 'no-store');
-		if (req.hostname === 'wp.playground.localhost') {
+		if (req.hostname === 'wpsandbox.wordpress.localhost') {
 			// Versions in these URLs bypass workers installed by a different release.
 			// They do not select a release from disk: serve the preview's selected
 			// sandbox helper, which already names that release's scripts.
@@ -50,7 +44,8 @@ export function wordPressFrameMiddleware(getSandboxDirectory) {
 				cacheControl: false,
 			})(req, res, () => res.sendStatus(404));
 		}
-		if (req.hostname !== 'playground.localhost') return res.sendStatus(404);
+		if (req.hostname !== 'playground.wordpress.localhost')
+			return res.sendStatus(404);
 		// Do not add COOP here: OAuth must retain its opener after cross-origin navigation.
 		if (req.path.startsWith('/scope:')) return res.sendStatus(404);
 		if (
@@ -68,4 +63,53 @@ export function wordPressFrameMiddleware(getSandboxDirectory) {
 		}
 		next();
 	};
+}
+
+/** Model Nginx serving the same public files on both origins, without PHP or internal CORS. */
+function servePublicRelease(directory, req, res, next) {
+	if (
+		![
+			'playground.wordpress.localhost',
+			'wpsandbox.wordpress.localhost',
+		].includes(req.hostname)
+	) {
+		return res.sendStatus(404);
+	}
+	res.set('X-Content-Type-Options', 'nosniff');
+	if (req.path.startsWith('/scope:') || req.path.endsWith('.php'))
+		return res.sendStatus(404);
+	if (
+		!getReleaseRoot(new URL(req.url, 'http://localhost')) &&
+		isWordPressBridgePath(req.path)
+	) {
+		const url = new URL(req.url, 'http://localhost');
+		req.url = '/wordpress-bridge.html' + url.search;
+	}
+	if (
+		req.path.startsWith('/client/') ||
+		req.path === '/blueprint-schema.json'
+	) {
+		res.set('Access-Control-Allow-Origin', '*');
+	}
+	const options = {
+		dotfiles: 'deny',
+		maxAge: '1h',
+		setHeaders(response, file) {
+			if (
+				file.endsWith('bootstrap.js') ||
+				(!file.includes('/releases/') && file.endsWith('.html'))
+			) {
+				response.setHeader('Cache-Control', 'no-store');
+			}
+		},
+	};
+	express.static(directory, options)(req, res, () => {
+		const release = JSON.parse(
+			readFileSync(join(directory, 'index.html'), 'utf8').match(
+				/<script id="playground-release" type="application\/json">(.*?)<\/script>/s
+			)[1]
+		);
+		req.url = `/releases/${release.release}${req.url}`;
+		express.static(directory, options)(req, res, next);
+	});
 }

@@ -20,8 +20,11 @@ import {
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { type SyncProgress, setupPostMessageRelay } from '@php-wasm/web';
-import { startPlaygroundWeb } from '@wp-playground/client';
-import type { MountDescriptor, PlaygroundClient } from '@wp-playground/remote';
+import { startPlaygroundWebForApp } from '@wp-playground/client';
+import type {
+	MountDescriptor,
+	AppPlaygroundClient,
+} from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
 import {
 	setActiveModal,
@@ -233,7 +236,7 @@ export function bootSiteClient(
 			}
 		}
 
-		let playground: PlaygroundClient | undefined = undefined;
+		let playground: AppPlaygroundClient | undefined = undefined;
 		// Collects git:directory provenance for any installPlugin/installTheme
 		// step this boot runs, so it can be persisted into site metadata and
 		// surfaced as a badge in the Files browser.
@@ -251,7 +254,7 @@ export function bootSiteClient(
 				document.location.href
 			);
 
-			await startPlaygroundWeb({
+			await startPlaygroundWebForApp({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				scope: site.slug,
@@ -381,7 +384,7 @@ export function bootSiteClient(
 		if (signal.aborted || !playground) {
 			return;
 		}
-		const connectedPlayground = playground as PlaygroundClient;
+		const connectedPlayground = playground as AppPlaygroundClient;
 
 		if (Object.keys(gitDirectorySources).length > 0) {
 			try {
@@ -719,7 +722,7 @@ async function syncInitialOpfsFilesInBackground({
 	signal,
 	siteSlugToReturnToIfBlueprintFails,
 }: {
-	playground: PlaygroundClient;
+	playground: AppPlaygroundClient;
 	mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
 	siteSlug: string;
 	operation: 'save' | 'autosave';

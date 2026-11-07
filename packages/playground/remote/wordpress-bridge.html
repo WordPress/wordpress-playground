@@ -6,15 +6,14 @@
 	<body>
 		<script type="module">
 			import bridgeScriptUrl from './src/lib/wordpress-bridge.ts?worker&url';
+			import { resolveAssetUrl } from './src/lib/config';
 			// Share the same bundle with the service worker's offline helper document.
-			// Vite extracts this inline module into an external script. Before serving
-			// the built HTML on the WordPress host, the sandbox build points its script
-			// and preload URLs at the app origin (development servers do this on demand). import.meta.url then points to the
-			// app host, so the bridge bundle below also loads there on the first visit,
-			// before a WordPress service worker exists to generate the helper HTML.
+			// Vite extracts this inline module into an external script. Resolve its
+			// root-relative worker URL inside the immutable release too, so the bridge
+			// can find release metadata before installing the sandbox worker.
 			const script = document.createElement('script');
 			script.type = 'module';
-			script.src = new URL(bridgeScriptUrl, import.meta.url).href;
+			script.src = resolveAssetUrl(bridgeScriptUrl).href;
 			document.head.append(script);
 		</script>
 	</body>

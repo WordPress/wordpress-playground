@@ -14,14 +14,40 @@ Broadly speaking, you can use the client to perform three types of operations:
 - Customizing `PHP.ini`
 - Managing files and directories
 
+## Public embeds and app storage
+
+`startPlaygroundWeb()` opens `remote.html` and returns a `PlaygroundClient` for a fresh
+runtime. It supports external embeds, PHP, Blueprints, and that runtime's virtual files.
+It cannot mount app-origin OPFS directories or join an existing shared runtime.
+
+The application that owns the runtime origin can instead call
+`startPlaygroundWebForApp()`. It opens the separate `app-runtime.html` document and returns
+an `AppPlaygroundClient`. That document checks its actual parent before creating or joining
+a PHP worker. Its RPC endpoint also checks the browser-supplied parent origin and source
+before executing calls or transferring an API port. Importing the SDK into another origin
+or supplying an origin string does not authorize this connection.
+
+Only this private app connection accepts startup `mounts`, `mountOpfs()`, and shared-runtime
+connections. OPFS paths travel over the private connection; the PHP worker opens the native
+directory handles locally. OPFS handles never need to be cloned between contexts, including
+on Safari versions that cannot clone them. Public RPC exposes an explicit method facade,
+not the worker object or its internal helpers. New boot options are not forwarded publicly
+unless explicitly allowed.
+
+**Compatibility:** applications using OPFS paths or shared workers must host the matching
+client and runtime on their own app origin and use `startPlaygroundWebForApp()`. Ordinary
+external embeds continue to use `startPlaygroundWeb()`. The app-only API does not fall back
+to the public endpoint. These controls authorize runtime/storage APIs; they do not provide
+HTTP authorization between WordPress sites sharing a sandbox origin.
+
 ## SharedWorker runtime
 
-`startPlaygroundWeb()` uses a dedicated worker by default. Applications can opt into
+`startPlaygroundWeb()` uses a dedicated worker by default. The app-only `startPlaygroundWebForApp()` can opt into
 sharing one PHP runtime across tabs on the same origin and browser storage partition.
 Serve the matching client and remote runtime from the application's own deployment:
 
 ```js
-const client = await startPlaygroundWeb({
+const client = await startPlaygroundWebForApp({
 	iframe: document.getElementById('wp'),
 	remoteUrl: new URL('/remote.html', window.location.href).href,
 	workerMode: 'shared',
@@ -53,7 +79,7 @@ Validate the message origin and source against the embedded remote iframe.
 tabs: it rejects new work, drains active operations, flushes OPFS, and disposes PHP. It
 rejects if retirement fails and is a no-op in dedicated mode. The
 `shouldRunStartupBlueprint()` and `finishSharedRuntimeInitialization()` methods are
-internal startup coordination hooks; applications should let `startPlaygroundWeb()` call them.
+internal startup coordination hooks; applications should let `startPlaygroundWebForApp()` call them.
 
 ## Running PHP code
 

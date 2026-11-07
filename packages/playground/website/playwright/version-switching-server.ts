@@ -61,7 +61,9 @@ export async function startVersionSwitchingServer({
 	if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
 		app.use(
 			wordPressFrameMiddleware(() =>
-				path.join(staticDirectory, 'wordpress-sandbox')
+				staticDirectory === newVersionDirectory
+					? staticDirectory
+					: path.join(staticDirectory, 'wordpress-sandbox')
 			)
 		);
 	}
