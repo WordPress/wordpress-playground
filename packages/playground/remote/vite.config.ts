@@ -85,6 +85,17 @@ export default defineConfig(({ mode }) => {
 			'**/*.tar.zst',
 		],
 		cacheDir: '../../../node_modules/.vite/playground',
+		// Vite does not crawl ?worker&url imports from HTML. Scan the worker graphs
+		// up front so discovery cannot replace optimized chunks during PHP startup.
+		optimizeDeps: {
+			entries: [
+				'*.html',
+				'*service-worker.ts',
+				'src/lib/**/*worker*.ts',
+				'src/lib/capture-site-thumbnail.ts',
+				'!src/**/*.spec.ts',
+			],
+		},
 		resolve: {
 			alias: [isomorphicGitBrowserAlias()],
 		},
@@ -226,10 +237,10 @@ export default defineConfig(({ mode }) => {
 			sourcemap: true,
 			rollupOptions: {
 				input: {
-					wordpress: path('/remote.html'),
-					'app-runtime': path('/app-runtime.html'),
-					'wordpress-bridge': path('/wordpress-bridge.html'),
-					'wordpress-popup': path('/wordpress-popup.html'),
+					wordpress: path('./remote.html'),
+					'app-runtime': path('./app-runtime.html'),
+					'wordpress-bridge': path('./wordpress-bridge.html'),
+					'wordpress-popup': path('./wordpress-popup.html'),
 				},
 				output: {
 					assetFileNames: (chunkInfo) => {
