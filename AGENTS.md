@@ -316,8 +316,10 @@ the Storage, File System, and AccessHandle APIs. Its regular lanes stay on Linux
 The macOS lane builds with a 4 GB Node heap and one Nx task at a time to fit the
 remote Vite build within runner memory.
 Set Node options through workflow `env`, never `GITHUB_ENV`, which rejects them.
-Playwright 1.64 includes the upstream Cocoa popup null-dereference fix (WebKit
-317666); do not downgrade to its affected WebKit 2311 build. Verify native popup
+Playwright 1.65 includes the Cocoa popup null-dereference fix (WebKit 317666)
+and the Firefox service-worker iframe execution-context fix (Playwright 43124).
+Do not downgrade to affected browser builds or work around missing automation contexts
+in application code. Verify native popup
 creation before long builds. Keep WebKit as the runner user; only the
 Playwright-managed preview server is elevated to bind CI's normal HTTP port.
 Keep the fresh npm-package test fixtures on the root Playwright version so they

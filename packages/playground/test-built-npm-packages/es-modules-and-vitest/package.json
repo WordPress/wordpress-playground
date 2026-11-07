@@ -24,7 +24,7 @@
 		"@php-wasm/web": "^1.2.3",
 		"@types/node": "^22.14.1",
 		"@wp-playground/cli": "^1.2.3",
-		"playwright": "1.64.0",
+		"playwright": "1.65.0",
 		"vite": "^5.0.0"
 	}
 }
