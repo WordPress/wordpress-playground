@@ -422,7 +422,8 @@ jobs:
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
         # The pinned WebKit enables StorageAPI/FileSystem/AccessHandle only on Cocoa.
         # Exercise real Safari storage on macOS; keep its regular shards on Linux.
-        runs-on: ${{ matrix.browser == 'webkit' && matrix.lane == 'storage' && 'macos-latest' || 'ubuntu-latest' }}
+        # Pin Cocoa's OS alongside the pinned browser rather than following latest.
+        runs-on: ${{ matrix.browser == 'webkit' && matrix.lane == 'storage' && 'macos-15' || 'ubuntu-latest' }}
         env:
             # GitHub forbids writing NODE_OPTIONS through GITHUB_ENV.
             NODE_OPTIONS: ${{ matrix.browser == 'webkit' && matrix.lane == 'storage' && '--max-old-space-size=4096' || '' }}
@@ -474,6 +475,27 @@ jobs:
                   else
                     sudo npx playwright install ${{ matrix.browser }} --with-deps
                   fi
+            - name: Verify native WebKit popups before building
+              if: runner.os == 'macOS'
+              run: |
+                  node <<'JS'
+                  const { webkit, devices } = require('playwright');
+                  (async () => {
+                    const browser = await webkit.launch();
+                    try {
+                      const context = await browser.newContext(devices['Desktop Safari']);
+                      const page = await context.newPage();
+                      const [popup] = await Promise.all([
+                        page.waitForEvent('popup', { timeout: 10000 }),
+                        page.evaluate(() => { window.open('about:blank'); }),
+                      ]);
+                      await popup.evaluate(() => document.readyState);
+                      console.log('Native WebKit popup passed');
+                    } finally {
+                      await browser.close();
+                    }
+                  })().catch(error => { console.error(error); process.exitCode = 1; });
+                  JS
             - name: Build app for E2E tests
               run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
             - name: Build the WordPress-only origin setup
@@ -513,6 +535,14 @@ jobs:
               with:
                   name: playwright-snapshots-wordpress-frame-${{ matrix.browser }}-${{ matrix.lane }}
                   path: packages/playground/website/playwright/e2e/deployment.spec.ts-snapshots/
+                  if-no-files-found: ignore
+                  retention-days: 7
+            - name: Preserve native macOS crash reports
+              uses: actions/upload-artifact@v4
+              if: runner.os == 'macOS' && failure()
+              with:
+                  name: webkit-native-crash-reports
+                  path: ~/Library/Logs/DiagnosticReports/
                   if-no-files-found: ignore
                   retention-days: 7
 

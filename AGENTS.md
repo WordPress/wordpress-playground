@@ -316,8 +316,11 @@ the Storage, File System, and AccessHandle APIs. Its regular lanes stay on Linux
 The macOS lane builds with a 4 GB Node heap and one Nx task at a time to fit the
 remote Vite build within runner memory.
 Set Node options through workflow `env`, never `GITHUB_ENV`, which rejects them.
-Run macOS WebKit as the runner user: popup creation crashes under root. Only the
-Playwright-managed preview server is elevated to bind CI's normal HTTP port.
+Pin the Cocoa storage lane to macOS 15; verify native popup creation before the
+long builds. Keep the browser as the runner user. Only the Playwright-managed
+preview server is elevated to bind CI's normal HTTP port.
+Use graceful SIGTERM shutdown so sudo can relay it to the privileged listener;
+force-killing sudo leaves root-owned children and output pipes alive.
 Keep the real OPFS security regression enabled; a persistent context alone cannot
 enable APIs that the browser port disables.
 
