@@ -5,6 +5,7 @@ import type { ProgressReceiver } from '@php-wasm/progress';
 import type { MessageListener, UniversalPHP } from '@php-wasm/universal';
 import type { RemoteAPI, SyncProgressCallback } from '@php-wasm/web';
 import type { ProgressBarOptions } from './progress-bar';
+import type { PublicRuntimeAPI, AppRuntimeAPI } from './runtime-api';
 import type { WebMCPToolDescriptor } from './webmcp-frame-bridge';
 import type {
 	PlaygroundWorkerEndpoint,
@@ -160,9 +161,10 @@ export type SiteThumbnail = {
  * The Playground Client interface.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface PlaygroundClient extends RemoteAPI<
-	PlaygroundWorkerEndpoint & WebClientMixin
-> {}
+export interface PlaygroundClient extends RemoteAPI<PublicRuntimeAPI> {}
+
+/** Requires the authenticated app connection; never expose this through public window RPC. */
+export type AppPlaygroundClient = RemoteAPI<AppRuntimeAPI>;
 
 /*
  * Assert that PlaygroundClient is a superset of UniversalPHP.

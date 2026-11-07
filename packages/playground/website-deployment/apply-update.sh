@@ -88,7 +88,7 @@ set_error_handler( static function ( $severity, $message, $file, $line ) {
     throw new ErrorException( $message, 0, $severity, $file, $line );
 } );
 [ , $deployment, $app_origin, $wordpress_origin, $build, $web_root, $backups ] = $argv;
-foreach ( [ 'index.html', 'remote.html', 'api.html', 'app-sw.js', 'sandbox-sw.js', 'wordpress-bridge.html' ] as $file ) {
+foreach ( [ 'index.html', 'remote.html', 'app-runtime.html', 'api.html', 'app-sw.js', 'sandbox-sw.js', 'wordpress-bridge.html' ] as $file ) {
     if ( ! is_file( "$build/$file" ) || ! filesize( "$build/$file" ) ) {
         throw new RuntimeException( "Incomplete upload: $file" );
     }
@@ -111,7 +111,7 @@ mkdir( $public, 0755, true );
 mkdir( "$private/files", 0755, true );
 $backup = "$backups/$release";
 mkdir( $backup, 0755, true );
-$public_entries = [ 'custom-redirects.php', 'index.html', 'remote.html', 'api.html', 'wordpress-bridge.html', 'bootstrap.js' ];
+$public_entries = [ 'custom-redirects.php', 'index.html', 'remote.html', 'app-runtime.html', 'api.html', 'wordpress-bridge.html', 'bootstrap.js' ];
 foreach ( $public_entries as $file ) {
     if ( is_file( "$web_root/$file" ) ) copy( "$web_root/$file", "$backup/$file" );
 }
@@ -198,7 +198,7 @@ foreach ( [ 'app', 'sandbox' ] as $role ) {
 }
 copy( $deployment . '/bootstrap.js', "$web_root/bootstrap.js.new" );
 rename( "$web_root/bootstrap.js.new", "$web_root/bootstrap.js" );
-foreach ( [ 'remote.html', 'api.html', 'wordpress-bridge.html' ] as $entry ) {
+foreach ( [ 'remote.html', 'app-runtime.html', 'api.html', 'wordpress-bridge.html' ] as $entry ) {
     $html = '<!doctype html><meta charset="utf-8"><meta name="playground-entry" content="' . $entry . '"><title>Starting Playground</title><body><script type="module" src="/bootstrap.js"></script></body>';
     file_put_contents( "$web_root/$entry.new", $html );
     rename( "$web_root/$entry.new", "$web_root/$entry" );

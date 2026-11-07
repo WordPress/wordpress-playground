@@ -126,7 +126,18 @@ Window APIs default to same-origin callers; the public runtime explicitly opts
 into external callers. RPC functions are callable capabilities with no traversable
 properties; paths cannot reach inherited Object methods, constructors, or prototypes.
 `api.html` and `startPlaygroundAPI` require an app-origin embedding document.
-Public `remote.html` runtime embeds remain separate from this privileged API.
+Public `remote.html` runtime embeds remain separate from privileged APIs.
+`startPlaygroundWeb()` returns a public `PlaygroundClient`; its explicit facade
+cannot mount storage, forward internal worker methods, or join shared runtimes.
+Public boot rejects mounts and copies only reviewed public options.
+The app uses `startPlaygroundWebForApp()` and `AppPlaygroundClient` through the
+separate `app-runtime.html`. Its actual app-origin parent is checked before PHP
+startup/shared discovery; RPC checks source and browser origin before granting
+its private port. Never pipe a worker/class instance into a window API.
+OPFS paths travel only over that private connection and are resolved inside the
+PHP worker, so native OPFS handles never need to be cloned between contexts.
+A scope or slug is not runtime/storage authorization. Keep these boundaries
+structural: no public fallback or caller-supplied flag may promote a connection.
 Neither referrers nor caller-provided origin strings authorize saved-site access.
 
 The split-origin Playwright suite also installs a checksum-pinned release of the
@@ -186,7 +197,7 @@ The core architecture uses an iframe-based isolation model:
 - `@php-wasm/node`: Node.js-based PHP runtime
 - `@php-wasm/universal`: Abstract interface shared by web and node implementations
 
-Personal WP explicitly opts into SharedWorkers via `startPlaygroundWeb`.
+Personal WP explicitly opts into SharedWorkers via `startPlaygroundWebForApp`.
 Its ServiceWorker sends HTTP requests directly to the shared PHP runtime through MessagePorts.
 The main website retains dedicated workers and the existing window relay by default.
 Deployment checks run once per Personal WP document; stale runtimes drain requests and flush

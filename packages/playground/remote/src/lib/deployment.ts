@@ -10,6 +10,22 @@ export function assertDocumentOrigin(role: 'app' | 'sandbox') {
 		throw new Error(`Incorrect Playground ${role} hostname.`);
 }
 
+/** Check the actual parent before starting or discovering a privileged PHP runtime. */
+export function assertAppParent() {
+	try {
+		if (
+			window.parent !== window &&
+			window.parent.location.origin === playgroundOrigin
+		)
+			return;
+	} catch {
+		/* The browser refuses access to a cross-origin parent's location. */
+	}
+	throw new Error(
+		'The app runtime requires an app-origin embedding document.'
+	);
+}
+
 export function getDeployment(): PlaygroundRelease | undefined {
 	const release = getReleaseId(assetBaseUrl);
 	return release

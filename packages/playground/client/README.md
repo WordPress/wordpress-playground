@@ -139,3 +139,20 @@ await client.request({
 ```
 
 To see all the available methods, check out the [PlaygroundClient](https://wordpress.github.io/wordpress-playground/api/client/) interface.
+
+## App storage and shared runtimes
+
+`startPlaygroundWeb()` returns the public `PlaygroundClient` from `remote.html`.
+It supports external embeds and a fresh runtime's PHP/virtual filesystem. It
+rejects startup storage mounts and shared-runtime requests.
+
+The app that owns the runtime origin uses `startPlaygroundWebForApp()` and gets
+an `AppPlaygroundClient` from the separate `app-runtime.html` document. Both the
+document and RPC transport require its actual app-origin parent. Only this
+connection accepts `mounts`, `mountOpfs()`, and shared-runtime attachment. Native
+OPFS handles remain inside the PHP worker, so Safari handle-cloning support is
+not required. Importing this function into another origin grants no authority.
+
+This is an intentional compatibility change for SDK consumers using named OPFS
+paths or shared workers. Host a matching runtime on your app origin and use the
+app-only entry point. There is no fallback to a public storage API.

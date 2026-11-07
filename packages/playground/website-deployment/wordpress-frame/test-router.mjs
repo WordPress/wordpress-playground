@@ -51,6 +51,7 @@ try {
 	for (const name of [
 		'index.html',
 		'remote.html',
+		'app-runtime.html',
 		'api.html',
 		'wordpress-bridge.html',
 	]) {
@@ -252,6 +253,11 @@ process.stdout.write(process.env.PUBLIC_HIDDEN === '1' ? '200' : process.argv.at
 	for (const host of ['app.example', 'wordpress.example']) {
 		assert.equal((await request('/', host)).status, 200);
 		assert.equal((await request(`${root}/api.html`, host)).status, 200);
+		assert.equal((await request('/app-runtime.html', host)).status, 200);
+		assert.equal(
+			(await request(`${root}/app-runtime.html`, host)).status,
+			200
+		);
 		const full = await request(`${root}/assets/runtime.wasm`, host);
 		assert.equal(await full.text(), '0123456789');
 		const range = await request(`${root}/assets/runtime.wasm`, host, {

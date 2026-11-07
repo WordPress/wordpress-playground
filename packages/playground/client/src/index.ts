@@ -26,7 +26,12 @@ export {
 	LatestSupportedPHPVersion,
 } from '@php-wasm/universal';
 export { phpVar, phpVars } from '@php-wasm/util';
-export type { PlaygroundClient, MountDescriptor, SiteThumbnail };
+export type {
+	PlaygroundClient,
+	AppPlaygroundClient,
+	MountDescriptor,
+	SiteThumbnail,
+};
 
 import {
 	BlueprintReflection,
@@ -44,6 +49,7 @@ import { ProgressTracker } from '@php-wasm/progress';
 import type {
 	MountDescriptor,
 	PlaygroundClient,
+	AppPlaygroundClient,
 	SiteThumbnail,
 } from '@wp-playground/remote';
 import { consumeAPI, type PathAlias } from '@php-wasm/universal';
@@ -57,7 +63,7 @@ import { BlueprintsV2Handler } from './blueprints-v2-handler';
 
 const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 
-export interface StartPlaygroundOptions {
+export interface AppStartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
 	/**
@@ -104,7 +110,7 @@ export interface StartPlaygroundOptions {
 	 * @param playground
 	 * @returns
 	 */
-	onClientConnected?: (playground: PlaygroundClient) => void;
+	onClientConnected?: (playground: AppPlaygroundClient) => void;
 	/**
 	 * The SAPI name PHP will use.
 	 * @internal
@@ -170,13 +176,30 @@ export interface StartPlaygroundOptions {
 	pathAliases?: PathAlias[];
 }
 
-export interface StartPlaygroundWebOptions extends Omit<
-	StartPlaygroundOptions,
+export interface AppStartPlaygroundWebOptions extends Omit<
+	AppStartPlaygroundOptions,
 	'blueprint' | 'onBlueprintValidated'
 > {
 	blueprint?: Blueprint;
 	onBlueprintValidated?: (blueprint: BlueprintDeclaration) => void;
 }
+
+/** Public embeds always receive a fresh runtime with no authority to select app storage. */
+export type StartPlaygroundWebOptions = Omit<
+	AppStartPlaygroundWebOptions,
+	'mounts' | 'workerMode' | 'onClientConnected'
+> & {
+	mounts?: never;
+	workerMode?: 'dedicated';
+	onClientConnected?: (playground: PlaygroundClient) => void;
+};
+
+/** Public Blueprint v1 startup options, without app storage or shared-runtime authority. */
+export type StartPlaygroundOptions = Omit<
+	StartPlaygroundWebOptions,
+	'blueprint' | 'onBlueprintValidated'
+> &
+	Pick<AppStartPlaygroundOptions, 'blueprint' | 'onBlueprintValidated'>;
 
 // Redefined here to avoid an import from the private Playground website package
 export interface ExportSavedSiteAsZipOptions {
@@ -209,6 +232,47 @@ export interface StartPlaygroundAPIOptions {
 export async function startPlaygroundWeb(
 	options: StartPlaygroundWebOptions
 ): Promise<PlaygroundClient> {
+	if (
+		options.mounts !== undefined ||
+		(options.workerMode as string) === 'shared'
+	) {
+		throw new Error(
+			'Storage mounts and shared runtimes require startPlaygroundWebForApp().'
+		);
+	}
+	if (
+		new URL(options.remoteUrl, remoteOrigin).searchParams.get(
+			'shared-worker'
+		) === '1'
+	) {
+		throw new Error('Shared runtimes require startPlaygroundWebForApp().');
+	}
+	return await startRuntime(options, false);
+}
+
+/**
+ * App-only connection for saved directories and shared runtimes. The embedding
+ * document must have the configured app origin. The runtime authenticates its
+ * parent before granting the private port; this function never authorizes itself.
+ * OPFS paths stay on that connection and handles are opened inside the worker,
+ * including in Safari versions that cannot clone OPFS handles.
+ */
+export async function startPlaygroundWebForApp(
+	options: AppStartPlaygroundWebOptions
+): Promise<AppPlaygroundClient> {
+	const origin = new URL(options.remoteUrl, remoteOrigin).origin;
+	if (options.iframe.ownerDocument.defaultView?.location.origin !== origin) {
+		throw new Error(
+			'App storage and shared runtimes require an app-origin embedding document.'
+		);
+	}
+	return await startRuntime(options, true);
+}
+
+async function startRuntime(
+	options: AppStartPlaygroundWebOptions,
+	appOnly: boolean
+) {
 	const {
 		iframe,
 		progressTracker = new ProgressTracker(),
@@ -221,6 +285,13 @@ export async function startPlaygroundWeb(
 		);
 	}
 	assertLikelyCompatibleRemoteOrigin(remoteUrl);
+	if (appOnly) {
+		const previous = new URL(remoteUrl, remoteOrigin);
+		const appRuntime = new URL('app-runtime.html', previous);
+		appRuntime.search = previous.search;
+		appRuntime.hash = previous.hash;
+		remoteUrl = appRuntime.href;
+	}
 	allowStorageAccessByUserActivation(iframe);
 	const useBlueprintV2Handler = await shouldUseBlueprintV2Handler(
 		options.blueprint
@@ -260,7 +331,7 @@ export async function startPlaygroundWeb(
 
 	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)
-		: new BlueprintsV1Handler(options as StartPlaygroundOptions);
+		: new BlueprintsV1Handler(options as AppStartPlaygroundOptions);
 	const playground = await handler.bootPlayground(iframe, progressTracker);
 
 	progressTracker.finish();
@@ -311,7 +382,7 @@ function loadIframe(iframe: HTMLIFrameElement, url: string): Promise<void> {
 }
 
 async function shouldUseBlueprintV2Handler(
-	blueprint: StartPlaygroundWebOptions['blueprint']
+	blueprint: AppStartPlaygroundWebOptions['blueprint']
 ) {
 	if (!blueprint) {
 		return false;

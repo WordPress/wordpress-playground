@@ -2,7 +2,7 @@ import type { PayloadAction } from '@reduxjs/toolkit';
 import { createSlice, createEntityAdapter } from '@reduxjs/toolkit';
 import type { SyncProgress } from '@php-wasm/web';
 import type { MountDevice } from '@wp-playground/storage';
-import type { PlaygroundClient } from '@wp-playground/remote';
+import type { AppPlaygroundClient } from '@wp-playground/remote';
 import type { Email } from 'postal-mime';
 
 export type OpfsSync =
@@ -17,7 +17,7 @@ export type OpfsSync =
 	  };
 
 export interface ClientInfo {
-	client: PlaygroundClient;
+	client: AppPlaygroundClient;
 	siteSlug: string;
 	url: string;
 	emails: Email[];

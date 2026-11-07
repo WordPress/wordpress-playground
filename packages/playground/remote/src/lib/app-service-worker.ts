@@ -86,6 +86,7 @@ export function installAppServiceWorker() {
 				'/',
 				'/index.html',
 				'/remote.html',
+				'/app-runtime.html',
 				'/api.html',
 				'/bootstrap.js',
 			].includes(url.pathname) ||

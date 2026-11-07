@@ -14,13 +14,13 @@ ordinary runtime downloads, scripts, styles, or WordPress static files.
 /srv/htdocs/
 ├── index.html                       # Small bootstrap and authoritative release selector
 ├── bootstrap.js
-├── remote.html, api.html            # Stable bootstrap documents
+├── remote.html, app-runtime.html, api.html # Stable bootstrap documents
 ├── wordpress-bridge.html            # Sandbox bootstrap document
 ├── app-sw-release.<id>.js            # Immutable root-scope worker loaders
 ├── sandbox-sw-release.<id>.js
 ├── assets/                          # Retained hashed aliases for older clients
 ├── releases/release.<id>/            # Immutable public static build
-│   ├── index.html, remote.html, api.html, assets/, wp-<version>/, ...
+│   ├── index.html, remote.html, app-runtime.html, api.html, assets/, wp-<version>/, ...
 │   ├── release.json
 │   ├── app-sw.js, sandbox-sw.js
 │   └── wordpress-bridge.html, wordpress-bridge.js
@@ -121,15 +121,39 @@ transferred function ports. Class and forwarded API methods remain callable.
 These are intentional API compatibility changes for cross-origin window callers
 and callers that traversed those properties.
 
-This caller restriction is not an HTTP framing policy or per-Playground storage
-authorization. The public runtime still accepts named OPFS site paths through
-startup mounts and `mountOpfs`; rejecting only `/` and `/sites` does not authorize
-access to individual saved sites. Those APIs need an app-issued directory
-capability instead of caller-selected app-storage paths. Blocking a particular
-sandbox anywhere in the ancestor chain while allowing arbitrary external
-embedders is not expressible with a CSP ancestor
-allowlist. An app-origin-only `frame-ancestors` policy would also reject those
-external embeds and must cover stable bootstrap and immutable HTML responses.
+## Runtime storage authority
+
+| Entry point                                       | Callers                       | Storage authority                                                                 |
+| ------------------------------------------------- | ----------------------------- | --------------------------------------------------------------------------------- |
+| `remote.html` / `startPlaygroundWeb()`            | External embeds or the app    | Fresh runtime's virtual files; no app-storage selection or shared attachment      |
+| `app-runtime.html` / `startPlaygroundWebForApp()` | Actual app-origin parent only | Explicitly assigned OPFS directories or picked directory handles; shared runtimes |
+| `api.html` / `startPlaygroundAPI()`               | Actual app-origin parent only | Saved-site export                                                                 |
+
+The app-only runtime rejects a foreign or opaque parent before starting PHP or discovering
+a SharedWorker. The RPC transport independently checks `MessageEvent.origin` and the parent
+window before granting its private port, and pins window replies to the app origin.
+
+Each document has one fixed API. Public RPC receives an explicit, read-only facade, never
+the worker instance. It has no mounting or internal worker methods. Public `boot()` rejects
+storage mounts and copies only reviewed public options; an additional private worker option
+cannot accidentally become public. Shared-worker URL flags cannot promote the public document.
+Knowing a path, slug, or runtime scope grants no storage connection.
+
+The app assigns directories over its private connection. OPFS paths are resolved inside the
+PHP worker, where native handles remain. No OPFS handle cloning, token registry, or per-file
+RPC is needed, including on Safari versions without handle serialization. The runtime
+JavaScript remains trusted app code; the boundary protects it from untrusted RPC callers.
+
+**Compatibility:** OPFS mounting and shared runtimes now require the app-only SDK entry point
+and matching same-origin deployment. Ordinary external runtime/SDK embeds remain supported.
+The installer requires `app-runtime.html` before activating a release. The app-only endpoint
+never falls back to public RPC. Cached app bundles using the previous public storage API
+need a reload into the matching release.
+
+These are API authorization rules, not a framing policy. Fresh public app documents remain
+externally embeddable. The shared sandbox origin still does not authorize HTTP access between
+running WordPress sites. An app-only CSP ancestor policy would also reject supported external
+app embeds and must cover bootstrap and immutable HTML responses.
 
 ## Deploy, verify, and roll back
 

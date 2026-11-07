@@ -1,4 +1,5 @@
 import { connectWordPressOrigin } from './connect-wordpress-origin';
+import { createAppRuntimeAPI, createPublicRuntimeAPI } from './runtime-api';
 import {
 	playgroundOrigin,
 	wordPressSiteUrl,
@@ -8,6 +9,7 @@ import {
 import { getReleaseRoot } from '@wp-playground/common';
 import {
 	assertDocumentOrigin,
+	assertAppParent,
 	getDeployment,
 	getReleaseWorkerUrl,
 	verifyWorker,
@@ -111,10 +113,19 @@ const query = new URL(document.location.href).searchParams;
  * The WordPress request connection is separate from the full client API exposed
  * to the embedding window: rendered WordPress does not receive that API here.
  */
-export async function bootPlaygroundRemote() {
+export async function bootPlaygroundRemote(
+	access: 'public' | 'app' = 'public'
+) {
 	assertDocumentOrigin('app');
+	if (access === 'app') assertAppParent();
 	assertNotInfiniteLoadingLoop();
 	const sharedMode = query.get('shared-worker') === '1';
+	if (sharedMode && access !== 'app') {
+		throw new Error(
+			'Shared runtimes require the app-only runtime document.'
+		);
+	}
+
 	const reportStartupProgress = (caption: string) => {
 		if (sharedMode)
 			window.parent.postMessage(
@@ -745,19 +756,23 @@ export async function bootPlaygroundRemote() {
 	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
 	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
 	//        the onDownloadProgress method
-	const [setAPIReady, setAPIError, playground] = exposeAPI(
-		phpRemoteApi,
-		phpWorkerApi,
+	const playground = createAppRuntimeAPI(phpWorkerApi, phpRemoteApi);
+	const exposedMethods =
+		access === 'app'
+			? playground
+			: createPublicRuntimeAPI(phpWorkerApi, phpRemoteApi);
+	const [setAPIReady, setAPIError, exposedAPI] = exposeAPI<
+		typeof exposedMethods,
+		unknown
+	>(
+		exposedMethods,
 		undefined,
-		// This is the public runtime API used by external SDK embedders.
-		'*'
+		undefined,
+		// The document chooses one fixed API. The app-only document never grants a public port.
+		access === 'app' ? playgroundOrigin : '*'
 	);
 
-	/*
-	 * An assertion to make sure Playground Client is compatible
-	 * with Remote<PlaygroundClient>
-	 */
-	return playground;
+	return exposedAPI;
 }
 
 /** Includes the editor's nested frames, whose fetches have their own ServiceWorker client IDs. */

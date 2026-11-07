@@ -13,7 +13,7 @@ import classNames from 'classnames';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { importWordPressFiles } from '@wp-playground/client';
-import type { PlaygroundClient } from '@wp-playground/client';
+import type { AppPlaygroundClient } from '@wp-playground/client';
 import { selectClientInfoBySiteSlug } from '../../../lib/state/redux/slice-clients';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { updateSiteMetadata } from '../../../lib/state/redux/slice-sites';
@@ -583,7 +583,7 @@ function BackupSection() {
 	);
 }
 
-async function flushWordPressMount(playground: PlaygroundClient) {
+async function flushWordPressMount(playground: AppPlaygroundClient) {
 	const documentRoot = await playground.documentRoot;
 	if (await playground.hasOpfsMount(documentRoot)) {
 		await playground.flushOpfs(documentRoot);
@@ -1060,7 +1060,7 @@ function AdvancedTab({
 	onShowDevToolsChange,
 }: {
 	site: SiteInfo;
-	playground: PlaygroundClient | undefined;
+	playground: AppPlaygroundClient | undefined;
 	showDevTools: boolean;
 	onShowDevToolsChange: (next: boolean) => void;
 }) {

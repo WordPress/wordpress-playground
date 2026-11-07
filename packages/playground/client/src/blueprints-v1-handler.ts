@@ -2,8 +2,7 @@ import type { ProgressTracker } from '@php-wasm/progress';
 import {
 	type BlueprintV1,
 	type BlueprintV1Declaration,
-	type PlaygroundClient,
-	type StartPlaygroundOptions,
+	type AppStartPlaygroundOptions,
 	compileBlueprintV1,
 	isBlueprintBundle,
 	runBlueprintV1Steps,
@@ -14,12 +13,15 @@ import { collectPhpLogs, logger } from '@php-wasm/logger';
 import { consumeAPI } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
 import { formatBytes } from '@php-wasm/util';
-import type { BootProgressEvent } from '@wp-playground/remote';
+import type {
+	BootProgressEvent,
+	AppPlaygroundClient,
+} from '@wp-playground/remote';
 
 export class BlueprintsV1Handler {
-	private readonly options: StartPlaygroundOptions;
+	private readonly options: AppStartPlaygroundOptions;
 
-	constructor(options: StartPlaygroundOptions) {
+	constructor(options: AppStartPlaygroundOptions) {
 		this.options = options;
 	}
 
@@ -54,10 +56,10 @@ export class BlueprintsV1Handler {
 
 		// Connect the Comlink API client to the remote worker,
 		// boot the playground, and run the blueprint steps.
-		const playground = consumeAPI<PlaygroundClient>(
+		const playground = consumeAPI<AppPlaygroundClient>(
 			iframe.contentWindow!,
 			iframe.ownerDocument!.defaultView!
-		) as PlaygroundClient;
+		) as AppPlaygroundClient;
 		setProgressCaption('Waiting for remote Playground runtime');
 		await playground.isConnected();
 		setProgressCaption('Resolving Playground runtime versions');
@@ -332,7 +334,7 @@ async function isWpAdminLandingPage(blueprint: BlueprintV1): Promise<boolean> {
 }
 
 type WordPressInstallMode = NonNullable<
-	StartPlaygroundOptions['wordpressInstallMode']
+	AppStartPlaygroundOptions['wordpressInstallMode']
 >;
 
 interface RuntimeDownloadProgress {

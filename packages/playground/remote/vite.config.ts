@@ -227,6 +227,7 @@ export default defineConfig(({ mode }) => {
 			rollupOptions: {
 				input: {
 					wordpress: path('/remote.html'),
+					'app-runtime': path('/app-runtime.html'),
 					'wordpress-bridge': path('/wordpress-bridge.html'),
 					'wordpress-popup': path('/wordpress-popup.html'),
 				},

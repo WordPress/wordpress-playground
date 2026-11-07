@@ -238,6 +238,7 @@ test.describe('Static release startup', { tag: '@storage' }, () => {
 		for (const entry of [
 			'index.html',
 			'api.html',
+			'app-runtime.html',
 			'wordpress.html',
 			'gutenberg.html',
 			'builder/builder.html',

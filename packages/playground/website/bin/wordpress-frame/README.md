@@ -142,9 +142,13 @@ Existing iframe and SDK embeds work without referrers or new origin declarations
 
 WordPress cannot directly read an existing app parent document, its OPFS, or its
 connected PHP API. WordPress can still embed a fresh public app-origin runtime and connect to that
-new runtime. The privileged saved-site `api.html` requires an app-origin parent.
-Public runtime OPFS mounting still needs a separate per-site authorization boundary. The split is not complete protection against every route
-to saved files or native directory handles.
+new temporary runtime. The privileged saved-site `api.html` requires an app-origin parent.
+Public `remote.html` cannot mount app storage or join shared runtimes. The app uses
+`startPlaygroundWebForApp()` and the separate `app-runtime.html` document, which
+requires an actual app-origin parent before creating or joining PHP. Its RPC
+connection also verifies the browser origin and parent source. OPFS paths travel
+only over that private connection and native handles stay inside the worker,
+including on Safari versions without handle cloning. Shared sandbox HTTP requests remain a separate authorization boundary.
 
 All Playgrounds share the sandbox origin's storage and can request other running
 sites' known scopes. The HTTP scope selects a runtime; it is not per-site
@@ -173,3 +177,9 @@ lane; no second navigation or routing list is maintained.
 Screenshots for agent work belong under the workspace's `.context/` directory.
 See the [WP Cloud hosting guide](../../../website-deployment/README.md) for server
 requirements, activation, rollback, and the checks that require a real deployment.
+
+The `storage-authority.spec.ts` regression runs in persistent browser profiles so
+WebKit can use real OPFS. It mounts one saved directory through the app-only
+connection, verifies writes and trusted shared attachment, then attacks from a
+sandbox-origin document using raw public RPC ports, startup mounts, late/internal
+methods, and shared URLs. Both saved directories must retain their expected bytes.
