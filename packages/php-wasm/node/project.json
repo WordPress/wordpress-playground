@@ -233,7 +233,7 @@
 					"php-sqlite3.spec.ts",
 					"php-networking.spec.ts",
 					"networking-port-allocation.spec.ts",
-					"outbound-ws-to-tcp-proxy.spec.ts",
+					"tcp-socket.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-mysqli.spec.ts",
 					"php-process-manager.spec.ts",
@@ -252,7 +252,7 @@
 					"php-sqlite3.spec.ts",
 					"php-networking.spec.ts",
 					"networking-port-allocation.spec.ts",
-					"outbound-ws-to-tcp-proxy.spec.ts",
+					"tcp-socket.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-mysqli.spec.ts",
 					"php-process-manager.spec.ts",
@@ -310,6 +310,25 @@
 				"configFile": "packages/php-wasm/node/vite.jspi.config.ts",
 				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
 				"testFiles": ["php-part-2.spec.ts"]
+			}
+		},
+		"test-networking-asyncify": {
+			"executor": "@nx/vitest:test",
+			"outputs": ["{workspaceRoot}/coverage/packages/php-wasm/node"],
+			"options": {
+				"configFile": "packages/php-wasm/node/vite.asyncify.config.ts",
+				"reportsDirectory": "../../../coverage/packages/php-wasm/node",
+				"testFiles": [
+					"tcp-socket.spec.ts",
+					"networking-port-allocation.spec.ts",
+					"php-networking.spec.ts",
+					"php-fsockopen.spec.ts",
+					"php-socket-timeouts.spec.ts",
+					"php-file-get-contents.spec.ts",
+					"php-fopen.spec.ts",
+					"php-gethostbyname.spec.ts",
+					"php-mysqli.spec.ts"
+				]
 			}
 		},
 		"test-redis-extension-jspi": {
