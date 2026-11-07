@@ -317,7 +317,8 @@ The macOS lane builds with a 4 GB Node heap and one Nx task at a time to fit the
 remote Vite build within runner memory.
 Set Node options through workflow `env`, never `GITHUB_ENV`, which rejects them.
 Pin the Cocoa storage lane to macOS 15; verify native popup creation before the
-long builds. Keep the browser as the runner user. Only the Playwright-managed
+long builds. Use headed WebKit in the runner's GUI session; its headless embedder
+crashes even on plain window.open() without Playground. Only the Playwright-managed
 preview server is elevated to bind CI's normal HTTP port.
 Use graceful SIGTERM shutdown so sudo can relay it to the privileged listener;
 force-killing sudo leaves root-owned children and output pipes alive.

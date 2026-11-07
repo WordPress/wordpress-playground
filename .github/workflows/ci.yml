@@ -477,11 +477,13 @@ jobs:
                   fi
             - name: Verify native WebKit popups before building
               if: runner.os == 'macOS'
+              env:
+                  DEBUG: pw:browser
               run: |
                   node <<'JS'
                   const { webkit, devices } = require('playwright');
                   (async () => {
-                    const browser = await webkit.launch();
+                    const browser = await webkit.launch({ headless: false });
                     try {
                       const context = await browser.newContext(devices['Desktop Safari']);
                       const page = await context.newPage();
