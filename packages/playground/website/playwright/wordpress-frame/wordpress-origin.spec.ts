@@ -141,12 +141,16 @@ async function ready(page: Page, origin: string): Promise<Frame> {
 		},
 		{ timeout: 60000 }
 	);
-	const iframe = page
-		.frameLocator(
-			'#playground-viewport:visible,.playground-viewport:visible'
+	const viewport = await page
+		.locator('#playground-viewport:visible,.playground-viewport:visible')
+		.elementHandle();
+	const runtime = (await viewport!.contentFrame())!;
+	await viewport!.dispose();
+	const element = (
+		await runtime.evaluateHandle(() =>
+			document.querySelector<HTMLIFrameElement>('#wp')
 		)
-		.locator('#wp');
-	const element = (await iframe.elementHandle())!;
+	).asElement()!;
 	const frame = (await element.contentFrame())!;
 	await element.dispose();
 	// Firefox can retain an obsolete utility context after service-worker
