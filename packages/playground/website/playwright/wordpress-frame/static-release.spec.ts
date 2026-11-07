@@ -3,7 +3,6 @@ import type { Page } from '@playwright/test';
 import { readFile, writeFile, rm, rename } from 'node:fs/promises';
 import { BlobReader, TextWriter, ZipReader } from '@zip.js/zip.js';
 import { joinPaths } from '@php-wasm/util';
-import { installLocalRelease } from '../../bin/wordpress-frame/install.mjs';
 import {
 	appOrigin,
 	wordPressOrigin,
@@ -125,6 +124,9 @@ test.describe('Static release startup', { tag: '@storage' }, () => {
 				(await fetch('/release-routing-probe.txt')).text()
 			)
 		).toBe('release A');
+		// Keep the native ESM installer out of Playwright's CommonJS transform.
+		const { installLocalRelease } =
+			await import('../../bin/wordpress-frame/install.mjs');
 		installLocalRelease(upload, directory, appOrigin, wordPressOrigin);
 		const other = await context.newPage();
 		await other.goto(appOrigin + '/?wp=6.9&php=8.3&storage=temp');

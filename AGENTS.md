@@ -320,6 +320,9 @@ Playwright 1.64 includes the upstream Cocoa popup null-dereference fix (WebKit
 317666); do not downgrade to its affected WebKit 2311 build. Verify native popup
 creation before long builds. Keep WebKit as the runner user; only the
 Playwright-managed preview server is elevated to bind CI's normal HTTP port.
+Keep the fresh npm-package test fixtures on the root Playwright version so they
+use the installed browsers. Load the native ESM installer with dynamic import
+so CommonJS test transpilation preserves its import.meta semantics.
 Use graceful SIGTERM shutdown so sudo can relay it to the privileged listener;
 force-killing sudo leaves root-owned children and output pipes alive.
 Keep the real OPFS security regression enabled; a persistent context alone cannot
