@@ -30,9 +30,7 @@ describe('OutboundTcpSocket', () => {
 		expect(socket.readyState).toBe(OutboundTcpSocket.CLOSED);
 	});
 
-	it('drops data and resets the connection after it closes', async () => {
-		// The server keeps its side open and keeps writing after the client
-		// closes. Only a reset from the client closes the server's socket.
+	it('drops data that arrives after it closes', async () => {
 		const server = net.createServer({ allowHalfOpen: true });
 		const connection = new Promise<net.Socket>((resolve) =>
 			server.once('connection', resolve)
@@ -47,7 +45,6 @@ describe('OutboundTcpSocket', () => {
 		const messages: Buffer[] = [];
 		socket.on('message', (data: Buffer) => messages.push(data));
 		const serverSocket = await connection;
-		serverSocket.on('error', () => {});
 		const ended = new Promise((resolve) =>
 			serverSocket.once('end', resolve)
 		);
@@ -55,27 +52,20 @@ describe('OutboundTcpSocket', () => {
 
 		socket.close();
 		await ended;
-		const closed = new Promise((resolve) =>
-			serverSocket.once('close', resolve)
+		await new Promise<void>((resolve) =>
+			serverSocket.write('sent after close', () => resolve())
 		);
-		const writes = setInterval(() => {
-			if (serverSocket.writable) {
-				serverSocket.write('sent after close');
-			}
-		}, 20);
-		try {
-			await closed;
-		} finally {
-			clearInterval(writes);
-			server.close();
-		}
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		serverSocket.destroy();
+		server.close();
 
 		expect(messages).toEqual([]);
 	});
 
-	it('sends everything written before it closes, even if the peer replies', async () => {
-		// The server stops reading, so the writes stay buffered in Node.js
-		// when the socket closes. Its reply then arrives after the close.
+	it('sends everything written before it closes while the peer keeps sending', async () => {
+		// The server stops reading, so the writes stay buffered when the socket
+		// closes, and keeps sending. A reset at that point would make the
+		// kernel discard writes the server hasn't received yet.
 		const size = 16 * 1024 * 1024;
 		const server = net.createServer({ allowHalfOpen: true });
 		const connection = new Promise<net.Socket>((resolve) =>
@@ -101,13 +91,17 @@ describe('OutboundTcpSocket', () => {
 
 		socket.send(new Uint8Array(size));
 		socket.close();
-		await new Promise((resolve) => socket.once('close', resolve));
-		serverSocket.write('+OK');
-		await new Promise((resolve) => setTimeout(resolve, 100));
-		serverSocket.resume();
+		const writes = setInterval(() => {
+			if (serverSocket.writable) {
+				serverSocket.write(Buffer.alloc(1024));
+			}
+		}, 1);
 		try {
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			serverSocket.resume();
 			await ended;
 		} finally {
+			clearInterval(writes);
 			serverSocket.destroy();
 			server.close();
 		}

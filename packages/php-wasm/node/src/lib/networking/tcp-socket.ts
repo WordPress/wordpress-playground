@@ -60,19 +60,20 @@ export class TcpSocket extends EventEmitter {
 	 * `_socket`, like it does for `ws` WebSockets.
 	 */
 	readonly _socket?: net.Socket;
-	private resetPending = false;
 
 	constructor(socket: net.Socket | undefined, readyState: number) {
 		super();
 		this._socket = socket;
 		this.readyState = readyState;
 		socket?.on('data', (data: Buffer) => {
-			// PHP has closed the socket, so nothing will read this data.
+			// PHP has closed the socket, so nothing will read this data. Drop it
+			// rather than resetting the connection: a reset makes the kernel
+			// discard what PHP wrote but the peer hasn't received yet. The socket
+			// closes when the peer closes its side or the runtime exits.
 			if (
 				this.readyState === this.CLOSING ||
 				this.readyState === this.CLOSED
 			) {
-				this.resetAfterWrites();
 				return;
 			}
 			// Emscripten ignores messages that aren't marked as binary.
@@ -102,7 +103,8 @@ export class TcpSocket extends EventEmitter {
 	/**
 	 * For php-wasm's setsockopt() with SO_KEEPALIVE and TCP_NODELAY. The current
 	 * PHP builds look the socket up by file descriptor and never find it, so
-	 * this isn't called yet.
+	 * this isn't called yet. They also pass a pointer to the option's value
+	 * rather than the value, so a fixed lookup alone would turn every option on.
 	 */
 	setSocketOpt(level: number, optionName: number, optionValue: number) {
 		if (level === SOL_SOCKET && optionName === SO_KEEPALIVE) {
@@ -154,21 +156,6 @@ export class TcpSocket extends EventEmitter {
 			this.readyState = this.CLOSED;
 			this.emit('close');
 		});
-	}
-
-	/**
-	 * Resets a connection PHP has closed, like a closed native socket would,
-	 * once Node.js has sent everything PHP wrote. PHP's writes don't block, so
-	 * resetting right away could discard them.
-	 */
-	private resetAfterWrites() {
-		const socket = this._socket!;
-		if (socket.writableFinished) {
-			socket.destroy();
-		} else if (!this.resetPending) {
-			this.resetPending = true;
-			socket.once('finish', () => socket.destroy());
-		}
 	}
 }
 
@@ -285,8 +272,8 @@ export class TcpServer extends EventEmitter {
 	}
 
 	/**
-	 * Stops accepting connections. Accepted connections stay open, like
-	 * closing a listening socket.
+	 * Stops listening. Connections already made stay open, including ones PHP
+	 * hasn't accepted yet.
 	 */
 	close(callback?: (error?: Error) => void) {
 		this.closed = true;

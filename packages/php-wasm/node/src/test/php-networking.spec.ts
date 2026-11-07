@@ -457,7 +457,10 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 							this: net.Socket,
 							...args: Parameters<net.Socket['destroy']>
 						) {
-							if (this.remotePort === port) {
+							// Count the runtime's sockets, not the server's.
+							// A client's remotePort can still be unset while it
+							// finishes connecting.
+							if (!connections.includes(this)) {
 								destroyed.add(this);
 							}
 							return destroy.apply(this, args);
