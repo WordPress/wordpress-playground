@@ -102,6 +102,9 @@ headers. Startup verifies document origin and worker role, protocol, release,
 activation, and control before loading app code. Existing app documents retain
 release selections across worker updates and restarts. Do not route ordinary
 static downloads through PHP or add a second installer.
+If an activated worker cannot claim the initial document, the bootstrap reloads
+once using a history-state marker, preserves the URL, and repeats verification.
+It must fail closed if the replacement document still has no matching controller.
 
 The dedicated app worker owns static routing/caching and rejects scoped WordPress
 execution on the app origin. The sandbox worker owns WordPress HTTP transport and
@@ -310,6 +313,7 @@ The WebKit storage lane runs on macOS because the pinned Linux WebKit disables
 the Storage, File System, and AccessHandle APIs. Its regular lanes stay on Linux.
 The macOS lane builds with a 4 GB Node heap and one Nx task at a time to fit the
 remote Vite build within runner memory.
+Set Node options through workflow `env`, never `GITHUB_ENV`, which rejects them.
 Keep the real OPFS security regression enabled; a persistent context alone cannot
 enable APIs that the browser port disables.
 

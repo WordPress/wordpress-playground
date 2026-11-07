@@ -1,6 +1,7 @@
 /** Static entry point shared by the app and sandbox; application code loads only after verification. */
 const entry = document.querySelector('meta[name="playground-entry"]').content;
 const role = entry === 'wordpress-bridge.html' ? 'sandbox' : 'app';
+const reloadForWorker = Symbol('reload for service worker control');
 
 try {
 	const release = await selectRelease();
@@ -31,11 +32,29 @@ try {
 	if (!worker)
 		throw new Error('The Playground service worker is unavailable.');
 	await waitFor(() => worker.state === 'activated', worker, 'statechange');
-	await waitFor(
-		() => navigator.serviceWorker.controller?.scriptURL === workerUrl.href,
-		navigator.serviceWorker,
-		'controllerchange'
-	);
+	try {
+		await waitFor(
+			() =>
+				navigator.serviceWorker.controller?.scriptURL ===
+				workerUrl.href,
+			navigator.serviceWorker,
+			'controllerchange'
+		);
+	} catch (error) {
+		// An activated worker may not claim this document, especially in nested
+		// Firefox frames. A navigation can acquire control. Retry exactly once;
+		// the replacement document must still pass every origin/worker check.
+		if (history.state?.playgroundWorkerReload === workerUrl.href) {
+			throw new Error(
+				`The Playground service worker did not take control after reloading. Expected ${workerUrl.href}; received ${navigator.serviceWorker.controller?.scriptURL ?? 'no controller'}.`
+			);
+		}
+		history.replaceState(
+			{ ...history.state, playgroundWorkerReload: workerUrl.href },
+			''
+		);
+		throw reloadForWorker;
+	}
 	const status = await message(worker, { type: 'playground-worker-status' });
 	if (
 		status.protocol !== 1 ||
@@ -47,6 +66,11 @@ try {
 		throw new Error(
 			'The Playground service worker does not match the selected release.'
 		);
+	}
+	if (history.state?.playgroundWorkerReload === workerUrl.href) {
+		const state = { ...history.state };
+		delete state.playgroundWorkerReload;
+		history.replaceState(state, '');
 	}
 	const root = `/releases/${release.release}/`;
 	if (role === 'app') {
@@ -69,14 +93,18 @@ try {
 	document.write(html);
 	document.close();
 } catch (error) {
-	console.error(error);
-	const message = document.createElement('p');
-	message.textContent =
-		'Playground could not start. Check your connection and browser storage settings, then try again.';
-	const retry = document.createElement('button');
-	retry.textContent = 'Try again';
-	retry.addEventListener('click', () => window.location.reload());
-	document.body.replaceChildren(message, retry);
+	if (error === reloadForWorker) {
+		location.reload();
+	} else {
+		console.error(error);
+		const message = document.createElement('p');
+		message.textContent =
+			'Playground could not start. Check your connection and browser storage settings, then try again.';
+		const retry = document.createElement('button');
+		retry.textContent = 'Try again';
+		retry.addEventListener('click', () => window.location.reload());
+		document.body.replaceChildren(message, retry);
+	}
 }
 
 async function selectRelease() {

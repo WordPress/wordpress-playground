@@ -40,6 +40,58 @@ test.describe('Static release startup', { tag: '@storage' }, () => {
 		});
 	});
 
+	// Contract: an installed worker can acquire control through one reload, but
+	// unavailable control must never execute app code or cause a reload loop.
+	// Browser claim behavior is independent of registration/activation succeeding.
+	for (const controlAvailableAfterReload of [true, false]) {
+		test(`startup reloads once when worker control is ${controlAvailableAfterReload ? 'delayed' : 'unavailable'}`, async ({
+			page,
+		}) => {
+			await page.addInitScript((allowAfterReload) => {
+				if (window !== window.top) return;
+				const loads =
+					Number(sessionStorage.getItem('control-loads') ?? 0) + 1;
+				sessionStorage.setItem('control-loads', String(loads));
+				if (!allowAfterReload || loads === 1) {
+					Object.defineProperty(
+						navigator.serviceWorker,
+						'controller',
+						{
+							get: () => null,
+						}
+					);
+				}
+			}, controlAvailableAfterReload);
+			const url =
+				appOrigin + '/remote.html?progressbar=false#retained-fragment';
+			await page.goto(url);
+			if (controlAvailableAfterReload) {
+				await page.waitForFunction(
+					() => Boolean((window as any).playground),
+					undefined,
+					{ polling: 100, timeout: 60000 }
+				);
+			} else {
+				await expect(
+					page.getByText('Playground could not start.', {
+						exact: false,
+					})
+				).toBeVisible({ timeout: 60000 });
+				expect(
+					await page.evaluate(() =>
+						Boolean((window as any).playground)
+					)
+				).toBe(false);
+			}
+			expect(page.url()).toBe(url);
+			expect(
+				await page.evaluate(() =>
+					sessionStorage.getItem('control-loads')
+				)
+			).toBe('2');
+		});
+	}
+
 	test('existing documents retain their files when another tab activates a new release', async ({
 		page,
 		context,

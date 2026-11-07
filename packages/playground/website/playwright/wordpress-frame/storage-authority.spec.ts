@@ -160,7 +160,8 @@ test(
 			await rogue.waitForFunction(
 				() => Boolean((window as any).playground),
 				undefined,
-				{ polling: 100, timeout: 30000 }
+				// Startup may perform its one bounded reload to acquire worker control.
+				{ polling: 100, timeout: 60000 }
 			);
 			const results = await wordpress.evaluate(
 				async ({ origin, siteAPath, siteBPath, victimMarkerPath }) => {
