@@ -1,3 +1,4 @@
+import { logger } from '@php-wasm/logger';
 import type { EmscriptenOptions } from '@php-wasm/universal';
 // The compiled PHP runtime calls require('ws') before it passes the `ws`
 // classes to the decorators below, so the package must keep depending on it.
@@ -45,11 +46,19 @@ export async function withNetworking(
 		closeNetworkConnections: () => {
 			// Ending a socket isn't enough: it would stay open until the peer
 			// closes its side, and keep Node.js running. See TcpSocket.release().
+			// Release each handle even if another one fails.
 			for (const handle of openHandles) {
-				if (handle instanceof TcpServer) {
-					handle.close();
-				} else {
-					handle.release();
+				try {
+					if (handle instanceof TcpServer) {
+						handle.close();
+					} else {
+						handle.release();
+					}
+				} catch (error) {
+					logger.error(
+						'Failed to release a network connection',
+						error
+					);
 				}
 			}
 		},

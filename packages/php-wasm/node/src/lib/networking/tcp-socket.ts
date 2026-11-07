@@ -20,7 +20,7 @@ function log(...args: any[]) {
 	debugLog('[TCP]', ...args);
 }
 
-// How long a socket PHP closed may keep sending after the runtime exits.
+// How long a closed socket may keep sending after the runtime exits.
 export const CLOSED_SOCKET_TIMEOUT_MS = 30_000;
 
 const SOL_SOCKET = 1;

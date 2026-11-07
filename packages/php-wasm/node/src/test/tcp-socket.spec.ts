@@ -116,35 +116,39 @@ describe('OutboundTcpSocket', () => {
 		// The peer keeps its side open, so nothing but the timeout would ever
 		// close the socket.
 		const server = net.createServer({ allowHalfOpen: true });
-		const connection = new Promise<net.Socket>((resolve) =>
-			server.once('connection', resolve)
-		);
-		await new Promise<void>((resolve) =>
-			server.listen(0, '127.0.0.1', resolve)
-		);
-		const { port } = server.address() as net.AddressInfo;
-		const socket = new OutboundTcpSocket(
-			getOutboundTcpSocketUrl('127.0.0.1', String(port))
-		);
-		const serverSocket = await connection;
-		const ended = new Promise((resolve) =>
-			serverSocket.once('end', resolve)
-		);
-		serverSocket.resume();
-		socket.close();
-		await ended;
-
-		// Fake only the timer, so the socket itself keeps running for real.
-		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+		let serverSocket: net.Socket | undefined;
 		try {
+			const connection = new Promise<net.Socket>((resolve) =>
+				server.once('connection', resolve)
+			);
+			await new Promise<void>((resolve) =>
+				server.listen(0, '127.0.0.1', resolve)
+			);
+			const { port } = server.address() as net.AddressInfo;
+			const socket = new OutboundTcpSocket(
+				getOutboundTcpSocketUrl('127.0.0.1', String(port))
+			);
+			serverSocket = await connection;
+			const ended = new Promise((resolve) =>
+				serverSocket!.once('end', resolve)
+			);
+			serverSocket.resume();
+			socket.close();
+			await ended;
+
+			// Fake only the timer, so the socket itself keeps running for real.
+			vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+			const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
 			socket.release();
+			// The timer must not keep Node.js running for the whole timeout.
+			expect(setTimeoutSpy.mock.results[0].value.hasRef()).toBe(false);
 			vi.advanceTimersByTime(CLOSED_SOCKET_TIMEOUT_MS - 1);
 			expect(socket._socket?.destroyed).toBe(false);
 			vi.advanceTimersByTime(1);
 			expect(socket._socket?.destroyed).toBe(true);
 		} finally {
 			vi.useRealTimers();
-			serverSocket.destroy();
+			serverSocket?.destroy();
 			server.close();
 		}
 	});
