@@ -493,10 +493,10 @@ jobs:
                       const debuggerProcess = spawn('sudo', ['lldb', '--batch', '--attach-pid', pid,
                         '-o', 'continue', '-o', 'thread backtrace all', '-o', 'process kill', '-o', 'quit']);
                       await new Promise((resolve, reject) => {
-                        const timer = setTimeout(() => reject(new Error('Debugger did not resume WebKit')), 20000);
+                        const timer = setTimeout(() => reject(new Error('Debugger did not resume WebKit')), 60000);
                         debuggerProcess.stdout.on('data', data => {
                           process.stdout.write(data);
-                          if (data.toString().includes('resuming')) {
+                          if (data.toString().includes('(lldb) continue')) {
                             clearTimeout(timer);
                             resolve();
                           }
