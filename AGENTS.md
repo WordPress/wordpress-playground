@@ -316,10 +316,10 @@ the Storage, File System, and AccessHandle APIs. Its regular lanes stay on Linux
 The macOS lane builds with a 4 GB Node heap and one Nx task at a time to fit the
 remote Vite build within runner memory.
 Set Node options through workflow `env`, never `GITHUB_ENV`, which rejects them.
-Pin the Cocoa storage lane to macOS 15; verify native popup creation before the
-long builds. Use headed WebKit in the runner's GUI session; its headless embedder
-crashes even on plain window.open() without Playground. Only the Playwright-managed
-preview server is elevated to bind CI's normal HTTP port.
+Playwright 1.64 includes the upstream Cocoa popup null-dereference fix (WebKit
+317666); do not downgrade to its affected WebKit 2311 build. Verify native popup
+creation before long builds. Keep WebKit as the runner user; only the
+Playwright-managed preview server is elevated to bind CI's normal HTTP port.
 Use graceful SIGTERM shutdown so sudo can relay it to the privileged listener;
 force-killing sudo leaves root-owned children and output pipes alive.
 Keep the real OPFS security regression enabled; a persistent context alone cannot

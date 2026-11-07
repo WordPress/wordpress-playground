@@ -37,12 +37,6 @@ export default defineConfig({
 		use: {
 			...project.use,
 			...(project.name === 'chromium' ? { channel: 'chromium' } : {}),
-			// Cocoa's headless embedder crashes on window.open() in hosted runners.
-			...(process.env.CI &&
-			process.platform === 'darwin' &&
-			project.name === 'webkit'
-				? { headless: false }
-				: {}),
 		},
 	})),
 	webServer: {
