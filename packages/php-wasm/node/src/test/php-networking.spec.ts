@@ -419,9 +419,8 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 		describe('Runtime exit', () => {
 			it('should release open connections when runtime is exited', async () => {
-				// The server keeps its side open after the client closes. It then
-				// writes to each connection: a released socket answers with a reset
-				// and the connection closes, while a half-closed one accepts the data.
+				// The server keeps its side open after the client closes, so only
+				// the runtime can release these connections.
 				const tcpServer = net.createServer({ allowHalfOpen: true });
 				const connections: net.Socket[] = [];
 				const bothConnected = new Promise<void>((resolve) =>
@@ -450,29 +449,29 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						`,
 					});
 					await bothConnected;
-					const closed = connections.map(
-						(socket) =>
-							new Promise((resolve) => {
-								socket.on('error', () => {});
-								socket.once('close', resolve);
-							})
-					);
-
-					php.exit();
-
-					const writes = setInterval(() => {
-						for (const socket of connections) {
-							if (socket.writable) {
-								socket.write('x');
+					const destroyed = new Set<net.Socket>();
+					const destroy = net.Socket.prototype.destroy;
+					const destroySpy = vi
+						.spyOn(net.Socket.prototype, 'destroy')
+						.mockImplementation(function (
+							this: net.Socket,
+							...args: Parameters<net.Socket['destroy']>
+						) {
+							if (this.remotePort === port) {
+								destroyed.add(this);
 							}
-						}
-					}, 20);
+							return destroy.apply(this, args);
+						});
+
 					try {
-						await Promise.all(closed);
+						php.exit();
 					} finally {
-						clearInterval(writes);
+						destroySpy.mockRestore();
 					}
+
+					expect(destroyed.size).toBe(2);
 				} finally {
+					connections.forEach((socket) => socket.destroy());
 					tcpServer.close();
 				}
 			});
@@ -514,9 +513,11 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						$server = stream_socket_server("tcp://127.0.0.1:${port}");
 						$start = microtime(true);
 						$connection = false;
-						// Accept only after the connection's data has arrived. With
-						// Asyncify, PHP crashes if stream_socket_accept() has to wait.
-						// See https://github.com/WordPress/wordpress-playground/issues/4576.
+						// stream_select() reports the server as soon as a connection is
+						// pending, before its data arrives. Pause so the data is there
+						// before accepting: with Asyncify, PHP crashes if
+						// stream_socket_accept() has to wait. See
+						// https://github.com/WordPress/wordpress-playground/issues/4576.
 						while (!$connection && microtime(true) - $start < 10) {
 							$read = [$server];
 							$write = $except = null;
