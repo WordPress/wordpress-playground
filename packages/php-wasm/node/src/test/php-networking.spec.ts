@@ -419,8 +419,8 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 		describe('Runtime exit', () => {
 			it('should release open connections when runtime is exited', async () => {
-				// The server keeps its side open after the client closes, so only
-				// the runtime can release these connections.
+				// The server keeps its side open after the client closes, so the
+				// runtime has to release both connections itself.
 				const tcpServer = net.createServer({ allowHalfOpen: true });
 				const connections: net.Socket[] = [];
 				const bothConnected = new Promise<void>((resolve) =>
@@ -449,30 +449,47 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						`,
 					});
 					await bothConnected;
+					// Record what exiting does to the runtime's sockets, not the
+					// server's. A client's remotePort can still be unset while it
+					// finishes connecting, so don't match on it.
 					const destroyed = new Set<net.Socket>();
+					const unrefed = new Set<net.Socket>();
 					const destroy = net.Socket.prototype.destroy;
+					const unref = net.Socket.prototype.unref;
 					const destroySpy = vi
 						.spyOn(net.Socket.prototype, 'destroy')
 						.mockImplementation(function (
 							this: net.Socket,
 							...args: Parameters<net.Socket['destroy']>
 						) {
-							// Count the runtime's sockets, not the server's.
-							// A client's remotePort can still be unset while it
-							// finishes connecting.
 							if (!connections.includes(this)) {
 								destroyed.add(this);
 							}
 							return destroy.apply(this, args);
+						});
+					const unrefSpy = vi
+						.spyOn(net.Socket.prototype, 'unref')
+						.mockImplementation(function (this: net.Socket) {
+							if (!connections.includes(this)) {
+								unrefed.add(this);
+							}
+							return unref.apply(this);
 						});
 
 					try {
 						php.exit();
 					} finally {
 						destroySpy.mockRestore();
+						unrefSpy.mockRestore();
 					}
 
-					expect(destroyed.size).toBe(2);
+					// The persistent socket is destroyed. The socket PHP closed may
+					// still be sending, so it only stops keeping Node.js running.
+					expect(destroyed.size).toBe(1);
+					expect(unrefed.size).toBe(1);
+					expect(
+						[...unrefed].some((socket) => destroyed.has(socket))
+					).toBe(false);
 				} finally {
 					connections.forEach((socket) => socket.destroy());
 					tcpServer.close();

@@ -43,13 +43,13 @@ export async function withNetworking(
 	return {
 		...phpModuleArgs,
 		closeNetworkConnections: () => {
-			// Destroy sockets instead of ending them: an ended socket stays open
-			// until the peer closes its side, and keeps Node.js running.
+			// Ending a socket isn't enough: it would stay open until the peer
+			// closes its side, and keep Node.js running.
 			for (const handle of openHandles) {
 				if (handle instanceof TcpServer) {
 					handle.close();
 				} else {
-					handle.destroy();
+					handle.release();
 				}
 			}
 		},

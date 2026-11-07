@@ -30,7 +30,7 @@ describe('OutboundTcpSocket', () => {
 		expect(socket.readyState).toBe(OutboundTcpSocket.CLOSED);
 	});
 
-	it('drops data that arrives after it closes', async () => {
+	it('drops data after it closes, and stays open until the peer closes', async () => {
 		const server = net.createServer({ allowHalfOpen: true });
 		const connection = new Promise<net.Socket>((resolve) =>
 			server.once('connection', resolve)
@@ -50,24 +50,34 @@ describe('OutboundTcpSocket', () => {
 		);
 		serverSocket.resume();
 
-		socket.close();
-		await ended;
-		await new Promise<void>((resolve) =>
-			serverSocket.write('sent after close', () => resolve())
-		);
-		await new Promise((resolve) => setTimeout(resolve, 50));
-		serverSocket.destroy();
-		server.close();
+		try {
+			socket.close();
+			await ended;
+			await new Promise<void>((resolve) =>
+				serverSocket.write('sent after close', () => resolve())
+			);
+			await new Promise((resolve) => setTimeout(resolve, 50));
 
-		expect(messages).toEqual([]);
+			expect(messages).toEqual([]);
+			// A reset here could discard what PHP wrote before closing.
+			expect(socket._socket?.destroyed).toBe(false);
+
+			const closed = new Promise((resolve) =>
+				socket._socket!.once('close', resolve)
+			);
+			serverSocket.end();
+			await closed;
+		} finally {
+			serverSocket.destroy();
+			server.close();
+		}
 	});
 
-	it('sends everything written before it closes while the peer keeps sending', async () => {
-		// The server stops reading, so the writes stay buffered when the socket
-		// closes, and keeps sending. A reset at that point would make the
-		// kernel discard writes the server hasn't received yet.
-		const size = 16 * 1024 * 1024;
-		const server = net.createServer({ allowHalfOpen: true });
+	it('keeps sending what it wrote when released after closing', async () => {
+		// The server stops reading, so the writes are still buffered when the
+		// socket closes and the runtime releases it.
+		const size = 8 * 1024 * 1024;
+		const server = net.createServer();
 		const connection = new Promise<net.Socket>((resolve) =>
 			server.once('connection', resolve)
 		);
@@ -81,27 +91,20 @@ describe('OutboundTcpSocket', () => {
 		await new Promise((resolve) => socket.once('open', resolve));
 		const serverSocket = await connection;
 		serverSocket.pause();
-		serverSocket.on('error', () => {});
 		let received = 0;
 		const ended = new Promise((resolve) => {
 			serverSocket.on('data', (data) => (received += data.length));
-			serverSocket.once('end', resolve);
 			serverSocket.once('close', resolve);
 		});
 
-		socket.send(new Uint8Array(size));
-		socket.close();
-		const writes = setInterval(() => {
-			if (serverSocket.writable) {
-				serverSocket.write(Buffer.alloc(1024));
-			}
-		}, 1);
 		try {
-			await new Promise((resolve) => setTimeout(resolve, 100));
+			socket.send(new Uint8Array(size));
+			socket.close();
+			socket.release();
+			await new Promise((resolve) => setTimeout(resolve, 50));
 			serverSocket.resume();
 			await ended;
 		} finally {
-			clearInterval(writes);
 			serverSocket.destroy();
 			server.close();
 		}

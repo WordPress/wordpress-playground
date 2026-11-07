@@ -20,6 +20,9 @@ function log(...args: any[]) {
 	debugLog('[TCP]', ...args);
 }
 
+// How long a socket PHP closed may keep sending after the runtime exits.
+const CLOSED_SOCKET_TIMEOUT_MS = 30_000;
+
 const SOL_SOCKET = 1;
 const SO_KEEPALIVE = 9;
 const IPPROTO_TCP = 6;
@@ -119,10 +122,27 @@ export class TcpSocket extends EventEmitter {
 	}
 
 	/**
-	 * Releases the TCP socket right away. A socket that PHP closed stays
-	 * open until the peer closes its side, so this also releases those.
+	 * Releases the TCP socket when the runtime exits.
+	 *
+	 * A socket PHP still has open is destroyed. A socket PHP closed may still
+	 * be sending what PHP wrote, and destroying it would discard that. It's
+	 * only unref'd, so it no longer keeps Node.js running. It closes when the
+	 * peer closes its side, or is destroyed after a timeout.
 	 */
-	destroy() {
+	release() {
+		const socket = this._socket;
+		if (
+			socket &&
+			(this.readyState === this.CLOSING ||
+				this.readyState === this.CLOSED)
+		) {
+			socket.unref();
+			setTimeout(
+				() => socket.destroy(),
+				CLOSED_SOCKET_TIMEOUT_MS
+			).unref();
+			return;
+		}
 		this._socket?.destroy();
 		this.shutDown(true);
 	}
