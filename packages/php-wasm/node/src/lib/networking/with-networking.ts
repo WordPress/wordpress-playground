@@ -44,7 +44,7 @@ export async function withNetworking(
 		...phpModuleArgs,
 		closeNetworkConnections: () => {
 			// Ending a socket isn't enough: it would stay open until the peer
-			// closes its side, and keep Node.js running.
+			// closes its side, and keep Node.js running. See TcpSocket.release().
 			for (const handle of openHandles) {
 				if (handle instanceof TcpServer) {
 					handle.close();

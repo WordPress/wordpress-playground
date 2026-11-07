@@ -172,10 +172,16 @@ export async function loadPHPRuntime(
 	PHPRuntime.originalExit = PHPRuntime._exit;
 
 	PHPRuntime._exit = function (code: number) {
-		PHPRuntime.closeNetworkConnections?.();
-		if (PHPRuntime.outboundNetworkProxyServer) {
-			PHPRuntime.outboundNetworkProxyServer.close();
-			PHPRuntime.outboundNetworkProxyServer.closeAllConnections();
+		// Exit even if closing the network fails. PHP.exit() swallows errors,
+		// so a throw here would leave the runtime running without notice.
+		try {
+			PHPRuntime.closeNetworkConnections?.();
+			if (PHPRuntime.outboundNetworkProxyServer) {
+				PHPRuntime.outboundNetworkProxyServer.close();
+				PHPRuntime.outboundNetworkProxyServer.closeAllConnections();
+			}
+		} catch (error) {
+			logger.error('Failed to close network connections', error);
 		}
 		loadedRuntimes.delete(id);
 		return PHPRuntime.originalExit(code);

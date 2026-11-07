@@ -423,10 +423,17 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				// runtime has to release both connections itself.
 				const tcpServer = net.createServer({ allowHalfOpen: true });
 				const connections: net.Socket[] = [];
+				const ended = new Map<net.Socket, Promise<void>>();
 				const bothConnected = new Promise<void>((resolve) =>
 					tcpServer.on('connection', (socket) => {
 						socket.resume();
 						connections.push(socket);
+						ended.set(
+							socket,
+							new Promise((resolveEnd) =>
+								socket.once('end', () => resolveEnd())
+							)
+						);
 						if (connections.length === 2) {
 							resolve();
 						}
@@ -449,11 +456,24 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						`,
 					});
 					await bothConnected;
-					// Record what exiting does to the runtime's sockets, not the
-					// server's. A client's remotePort can still be unset while it
-					// finishes connecting, so don't match on it.
-					const destroyed = new Set<net.Socket>();
-					const unrefed = new Set<net.Socket>();
+					// The connection PHP closed is the one that ends first.
+					const closedConnection = await Promise.race(
+						connections.map((socket) =>
+							ended.get(socket)!.then(() => socket)
+						)
+					);
+					const persistentConnection = connections.find(
+						(socket) => socket !== closedConnection
+					)!;
+					// Record the local port of each runtime socket that exiting
+					// destroys or unrefs. The server sees it as the connection's
+					// remotePort. A client's own remotePort can still be unset while
+					// it finishes connecting, but its localPort is assigned when it
+					// starts.
+					// A socket can be destroyed more than once, and it has no port
+					// after the first time, so record each socket once.
+					const destroyed = new Map<net.Socket, number | undefined>();
+					const unrefed = new Map<net.Socket, number | undefined>();
 					const destroy = net.Socket.prototype.destroy;
 					const unref = net.Socket.prototype.unref;
 					const destroySpy = vi
@@ -462,16 +482,22 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 							this: net.Socket,
 							...args: Parameters<net.Socket['destroy']>
 						) {
-							if (!connections.includes(this)) {
-								destroyed.add(this);
+							if (
+								!connections.includes(this) &&
+								!destroyed.has(this)
+							) {
+								destroyed.set(this, this.localPort);
 							}
 							return destroy.apply(this, args);
 						});
 					const unrefSpy = vi
 						.spyOn(net.Socket.prototype, 'unref')
 						.mockImplementation(function (this: net.Socket) {
-							if (!connections.includes(this)) {
-								unrefed.add(this);
+							if (
+								!connections.includes(this) &&
+								!unrefed.has(this)
+							) {
+								unrefed.set(this, this.localPort);
 							}
 							return unref.apply(this);
 						});
@@ -485,11 +511,12 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 					// The persistent socket is destroyed. The socket PHP closed may
 					// still be sending, so it only stops keeping Node.js running.
-					expect(destroyed.size).toBe(1);
-					expect(unrefed.size).toBe(1);
-					expect(
-						[...unrefed].some((socket) => destroyed.has(socket))
-					).toBe(false);
+					expect([...destroyed.values()]).toEqual([
+						persistentConnection.remotePort,
+					]);
+					expect([...unrefed.values()]).toEqual([
+						closedConnection.remotePort,
+					]);
 				} finally {
 					connections.forEach((socket) => socket.destroy());
 					tcpServer.close();
