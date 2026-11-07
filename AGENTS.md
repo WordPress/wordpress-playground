@@ -306,6 +306,10 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 CI removes the slow Azure Ubuntu mirror from the runner's apt mirror list before
 installing browser dependencies. The public Ubuntu archive and security mirrors
 remain available.
+The WebKit storage lane runs on macOS because the pinned Linux WebKit disables
+the Storage, File System, and AccessHandle APIs. Its regular lanes stay on Linux.
+Keep the real OPFS security regression enabled; a persistent context alone cannot
+enable APIs that the browser port disables.
 
 - **Test files**: Co-located with implementation as `*.spec.ts`
 - **Test runner**: Vitest (via `@nx/vite:test`) for most packages; some packages use Jest (via `@nx/jest`)

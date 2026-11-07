@@ -21,6 +21,21 @@ test(
 			}
 		);
 		const page = await context.newPage();
+		page.on('console', async (message) => {
+			if (message.type() !== 'error') return;
+			for (const arg of message.args()) {
+				// Preserve caught startup errors: otherwise the trace only records "Error"
+				// while the SDK waits for an API that the failed document never exposes.
+				const detail = await arg
+					.evaluate((value) =>
+						value instanceof Error
+							? { message: value.message, stack: value.stack }
+							: String(value)
+					)
+					.catch(() => message.text());
+				console.error('Runtime console:', detail);
+			}
+		});
 
 		const scope = `assigned-${crypto.randomUUID()}`;
 		const siteA = `site-a-${crypto.randomUUID()}`;
@@ -111,6 +126,24 @@ test(
 			expect(new URL(wordpress.url()).origin).toBe(wordPressOrigin);
 			expect(new URL(remote.url()).pathname).toContain(
 				'/app-runtime.html'
+			);
+			const workerUrls = await remote.evaluate((scope) => {
+				const identity = JSON.parse(
+					localStorage.getItem(`playground:shared-worker:${scope}`)!
+				);
+				const entry = document.querySelector<HTMLScriptElement>(
+					'script[type="module"][src]'
+				)!;
+				return {
+					actual: identity.url,
+					expected: new URL(
+						'../shared-playground-worker.js',
+						entry.src
+					).pathname,
+				};
+			}, scope);
+			expect(new URL(workerUrls.actual).pathname).toBe(
+				workerUrls.expected
 			);
 
 			// Run the attack from the actual sandbox-origin PHP document, with the same

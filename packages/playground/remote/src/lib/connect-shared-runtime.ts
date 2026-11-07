@@ -1,5 +1,5 @@
 import { consumeAPI } from '@php-wasm/web';
-import { playgroundOrigin, wordPressSiteUrl } from './config';
+import { playgroundOrigin, wordPressSiteUrl, resolveAssetUrl } from './config';
 import type {
 	PlaygroundWorkerEndpoint,
 	WorkerBootOptions,
@@ -170,7 +170,9 @@ async function connectCurrentSharedWorker(
 		throw new Error(RELOAD_REQUIRED);
 	}
 	const storageKey = `playground:shared-worker:${scope}`;
-	const url = new URL(sharedWorkerUrl, location.href);
+	// Shared workers fetch their script independently of the creating document.
+	// Name the immutable release directly instead of relying on app-worker routing.
+	const url = resolveAssetUrl(sharedWorkerUrl);
 	// The build fixes WordPress's origin for every tab. Feature flags must not
 	// create a second PHP worker for the same scope and build.
 	url.searchParams.set('build', version);

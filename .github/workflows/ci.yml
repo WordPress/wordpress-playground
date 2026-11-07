@@ -418,7 +418,9 @@ jobs:
     test-e2e-playwright:
         name: 'Website E2E (wordpress-frame, ${{ matrix.browser }}, ${{ matrix.lane }})'
         if: github.repository == 'WordPress/wordpress-playground' || github.event_name == 'pull_request'
-        runs-on: ubuntu-latest
+        # The pinned WebKit enables StorageAPI/FileSystem/AccessHandle only on Cocoa.
+        # Exercise real Safari storage on macOS; keep its regular shards on Linux.
+        runs-on: ${{ matrix.browser == 'webkit' && matrix.lane == 'storage' && 'macos-latest' || 'ubuntu-latest' }}
         # Storage tests run one at a time; allow build time plus the full storage suite.
         timeout-minutes: ${{ matrix.lane == 'storage' && 45 || 30 }}
         permissions:
@@ -434,6 +436,7 @@ jobs:
                 lane: ['1', '2', '3', storage]
         steps:
             - name: Free up runner disk space
+              if: runner.os == 'Linux'
               shell: bash
               run: |
                   set -euo pipefail
@@ -450,10 +453,21 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+            - name: Install native PHP on macOS
+              if: runner.os == 'macOS'
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: '8.3'
+                  coverage: none
             - name: Resolve the local prototype hosts in every browser
               run: echo '127.0.0.1 playground.wordpress.localhost wpsandbox.wordpress.localhost' | sudo tee -a /etc/hosts
             - name: Install Playwright Browser
-              run: sudo npx playwright install ${{ matrix.browser }} --with-deps
+              run: |
+                  if [ "$RUNNER_OS" = "macOS" ]; then
+                    sudo env "PATH=$PATH" npx playwright install ${{ matrix.browser }} --with-deps
+                  else
+                    sudo npx playwright install ${{ matrix.browser }} --with-deps
+                  fi
             - name: Build app for E2E tests
               run: CORS_PROXY_URL=http://127.0.0.1:5263/cors-proxy.php? npx nx e2e:playwright:prepare-app-deploy-and-offline-mode playground-website
             - name: Build the WordPress-only origin setup
@@ -466,7 +480,9 @@ jobs:
                     TEST_GROUP=regular
                     SHARD_ARG="--shard=${{ matrix.lane }}/3"
                   fi
-                  if [ "${{ matrix.browser }}" = "firefox" ]; then
+                  if [ "$RUNNER_OS" = "macOS" ]; then
+                    sudo env "PATH=$PATH" CI=true PLAYWRIGHT_TEST_GROUP=$TEST_GROUP npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts --project=${{ matrix.browser }} $SHARD_ARG
+                  elif [ "${{ matrix.browser }}" = "firefox" ]; then
                     sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true PLAYWRIGHT_TEST_GROUP=$TEST_GROUP npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts --project=${{ matrix.browser }} $SHARD_ARG
                   else
                     sudo CI=true PLAYWRIGHT_TEST_GROUP=$TEST_GROUP npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts --project=${{ matrix.browser }} $SHARD_ARG

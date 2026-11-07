@@ -57,6 +57,11 @@ npm exec -- nx run playground-website:e2e:wordpress-frame:fresh -- --project=chr
 Use `e2e:wordpress-frame` for quick reruns against the existing build. That target
 does not rebuild sources. The `:fresh` target always builds first.
 
+CI runs the WebKit storage lane on macOS: the pinned Linux WebKit disables the
+Storage, File System, and AccessHandle APIs. The storage-authority regression uses
+a persistent context with real OPFS, including on WebKit; it is not skipped when
+storage is unavailable. WebKit's regular lanes continue to run on Linux.
+
 The test installs the real WordPress.org `interactive-code-block` plugin (the
 `wordpress-playground-block` package in `WordPress/playground-tools`) in a separate
 Node-hosted WordPress server on an ephemeral port. It publishes a post containing
