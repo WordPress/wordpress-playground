@@ -57,19 +57,19 @@ export class TcpSocket extends EventEmitter {
 	 * `_socket`, like it does for `ws` WebSockets.
 	 */
 	readonly _socket?: net.Socket;
+	private resetPending = false;
 
 	constructor(socket: net.Socket | undefined, readyState: number) {
 		super();
 		this._socket = socket;
 		this.readyState = readyState;
 		socket?.on('data', (data: Buffer) => {
-			// PHP has closed the socket, so nothing will read this data. Reset
-			// the connection like a closed native socket would.
+			// PHP has closed the socket, so nothing will read this data.
 			if (
 				this.readyState === this.CLOSING ||
 				this.readyState === this.CLOSED
 			) {
-				socket.destroy();
+				this.resetAfterWrites();
 				return;
 			}
 			// Emscripten ignores messages that aren't marked as binary.
@@ -83,13 +83,13 @@ export class TcpSocket extends EventEmitter {
 	}
 
 	send(data: ArrayBuffer | ArrayBufferView) {
-		if (this.readyState !== this.OPEN) {
+		if (this.readyState !== this.OPEN || !this._socket) {
 			throw new Error('The TCP connection is not open');
 		}
 		const bytes = ArrayBuffer.isView(data)
 			? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
 			: new Uint8Array(data);
-		this._socket!.write(bytes);
+		this._socket.write(bytes);
 	}
 
 	setSocketOpt(level: number, optionName: number, optionValue: number) {
@@ -141,6 +141,21 @@ export class TcpSocket extends EventEmitter {
 			this.readyState = this.CLOSED;
 			this.emit('close');
 		});
+	}
+
+	/**
+	 * Resets a connection PHP has closed, like a closed native socket would,
+	 * once Node.js has sent everything PHP wrote. PHP's writes don't block, so
+	 * resetting right away could discard them.
+	 */
+	private resetAfterWrites() {
+		const socket = this._socket!;
+		if (socket.writableFinished) {
+			socket.destroy();
+		} else if (!this.resetPending) {
+			this.resetPending = true;
+			socket.once('finish', () => socket.destroy());
+		}
 	}
 }
 
@@ -207,6 +222,13 @@ export class TcpServer extends EventEmitter {
 	constructor({ host, port }: TcpServerOptions) {
 		super();
 		this.server = net.createServer((socket) => {
+			// A client that reset the connection before Node.js handled it has
+			// no address. Emscripten's accept() fails on that with a JavaScript
+			// error instead of an errno, so drop the connection.
+			if (!socket.remoteAddress) {
+				socket.destroy();
+				return;
+			}
 			const client = new TcpSocket(socket, TcpSocket.OPEN);
 			this.clients.add(client);
 			client.once('close', () => this.clients.delete(client));
