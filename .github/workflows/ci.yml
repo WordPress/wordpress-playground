@@ -453,6 +453,13 @@ jobs:
               with:
                   submodules: true
             - uses: ./.github/actions/prepare-playground
+            - name: Configure macOS build memory
+              if: runner.os == 'macOS'
+              run: |
+                  # The remote Vite build exceeds this runner's default 2 GB V8 heap.
+                  # Build one Nx task at a time so the larger heap fits in runner RAM.
+                  echo 'NODE_OPTIONS=--max-old-space-size=4096' >> "$GITHUB_ENV"
+                  echo 'NX_PARALLEL=1' >> "$GITHUB_ENV"
             - name: Install native PHP on macOS
               if: runner.os == 'macOS'
               uses: shivammathur/setup-php@v2

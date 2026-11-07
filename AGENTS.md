@@ -308,6 +308,8 @@ installing browser dependencies. The public Ubuntu archive and security mirrors
 remain available.
 The WebKit storage lane runs on macOS because the pinned Linux WebKit disables
 the Storage, File System, and AccessHandle APIs. Its regular lanes stay on Linux.
+The macOS lane builds with a 4 GB Node heap and one Nx task at a time to fit the
+remote Vite build within runner memory.
 Keep the real OPFS security regression enabled; a persistent context alone cannot
 enable APIs that the browser port disables.
 
