@@ -477,16 +477,33 @@ jobs:
                   fi
             - name: Verify native WebKit popups before building
               if: runner.os == 'macOS'
+              timeout-minutes: 2
               env:
                   DEBUG: pw:browser
               run: |
                   node <<'JS'
                   const { webkit, devices } = require('playwright');
+                  const { spawn, execFileSync } = require('node:child_process');
                   (async () => {
                     const browser = await webkit.launch({ headless: false });
                     try {
                       const context = await browser.newContext(devices['Desktop Safari']);
                       const page = await context.newPage();
+                      const pid = execFileSync('pgrep', ['-n', '-x', 'Playwright'], { encoding: 'utf8' }).trim();
+                      const debuggerProcess = spawn('sudo', ['lldb', '--batch', '--attach-pid', pid,
+                        '-o', 'continue', '-o', 'thread backtrace all', '-o', 'process kill', '-o', 'quit']);
+                      await new Promise((resolve, reject) => {
+                        const timer = setTimeout(() => reject(new Error('Debugger did not resume WebKit')), 20000);
+                        debuggerProcess.stdout.on('data', data => {
+                          process.stdout.write(data);
+                          if (data.toString().includes('resuming')) {
+                            clearTimeout(timer);
+                            resolve();
+                          }
+                        });
+                        debuggerProcess.stderr.on('data', data => process.stderr.write(data));
+                        debuggerProcess.once('error', reject);
+                      });
                       const [popup] = await Promise.all([
                         page.waitForEvent('popup', { timeout: 10000 }),
                         page.evaluate(() => { window.open('about:blank'); }),
