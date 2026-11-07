@@ -6,7 +6,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	OutboundTcpSocket,
 	TcpServer,
-	type TcpSocket,
 	getOutboundTcpSocketUrl,
 } from '../lib/networking/tcp-socket';
 
@@ -141,38 +140,27 @@ describe('TcpServer', () => {
 		expect(listenSpy).not.toHaveBeenCalled();
 	});
 
-	it('does not pass on connections that were reset before they were handled', async () => {
+	it('drops a connection that has no remote address', async () => {
 		const server = new TcpServer({ host: '127.0.0.1', port: 0 });
 		await new Promise((resolve) => server.once('listening', resolve));
-		const { port } = server.address() as net.AddressInfo;
-		const addresses: Array<string | undefined> = [];
-		server.on('connection', (client: TcpSocket) => {
-			addresses.push(client._socket?.remoteAddress);
-		});
+		const onConnection = vi.fn();
+		server.on('connection', onConnection);
+		// A connection reset before Node.js handles it has no remote address,
+		// like a socket that was never connected.
+		const socket = new net.Socket();
+		const destroy = vi.spyOn(socket, 'destroy');
 
 		try {
-			// Most of these reach the server already reset.
-			await Promise.all(
-				Array.from(
-					{ length: 50 },
-					() =>
-						new Promise<void>((resolve) => {
-							const socket: net.Socket = net.connect(
-								port,
-								'127.0.0.1',
-								() => socket.resetAndDestroy()
-							);
-							socket.on('error', () => {});
-							socket.once('close', () => resolve());
-						})
-				)
+			(server as unknown as { server: net.Server }).server.emit(
+				'connection',
+				socket
 			);
-			await new Promise((resolve) => setTimeout(resolve, 100));
 		} finally {
 			server.close();
 		}
 
-		expect(addresses).not.toContain(undefined);
+		expect(destroy).toHaveBeenCalled();
+		expect(onConnection).not.toHaveBeenCalled();
 	});
 
 	it('stops the process when the port is already in use', async () => {
