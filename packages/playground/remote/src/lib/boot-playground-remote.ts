@@ -162,7 +162,11 @@ export async function bootPlaygroundRemote(
 	const registrationUrl = deployment
 		? getReleaseWorkerUrl(deployment, 'app', location.origin)
 		: new URL(serviceWorkerUrl);
-	if (sharedMode) registrationUrl.searchParams.set('shared-worker', '1');
+	// Immutable split-origin releases have one app worker per release. Changing
+	// its URL here starts another activation while the shared runtime owns OPFS.
+	// Only the legacy single-origin worker needs the shared HTTP transport flag.
+	if (sharedMode && !deployment)
+		registrationUrl.searchParams.set('shared-worker', '1');
 	const registration = await sw.register(registrationUrl + '', {
 		type: 'module',
 		// Always bypass HTTP cache when fetching the new Service Worker script:

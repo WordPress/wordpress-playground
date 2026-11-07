@@ -213,6 +213,8 @@ jobs:
         env:
             NX_BASE: ${{ needs.set-nx-shas.outputs.base }}
             NX_HEAD: ${{ needs.set-nx-shas.outputs.head }}
+            # This shard exited mid-report without an assertion or a stack.
+            NODE_OPTIONS: ${{ matrix.target == 'test-group-4-jspi' && '--trace-exit --trace-uncaught' || '' }}
         strategy:
             fail-fast: false
             matrix:
@@ -468,7 +470,7 @@ jobs:
             - name: Install Playwright Browser
               run: |
                   if [ "$RUNNER_OS" = "macOS" ]; then
-                    sudo env "PATH=$PATH" npx playwright install ${{ matrix.browser }} --with-deps
+                    npx playwright install ${{ matrix.browser }} --with-deps
                   else
                     sudo npx playwright install ${{ matrix.browser }} --with-deps
                   fi
@@ -485,7 +487,7 @@ jobs:
                     SHARD_ARG="--shard=${{ matrix.lane }}/3"
                   fi
                   if [ "$RUNNER_OS" = "macOS" ]; then
-                    sudo env "PATH=$PATH" CI=true PLAYWRIGHT_TEST_GROUP=$TEST_GROUP npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts --project=${{ matrix.browser }} $SHARD_ARG
+                    CI=true PLAYWRIGHT_TEST_GROUP=$TEST_GROUP npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts --project=${{ matrix.browser }} $SHARD_ARG
                   elif [ "${{ matrix.browser }}" = "firefox" ]; then
                     sudo -E HOME=/root XDG_RUNTIME_DIR=/root CI=true PLAYWRIGHT_TEST_GROUP=$TEST_GROUP npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts --project=${{ matrix.browser }} $SHARD_ARG
                   else

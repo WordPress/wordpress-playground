@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { joinPaths } from '@php-wasm/util';
+import { getReleaseId } from '@wp-playground/common';
 import {
 	appOrigin,
 	wordPressOrigin,
@@ -136,6 +137,7 @@ test(
 				)!;
 				return {
 					actual: identity.url,
+					controller: navigator.serviceWorker.controller!.scriptURL,
 					expected: new URL(
 						'../shared-playground-worker.js',
 						entry.src
@@ -144,6 +146,14 @@ test(
 			}, scope);
 			expect(new URL(workerUrls.actual).pathname).toBe(
 				workerUrls.expected
+			);
+			// Shared PHP startup must retain the bootstrap's canonical app worker.
+			// A mode-dependent URL otherwise activates again with OPFS open.
+			expect(workerUrls.controller).toBe(
+				new URL(
+					`/app-sw-${getReleaseId(new URL(workerUrls.actual))}.js`,
+					appOrigin
+				).href
 			);
 
 			// Run the attack from the actual sandbox-origin PHP document, with the same

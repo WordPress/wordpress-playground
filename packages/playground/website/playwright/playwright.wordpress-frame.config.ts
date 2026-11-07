@@ -13,6 +13,10 @@ import { getTestGroupOptions } from './playwright-test-groups';
 
 // Also route deployment.spec.ts through the split-origin server, not localhost's old path.
 process.env.PLAYWRIGHT_WORDPRESS_FRAME = '1';
+// Cocoa WebKit popup creation crashes under root. Only the CI HTTP listener
+// needs port 80 privileges; keep the browser in the runner's normal GUI session.
+const ciServerPrefix =
+	process.platform === 'darwin' ? 'sudo -E env "PATH=$PATH" ' : '';
 const testGroupOptions = process.env.PLAYWRIGHT_TEST_GROUP
 	? getTestGroupOptions(process.env.PLAYWRIGHT_TEST_GROUP)
 	: { fullyParallel: false, workers: 1 };
@@ -39,7 +43,7 @@ export default defineConfig({
 		// Playwright runs this from the config directory, even when Nx starts at the repo root.
 		// Keep these paths relative to playwright/, not process.cwd().
 		command: process.env.CI
-			? 'node ../bin/run-ci-preview-with-cors-proxy.cjs'
+			? ciServerPrefix + 'node ../bin/run-ci-preview-with-cors-proxy.cjs'
 			: 'node ../bin/wordpress-frame/serve.mjs',
 		url: appOrigin,
 		reuseExistingServer: false,

@@ -156,7 +156,9 @@ function waitFor(ready, target, event) {
 			() =>
 				finish(
 					new Error(
-						'The Playground service worker did not take control.'
+						event === 'statechange'
+							? `The Playground service worker did not activate (state: ${target.state}).`
+							: 'The Playground service worker did not take control.'
 					)
 				),
 			15000

@@ -102,6 +102,8 @@ headers. Startup verifies document origin and worker role, protocol, release,
 activation, and control before loading app code. Existing app documents retain
 release selections across worker updates and restarts. Do not route ordinary
 static downloads through PHP or add a second installer.
+Shared PHP runtimes use that same fixed app worker URL in immutable releases;
+only the legacy single-origin worker needs a shared-transport query flag.
 If an activated worker cannot claim the initial document, the bootstrap reloads
 once using a history-state marker, preserves the URL, and repeats verification.
 It must fail closed if the replacement document still has no matching controller.
@@ -314,6 +316,8 @@ the Storage, File System, and AccessHandle APIs. Its regular lanes stay on Linux
 The macOS lane builds with a 4 GB Node heap and one Nx task at a time to fit the
 remote Vite build within runner memory.
 Set Node options through workflow `env`, never `GITHUB_ENV`, which rejects them.
+Run macOS WebKit as the runner user: popup creation crashes under root. Only the
+Playwright-managed preview server is elevated to bind CI's normal HTTP port.
 Keep the real OPFS security regression enabled; a persistent context alone cannot
 enable APIs that the browser port disables.
 
