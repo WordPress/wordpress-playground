@@ -61,6 +61,8 @@ export async function withNetworking(
 					);
 				}
 			}
+			// The options above replace one the caller passed in, so call it too.
+			phpModuleArgs.closeNetworkConnections?.();
 		},
 		websocket: {
 			...(phpModuleArgs['websocket'] || {}),

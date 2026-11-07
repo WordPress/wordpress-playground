@@ -20,6 +20,17 @@ describe('networking port allocation', () => {
 		expect(listenSpy).not.toHaveBeenCalled();
 	});
 
+	it('keeps a closeNetworkConnections option passed in', async () => {
+		const closeNetworkConnections = vi.fn();
+		const emscriptenOptions = await withNetworking({
+			closeNetworkConnections,
+		});
+
+		emscriptenOptions.closeNetworkConnections!();
+
+		expect(closeNetworkConnections).toHaveBeenCalledOnce();
+	});
+
 	it('listens only on the host and port PHP binds to', async () => {
 		const listenSpy = vi.spyOn(net.Server.prototype, 'listen');
 
