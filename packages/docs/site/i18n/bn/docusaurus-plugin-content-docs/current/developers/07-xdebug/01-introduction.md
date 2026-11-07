@@ -14,7 +14,7 @@ description: Xdebug, Chrome DevTools এবং IDE ইন্টিগ্রে�
 Xdebug is a debugging extension for PHP that lets you set breakpoints, inspect variables, and step through your code. WordPress Playground includes Xdebug in its WebAssembly-compiled PHP, so you can debug WordPress code running directly in your browser or IDE.
 -->
 
-Xdebug হলো PHP-এর একটি ডিবাগিং এক্সটেনশন, যার মাধ্যমে আপনি ব্রেকপয়েন্ট সেট করতে, ভেরিয়েবল পরীক্ষা করতে এবং কোড ধাপে ধাপে চালিয়ে দেখতে পারেন। ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের WebAssembly-তে কম্পাইল করা PHP-তে Xdebug অন্তর্ভুক্ত রয়েছে, তাই আপনি সরাসরি আপনার ব্রাউজার বা IDE-তে চলা ওয়ার্ডপ্রেস কোড ডিবাগ করতে পারেন।
+Xdebug হলো PHP-এর একটি ডিবাগিং এক্সটেনশন, এটি দিয়ে আপনি ব্রেকপয়েন্ট বসাতে, ভেরিয়েবলের মান দেখতে আর কোড ধাপে ধাপে চালিয়ে দেখতে পারেন। ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের WebAssembly-তে কম্পাইল করা PHP-তে Xdebug আগে থেকেই আছে। তাই ব্রাউজারে বা IDE-তে চলা ওয়ার্ডপ্রেস কোড সরাসরি ডিবাগ করতে পারবেন।
 
 <!--
 ## Why Xdebug matters for PHP WASM
@@ -26,7 +26,7 @@ Xdebug হলো PHP-এর একটি ডিবাগিং এক্সট�
 Debugging PHP code in WebAssembly is different from debugging traditional PHP. Without Xdebug, you're limited to `var_dump()` and `error_log()` statements. Xdebug gives you a proper debugger with breakpoints, variable inspection, and call stack navigation—the same tools you'd use when debugging PHP on a regular server.
 -->
 
-WebAssembly-তে PHP কোড ডিবাগ করা প্রচলিত PHP ডিবাগ করার চেয়ে আলাদা। Xdebug ছাড়া আপনি শুধু `var_dump()` এবং `error_log()` স্টেটমেন্টের মধ্যেই সীমাবদ্ধ থাকেন। Xdebug আপনাকে ব্রেকপয়েন্ট, ভেরিয়েবল পরীক্ষা এবং কল স্ট্যাক নেভিগেশনসহ একটি পূর্ণাঙ্গ ডিবাগার দেয়—সাধারণ সার্ভারে PHP ডিবাগ করার সময় আপনি ঠিক এই টুলগুলোই ব্যবহার করতেন।
+WebAssembly-তে PHP ডিবাগ করা সাধারণ PHP ডিবাগ করার মতো নয়। Xdebug না থাকলে আপনার হাতে শুধু `var_dump()` আর `error_log()` থাকে। Xdebug দিলে পান একটি আসল ডিবাগার: ব্রেকপয়েন্ট, ভেরিয়েবলের মান দেখা, কল স্ট্যাক ঘুরে দেখা—সাধারণ সার্ভারে PHP ডিবাগ করতে যে টুলগুলো ব্যবহার করেন, ঠিক সেগুলোই।
 
 <!--
 ## XDebug on WordPress Playground
@@ -48,7 +48,7 @@ You'll learn to debug:
 - WordPress hooks and filters
 -->
 
-আপনি যা ডিবাগ করতে শিখবেন:
+যা যা ডিবাগ করা শিখবেন:
 
 - ফর্ম প্রসেসিং লজিক
 - ইনপুট ভ্যালিডেশন
@@ -64,19 +64,19 @@ You'll learn to debug:
 WordPress Playground supports two ways to debug with Xdebug:
 -->
 
-ওয়ার্ডপ্রেস প্লেগ্রাউন্ড Xdebug দিয়ে ডিবাগ করার দুটি উপায় সাপোর্ট করে:
+ওয়ার্ডপ্রেস প্লেগ্রাউন্ডে Xdebug দিয়ে দুইভাবে ডিবাগ করা যায়:
 
 <!--
 **Chrome DevTools**: Debug directly in your browser without any IDE setup. Great for quick debugging sessions or when you want to see everything in one place.
 -->
 
-**Chrome DevTools**: কোনো IDE সেটআপ ছাড়াই সরাসরি আপনার ব্রাউজারে ডিবাগ করুন। দ্রুত ডিবাগিং সেশনের জন্য, অথবা সবকিছু এক জায়গায় দেখতে চাইলে এটি দারুণ।
+**Chrome DevTools**: কোনো IDE সেটআপ ছাড়াই সরাসরি আপনার ব্রাউজারে ডিবাগ করুন। ঝটপট কিছু ডিবাগ করতে, বা সবকিছু এক জায়গায় দেখতে চাইলে এটি দারুণ কাজের।
 
 <!--
 **IDE integration**: Use VSCode or PhpStorm with full IDE features, including code navigation, project-wide search, and advanced breakpoint conditions. Better for complex debugging scenarios.
 -->
 
-**IDE ইন্টিগ্রেশন**: কোড নেভিগেশন, পুরো প্রজেক্টজুড়ে সার্চ এবং অ্যাডভান্সড ব্রেকপয়েন্ট কন্ডিশনসহ IDE-এর সব ফিচার নিয়ে VSCode বা PhpStorm ব্যবহার করুন। জটিল ডিবাগিং পরিস্থিতির জন্য এটি বেশি উপযোগী।
+**IDE ইন্টিগ্রেশন**: কোড নেভিগেশন, পুরো প্রজেক্টজুড়ে সার্চ এবং অ্যাডভান্সড ব্রেকপয়েন্ট কন্ডিশনসহ IDE-এর সব ফিচারসহ VSCode বা PhpStorm ব্যবহার করুন। জটিল সমস্যা ডিবাগ করতে এটিই ভালো।
 
 <!--
 ## What you'll need
@@ -92,7 +92,7 @@ WordPress Playground supports two ways to debug with Xdebug:
 - ইনস্টল করা Node.js
 - Chrome বা Chromium ব্রাউজার (DevTools দিয়ে ডিবাগিংয়ের জন্য)
 - Visual Studio Code বা PhpStorm (IDE দিয়ে ডিবাগিংয়ের জন্য, ঐচ্ছিক)
-- ওয়ার্ডপ্রেস প্লাগইন ডেভেলপমেন্ট সম্পর্কে প্রাথমিক ধারণা
+- ওয়ার্ডপ্রেস প্লাগইন ডেভেলপমেন্টের বেসিক ধারণা
 
 <!--
 **Next**: [Getting Started with Xdebug →](/developers/xdebug/xdebug-getting-started)
