@@ -24,6 +24,7 @@ export async function withNetworking(
 		closeEvents.once('close', () => openHandles.delete(handle));
 	};
 
+	// Each runtime gets its own classes, so it only releases its own sockets.
 	class RuntimeOutboundTcpSocket extends OutboundTcpSocket {
 		constructor(url: string) {
 			super(url);
@@ -42,6 +43,8 @@ export async function withNetworking(
 	return {
 		...phpModuleArgs,
 		closeNetworkConnections: () => {
+			// Destroy sockets instead of ending them: an ended socket stays open
+			// until the peer closes its side, and keeps Node.js running.
 			for (const handle of openHandles) {
 				if (handle instanceof TcpServer) {
 					handle.close();

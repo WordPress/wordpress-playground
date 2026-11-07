@@ -45,12 +45,15 @@ export class TcpSocket extends EventEmitter {
 	static readonly CLOSING = 2;
 	static readonly CLOSED = 3;
 
+	// Emscripten compares readyState with these on the instance, like
+	// `ws.readyState === ws.OPEN`.
 	readonly CONNECTING = TcpSocket.CONNECTING;
 	readonly OPEN = TcpSocket.OPEN;
 	readonly CLOSING = TcpSocket.CLOSING;
 	readonly CLOSED = TcpSocket.CLOSED;
 
 	readyState: number;
+	// Emscripten sets this. The socket always delivers binary data.
 	binaryType = 'arraybuffer';
 	/**
 	 * Emscripten reads the address of an accepted connection's peer from
@@ -75,7 +78,11 @@ export class TcpSocket extends EventEmitter {
 			// Emscripten ignores messages that aren't marked as binary.
 			this.emit('message', data, true);
 		});
+		// Emscripten has no half-closed state. PHP reads the data it already
+		// received and then the end of the stream.
 		socket?.on('end', () => this.shutDown());
+		// Close without emitting `error`, so PHP reads the end of the stream as it
+		// did with the WebSocket proxy. See the CAUTION on OutboundTcpSocket.
 		socket?.on('error', (error) => {
 			log('Connection error', error);
 			this.shutDown(true);
@@ -92,6 +99,11 @@ export class TcpSocket extends EventEmitter {
 		this._socket.write(bytes);
 	}
 
+	/**
+	 * For php-wasm's setsockopt() with SO_KEEPALIVE and TCP_NODELAY. The current
+	 * PHP builds look the socket up by file descriptor and never find it, so
+	 * this isn't called yet.
+	 */
 	setSocketOpt(level: number, optionName: number, optionValue: number) {
 		if (level === SOL_SOCKET && optionName === SO_KEEPALIVE) {
 			this._socket?.setKeepAlive(Boolean(optionValue));
@@ -113,6 +125,7 @@ export class TcpSocket extends EventEmitter {
 		this.shutDown(true);
 	}
 
+	// php-wasm's connect() listens with the DOM-style event API.
 	addEventListener(event: string, listener: (...args: any[]) => void) {
 		this.on(event, listener);
 	}
@@ -184,12 +197,14 @@ export class OutboundTcpSocket extends TcpSocket {
 		}
 		super(isValid ? connect(host, port) : undefined, TcpSocket.CONNECTING);
 		this.url = url;
+		// Emscripten attaches its listeners after the constructor returns.
 		process.nextTick(() => {
 			if (this.readyState !== this.CONNECTING) {
 				return;
 			}
 			this.readyState = this.OPEN;
 			this.emit('open');
+			// Treat an invalid address like a failed connection: open, then close.
 			if (!this._socket) {
 				this.shutDown();
 			}
@@ -215,6 +230,7 @@ export interface TcpServerOptions {
  * PHP would wait for connections forever.
  */
 export class TcpServer extends EventEmitter {
+	// php-wasm's poll() waits on these for data on a listening socket.
 	readonly clients = new Set<TcpSocket>();
 	private readonly server: net.Server;
 	private closed = false;
@@ -234,6 +250,8 @@ export class TcpServer extends EventEmitter {
 			client.once('close', () => this.clients.delete(client));
 			this.emit('connection', client);
 		});
+		// Forward errors only once the server listens. Earlier errors stay
+		// unhandled; see the CAUTION above.
 		this.server.on('listening', () => {
 			this.server.on('error', (error) => {
 				log('Server error', error);
@@ -251,6 +269,7 @@ export class TcpServer extends EventEmitter {
 					return;
 				}
 				if (error) {
+					// Unhandled, like an error from listen().
 					this.server.emit('error', error);
 				} else {
 					this.listen(port, address);
@@ -283,6 +302,7 @@ export class TcpServer extends EventEmitter {
 function connect(host: string, port: number) {
 	log(`Connecting to ${host}:${port}`);
 	// Prefer IPv4 because many services (including Redis) only listen on
-	// IPv4 by default, and macOS resolves 'localhost' to IPv6 first.
+	// IPv4 by default, and macOS resolves 'localhost' to IPv6 first. `family`
+	// only affects hostname lookups; IPv6 addresses still connect directly.
 	return net.createConnection({ host, port, family: 4 });
 }

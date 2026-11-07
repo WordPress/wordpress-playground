@@ -290,6 +290,8 @@ jobs:
             - uses: actions/checkout@v4
               with:
                   submodules: true
+            # Install with Node 24 to reuse the shared dependency cache, then
+            # switch to the version that loads the Asyncify build.
             - uses: ./.github/actions/prepare-playground
             - uses: actions/setup-node@v4
               with:
