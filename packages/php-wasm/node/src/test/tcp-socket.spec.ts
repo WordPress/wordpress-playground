@@ -4,7 +4,7 @@ import net from 'node:net';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
-	CLOSED_SOCKET_TIMEOUT_MS,
+	RELEASED_SOCKET_TIMEOUT_MS,
 	OutboundTcpSocket,
 	TcpServer,
 	getOutboundTcpSocketUrl,
@@ -30,6 +30,30 @@ describe('OutboundTcpSocket', () => {
 		expect(events).toEqual(['open']);
 		expect(socket.readyState).toBe(OutboundTcpSocket.CLOSED);
 	});
+
+	it.each(['open', 'closed'])(
+		'cancels an unused connection attempt when released while %s',
+		async (state) => {
+			const port = await getClosedPort();
+			const socket = new OutboundTcpSocket(
+				getOutboundTcpSocketUrl('127.0.0.1', String(port))
+			);
+			const opened = vi.fn();
+			socket.on('open', opened);
+			const closed = new Promise((resolve) =>
+				socket.once('close', resolve)
+			);
+
+			if (state === 'closed') {
+				socket.close();
+			}
+			socket.release();
+			expect(socket._socket?.destroyed).toBe(true);
+			await closed;
+			expect(opened).not.toHaveBeenCalled();
+			expect(socket.readyState).toBe(OutboundTcpSocket.CLOSED);
+		}
+	);
 
 	it('drops data after it closes, and stays open until the peer closes', async () => {
 		const server = net.createServer({ allowHalfOpen: true });
@@ -74,54 +98,103 @@ describe('OutboundTcpSocket', () => {
 		}
 	});
 
-	it('keeps sending what it wrote when released after closing', async () => {
-		// The server stops reading, so the writes are still buffered when the
-		// socket closes and the runtime releases it.
-		const size = 8 * 1024 * 1024;
-		const server = net.createServer();
-		const connection = new Promise<net.Socket>((resolve) =>
-			server.once('connection', resolve)
-		);
-		await new Promise<void>((resolve) =>
-			server.listen(0, '127.0.0.1', resolve)
-		);
-		const { port } = server.address() as net.AddressInfo;
-		const socket = new OutboundTcpSocket(
-			getOutboundTcpSocketUrl('127.0.0.1', String(port))
-		);
-		await new Promise((resolve) => socket.once('open', resolve));
-		const serverSocket = await connection;
-		serverSocket.pause();
-		let received = 0;
-		const ended = new Promise((resolve) => {
-			serverSocket.on('data', (data) => (received += data.length));
-			serverSocket.once('close', resolve);
-		});
-
-		try {
+	it.each(['open', 'closed'])(
+		'keeps sending queued writes when released while %s',
+		async (state) => {
+			// The server stops reading, so the writes are still buffered when the
+			// socket closes and the runtime releases it.
+			const size = 8 * 1024 * 1024;
+			const server = net.createServer();
+			const connection = new Promise<net.Socket>((resolve) =>
+				server.once('connection', (socket) => {
+					socket.pause();
+					resolve(socket);
+				})
+			);
+			await new Promise<void>((resolve) =>
+				server.listen(0, '127.0.0.1', resolve)
+			);
+			const { port } = server.address() as net.AddressInfo;
+			const socket = new OutboundTcpSocket(
+				getOutboundTcpSocketUrl('127.0.0.1', String(port))
+			);
+			await new Promise((resolve) => socket.once('open', resolve));
+			// The adapter opens before TCP connects. These writes must survive
+			// release even while the underlying connection is still in progress.
 			socket.send(new Uint8Array(size));
-			socket.close();
+			if (state === 'closed') {
+				socket.close();
+			}
 			socket.release();
-			await new Promise((resolve) => setTimeout(resolve, 50));
-			serverSocket.resume();
-			await ended;
-		} finally {
-			serverSocket.destroy();
-			server.close();
-		}
+			const serverSocket = await connection;
+			let received = 0;
+			const ended = new Promise((resolve) => {
+				serverSocket.on('data', (data) => (received += data.length));
+				serverSocket.once('close', resolve);
+			});
 
-		expect(received).toBe(size);
-	});
-	it('destroys a released socket after a timeout if the peer never closes', async () => {
+			try {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+				serverSocket.resume();
+				await ended;
+			} finally {
+				serverSocket.destroy();
+				server.close();
+			}
+
+			expect(received).toBe(size);
+		}
+	);
+
+	it('enforces the original release deadline if the peer never closes', async () => {
 		const { socket, cleanUp } = await closeWithPeerOpen();
 		// Fake only the timer, so the socket itself keeps running for real.
 		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
 		try {
 			socket.release();
-			vi.advanceTimersByTime(CLOSED_SOCKET_TIMEOUT_MS - 1);
+			vi.advanceTimersByTime(RELEASED_SOCKET_TIMEOUT_MS - 1);
+			// Repeated cleanup must neither extend the deadline nor add timers.
+			socket.release();
+			expect(vi.getTimerCount()).toBe(1);
 			expect(socket._socket?.destroyed).toBe(false);
 			vi.advanceTimersByTime(1);
 			expect(socket._socket?.destroyed).toBe(true);
+		} finally {
+			vi.useRealTimers();
+			cleanUp();
+		}
+	});
+
+	it('cancels the release timeout when TCP closes', async () => {
+		const { socket, serverSocket, cleanUp } = await closeWithPeerOpen();
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+		try {
+			socket.release();
+			expect(vi.getTimerCount()).toBe(1);
+			const closed = new Promise((resolve) =>
+				socket._socket!.once('close', resolve)
+			);
+			serverSocket.end();
+			await closed;
+
+			expect(vi.getTimerCount()).toBe(0);
+		} finally {
+			vi.useRealTimers();
+			cleanUp();
+		}
+	});
+
+	it('does not schedule cleanup for a destroyed TCP socket', async () => {
+		const { socket, cleanUp } = await closeWithPeerOpen();
+		const closed = new Promise((resolve) =>
+			socket._socket!.once('close', resolve)
+		);
+		socket._socket!.destroy();
+		await closed;
+		vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+		try {
+			socket.release();
+			expect(vi.getTimerCount()).toBe(0);
 		} finally {
 			vi.useRealTimers();
 			cleanUp();
@@ -279,7 +352,7 @@ async function closeWithPeerOpen() {
 		serverSocket.resume();
 		socket.close();
 		await ended;
-		return { socket, cleanUp };
+		return { socket, serverSocket, cleanUp };
 	} catch (error) {
 		cleanUp();
 		throw error;

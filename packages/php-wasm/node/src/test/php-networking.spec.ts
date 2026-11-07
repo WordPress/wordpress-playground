@@ -418,18 +418,24 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 
 		describe('Runtime exit', () => {
-			it('should release open connections when runtime is exited', async () => {
-				// The server keeps its side open after the client closes, so the
-				// runtime has to release both connections itself.
-				const tcpServer = net.createServer({ allowHalfOpen: true });
+			it('should flush persistent and closed connections when the runtime exits', async () => {
+				const size = 8 * 1024 * 1024;
+				const tcpServer = net.createServer();
 				const connections: net.Socket[] = [];
-				const ended = new Map<net.Socket, Promise<void>>();
+				const received: number[] = [];
+				const ended: Promise<void>[] = [];
 				const bothConnected = new Promise<void>((resolve) =>
 					tcpServer.on('connection', (socket) => {
-						socket.resume();
+						const index = connections.length;
 						connections.push(socket);
-						ended.set(
-							socket,
+						received.push(0);
+						// Keep writes queued until after the runtime exits.
+						socket.pause();
+						socket.write('ready');
+						socket.on('data', (data) => {
+							received[index] += data.length;
+						});
+						ended.push(
 							new Promise((resolveEnd) =>
 								socket.once('end', () => resolveEnd())
 							)
@@ -443,83 +449,33 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					tcpServer.listen(0, '127.0.0.1', resolve)
 				);
 				const { port } = tcpServer.address() as net.AddressInfo;
+				let php: PHP | undefined;
 				try {
-					const php = new PHP(
-						await loadNodeRuntime(phpVersion, options)
-					);
-					// A persistent socket stays open after the request ends.
-					// The other socket is closed by PHP but not by the server.
-					await php.run({
+					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					const { text } = await php.run({
 						code: `<?php
-						pfsockopen('127.0.0.1', ${port});
-						fclose(fsockopen('127.0.0.1', ${port}));
+						$payload = str_repeat('x', ${size});
+						$persistent = pfsockopen('127.0.0.1', ${port});
+						$closed = fsockopen('127.0.0.1', ${port});
+						// Wait for both TCP connections before writing and closing.
+						fread($persistent, 5);
+						fread($closed, 5);
+						$written = [fwrite($persistent, $payload), fwrite($closed, $payload)];
+						fclose($closed);
+						echo json_encode($written);
 						`,
 					});
 					await bothConnected;
-					// The connection PHP closed is the one that ends first.
-					const closedConnection = await Promise.race(
-						connections.map((socket) =>
-							ended.get(socket)!.then(() => socket)
-						)
-					);
-					const persistentConnection = connections.find(
-						(socket) => socket !== closedConnection
-					)!;
-					// Record the local port of each runtime socket that exiting
-					// destroys or unrefs. The server sees it as the connection's
-					// remotePort. A client's own remotePort can still be unset while
-					// it finishes connecting, but its localPort is assigned when it
-					// starts.
-					// A socket can be destroyed more than once, and it has no port
-					// after the first time, so record each socket once.
-					const destroyed = new Map<net.Socket, number | undefined>();
-					const unrefed = new Map<net.Socket, number | undefined>();
-					const destroy = net.Socket.prototype.destroy;
-					const unref = net.Socket.prototype.unref;
-					const destroySpy = vi
-						.spyOn(net.Socket.prototype, 'destroy')
-						.mockImplementation(function (
-							this: net.Socket,
-							...args: Parameters<net.Socket['destroy']>
-						) {
-							if (
-								!connections.includes(this) &&
-								!destroyed.has(this)
-							) {
-								destroyed.set(this, this.localPort);
-							}
-							return destroy.apply(this, args);
-						});
-					const unrefSpy = vi
-						.spyOn(net.Socket.prototype, 'unref')
-						.mockImplementation(function (this: net.Socket) {
-							if (
-								!connections.includes(this) &&
-								!unrefed.has(this)
-							) {
-								unrefed.set(this, this.localPort);
-							}
-							return unref.apply(this);
-						});
+					php.exit();
+					connections.forEach((socket) => socket.resume());
+					await Promise.all(ended);
 
-					try {
-						php.exit();
-					} finally {
-						destroySpy.mockRestore();
-						unrefSpy.mockRestore();
-					}
-
-					// The persistent socket is destroyed. The socket PHP closed may
-					// still be sending, so it only stops keeping Node.js running.
-					expect([...destroyed.values()]).toEqual([
-						persistentConnection.remotePort,
-					]);
-					expect([...unrefed.values()]).toEqual([
-						closedConnection.remotePort,
-					]);
+					expect(JSON.parse(text)).toEqual([size, size]);
+					expect(received).toEqual([size, size]);
 				} finally {
+					php?.exit();
 					connections.forEach((socket) => socket.destroy());
-					tcpServer.close();
+					await new Promise((resolve) => tcpServer.close(resolve));
 				}
 			});
 		});

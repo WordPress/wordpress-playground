@@ -20,8 +20,8 @@ function log(...args: any[]) {
 	debugLog('[TCP]', ...args);
 }
 
-// How long a closed socket may keep sending after the runtime exits.
-export const CLOSED_SOCKET_TIMEOUT_MS = 30_000;
+// How long a socket may keep sending after the runtime exits.
+export const RELEASED_SOCKET_TIMEOUT_MS = 30_000;
 
 const SOL_SOCKET = 1;
 const SO_KEEPALIVE = 9;
@@ -63,6 +63,7 @@ export class TcpSocket extends EventEmitter {
 	 * `_socket`, like it does for `ws` WebSockets.
 	 */
 	readonly _socket?: net.Socket;
+	private released = false;
 
 	constructor(socket: net.Socket | undefined, readyState: number) {
 		super();
@@ -124,29 +125,32 @@ export class TcpSocket extends EventEmitter {
 	/**
 	 * Releases the TCP socket when the runtime exits.
 	 *
-	 * A socket that's still open is destroyed. A closed one, whether PHP or
-	 * the peer closed it, may still be sending what PHP wrote, and destroying
-	 * it would discard that. It's only unref'd: once its writes are sent, it no
-	 * longer keeps Node.js running. It closes when the peer closes its side, or
-	 * is destroyed after a timeout, which also bounds how long pending writes
-	 * can keep Node.js running.
+	 * End the write side so queued writes can drain, including those on
+	 * persistent sockets PHP left open. Unref the socket so it doesn't keep
+	 * Node.js running once those writes are sent. A timeout bounds how long
+	 * pending writes or a peer that never closes can retain the connection.
 	 */
 	release() {
-		const socket = this._socket;
-		if (
-			socket &&
-			(this.readyState === this.CLOSING ||
-				this.readyState === this.CLOSED)
-		) {
-			socket.unref();
-			setTimeout(
-				() => socket.destroy(),
-				CLOSED_SOCKET_TIMEOUT_MS
-			).unref();
+		if (this.released) {
 			return;
 		}
-		this._socket?.destroy();
-		this.shutDown(true);
+		this.released = true;
+		const socket = this._socket;
+		// Don't wait for an unused connection attempt after the runtime exits.
+		// A connecting socket with queued writes still needs to drain them.
+		this.shutDown(socket?.connecting && socket.writableLength === 0);
+		if (!socket || socket.destroyed) {
+			return;
+		}
+		socket.unref();
+		const timeout = setTimeout(
+			() => socket.destroy(),
+			RELEASED_SOCKET_TIMEOUT_MS
+		);
+		timeout.unref();
+		// The socket's listeners retain the runtime, so cancel the timer as
+		// soon as TCP closes rather than retaining it for the whole timeout.
+		socket.once('close', () => clearTimeout(timeout));
 	}
 
 	// php-wasm's connect() listens with the DOM-style event API.
@@ -162,6 +166,10 @@ export class TcpSocket extends EventEmitter {
 	 * Closes the connection and emits `close` on the next tick, like `ws`.
 	 */
 	protected shutDown(destroy = false) {
+		// A logical close can leave TCP connecting or draining.
+		if (destroy) {
+			this._socket?.destroy();
+		}
 		if (
 			this.readyState === this.CLOSING ||
 			this.readyState === this.CLOSED
@@ -169,9 +177,7 @@ export class TcpSocket extends EventEmitter {
 			return;
 		}
 		this.readyState = this.CLOSING;
-		if (destroy) {
-			this._socket?.destroy();
-		} else {
+		if (!destroy) {
 			this._socket?.end();
 		}
 		process.nextTick(() => {
