@@ -146,20 +146,24 @@ async function ready(page: Page, origin: string): Promise<Frame> {
 			'#playground-viewport:visible,.playground-viewport:visible'
 		)
 		.locator('#wp');
-	await expect(iframe.contentFrame().locator('body')).not.toBeEmpty();
 	const element = (await iframe.elementHandle())!;
 	const frame = (await element.contentFrame())!;
 	await element.dispose();
-	// Read the live document's location, not Playwright's Frame.url(). Firefox
-	// can leave that metadata at about:blank after a service-worker navigation.
-	// The loading document also has a body, so require the real scoped URL too.
+	// Firefox can retain an obsolete utility context after service-worker
+	// navigation. Resolve the frame once, then inspect its live main-world document
+	// instead of a nested body locator or the stale Frame.url() metadata.
 	await expect
 		.poll(() =>
 			frame.evaluate(() => ({
 				origin: window.location.origin,
 				pathname: window.location.pathname,
+				hasBodyContent: Boolean(document.body?.textContent?.trim()),
 			}))
 		)
-		.toEqual({ origin, pathname: expect.stringMatching(/^\/scope:/) });
+		.toEqual({
+			origin,
+			pathname: expect.stringMatching(/^\/scope:/),
+			hasBodyContent: true,
+		});
 	return frame;
 }
