@@ -1,11 +1,21 @@
 ---
-title: Blueprints 101
-description: The landing page for the "Blueprints 101" crash course. This short tutorial covers everything you need to get started.
+title: Blueprints 101 (v1 legacy)
+description: Legacy Blueprint v1 documentation. The landing page for the "Blueprints 101" crash course. This short tutorial covers everything you need to get started.
 hide_table_of_contents: false
 slug: /blueprints/tutorial
 ---
 
 # Blueprints 101 - A crash course
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 Welcome to a Blueprints crash course, where you'll find everything you need to know about Blueprints: what they are, how to create them, and how to use them effectively.
 
