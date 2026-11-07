@@ -31,7 +31,7 @@ describe('OutboundTcpSocket', () => {
 		expect(socket.readyState).toBe(OutboundTcpSocket.CLOSED);
 	});
 
-	it.each(['open', 'closed'])(
+	it.each(['connecting', 'closed by PHP while connecting'])(
 		'cancels an unused connection attempt when released while %s',
 		async (state) => {
 			const port = await getClosedPort();
@@ -44,7 +44,8 @@ describe('OutboundTcpSocket', () => {
 				socket.once('close', resolve)
 			);
 
-			if (state === 'closed') {
+			// release() runs before the socket reports itself open.
+			if (state !== 'connecting') {
 				socket.close();
 			}
 			socket.release();
@@ -203,15 +204,19 @@ describe('OutboundTcpSocket', () => {
 
 	it('does not keep Node.js running while a released socket waits', async () => {
 		const { socket, cleanUp } = await closeWithPeerOpen();
-		const countTimers = () =>
+		// Node.js doesn't count unref'd sockets and timers as keeping it running.
+		const countKeepingNodeRunning = () =>
 			process
 				.getActiveResourcesInfo()
-				.filter((resource) => resource === 'Timeout').length;
+				.filter(
+					(resource) =>
+						resource === 'Timeout' || resource === 'TCPSocketWrap'
+				).length;
 		try {
-			const timersBefore = countTimers();
+			const before = countKeepingNodeRunning();
 			socket.release();
-			// Node.js doesn't count an unref'd timer as keeping it running.
-			expect(countTimers()).toBe(timersBefore);
+			// The released socket stops counting, and its timeout never does.
+			expect(countKeepingNodeRunning()).toBe(before - 1);
 		} finally {
 			socket._socket?.destroy();
 			cleanUp();

@@ -478,6 +478,62 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					await new Promise((resolve) => tcpServer.close(resolve));
 				}
 			});
+			it('should unref every connection when the runtime exits', async () => {
+				// The server keeps its side open after the client closes, so a
+				// connection the runtime doesn't unref would keep Node.js running.
+				const tcpServer = net.createServer({ allowHalfOpen: true });
+				const connections: net.Socket[] = [];
+				const bothConnected = new Promise<void>((resolve) =>
+					tcpServer.on('connection', (socket) => {
+						socket.resume();
+						connections.push(socket);
+						if (connections.length === 2) {
+							resolve();
+						}
+					})
+				);
+				await new Promise<void>((resolve) =>
+					tcpServer.listen(0, '127.0.0.1', resolve)
+				);
+				const { port } = tcpServer.address() as net.AddressInfo;
+				let php: PHP | undefined;
+				try {
+					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					await php.run({
+						code: `<?php
+						pfsockopen('127.0.0.1', ${port});
+						fclose(fsockopen('127.0.0.1', ${port}));
+						`,
+					});
+					await bothConnected;
+					// Record the local port of each socket the runtime unrefs. The
+					// server sees it as the connection's remotePort, and a client
+					// gets its local port as soon as it starts connecting.
+					const unrefedPorts = new Set<number | undefined>();
+					const unref = net.Socket.prototype.unref;
+					const unrefSpy = vi
+						.spyOn(net.Socket.prototype, 'unref')
+						.mockImplementation(function (this: net.Socket) {
+							if (!connections.includes(this)) {
+								unrefedPorts.add(this.localPort);
+							}
+							return unref.apply(this);
+						});
+					try {
+						php.exit();
+					} finally {
+						unrefSpy.mockRestore();
+					}
+
+					expect([...unrefedPorts].sort()).toEqual(
+						connections.map((socket) => socket.remotePort).sort()
+					);
+				} finally {
+					php?.exit();
+					connections.forEach((socket) => socket.destroy());
+					tcpServer.close();
+				}
+			});
 		});
 
 		describe('Listening sockets', () => {

@@ -20,7 +20,9 @@ function log(...args: any[]) {
 	debugLog('[TCP]', ...args);
 }
 
-// How long a socket may keep sending after the runtime exits.
+// How long a socket may keep sending after the runtime exits. It gives the peer
+// time to read what PHP wrote, while bounding how long a peer that never reads
+// or closes can hold the socket, the exited runtime's memory, and a process exit.
 export const RELEASED_SOCKET_TIMEOUT_MS = 30_000;
 
 const SOL_SOCKET = 1;
@@ -80,6 +82,9 @@ export class TcpSocket extends EventEmitter {
 			) {
 				return;
 			}
+			// There's no backpressure: data goes to Emscripten as it arrives, as it
+			// did with the WebSocket proxy. Emscripten doesn't tell us when PHP has
+			// read it, so we can't pause the socket until then.
 			// Emscripten ignores messages that aren't marked as binary.
 			this.emit('message', data, true);
 		});
@@ -129,6 +134,11 @@ export class TcpSocket extends EventEmitter {
 	 * persistent sockets PHP left open. Unref the socket so it doesn't keep
 	 * Node.js running once those writes are sent. A timeout bounds how long
 	 * pending writes or a peer that never closes can retain the connection.
+	 *
+	 * Ending rather than destroying means the peer sees a normal end of stream,
+	 * even for a connection PHP left open mid-conversation, because destroying
+	 * would discard PHP's queued writes. Until the socket closes, its listeners
+	 * keep the exited runtime's memory alive.
 	 */
 	release() {
 		if (this.released) {
@@ -138,6 +148,9 @@ export class TcpSocket extends EventEmitter {
 		const socket = this._socket;
 		// Don't wait for an unused connection attempt after the runtime exits.
 		// A connecting socket with queued writes still needs to drain them.
+		// Writes PHP made before the socket reported itself open are still in
+		// Emscripten's own queue, not Node.js's, and are lost, as they were with
+		// the WebSocket proxy.
 		this.shutDown(socket?.connecting && socket.writableLength === 0);
 		if (!socket || socket.destroyed) {
 			return;
@@ -166,7 +179,9 @@ export class TcpSocket extends EventEmitter {
 	 * Closes the connection and emits `close` on the next tick, like `ws`.
 	 */
 	protected shutDown(destroy = false) {
-		// A logical close can leave TCP connecting or draining.
+		// Destroy even if the socket already closed for PHP: a close only ends
+		// the write side, so TCP can still be connecting or sending. release()
+		// relies on this to stop a connection attempt nothing will use.
 		if (destroy) {
 			this._socket?.destroy();
 		}
@@ -237,15 +252,23 @@ export interface TcpServerOptions {
  * API that Emscripten's SOCKFS uses.
  *
  * It listens on the host and port PHP binds to, and emits each accepted
- * connection as a `TcpSocket`.
+ * connection as a `TcpSocket`. Listening only there, rather than on every
+ * interface like the WebSocket bridge, keeps a server bound to 127.0.0.1 off
+ * the network. As a result, a server bound to `localhost`, which PHP resolves
+ * to 127.0.0.1, doesn't accept IPv6 clients.
  *
  * CAUTION: An error before the server listens, such as EADDRINUSE, is left
  * unhandled so that it stops the process. Emscripten's listen() has already
  * returned by then, so PHP can't report it. If the error reached PHP's socket,
- * PHP would wait for connections forever.
+ * PHP would wait for connections forever. The cost is that PHP code binding a
+ * busy port, an address that isn't local, or a hostname that doesn't resolve
+ * stops the whole process, such as a Playground CLI worker.
  */
 export class TcpServer extends EventEmitter {
-	// php-wasm's poll() waits on these for data on a listening socket.
+	// php-wasm's poll() waits on these for data on a listening socket. Its
+	// select() also checks a read set for writability, and an open socket is
+	// always writable, so stream_select() reports the listening socket ready as
+	// soon as a connection is pending, before its data arrives.
 	readonly clients = new Set<TcpSocket>();
 	private readonly server: net.Server;
 	private closed = false;
