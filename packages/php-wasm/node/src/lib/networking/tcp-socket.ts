@@ -268,8 +268,10 @@ export interface TcpServerOptions {
 export class TcpServer extends EventEmitter {
 	// php-wasm's poll() waits on these for data on a listening socket. Its
 	// select() also checks a read set for writability, and an open socket is
-	// always writable, so stream_select() reports the listening socket ready as
-	// soon as a connection is pending, before its data arrives.
+	// always writable. A socket leaves this set only when it closes, so
+	// stream_select() reports the listening socket ready while any connection
+	// to it is open, including one PHP already accepted, and before its data
+	// arrives. `ws` servers' clients behaved the same way.
 	readonly clients = new Set<TcpSocket>();
 	private readonly server: net.Server;
 	private closed = false;

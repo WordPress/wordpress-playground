@@ -572,8 +572,8 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 						$server = stream_socket_server("tcp://127.0.0.1:${port}");
 						$start = microtime(true);
 						$connection = false;
-						// stream_select() reports the server as soon as a connection is
-						// pending, before its data arrives. Pause so the data is there
+						// stream_select() reports the server ready as soon as a client
+						// connects, before its data arrives. Pause so the data is there
 						// before accepting: with Asyncify, PHP crashes if
 						// stream_socket_accept() has to wait. See
 						// https://github.com/WordPress/wordpress-playground/issues/4576.
