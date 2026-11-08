@@ -138,7 +138,8 @@ export class TcpSocket extends EventEmitter {
 	 * Ending rather than destroying means the peer sees a normal end of stream,
 	 * even for a connection PHP left open mid-conversation, because destroying
 	 * would discard PHP's queued writes. Until the socket closes, its listeners
-	 * keep the exited runtime's memory alive.
+	 * keep the exited runtime alive, including its WebAssembly heap. The
+	 * timeout bounds that, and the runtime is freed once the socket closes.
 	 */
 	release() {
 		if (this.released) {
