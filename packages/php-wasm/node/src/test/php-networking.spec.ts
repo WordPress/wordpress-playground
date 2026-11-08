@@ -513,8 +513,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					});
 					await bothConnected;
 					// Record the local port of each socket the runtime unrefs. The
-					// server sees it as the connection's remotePort, and a client
-					// gets its local port as soon as it starts connecting.
+					// server sees it as the connection's remotePort.
 					const unrefedPorts = new Set<number | undefined>();
 					const unref = net.Socket.prototype.unref;
 					const unrefSpy = vi
@@ -534,6 +533,50 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					expect([...unrefedPorts].sort()).toEqual(
 						connections.map((socket) => socket.remotePort).sort()
 					);
+				} finally {
+					php?.exit();
+					connections.forEach((socket) => socket.destroy());
+					tcpServer.close();
+				}
+			});
+
+			it('should not resume PHP waiting on a socket when the runtime exits', async () => {
+				const tcpServer = net.createServer({ allowHalfOpen: true });
+				const connections: net.Socket[] = [];
+				const waiting = new Promise<void>((resolve) =>
+					tcpServer.on('connection', (socket) => {
+						connections.push(socket);
+						socket.once('data', () => resolve());
+					})
+				);
+				await new Promise<void>((resolve) =>
+					tcpServer.listen(0, '127.0.0.1', resolve)
+				);
+				const { port } = tcpServer.address() as net.AddressInfo;
+				let php: PHP | undefined;
+				try {
+					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					let settled = false;
+					php.run({
+						code: `<?php
+						$socket = fsockopen('127.0.0.1', ${port});
+						fwrite($socket, 'waiting');
+						fread($socket, 1);
+						fsockopen('127.0.0.1', ${port});
+						`,
+					}).finally(() => (settled = true));
+					// PHP is waiting in fread() once its write arrives.
+					await waiting;
+					const ended = new Promise((resolve) =>
+						connections[0].once('end', resolve)
+					);
+					php.exit();
+					await ended;
+					// A resumed script would open a second connection right away.
+					await new Promise((resolve) => setTimeout(resolve, 200));
+
+					expect(connections).toHaveLength(1);
+					expect(settled).toBe(false);
 				} finally {
 					php?.exit();
 					connections.forEach((socket) => socket.destroy());

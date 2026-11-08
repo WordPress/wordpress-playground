@@ -41,7 +41,7 @@ describe('OutboundTcpSocket', () => {
 			const opened = vi.fn();
 			socket.on('open', opened);
 			const closed = new Promise((resolve) =>
-				socket.once('close', resolve)
+				socket._socket!.once('close', resolve)
 			);
 
 			// release() runs before the socket reports itself open.

@@ -22,7 +22,7 @@ function log(...args: any[]) {
 
 // How long a socket may keep sending after the runtime exits. It gives the peer
 // time to read what PHP wrote, while bounding how long a peer that never reads
-// or closes can hold the socket, the exited runtime's memory, and a process exit.
+// or closes can hold the socket and delay a process exit.
 export const RELEASED_SOCKET_TIMEOUT_MS = 30_000;
 
 const SOL_SOCKET = 1;
@@ -137,9 +137,7 @@ export class TcpSocket extends EventEmitter {
 	 *
 	 * Ending rather than destroying means the peer sees a normal end of stream,
 	 * even for a connection PHP left open mid-conversation, because destroying
-	 * would discard PHP's queued writes. Until the socket closes, its listeners
-	 * keep the exited runtime alive, including its WebAssembly heap. The
-	 * timeout bounds that, and the runtime is freed once the socket closes.
+	 * would discard PHP's queued writes.
 	 */
 	release() {
 		if (this.released) {
@@ -153,6 +151,14 @@ export class TcpSocket extends EventEmitter {
 		// Emscripten's own queue, not Node.js's, and are lost, as they were with
 		// the WebSocket proxy.
 		this.shutDown(socket?.connecting && socket.writableLength === 0);
+		// Detach Emscripten so nothing reaches the exited runtime. PHP may be
+		// waiting on this socket, for example in fread(), and the `close` that
+		// shutDown() emits would wake it. PHP would then run the rest of its
+		// script after exit and could open sockets that nothing releases. The
+		// listeners would also keep the exited runtime, including its
+		// WebAssembly heap, in memory until the socket closes. The TCP socket's
+		// own listeners stay, so queued writes still drain.
+		this.removeAllListeners();
 		if (!socket || socket.destroyed) {
 			return;
 		}
@@ -162,8 +168,8 @@ export class TcpSocket extends EventEmitter {
 			RELEASED_SOCKET_TIMEOUT_MS
 		);
 		timeout.unref();
-		// The socket's listeners retain the runtime, so cancel the timer as
-		// soon as TCP closes rather than retaining it for the whole timeout.
+		// Cancel the timer once TCP closes, so it doesn't keep the closed
+		// socket in memory for the rest of the timeout.
 		socket.once('close', () => clearTimeout(timeout));
 	}
 
