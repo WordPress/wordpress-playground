@@ -486,6 +486,7 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				const bothConnected = new Promise<void>((resolve) =>
 					tcpServer.on('connection', (socket) => {
 						socket.resume();
+						socket.write('ready');
 						connections.push(socket);
 						if (connections.length === 2) {
 							resolve();
@@ -499,10 +500,15 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				let php: PHP | undefined;
 				try {
 					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					// Wait for both TCP connections. The runtime destroys a
+					// socket that's still connecting at exit instead of unrefing it.
 					await php.run({
 						code: `<?php
-						pfsockopen('127.0.0.1', ${port});
-						fclose(fsockopen('127.0.0.1', ${port}));
+						$persistent = pfsockopen('127.0.0.1', ${port});
+						$closed = fsockopen('127.0.0.1', ${port});
+						fread($persistent, 5);
+						fread($closed, 5);
+						fclose($closed);
 						`,
 					});
 					await bothConnected;
