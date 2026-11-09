@@ -7,6 +7,7 @@ import React, {
 	useState,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { EditorState } from '@codemirror/state';
 import classNames from 'classnames';
 import { Button, Notice, Tooltip, VisuallyHidden } from '@wordpress/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
@@ -39,6 +40,8 @@ export type PlaygroundFileEditorProps = {
 	isVisible?: boolean;
 	documentRoot: string;
 	initialPath?: string | null;
+	initialLine?: number | null;
+	initialNotice?: string | JSX.Element | null;
 	placeholderText?: string;
 	dockPresentation?: boolean;
 	/** Mobile Dock title row where the current path should be rendered. */
@@ -78,6 +81,8 @@ export const PlaygroundFileEditor = forwardRef<
 		isVisible = true,
 		documentRoot,
 		initialPath = null,
+		initialLine = null,
+		initialNotice = null,
 		placeholderText = 'Select a file to view or edit its contents.',
 		dockPresentation = false,
 		mobileHeaderTarget = null,
@@ -116,6 +121,12 @@ export const PlaygroundFileEditor = forwardRef<
 	const [messageContent, setMessageContent] = useState<
 		string | JSX.Element | null
 	>(null);
+
+	const [editorNotice, setEditorNotice] = useState<
+		string | JSX.Element | null
+	>(null);
+	const [pendingInitialCursorPosition, setPendingInitialCursorPosition] =
+		useState<number | null>(null);
 
 	const editorRef = useRef<CodeEditorHandle | null>(null);
 	const saveTimeoutRef = useRef<number | null>(null);
@@ -232,13 +243,39 @@ export const PlaygroundFileEditor = forwardRef<
 		setSaveError(null);
 		setShowExplorerOnMobile(false);
 		setMessageContent(null);
+		setEditorNotice(null);
+		setPendingInitialCursorPosition(null);
 		cursorPositionsRef.current.clear();
 		hasAutoOpenedRef.current = false;
 	}, [documentRoot, filesystem]);
 
+	const showInitialPathNotice = useCallback(
+		(notice: string | JSX.Element) => {
+			skipNextSaveRef.current = true;
+			setCurrentPath(null);
+			setCode('');
+			setMessageContent(null);
+			setReadOnly(true);
+			setSaveState(SaveState.IDLE);
+			setSaveError(null);
+			setEditorNotice(notice);
+			setPendingInitialCursorPosition(null);
+			setShowExplorerOnMobile(false);
+		},
+		[]
+	);
+
 	// Auto-open initialPath when filesystem becomes available
 	useEffect(() => {
-		if (!filesystem || !initialPath || hasAutoOpenedRef.current) {
+		if (!filesystem || hasAutoOpenedRef.current) {
+			return;
+		}
+
+		if (!initialPath) {
+			if (initialNotice) {
+				setEditorNotice(initialNotice);
+			}
+			hasAutoOpenedRef.current = true;
 			return;
 		}
 
@@ -246,30 +283,58 @@ export const PlaygroundFileEditor = forwardRef<
 		const tryAutoOpen = async () => {
 			try {
 				const exists = await filesystem.fileExists(initialPath);
-				if (exists && !cancelled) {
-					const content =
-						await filesystem.readFileAsText(initialPath);
-					if (cancelled) {
-						return;
-					}
-					skipNextSaveRef.current = true;
-					setCurrentPath(initialPath);
-					setCode(content);
-					setReadOnly(false);
-					setSaveState(SaveState.IDLE);
-					setSaveError(null);
-					// Focus the editor after opening
-					setTimeout(() => {
+				if (cancelled) return;
+				if (!exists) {
+					showInitialPathNotice(
+						`Could not open ${initialPath}. The file does not exist.`
+					);
+					return;
+				}
+
+				const content = await filesystem.readFileAsText(initialPath);
+				if (cancelled) return;
+				// Use CodeMirror's line model, which normalizes CRLF and CR to LF.
+				const doc = initialLine
+					? EditorState.create({ doc: content }).doc
+					: null;
+				const lineOffset =
+					doc &&
+					initialLine &&
+					initialLine >= 1 &&
+					initialLine <= doc.lines
+						? doc.line(initialLine).from
+						: null;
+				skipNextSaveRef.current = true;
+				setCurrentPath(initialPath);
+				setCode(content);
+				setMessageContent(null);
+				setReadOnly(false);
+				setSaveState(SaveState.IDLE);
+				setSaveError(null);
+				if (initialLine && doc && lineOffset === null) {
+					const lineCount = doc.lines;
+					setEditorNotice(
+						`Line ${initialLine} is outside this file. The file has ${lineCount} ${lineCount === 1 ? 'line' : 'lines'}.`
+					);
+				} else {
+					setEditorNotice(null);
+				}
+				setPendingInitialCursorPosition(lineOffset);
+
+				// Focus the editor after opening
+				setTimeout(() => {
+					if (!cancelled && lineOffset === null) {
 						editorRef.current?.focus();
-					}, 100);
-				}
+					}
+				}, 100);
 			} catch (error) {
-				// Silently fail - file may not exist or may not be readable
+				if (cancelled) return;
 				logger.debug('Could not auto-open initial path:', error);
+				showInitialPathNotice(
+					`Could not open ${initialPath}. The file could not be read.`
+				);
 			} finally {
-				if (!cancelled) {
-					hasAutoOpenedRef.current = true;
-				}
+				if (!cancelled) hasAutoOpenedRef.current = true;
 			}
 		};
 
@@ -277,7 +342,14 @@ export const PlaygroundFileEditor = forwardRef<
 		return () => {
 			cancelled = true;
 		};
-	}, [filesystem, initialPath]);
+	}, [
+		documentRoot,
+		filesystem,
+		initialPath,
+		initialLine,
+		initialNotice,
+		showInitialPathNotice,
+	]);
 
 	// Auto-save effect
 	useEffect(() => {
@@ -400,6 +472,8 @@ export const PlaygroundFileEditor = forwardRef<
 			setReadOnly(false);
 			setSaveState(SaveState.IDLE);
 			setSaveError(null);
+			setEditorNotice(null);
+			setPendingInitialCursorPosition(null);
 			setShowExplorerOnMobile(false);
 
 			// Restore cursor position for this file if we have one saved
@@ -417,6 +491,10 @@ export const PlaygroundFileEditor = forwardRef<
 		},
 		[]
 	);
+
+	const handleInitialCursorPositionApplied = useCallback(() => {
+		setPendingInitialCursorPosition(null);
+	}, []);
 
 	// Periodically save cursor position while editing
 	useEffect(() => {
@@ -482,6 +560,8 @@ export const PlaygroundFileEditor = forwardRef<
 		setReadOnly(true);
 		setSaveState(SaveState.IDLE);
 		setSaveError(null);
+		setEditorNotice(null);
+		setPendingInitialCursorPosition(null);
 	}, []);
 
 	const handleShowMessage = useCallback(
@@ -502,6 +582,8 @@ export const PlaygroundFileEditor = forwardRef<
 			setReadOnly(true);
 			setSaveState(SaveState.IDLE);
 			setSaveError(null);
+			setEditorNotice(null);
+			setPendingInitialCursorPosition(null);
 			setShowExplorerOnMobile(false);
 		},
 		[]
@@ -693,6 +775,13 @@ export const PlaygroundFileEditor = forwardRef<
 							</Notice>
 						</div>
 					) : null}
+					{editorNotice ? (
+						<div style={{ padding: '8px 16px' }}>
+							<Notice status="warning" isDismissible={false}>
+								{editorNotice}
+							</Notice>
+						</div>
+					) : null}
 					{currentPath || code || messageContent ? (
 						messageContent ? (
 							<div className={styles['messageArea']}>
@@ -707,6 +796,10 @@ export const PlaygroundFileEditor = forwardRef<
 								className={styles['editor']}
 								onSaveShortcut={handleManualSave}
 								readOnly={readOnly}
+								cursorPosition={pendingInitialCursorPosition}
+								onCursorPositionApplied={
+									handleInitialCursorPositionApplied
+								}
 							/>
 						)
 					) : (

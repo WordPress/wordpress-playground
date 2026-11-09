@@ -13,7 +13,8 @@ describe('getAutosaveFingerprintFromURL', () => {
 		const first = getAutosaveFingerprintFromURL(
 			new URL(
 				'https://playground.test/?php=8.3&wp=6.8&random=abc' +
-					'&modal=save-site&site-slug=demo&_=1&cacheBustWhatever=1#'
+					'&modal=save-site&site-slug=demo&filebrowser=wp-config.php' +
+					'&_=1&cacheBustWhatever=1#'
 			)
 		);
 		const second = getAutosaveFingerprintFromURL(
