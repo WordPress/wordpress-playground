@@ -20,7 +20,6 @@ export default defineConfig({
 			entryRoot: 'src',
 			tsconfigPath: join(__dirname, 'tsconfig.lib.json'),
 			pathsToAliases: false,
-			copyDtsFiles: true,
 		}),
 
 		viteTsConfigPaths({

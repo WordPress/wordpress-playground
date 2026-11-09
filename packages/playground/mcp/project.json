@@ -64,16 +64,9 @@
 				"parallel": false
 			}
 		},
-		"test:client-types": {
-			"executor": "nx:run-commands",
-			"options": {
-				"command": "node --test packages/playground/mcp/tests/integration/client-types.test.mjs"
-			},
-			"dependsOn": ["build"]
-		},
 		"test:mcp": {
 			"executor": "nx:noop",
-			"dependsOn": ["test:unit", "test:e2e", "test:client-types"]
+			"dependsOn": ["test:unit", "test:e2e"]
 		},
 		"package-for-self-hosting": {
 			"executor": "@wp-playground/nx-extensions:package-for-self-hosting",

@@ -15,7 +15,7 @@ import {
 	stringifyError,
 } from './tools/tool-definitions';
 import { toolExecutors, createToolClient } from './tools/tool-executors';
-import type { PlaygroundBridgeConfig } from './bridge-client.js';
+import type { PlaygroundBridgeConfig } from './bridge-client';
 
 const siteToolDefinitions = getSiteToolDefinitions();
 

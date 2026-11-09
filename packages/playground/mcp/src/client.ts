@@ -1,12 +1,9 @@
-export { startMcpBridge } from './bridge-client.js';
-export type {
-	PlaygroundBridgeConfig,
-	McpBridgeHandle,
-} from './bridge-client.js';
+export { startMcpBridge } from './bridge-client';
+export type { PlaygroundBridgeConfig, McpBridgeHandle } from './bridge-client';
 export {
 	registerWebMCPTools,
 	unregisterWebMCPTools,
 	getModelContext,
-} from './webmcp.js';
-export { startWebMCPSiteToolProxy } from './webmcp-site-tools.js';
-export type { WebMCPSiteToolProxy } from './webmcp-site-tools.js';
+} from './webmcp';
+export { startWebMCPSiteToolProxy } from './webmcp-site-tools';
+export type { WebMCPSiteToolProxy } from './webmcp-site-tools';
