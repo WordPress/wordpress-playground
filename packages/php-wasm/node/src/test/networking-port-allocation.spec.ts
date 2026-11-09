@@ -35,7 +35,9 @@ describe('networking port allocation', () => {
 		const emscriptenOptions = await withNetworking({});
 		const OutboundSocket = emscriptenOptions['websocket'].decorator();
 		const Server = emscriptenOptions['websocket'].serverDecorator();
-		const connectSpy = vi.spyOn(net, 'createConnection');
+		// tcp-socket.ts calls createConnection() through a namespace import,
+		// which a spy on it can't see, so spy on the socket's connect().
+		const connectSpy = vi.spyOn(net.Socket.prototype, 'connect');
 		const listenSpy = vi.spyOn(net.Server.prototype, 'listen');
 		emscriptenOptions.closeNetworkConnections!();
 
@@ -46,6 +48,7 @@ describe('networking port allocation', () => {
 		expect(() => new Server({ host: '127.0.0.1', port: 0 })).toThrow(
 			'The PHP runtime has exited'
 		);
+		expect(socket._socket).toBeUndefined();
 		expect(connectSpy).not.toHaveBeenCalled();
 		expect(listenSpy).not.toHaveBeenCalled();
 	});

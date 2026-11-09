@@ -29,7 +29,10 @@ console.log(await output.stdoutText);
 On runtime exit, listening sockets close and TCP sockets have up to 30 seconds
 to drain queued writes. The exited runtime cannot open new network connections.
 As on previous runtimes, `php.exit()` does not provide general cancellation of
-PHP code that was already executing.
+PHP code that was already executing. PHP waiting on a socket when the runtime
+exits may resume and finish its script, including writes to mounted files, but
+it can't open network connections. A `stream_socket_server()` call after exit
+fails the request.
 
 ## Loading PHP extensions
 

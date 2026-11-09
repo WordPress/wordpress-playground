@@ -40,6 +40,9 @@ export async function withNetworking(
 
 	class RuntimeTcpServer extends TcpServer {
 		constructor(options: TcpServerOptions) {
+			// Unlike a failed connection, PHP has no way to see a failed listen,
+			// so stop the request instead: stream_socket_server() after exit
+			// rejects php.run() with this error.
 			if (closed) {
 				throw new Error('The PHP runtime has exited');
 			}

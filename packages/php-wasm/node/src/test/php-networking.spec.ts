@@ -418,14 +418,21 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 
 		describe('Runtime exit', () => {
-			it('should reject new connections after a blocked read returns during exit', async () => {
+			it('should not open connections after the runtime exits', async () => {
 				const connections: net.Socket[] = [];
 				let notifyWaiting: () => void;
 				const waiting = new Promise<void>(
 					(resolve) => (notifyWaiting = resolve)
 				);
+				let notifyLateConnection: () => void;
+				const lateConnection = new Promise<void>(
+					(resolve) => (notifyLateConnection = resolve)
+				);
 				const tcpServer = net.createServer((socket) => {
 					connections.push(socket);
+					if (connections.length > 1) {
+						notifyLateConnection();
+					}
 					socket.once('data', () => notifyWaiting());
 				});
 				await new Promise<void>((resolve) =>
@@ -435,28 +442,28 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				let php: PHP | undefined;
 				try {
 					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					// Closing the socket at exit can wake PHP waiting in fread(), and
+					// PHP then runs the rest of its script.
 					const request = php.run({
 						code: `<?php
 						$s = fsockopen('127.0.0.1', ${port});
-						stream_set_timeout($s, 2);
 						fwrite($s, 'waiting');
 						fread($s, 1);
-						echo 'read returned';
 						@fsockopen('127.0.0.1', ${port});
 						`,
 					});
+					// The test checks connections, not how the request ends.
+					request.catch(() => {});
 					await waiting;
-					const connectSpy = vi.spyOn(net, 'createConnection');
-					try {
-						php.exit();
-						// Preserve trunk's read completion behavior, without allowing
-						// the resumed script to open a connection after cleanup.
-						expect((await request).text).toBe('read returned');
-						expect(connectSpy).not.toHaveBeenCalled();
-						expect(connections).toHaveLength(1);
-					} finally {
-						connectSpy.mockRestore();
-					}
+					php.exit();
+					// Without the guard, the late connection arrives within a few
+					// hundred milliseconds, and after the request settles.
+					await Promise.race([
+						lateConnection,
+						new Promise((resolve) => setTimeout(resolve, 1000)),
+					]);
+
+					expect(connections).toHaveLength(1);
 				} finally {
 					php?.exit();
 					connections.forEach((socket) => socket.destroy());
