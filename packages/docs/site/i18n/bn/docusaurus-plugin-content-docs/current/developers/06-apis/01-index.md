@@ -7,7 +7,7 @@ slug: /developers/apis/
 ## WordPress Playground APIs overview
 -->
 
-## ওয়ার্ডপ্রেস প্লেগ্রাউন্ড API পরিচিতি
+## ওয়ার্ডপ্রেস প্লেগ্রাউন্ড API পরিচিতি {#wordpress-playground-apis-overview}
 
 <!--
 WordPress Playground exposes a few APIs that you can use to interact with the Playground:
@@ -23,7 +23,7 @@ import TOCInline from '@theme/TOCInline';
 ### Query API
 -->
 
-### কোয়েরি API (Query API)
+### কোয়েরি API (Query API) {#query-api}
 
 <!--
 Basic operations can be done by adjusting the URL, for example here's how you can preinstall a coblocks plugin:
@@ -65,7 +65,7 @@ Check the [Query API](/developers/apis/query-api) section for more info.
 ### Blueprints
 -->
 
-### ব্লুপ্রিন্ট (Blueprints)
+### ব্লুপ্রিন্ট (Blueprints) {#blueprints}
 
 <!--
 If you need more control over your Playground, you can use JSON Blueprints. For example, here's how to create a post and install a plugin:
@@ -137,7 +137,7 @@ Blueprints play a significant role in WordPress Playground, so they have their o
 ### Sites API
 -->
 
-### সাইটস API (Sites API)
+### সাইটস API (Sites API) {#sites-api}
 
 <!--
 The Playground website at [playground.wordpress.net](https://playground.wordpress.net) exposes a `window.playgroundSites` object for managing the sites shown in the Dock's **Playgrounds** pane — listing them, creating new ones, persisting temporary sites to OPFS or local disk, switching between them, and changing PHP version or networking.
@@ -165,7 +165,7 @@ Check the [Sites API](/developers/apis/sites-api) section for more info.
 ### JavaScript API
 -->
 
-### জাভাস্ক্রিপ্ট API (JavaScript API)
+### জাভাস্ক্রিপ্ট API (JavaScript API) {#javascript-api}
 
 <!--
 The `@wp-playground/client` package provides a JavaScript API you can use to fully control your Playground instance. Here's a simple example of what you can do:
@@ -201,7 +201,7 @@ Check the [JavaScript API](/developers/apis/javascript-api/) section for more in
 ## Playground APIs Concepts
 -->
 
-## প্লেগ্রাউন্ড API-এর ধারণাসমূহ (Concepts)
+## প্লেগ্রাউন্ড API-এর ধারণাসমূহ (Concepts) {#playground-apis-concepts}
 
 <!--
 WordPress Playground in the browser is all about links and iframes. Regardless of which API you choose, you will use it in one of the following ways:
@@ -213,7 +213,7 @@ WordPress Playground in the browser is all about links and iframes. Regardless o
 ### Link to the Playground site
 -->
 
-### প্লেগ্রাউন্ড সাইটের লিংক ব্যবহার করে
+### প্লেগ্রাউন্ড সাইটের লিংক ব্যবহার করে {#link-to-the-playground-site}
 
 <!--
 You can customize WordPress Playground by modifying the https://playground.wordpress.net/ link. You can, for example, create a post, request a specific plugin, or run any PHP code.
@@ -237,7 +237,7 @@ Once it's ready, simply post it on your site. It makes a great "Try it yourself"
 #### Embed in an `<iframe>`
 -->
 
-#### একটি `<iframe>`-এ এম্বেড করা
+#### একটি `<iframe>`-এ এম্বেড করা {#embed-in-an-iframe}
 
 <!--
 WordPress Playground can be embedded in your app using an `<iframe>`:
@@ -291,7 +291,7 @@ https://playground.wordpress.net সাইটটি মূলত কমিউন
 ### Browser APIs
 -->
 
-### ব্রাউজার API-সমূহ
+### ব্রাউজার API-সমূহ {#browser-apis}
 
 <!--
 The following Playground APIs are available in the browser:
@@ -315,7 +315,7 @@ The following Playground APIs are available in the browser:
 ### In Node.js
 -->
 
-### Node.js-এ
+### Node.js-এ {#in-nodejs}
 
 <!--
 The following Playground APIs are available in Node.js:
