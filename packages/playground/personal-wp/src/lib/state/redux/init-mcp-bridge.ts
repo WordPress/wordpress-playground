@@ -29,8 +29,12 @@ const PERSONAL_WP_MCP_SITE_SLUG = personalWPSiteSlug ?? 'default';
 
 startListening({
 	actionCreator: setOPFSSitesLoadingState,
-	effect: (_action, listenerApi) => {
+	effect: (action, listenerApi) => {
+		if (action.payload !== 'loaded') {
+			return;
+		}
 		listenerApi.unsubscribe();
+
 		let handle: McpBridgeHandle | null = null;
 		let connectedPort: number | null = null;
 

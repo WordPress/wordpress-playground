@@ -12,6 +12,49 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.63] (2026-11-09) 
+
+### Blueprints
+
+- Default v1 Blueprints to PHP 8\.3\. ([#4548](https://github.com/WordPress/wordpress-playground/pull/4548))
+- Support browser language selection\. ([#4505](https://github.com/WordPress/wordpress-playground/pull/4505))
+
+### Documentation
+
+- \[Docs\] Build the self\-hosted Playground website from source\. ([#4568](https://github.com/WordPress/wordpress-playground/pull/4568))
+- \[Docs\] Clarify JavaScript client setup and fix quick\-start links\. ([#4539](https://github.com/WordPress/wordpress-playground/pull/4539))
+- \[Docs\] Fix programmatic Playground CLI examples across translations\. ([#4547](https://github.com/WordPress/wordpress-playground/pull/4547))
+- \[i18n\] Add Bengali translation for developers\/23\-architecture\/01\-index\.md\. ([#4561](https://github.com/WordPress/wordpress-playground/pull/4561))
+- \[i18n\] Add Bengali translation for developers\/intro\-devs\.md\. ([#4551](https://github.com/WordPress/wordpress-playground/pull/4551))
+- \[i18n\] Add Bengali translation for local\-development\/intro\.md\. ([#4556](https://github.com/WordPress/wordpress-playground/pull/4556))
+- \[i18n\] Add Bengali translation for local\-development\/php\-wasm\-node\.md\. ([#4570](https://github.com/WordPress/wordpress-playground/pull/4570))
+- \[i18n\] Add Bengali translation for local\-development\/vscode\-extension\.md\. ([#4554](https://github.com/WordPress/wordpress-playground/pull/4554))
+- \[i18n\] Add Bengali translation for local\-development\/wp\-now\.md\. ([#4555](https://github.com/WordPress/wordpress-playground/pull/4555))
+- \[i18n\] Add Bengali translation for main\/guides\/phpunit\-testing\.md\. ([#4558](https://github.com/WordPress/wordpress-playground/pull/4558))
+- \[i18n\] Refresh PR preview guides for v4\. ([#4560](https://github.com/WordPress/wordpress-playground/pull/4560))
+- \[i18n\] Translate Programmatic Usage of Playground CLI into Gujarati\. ([#4546](https://github.com/WordPress/wordpress-playground/pull/4546))
+
+### PHP WebAssembly
+
+- Do not forward PHP\'s User\-Agent header to fetch\(\)\. ([#4307](https://github.com/WordPress/wordpress-playground/pull/4307))
+- \[ php\-wasm \] Reject browser clients in the outbound networking proxy\. ([#4492](https://github.com/WordPress/wordpress-playground/pull/4492))
+- \[ php\-wasm \] Remove 5s polling timeout from \`js\_fd\_read\` to fix blocking reads on slow pipes\. ([#3511](https://github.com/WordPress/wordpress-playground/pull/3511))
+
+### Website
+
+- Add Dock Query API options for all initial states\. ([#4563](https://github.com/WordPress/wordpress-playground/pull/4563))
+- Open the Reprint clone form from a site link\. ([#4552](https://github.com/WordPress/wordpress-playground/pull/4552))
+- Show Reprint connection details below Copy migration key\. ([#4553](https://github.com/WordPress/wordpress-playground/pull/4553))
+- Support WebMCP tools in Personal WP remote access\. ([#4550](https://github.com/WordPress/wordpress-playground/pull/4550))
+- Use the recommended PHP version in wordpress\.html\. ([#4549](https://github.com/WordPress/wordpress-playground/pull/4549))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @Chand8547 @draganescu @fellyph @mho22 @shamiulbishal
+
+
 ## [v3.1.62] (2026-11-02) 
 
 ### Tools

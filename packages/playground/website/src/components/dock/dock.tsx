@@ -26,6 +26,7 @@ import {
 	readDockFullWidth,
 	writeDockFullWidth,
 } from '../../lib/dock-full-width';
+import { readDockMode } from '../../lib/dock-mode';
 import {
 	getActiveClientInfo,
 	selectActiveSiteError,
@@ -200,10 +201,25 @@ export function Dock({
 		height: window.innerHeight,
 	}));
 	const [dockCenter, setDockCenter] = useState<number | null>(null);
-	const [isCollapsed, setIsCollapsed] = useState(false);
-	const [isFullWidth, setIsFullWidth] = useState(readDockFullWidth);
+	const [initialDockMode] = useState(readDockMode);
+	const [isCollapsed, setIsCollapsed] = useState(
+		initialDockMode === 'collapsed' ||
+			initialDockMode === 'full-width-collapsed'
+	);
+	const [isFullWidth, setIsFullWidth] = useState(() =>
+		initialDockMode === undefined
+			? readDockFullWidth()
+			: initialDockMode === 'full-width' ||
+				initialDockMode === 'full-width-collapsed'
+	);
 	const [isDragging, setIsDragging] = useState(false);
-	const [cornerSide, setCornerSide] = useState<'left' | 'right' | null>(null);
+	// `?dock=minimized` starts in the left corner launcher. Mobile and an open
+	// pane still reset this through the effects below, as they do after a drag.
+	const [cornerSide, setCornerSide] = useState<'left' | 'right' | null>(() =>
+		initialDockMode === 'minimized' && !isMobile && !dockPaneIsOpen
+			? 'left'
+			: null
+	);
 	const [isModeSwitching, setIsModeSwitching] = useState(false);
 	const [isFolding, setIsFolding] = useState(false);
 	const [isUnfolding, setIsUnfolding] = useState(false);
