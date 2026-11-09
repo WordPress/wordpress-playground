@@ -150,7 +150,7 @@ EM_JS(char*, js_popen_to_file, (const char *command, const char *mode, uint8_t *
  */
 #ifdef PLAYGROUND_JSPI
 EM_ASYNC_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
-	const returnCallback = (resolver) => new Promise((resolve, reject) => resolver(resolve, reject));
+	const returnCallback = (resolver) => new Promise(resolver);
 #else
 EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 	const returnCallback = (resolver) => Asyncify.handleSleep(resolver);
@@ -162,16 +162,8 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
     const POLLHUP = 0x0010; /* Hung up */
     const POLLNVAL = 0x0020; /* Invalid request: fd not open */
 
-    return returnCallback((wakeUp, abort) => {
+    return returnCallback((wakeUp) => {
         const polls = [];
-        let timeoutId;
-        const wait = PHPWASM.createNetworkWait(wakeUp, () => {
-            clearTimeout(timeoutId);
-            polls.forEach(([, cancel]) => cancel());
-        }, abort);
-        if (!wait.active) {
-            return;
-        }
         /**
 		 * Special semantics for polling sockets.
 		 *
@@ -186,7 +178,7 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
             // This is, most likely, a websocket. Let's make sure.
             const sock = getSocketFromFD(socketd);
             if (!sock) {
-                wait.finish(0);
+                wakeUp(0);
                 return;
             }
             const lookingFor = new Set();
@@ -195,19 +187,19 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
                 if (sock.server) {
                     for (const client of sock.pending) {
                         if ((client.recv_queue || []).length > 0) {
-                            wait.finish(1);
+                            wakeUp(1);
                             return;
                         }
                     }
                 } else if ((sock.recv_queue || []).length > 0) {
-                    wait.finish(1);
+                    wakeUp(1);
                     return;
                 }
             }
 
             const webSockets = PHPWASM.getAllWebSockets(sock);
             if (!webSockets.length) {
-                wait.finish(0);
+                wakeUp(0);
                 return;
             }
             for (const ws of webSockets) {
@@ -239,7 +231,6 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 			// Poll the stream for data.
 			// @TODO: Consider reusing the polling implementation in js_fd_read().
 			let interrupted = false;
-			let pollTimeoutId;
 			async function poll() {
 				try {
 					// Inlined ___syscall_poll with added await support:
@@ -260,9 +251,7 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 						if (interrupted) {
 							return ERRNO_CODES.ETIMEDOUT;
 						}
-						await new Promise(resolve => {
-							pollTimeoutId = setTimeout(resolve, 10);
-						});
+						await new Promise(resolve => setTimeout(resolve, 10));
 					}
 				} catch (e) {
 					if (typeof FS == 'undefined' || !(e.name === 'ErrnoError')) throw e;
@@ -273,12 +262,11 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
 				poll(),
 				() => {
 					interrupted = true;
-					clearTimeout(pollTimeoutId);
 				}
 			]);
         } else {
-			timeoutId = setTimeout(function () {
-				wait.finish(1);
+			setTimeout(function () {
+				wakeUp(1);
 			}, timeout);
 			return;
         }
@@ -288,15 +276,35 @@ EM_JS(int, wasm_poll_socket, (php_socket_t socketd, int events, int timeout), {
                     events +
                     ', defaulting to setTimeout().'
             );
-            timeoutId = setTimeout(function () {
-                wait.finish(0);
+            setTimeout(function () {
+                wakeUp(0);
             }, timeout);
             return;
         }
 
-        Promise.race(polls.map(([promise]) => promise)).then(() => wait.finish(1));
+        const promises = polls.map(([promise]) => promise);
+        const clearPolling = () => polls.forEach(([, clear]) => clear());
+        let awaken = false;
+        let timeoutId;
+        Promise.race(promises).then(function (results) {
+            if (!awaken) {
+                awaken = true;
+                wakeUp(1);
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                }
+                clearPolling();
+            }
+        });
+
         if (timeout !== -1) {
-            timeoutId = setTimeout(() => wait.finish(0), timeout);
+            timeoutId = setTimeout(function () {
+                if (!awaken) {
+                    awaken = true;
+                    wakeUp(0);
+                    clearPolling();
+                }
+            }, timeout);
         }
     });
 });

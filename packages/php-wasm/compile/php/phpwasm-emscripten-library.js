@@ -35,7 +35,7 @@ const LibraryExample = {
 	},
 
 	// Emscripten dependencies:
-	$PHPWASM__deps: ['$allocateUTF8OnStack', '$addOnInit', '$ExitStatus'],
+	$PHPWASM__deps: ['$allocateUTF8OnStack', '$addOnInit'],
 	$PHPWASM__postset: 'PHPWASM.init();',
 
 	// Functions not exposed to C but available in the generated
@@ -51,20 +51,11 @@ const LibraryExample = {
 		SETFL_MASK:
 			Number('{{{cDefs.O_APPEND}}}') | Number('{{{cDefs.O_NONBLOCK}}}'),
 		socketTimeouts: new Map(),
-		pendingNetworkWaits: new Set(),
-		networkingExited: false,
 		// These macros are not defined in Emscripten at the time of writing:
 		// emscripten_O_NDELAY |
 		// emscripten_O_DIRECT |
 		// emscripten_O_NOATIME
 		init: function () {
-			Module['cancelNetworkWaits'] = (code = 0) => {
-				PHPWASM.networkingExited = true;
-				for (const wait of PHPWASM.pendingNetworkWaits) {
-					wait.cancel(code);
-				}
-				PHPWASM.socketTimeouts.clear();
-			};
 			// TODO: Move this to a library function that is made an onInit callback by the `__postset` suffix.
 			if (PHPLoader.bindUserSpace) {
 				/**
@@ -494,57 +485,12 @@ const LibraryExample = {
 			});
 			const cancel = () => {
 				ws.removeListener(event, listener);
-				// Do not settle cancelled waits: that could resume exited PHP.
+				// Rejecting the promises bubbles up and kills the entire
+				// node process. Let's resolve them on the next tick instead
+				// to give the caller some space to unbind any handlers.
+				setTimeout(resolve);
 			};
 			return [promise, cancel];
-		},
-
-		/**
-		 * Owns the lifetime of an asynchronous socket operation. Exit cancels
-		 * its timers and listeners without continuing the PHP script. JSPI
-		 * must unwind its suspended native stack so V8 can release the runtime.
-		 * Completion checks active even for callbacks already queued at exit.
-		 */
-		createNetworkWait: function (wakeUp, cleanup, abort) {
-			const wait = {
-				active: !PHPWASM.networkingExited,
-				finish(result) {
-					if (!wait.active) {
-						return;
-					}
-					stop();
-					wakeUp(result);
-				},
-				cancel(code) {
-					if (!wait.active) {
-						return;
-					}
-					stop();
-					abort?.(new ExitStatus(code));
-				},
-			};
-			function stop() {
-				wait.active = false;
-				PHPWASM.pendingNetworkWaits.delete(wait);
-				cleanup();
-			}
-			if (wait.active) {
-				PHPWASM.pendingNetworkWaits.add(wait);
-			}
-			return wait;
-		},
-		awaitNetworkOperation: function (start) {
-			if (typeof Asyncify.makeAsyncFunction === 'function') {
-				const operation = Asyncify.handleAsync(() =>
-					new Promise((resolve, reject) => start(resolve, reject))
-				);
-				// Some syscall shims ignore the returned promise. Mark it handled
-				// so cancelling them isn't an unhandled rejection. JSPI still
-				// receives the original rejection and unwinds the suspended stack.
-				operation.catch(PHPWASM.noop);
-				return operation;
-			}
-			return Asyncify.handleSleep(start);
 		},
 		noop: function () {},
 
@@ -1127,18 +1073,14 @@ const LibraryExample = {
 	 * @returns {Promise} Resolved with the number of bytes recieved
 	 */
 	wasm_recv: function (sockfd, buffer, size, flags) {
-		return PHPWASM.awaitNetworkOperation((wakeUp, abort) => {
-			const receiveTimeout = PHPWASM.socketTimeouts.get(sockfd)?.receive;
+		return Asyncify.handleSleep((wakeUp) => {
+			const receiveTimeout =
+				PHPWASM.socketTimeouts.get(sockfd)?.receive;
 			const startedAt = Date.now();
-			let timeoutId;
-			const wait = PHPWASM.createNetworkWait(
-				wakeUp,
-				() => clearTimeout(timeoutId),
-				abort
-			);
+			let resolved = false;
 
 			const poll = function () {
-				if (!wait.active) {
+				if (resolved) {
 					return;
 				}
 				let newl = ___syscall_recvfrom(
@@ -1150,18 +1092,21 @@ const LibraryExample = {
 					null
 				);
 				if (newl > 0) {
-					wait.finish(newl);
+					resolved = true;
+					wakeUp(newl);
 				} else if (newl === -ERRNO_CODES.EAGAIN) {
 					if (
 						receiveTimeout > 0 &&
 						Date.now() - startedAt >= receiveTimeout
 					) {
-						wait.finish(-ERRNO_CODES.EAGAIN);
+						resolved = true;
+						wakeUp(-ERRNO_CODES.EAGAIN);
 						return;
 					}
-					timeoutId = setTimeout(poll, 20);
+					setTimeout(poll, 20);
 				} else {
-					wait.finish(0);
+					resolved = true;
+					wakeUp(0);
 				}
 			};
 			poll();
@@ -1177,8 +1122,8 @@ const LibraryExample = {
 	 * SO_KEEPALIVE and TCP_NODELAY are propagated to the WebSockets proxy
 	 * server, which then sets them on the underlying TCP connection.
 	 *
-	 * SO_RCVTIMEO and SO_SNDTIMEO are stored per socket. wasm_recv()
-	 * uses SO_RCVTIMEO and wasm_connect() uses SO_SNDTIMEO.
+		 * SO_RCVTIMEO and SO_SNDTIMEO are stored per socket. wasm_recv()
+		 * uses SO_RCVTIMEO and wasm_connect() uses SO_SNDTIMEO.
 	 *
 	 * @param {int} socketd Socket descriptor
 	 * @param {int} level  Level at which the option is defined
@@ -1265,13 +1210,13 @@ const LibraryExample = {
 		 * and both are only available with JSPI. Asyncify is too difficult to maintain and
 		 * it's not getting that upgrade.
 		 */
-		if (!('Suspending' in WebAssembly)) {
+		if (!("Suspending" in WebAssembly)) {
 			var sock = getSocketFromFD(sockfd);
 			var info = getSocketAddress(addr, addrlen);
 			sock.sock_ops.connect(sock, info.addr, info.port);
 			return 0;
 		}
-		return PHPWASM.awaitNetworkOperation((wakeUp, abort) => {
+		return Asyncify.handleSleep((wakeUp) => {
 			// Get the socket
 			let sock;
 			try {
@@ -1337,6 +1282,7 @@ const LibraryExample = {
 			// disables the timeout, matching SO_SNDTIMEO semantics.
 			const sendTimeout = PHPWASM.socketTimeouts.get(sockfd)?.send;
 			const timeout = sendTimeout ?? 30000;
+			let resolved = false;
 			let timeoutId;
 			let handleOpen;
 			let handleError;
@@ -1354,14 +1300,6 @@ const LibraryExample = {
 				ws.removeEventListener('close', handleClose);
 			};
 
-			const wait = PHPWASM.createNetworkWait(
-				wakeUp,
-				cleanupConnectListeners,
-				abort
-			);
-			if (!wait.active) {
-				return;
-			}
 			const cleanupFailedConnect = (errno) => {
 				try {
 					if (
@@ -1381,11 +1319,13 @@ const LibraryExample = {
 			};
 
 			const finishConnect = (result) => {
-				if (wait.active) {
+				if (!resolved) {
+					resolved = true;
+					cleanupConnectListeners();
 					if (result < 0) {
 						cleanupFailedConnect(-result);
 					}
-					wait.finish(result);
+					wakeUp(result);
 				}
 			};
 

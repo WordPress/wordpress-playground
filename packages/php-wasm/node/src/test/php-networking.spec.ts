@@ -418,6 +418,52 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		});
 
 		describe('Runtime exit', () => {
+			it('should reject new connections after a blocked read returns during exit', async () => {
+				const connections: net.Socket[] = [];
+				let notifyWaiting: () => void;
+				const waiting = new Promise<void>(
+					(resolve) => (notifyWaiting = resolve)
+				);
+				const tcpServer = net.createServer((socket) => {
+					connections.push(socket);
+					socket.once('data', () => notifyWaiting());
+				});
+				await new Promise<void>((resolve) =>
+					tcpServer.listen(0, '127.0.0.1', resolve)
+				);
+				const { port } = tcpServer.address() as net.AddressInfo;
+				let php: PHP | undefined;
+				try {
+					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					const request = php.run({
+						code: `<?php
+						$s = fsockopen('127.0.0.1', ${port});
+						stream_set_timeout($s, 2);
+						fwrite($s, 'waiting');
+						fread($s, 1);
+						echo 'read returned';
+						@fsockopen('127.0.0.1', ${port});
+						`,
+					});
+					await waiting;
+					const connectSpy = vi.spyOn(net, 'createConnection');
+					try {
+						php.exit();
+						// Preserve trunk's read completion behavior, without allowing
+						// the resumed script to open a connection after cleanup.
+						expect((await request).text).toBe('read returned');
+						expect(connectSpy).not.toHaveBeenCalled();
+						expect(connections).toHaveLength(1);
+					} finally {
+						connectSpy.mockRestore();
+					}
+				} finally {
+					php?.exit();
+					connections.forEach((socket) => socket.destroy());
+					await new Promise((resolve) => tcpServer.close(resolve));
+				}
+			});
+
 			it('should flush persistent and closed connections when the runtime exits', async () => {
 				const size = 8 * 1024 * 1024;
 				const tcpServer = net.createServer();
@@ -513,7 +559,8 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					});
 					await bothConnected;
 					// Record the local port of each socket the runtime unrefs. The
-					// server sees it as the connection's remotePort.
+					// server sees it as the connection's remotePort, and a client
+					// gets its local port as soon as it starts connecting.
 					const unrefedPorts = new Set<number | undefined>();
 					const unref = net.Socket.prototype.unref;
 					const unrefSpy = vi
@@ -539,64 +586,6 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 					tcpServer.close();
 				}
 			});
-
-			it.each([false, true])(
-				'should not resume PHP after exit (finite read timeout: %s)',
-				async (finiteTimeout) => {
-					const tcpServer = net.createServer({ allowHalfOpen: true });
-					const connections: net.Socket[] = [];
-					const waiting = new Promise<void>((resolve) =>
-						tcpServer.on('connection', (socket) => {
-							connections.push(socket);
-							socket.once('data', () => resolve());
-						})
-					);
-					await new Promise<void>((resolve) =>
-						tcpServer.listen(0, '127.0.0.1', resolve)
-					);
-					const { port } = tcpServer.address() as net.AddressInfo;
-					let php: PHP | undefined;
-					try {
-						php = new PHP(
-							await loadNodeRuntime(phpVersion, options)
-						);
-						let output: string | undefined;
-						let failure: unknown;
-						php.run({
-							code: `<?php
-						$socket = fsockopen('127.0.0.1', ${port});
-						${finiteTimeout ? 'stream_set_timeout($socket, 0, 100000);' : ''}
-						fwrite($socket, 'waiting');
-						fread($socket, 1);
-						echo 'continued after exit';
-						fsockopen('127.0.0.1', ${port});
-						`,
-						}).then(
-							(result) => (output = result.text),
-							(error) => (failure = error)
-						);
-						// PHP is waiting in fread() once its write arrives.
-						await waiting;
-						const ended = new Promise((resolve) =>
-							connections[0].once('end', resolve)
-						);
-						php.exit();
-						await ended;
-						// Wait beyond the finite read timeout as well as queued close events.
-						await new Promise((resolve) =>
-							setTimeout(resolve, 250)
-						);
-
-						expect(connections).toHaveLength(1);
-						expect(output ?? '').toBe('');
-						expect(failure).toBeUndefined();
-					} finally {
-						php?.exit();
-						connections.forEach((socket) => socket.destroy());
-						tcpServer.close();
-					}
-				}
-			);
 		});
 
 		describe('Listening sockets', () => {

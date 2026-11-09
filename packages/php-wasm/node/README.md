@@ -26,21 +26,10 @@ const output = await php.runStream({
 console.log(await output.stdoutText);
 ```
 
-## Runtime exit and networking
-
-`php.exit()` cancels pending socket polls, receives, and connection waits before
-releasing network handles. Cancelled waits do not resume PHP, and an exited
-runtime cannot create new TCP connections or listening sockets. Cancellation is
-per runtime; it does not affect other PHP instances.
-
-TCP sockets drain writes already queued in Node.js, including writes on persistent
-connections. They stop keeping Node.js alive once those writes finish. Cleanup
-cancels its timer when TCP closes and destroys connections still open after 30
-seconds. A peer that does not read can therefore lose queued data at that deadline.
-Writes still queued inside Emscripten before the socket opens are not guaranteed
-to drain. JSPI unwinds cancelled waits with the requested exit status so V8 can
-release the suspended stack; Asyncify abandons them without resuming PHP. Do not
-rely on an in-flight request completing after exit; discard the exited runtime.
+On runtime exit, listening sockets close and TCP sockets have up to 30 seconds
+to drain queued writes. The exited runtime cannot open new network connections.
+As on previous runtimes, `php.exit()` does not provide general cancellation of
+PHP code that was already executing.
 
 ## Loading PHP extensions
 

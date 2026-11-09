@@ -39,12 +39,10 @@ describe('networking port allocation', () => {
 		const listenSpy = vi.spyOn(net.Server.prototype, 'listen');
 		emscriptenOptions.closeNetworkConnections!();
 
-		expect(
-			() =>
-				new OutboundSocket(
-					emscriptenOptions['websocket'].url(null, '127.0.0.1', '9')
-				)
-		).toThrow('The PHP runtime has exited');
+		const socket = new OutboundSocket(
+			emscriptenOptions['websocket'].url(null, '127.0.0.1', '9')
+		);
+		await new Promise((resolve) => socket.once('close', resolve));
 		expect(() => new Server({ host: '127.0.0.1', port: 0 })).toThrow(
 			'The PHP runtime has exited'
 		);

@@ -29,11 +29,12 @@ export async function withNetworking(
 	// Each runtime gets its own classes, so it only releases its own sockets.
 	class RuntimeOutboundTcpSocket extends OutboundTcpSocket {
 		constructor(url: string) {
-			if (closed) {
-				throw new Error('The PHP runtime has exited');
+			// Use the existing failed-address path after exit. Throwing here
+			// escapes PHP with Asyncify instead of reporting a failed connection.
+			super(closed ? getOutboundTcpSocketUrl('', '0') : url);
+			if (!closed) {
+				track(this);
 			}
-			super(url);
-			track(this);
 		}
 	}
 

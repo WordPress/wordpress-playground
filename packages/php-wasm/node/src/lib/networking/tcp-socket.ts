@@ -22,7 +22,7 @@ function log(...args: any[]) {
 
 // How long a socket may keep sending after the runtime exits. It gives the peer
 // time to read what PHP wrote, while bounding how long a peer that never reads
-// or closes can hold the socket and delay a process exit.
+// or closes can hold the socket, the exited runtime's memory, and a process exit.
 export const RELEASED_SOCKET_TIMEOUT_MS = 30_000;
 
 const SOL_SOCKET = 1;
@@ -137,7 +137,9 @@ export class TcpSocket extends EventEmitter {
 	 *
 	 * Ending rather than destroying means the peer sees a normal end of stream,
 	 * even for a connection PHP left open mid-conversation, because destroying
-	 * would discard PHP's queued writes.
+	 * would discard PHP's queued writes. Until the socket closes, its listeners
+	 * keep the exited runtime alive, including its WebAssembly heap. The
+	 * timeout bounds that, and the runtime is freed once the socket closes.
 	 */
 	release() {
 		if (this.released) {
@@ -151,10 +153,6 @@ export class TcpSocket extends EventEmitter {
 		// Emscripten's own queue, not Node.js's, and are lost, as they were with
 		// the WebSocket proxy.
 		this.shutDown(socket?.connecting && socket.writableLength === 0);
-		// The runtime cancels pending waits before releasing sockets. Detach
-		// remaining Emscripten listeners as well, so draining TCP cannot send
-		// events into exited PHP. TCP's own listeners stay to drain queued writes.
-		this.removeAllListeners();
 		if (!socket || socket.destroyed) {
 			return;
 		}
@@ -164,8 +162,8 @@ export class TcpSocket extends EventEmitter {
 			RELEASED_SOCKET_TIMEOUT_MS
 		);
 		timeout.unref();
-		// Cancel the timer once TCP closes, so it doesn't keep the closed
-		// socket in memory for the rest of the timeout.
+		// The socket's listeners retain the runtime, so cancel the timer as
+		// soon as TCP closes rather than retaining it for the whole timeout.
 		socket.once('close', () => clearTimeout(timeout));
 	}
 
