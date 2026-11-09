@@ -133,6 +133,51 @@ test('WebMCP registers all tools', async ({ webmcpPage }) => {
 	]);
 });
 
+test('WebMCP cleanup preserves other tools and allows registration again', async ({
+	webmcpPage,
+}) => {
+	const clientModule = `/website-server/@fs/${process.cwd()}/packages/playground/mcp/src/client.ts`;
+	const result = await webmcpPage.evaluate(async (modulePath) => {
+		const { registerWebMCPTools, unregisterWebMCPTools } = await import(
+			/* @vite-ignore */ modulePath
+		);
+		const registry = (document as any).modelContext;
+		await registry.registerTool({
+			name: 'other_tool',
+			description: 'An unrelated tool',
+			execute: async () => ({}),
+		});
+
+		unregisterWebMCPTools();
+		const afterCleanup = registry.tools.map(
+			(tool: { name: string }) => tool.name
+		);
+
+		await registerWebMCPTools({
+			list: () => [],
+			getClient: () => undefined,
+			rename: async () => {},
+			saveInBrowser: async () => ({ slug: 'site', storage: 'temporary' }),
+		});
+		const afterRegistration = registry.tools.map(
+			(tool: { name: string }) => tool.name
+		);
+		unregisterWebMCPTools();
+		return {
+			afterCleanup,
+			afterRegistration,
+			afterSecondCleanup: registry.tools.map(
+				(tool: { name: string }) => tool.name
+			),
+		};
+	}, clientModule);
+
+	expect(result.afterCleanup).toEqual(['other_tool']);
+	expect(result.afterRegistration).toContain('playground_get_site_info');
+	expect(result.afterRegistration).toContain('other_tool');
+	expect(result.afterSecondCleanup).toEqual(['other_tool']);
+});
+
 test('WebMCP playground_execute_php runs PHP code', async ({ webmcpPage }) => {
 	const result = await webmcpPage.evaluate(async () => {
 		const executors = (window as any).__webmcpExecutors;
