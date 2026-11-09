@@ -311,6 +311,14 @@ load the JSPI build in CI. The `test-networking-asyncify` job runs the
 `@php-wasm/node` networking tests on Node 24.18.0, which loads the Asyncify build.
 Its `vite.asyncify.config.ts` stops with an error on Node versions that enable JSPI.
 
+Runtime exit cancels pending network waits before releasing TCP handles. The
+wait registry lives in `phpwasm-emscripten-library.js`; socket polls in `php_wasm.c`
+use the same registry as extension receives and connects. Keep the generated
+Node and web loader JavaScript in sync when changing this glue. Preserve the
+exit contracts in the Node networking, socket-timeout, and Redis tests: no PHP
+resumption or new connections after exit, bounded write draining, timer cleanup,
+and cancellation isolated to the exiting runtime.
+
 Dependabot's daily version check opens PRs for `fs-ext-extra-prebuilt` patch
 releases. It raises the minimum package version and updates the lockfile; the
 existing Dependabot lockfile workflow preserves workspace links. An explicit

@@ -16,6 +16,7 @@ export async function withNetworking(
 ): Promise<EmscriptenOptions> {
 	// The runtime releases these when it exits.
 	const openHandles = new Set<TcpSocket | TcpServer>();
+	let closed = false;
 	const track = (handle: TcpSocket | TcpServer) => {
 		openHandles.add(handle);
 		// A socket that PHP closed stays open until the peer closes its side,
@@ -28,6 +29,9 @@ export async function withNetworking(
 	// Each runtime gets its own classes, so it only releases its own sockets.
 	class RuntimeOutboundTcpSocket extends OutboundTcpSocket {
 		constructor(url: string) {
+			if (closed) {
+				throw new Error('The PHP runtime has exited');
+			}
 			super(url);
 			track(this);
 		}
@@ -35,6 +39,9 @@ export async function withNetworking(
 
 	class RuntimeTcpServer extends TcpServer {
 		constructor(options: TcpServerOptions) {
+			if (closed) {
+				throw new Error('The PHP runtime has exited');
+			}
 			super(options);
 			track(this);
 			this.on('connection', track);
@@ -44,6 +51,10 @@ export async function withNetworking(
 	return {
 		...phpModuleArgs,
 		closeNetworkConnections: () => {
+			if (closed) {
+				return;
+			}
+			closed = true;
 			// Drain queued writes and bound the lifetime of connections whose
 			// peers keep them open. See TcpSocket.release().
 			// Release each handle even if another one fails.

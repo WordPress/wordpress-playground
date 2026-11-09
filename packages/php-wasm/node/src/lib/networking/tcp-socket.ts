@@ -151,13 +151,9 @@ export class TcpSocket extends EventEmitter {
 		// Emscripten's own queue, not Node.js's, and are lost, as they were with
 		// the WebSocket proxy.
 		this.shutDown(socket?.connecting && socket.writableLength === 0);
-		// Detach Emscripten so nothing reaches the exited runtime. PHP may be
-		// waiting on this socket, for example in fread(), and the `close` that
-		// shutDown() emits would wake it. PHP would then run the rest of its
-		// script after exit and could open sockets that nothing releases. The
-		// listeners would also keep the exited runtime, including its
-		// WebAssembly heap, in memory until the socket closes. The TCP socket's
-		// own listeners stay, so queued writes still drain.
+		// The runtime cancels pending waits before releasing sockets. Detach
+		// remaining Emscripten listeners as well, so draining TCP cannot send
+		// events into exited PHP. TCP's own listeners stay to drain queued writes.
 		this.removeAllListeners();
 		if (!socket || socket.destroyed) {
 			return;
@@ -285,6 +281,10 @@ export class TcpServer extends EventEmitter {
 	constructor({ host, port }: TcpServerOptions) {
 		super();
 		this.server = net.createServer((socket) => {
+			if (this.closed) {
+				socket.destroy();
+				return;
+			}
 			// A client that reset the connection before Node.js handled it has
 			// no address. Emscripten's accept() fails on that with a JavaScript
 			// error instead of an errno, so drop the connection.

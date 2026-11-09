@@ -172,6 +172,13 @@ export async function loadPHPRuntime(
 	PHPRuntime.originalExit = PHPRuntime._exit;
 
 	PHPRuntime._exit = function (code: number) {
+		// Cancel PHP's pending network waits before closing TCP. Otherwise a
+		// close event or poll timeout can resume PHP after exit cleanup ran.
+		try {
+			PHPRuntime.cancelNetworkWaits?.(code);
+		} catch (error) {
+			logger.error('Failed to cancel network waits', error);
+		}
 		// Exit even if closing the network fails. PHP.exit() swallows errors,
 		// so a throw here would leave the runtime running without notice.
 		try {

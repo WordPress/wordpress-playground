@@ -18,6 +18,7 @@ import {
 } from '@php-wasm/universal';
 import { loadNodeRuntime } from '../lib';
 import { jspi } from 'wasm-feature-detect';
+import net from 'node:net';
 
 // Check JSPI availability at module load time (top-level await)
 const isJspiAvailable = await jspi();
@@ -289,6 +290,49 @@ if (!isJspiAvailable) {
 					expect(timeoutResult.error).toMatch(
 						/read|socket|timed? out/i
 					);
+				}
+			});
+
+			it('does not resume a pending extension receive after exit', async () => {
+				const connections: net.Socket[] = [];
+				let notifyWaiting: () => void;
+				const waiting = new Promise<void>(
+					(resolve) => (notifyWaiting = resolve)
+				);
+				// Accept the Redis command but never reply, forcing wasm_recv() to wait.
+				const server = net.createServer((socket) => {
+					connections.push(socket);
+					socket.once('data', () => notifyWaiting());
+				});
+				await new Promise<void>((resolve) =>
+					server.listen(0, '127.0.0.1', resolve)
+				);
+				const { port } = server.address() as net.AddressInfo;
+				let output: string | undefined;
+				let failure: unknown;
+				try {
+					php.run({
+						code: `<?php
+						$r = new Redis();
+						$r->connect('127.0.0.1', ${port});
+						$r->setOption(Redis::OPT_READ_TIMEOUT, 0.1);
+						try { $r->get('waiting'); } catch (Throwable $e) {}
+						echo 'continued after exit';
+						fsockopen('127.0.0.1', ${port});
+						`,
+					}).then(
+						(result) => (output = result.text),
+						(error) => (failure = error)
+					);
+					await waiting;
+					php.exit();
+					await new Promise((resolve) => setTimeout(resolve, 250));
+					expect(output ?? '').toBe('');
+					expect(failure).toBeUndefined();
+					expect(connections).toHaveLength(1);
+				} finally {
+					connections.forEach((socket) => socket.destroy());
+					await new Promise((resolve) => server.close(resolve));
 				}
 			});
 

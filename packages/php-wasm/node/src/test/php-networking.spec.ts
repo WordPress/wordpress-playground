@@ -540,49 +540,63 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				}
 			});
 
-			it('should not resume PHP waiting on a socket when the runtime exits', async () => {
-				const tcpServer = net.createServer({ allowHalfOpen: true });
-				const connections: net.Socket[] = [];
-				const waiting = new Promise<void>((resolve) =>
-					tcpServer.on('connection', (socket) => {
-						connections.push(socket);
-						socket.once('data', () => resolve());
-					})
-				);
-				await new Promise<void>((resolve) =>
-					tcpServer.listen(0, '127.0.0.1', resolve)
-				);
-				const { port } = tcpServer.address() as net.AddressInfo;
-				let php: PHP | undefined;
-				try {
-					php = new PHP(await loadNodeRuntime(phpVersion, options));
-					let settled = false;
-					php.run({
-						code: `<?php
+			it.each([false, true])(
+				'should not resume PHP after exit (finite read timeout: %s)',
+				async (finiteTimeout) => {
+					const tcpServer = net.createServer({ allowHalfOpen: true });
+					const connections: net.Socket[] = [];
+					const waiting = new Promise<void>((resolve) =>
+						tcpServer.on('connection', (socket) => {
+							connections.push(socket);
+							socket.once('data', () => resolve());
+						})
+					);
+					await new Promise<void>((resolve) =>
+						tcpServer.listen(0, '127.0.0.1', resolve)
+					);
+					const { port } = tcpServer.address() as net.AddressInfo;
+					let php: PHP | undefined;
+					try {
+						php = new PHP(
+							await loadNodeRuntime(phpVersion, options)
+						);
+						let output: string | undefined;
+						let failure: unknown;
+						php.run({
+							code: `<?php
 						$socket = fsockopen('127.0.0.1', ${port});
+						${finiteTimeout ? 'stream_set_timeout($socket, 0, 100000);' : ''}
 						fwrite($socket, 'waiting');
 						fread($socket, 1);
+						echo 'continued after exit';
 						fsockopen('127.0.0.1', ${port});
 						`,
-					}).finally(() => (settled = true));
-					// PHP is waiting in fread() once its write arrives.
-					await waiting;
-					const ended = new Promise((resolve) =>
-						connections[0].once('end', resolve)
-					);
-					php.exit();
-					await ended;
-					// A resumed script would open a second connection right away.
-					await new Promise((resolve) => setTimeout(resolve, 200));
+						}).then(
+							(result) => (output = result.text),
+							(error) => (failure = error)
+						);
+						// PHP is waiting in fread() once its write arrives.
+						await waiting;
+						const ended = new Promise((resolve) =>
+							connections[0].once('end', resolve)
+						);
+						php.exit();
+						await ended;
+						// Wait beyond the finite read timeout as well as queued close events.
+						await new Promise((resolve) =>
+							setTimeout(resolve, 250)
+						);
 
-					expect(connections).toHaveLength(1);
-					expect(settled).toBe(false);
-				} finally {
-					php?.exit();
-					connections.forEach((socket) => socket.destroy());
-					tcpServer.close();
+						expect(connections).toHaveLength(1);
+						expect(output ?? '').toBe('');
+						expect(failure).toBeUndefined();
+					} finally {
+						php?.exit();
+						connections.forEach((socket) => socket.destroy());
+						tcpServer.close();
+					}
 				}
-			});
+			);
 		});
 
 		describe('Listening sockets', () => {

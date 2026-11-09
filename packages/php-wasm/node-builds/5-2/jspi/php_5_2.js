@@ -6086,8 +6086,17 @@ export function init(RuntimeName, PHPLoader) {
 		O_NONBLOCK: 2048,
 		POLLHUP: 16,
 		SETFL_MASK: 3072,
-		socketTimeouts: new Map,
+		socketTimeouts: new Map(),
+		pendingNetworkWaits: new Set(),
+		networkingExited: false,
 		init: function () {
+			Module['cancelNetworkWaits'] = (code = 0) => {
+				PHPWASM.networkingExited = true;
+				for (const wait of PHPWASM.pendingNetworkWaits) {
+					wait.cancel(code);
+				}
+				PHPWASM.socketTimeouts.clear();
+			};
 			// TODO: Move this to a library function that is made an onInit callback by the `__postset` suffix.
 			if (PHPLoader.bindUserSpace) {
 				/**
@@ -6508,12 +6517,50 @@ export function init(RuntimeName, PHPLoader) {
 			});
 			const cancel = () => {
 				ws.removeListener(event, listener);
-				// Rejecting the promises bubbles up and kills the entire
-				// node process. Let's resolve them on the next tick instead
-				// to give the caller some space to unbind any handlers.
-				setTimeout(resolve);
 			};
 			return [promise, cancel];
+		},
+		createNetworkWait: function (wakeUp, cleanup, abort) {
+			const wait = {
+				active: !PHPWASM.networkingExited,
+				finish(result) {
+					if (!wait.active) {
+						return;
+					}
+					stop();
+					wakeUp(result);
+				},
+				cancel(code) {
+					if (!wait.active) {
+						return;
+					}
+					stop();
+					abort?.(new ExitStatus(code));
+				},
+			};
+			function stop() {
+				wait.active = false;
+				PHPWASM.pendingNetworkWaits.delete(wait);
+				cleanup();
+			}
+			if (wait.active) {
+				PHPWASM.pendingNetworkWaits.add(wait);
+			}
+			return wait;
+		},
+		awaitNetworkOperation: function (start) {
+			if (typeof Asyncify.makeAsyncFunction === 'function') {
+				const operation = Asyncify.handleAsync(
+					() =>
+						new Promise((resolve, reject) => start(resolve, reject))
+				);
+				// Some syscall shims ignore the returned promise. Mark it handled
+				// so cancelling them isn't an unhandled rejection. JSPI still
+				// receives the original rejection and unwinds the suspended stack.
+				operation.catch(PHPWASM.noop);
+				return operation;
+			}
+			return Asyncify.handleSleep(start);
 		},
 		noop: function () {},
 		parseSocketTimeout: function (optionValuePtr, optionLen) {
@@ -6612,13 +6659,14 @@ export function init(RuntimeName, PHPLoader) {
 		 * The async version was originally introduced to support the Memcached and Redis extensions,
 		 * and both are only available with JSPI. Asyncify is too difficult to maintain and
 		 * it's not getting that upgrade.
-		 */ if (!('Suspending' in WebAssembly)) {
+		 */
+		if (!('Suspending' in WebAssembly)) {
 			var sock = getSocketFromFD(sockfd);
 			var info = getSocketAddress(addr, addrlen);
 			sock.sock_ops.connect(sock, info.addr, info.port);
 			return 0;
 		}
-		return Asyncify.handleSleep((wakeUp) => {
+		return PHPWASM.awaitNetworkOperation((wakeUp, abort) => {
 			// Get the socket
 			let sock;
 			try {
@@ -6627,10 +6675,12 @@ export function init(RuntimeName, PHPLoader) {
 				wakeUp(-ERRNO_CODES.EBADF);
 				return;
 			}
+
 			if (!sock) {
 				wakeUp(-ERRNO_CODES.EBADF);
 				return;
 			}
+
 			// Parse the address
 			let info;
 			try {
@@ -6643,6 +6693,7 @@ export function init(RuntimeName, PHPLoader) {
 				wakeUp(-e.errno);
 				return;
 			}
+
 			// Perform the connect (this creates the WebSocket but doesn't wait)
 			try {
 				sock.sock_ops.connect(sock, info.addr, info.port);
@@ -6654,6 +6705,7 @@ export function init(RuntimeName, PHPLoader) {
 				wakeUp(-e.errno);
 				return;
 			}
+
 			// Get all websockets for this socket
 			const webSockets = PHPWASM.getAllWebSockets(sock);
 			if (!webSockets.length) {
@@ -6661,22 +6713,25 @@ export function init(RuntimeName, PHPLoader) {
 				wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				return;
 			}
+
 			const ws = webSockets[0];
+
 			// If already connected, return success
 			if (ws.readyState === ws.OPEN) {
 				wakeUp(0);
 				return;
 			}
+
 			// If already closed or closing, return error
 			if (ws.readyState === ws.CLOSING || ws.readyState === ws.CLOSED) {
 				wakeUp(-ERRNO_CODES.ECONNREFUSED);
 				return;
 			}
+
 			// Wait for the connection to be established. A zero timeval
 			// disables the timeout, matching SO_SNDTIMEO semantics.
 			const sendTimeout = PHPWASM.socketTimeouts.get(sockfd)?.send;
-			const timeout = sendTimeout ?? 3e4;
-			let resolved = false;
+			const timeout = sendTimeout ?? 30000;
 			let timeoutId;
 			let handleOpen;
 			let handleError;
@@ -6694,6 +6749,14 @@ export function init(RuntimeName, PHPLoader) {
 				ws.removeEventListener('close', handleClose);
 			};
 
+			const wait = PHPWASM.createNetworkWait(
+				wakeUp,
+				cleanupConnectListeners,
+				abort
+			);
+			if (!wait.active) {
+				return;
+			}
 			const cleanupFailedConnect = (errno) => {
 				try {
 					if (
@@ -6713,13 +6776,11 @@ export function init(RuntimeName, PHPLoader) {
 			};
 
 			const finishConnect = (result) => {
-				if (!resolved) {
-					resolved = true;
-					cleanupConnectListeners();
+				if (wait.active) {
 					if (result < 0) {
 						cleanupFailedConnect(-result);
 					}
-					wakeUp(result);
+					wait.finish(result);
 				}
 			};
 
@@ -6740,6 +6801,7 @@ export function init(RuntimeName, PHPLoader) {
 			handleClose = () => {
 				finishConnect(-ERRNO_CODES.ECONNREFUSED);
 			};
+
 			ws.addEventListener('open', handleOpen);
 			ws.addEventListener('error', handleError);
 			ws.addEventListener('close', handleClose);
@@ -9819,39 +9881,64 @@ export function init(RuntimeName, PHPLoader) {
 
 	function __asyncjs__wasm_poll_socket(socketd, events, timeout) {
 		return Asyncify.handleAsync(async () => {
-			const returnCallback = (resolver) => new Promise(resolver);
+			const returnCallback = (resolver) =>
+				new Promise((resolve, reject) => resolver(resolve, reject));
 			const POLLIN = 1;
 			const POLLPRI = 2;
 			const POLLOUT = 4;
 			const POLLERR = 8;
 			const POLLHUP = 16;
 			const POLLNVAL = 32;
-			return returnCallback((wakeUp) => {
+			return returnCallback((wakeUp, abort) => {
 				const polls = [];
+				let timeoutId;
+				const wait = PHPWASM.createNetworkWait(
+					wakeUp,
+					() => {
+						clearTimeout(timeoutId);
+						polls.forEach(([, cancel]) => cancel());
+					},
+					abort
+				);
+				if (!wait.active) {
+					return;
+				}
+				/**
+				 * Special semantics for polling sockets.
+				 *
+				 * @TODO: Remove this code branch entirely and poll sockets using the second if/else
+				 *        branch below. The only reason this wasn't done yet is that the original PR
+				 *        was focusing on removing child process-related special casing and did not
+				 *        want to increase the risk of breaking other code, especially around listening
+				 *        network sockets.
+				 */
 				const stream = FS.getStream(socketd);
 				if (FS.isSocket(stream?.node.mode)) {
+					// This is, most likely, a websocket. Let's make sure.
 					const sock = getSocketFromFD(socketd);
 					if (!sock) {
-						wakeUp(0);
+						wait.finish(0);
 						return;
 					}
 					const lookingFor = new Set();
+
 					if (events & POLLIN || events & POLLPRI) {
 						if (sock.server) {
 							for (const client of sock.pending) {
 								if ((client.recv_queue || []).length > 0) {
-									wakeUp(1);
+									wait.finish(1);
 									return;
 								}
 							}
 						} else if ((sock.recv_queue || []).length > 0) {
-							wakeUp(1);
+							wait.finish(1);
 							return;
 						}
 					}
+
 					const webSockets = PHPWASM.getAllWebSockets(sock);
 					if (!webSockets.length) {
-						wakeUp(0);
+						wait.finish(0);
 						return;
 					}
 					for (const ws of webSockets) {
@@ -9863,6 +9950,8 @@ export function init(RuntimeName, PHPLoader) {
 							polls.push(PHPWASM.awaitConnection(ws));
 							lookingFor.add('POLLOUT');
 						}
+						// Notify the user the socket is now closed even if the only requested
+						// in or out events.
 						if (
 							events & POLLHUP ||
 							events & POLLIN ||
@@ -9878,9 +9967,13 @@ export function init(RuntimeName, PHPLoader) {
 						}
 					}
 				} else if (stream?.stream_ops?.poll) {
+					// Poll the stream for data.
+					// @TODO: Consider reusing the polling implementation in js_fd_read().
 					let interrupted = false;
+					let pollTimeoutId;
 					async function poll() {
 						try {
+							// Inlined ___syscall_poll with added await support:
 							while (true) {
 								var mask = POLLNVAL;
 								mask = SYSCALLS.DEFAULT_POLLMASK;
@@ -9890,6 +9983,7 @@ export function init(RuntimeName, PHPLoader) {
 								if (stream.stream_ops?.poll) {
 									mask = stream.stream_ops.poll(stream, -1);
 								}
+
 								mask &= events | POLLERR | POLLHUP;
 								if (mask) {
 									return mask;
@@ -9897,9 +9991,9 @@ export function init(RuntimeName, PHPLoader) {
 								if (interrupted) {
 									return ERRNO_CODES.ETIMEDOUT;
 								}
-								await new Promise((resolve) =>
-									setTimeout(resolve, 10)
-								);
+								await new Promise((resolve) => {
+									pollTimeoutId = setTimeout(resolve, 10);
+								});
 							}
 						} catch (e) {
 							if (
@@ -9914,11 +10008,12 @@ export function init(RuntimeName, PHPLoader) {
 						poll(),
 						() => {
 							interrupted = true;
+							clearTimeout(pollTimeoutId);
 						},
 					]);
 				} else {
-					setTimeout(function () {
-						wakeUp(1);
+					timeoutId = setTimeout(function () {
+						wait.finish(1);
 					}, timeout);
 					return;
 				}
@@ -9928,34 +10023,17 @@ export function init(RuntimeName, PHPLoader) {
 							events +
 							', defaulting to setTimeout().'
 					);
-					setTimeout(function () {
-						wakeUp(0);
+					timeoutId = setTimeout(function () {
+						wait.finish(0);
 					}, timeout);
 					return;
 				}
-				const promises = polls.map(([promise]) => promise);
-				const clearPolling = () =>
-					polls.forEach(([, clear]) => clear());
-				let awaken = false;
-				let timeoutId;
-				Promise.race(promises).then(function (results) {
-					if (!awaken) {
-						awaken = true;
-						wakeUp(1);
-						if (timeoutId) {
-							clearTimeout(timeoutId);
-						}
-						clearPolling();
-					}
-				});
+
+				Promise.race(polls.map(([promise]) => promise)).then(() =>
+					wait.finish(1)
+				);
 				if (timeout !== -1) {
-					timeoutId = setTimeout(function () {
-						if (!awaken) {
-							awaken = true;
-							wakeUp(0);
-							clearPolling();
-						}
-					}, timeout);
+					timeoutId = setTimeout(() => wait.finish(0), timeout);
 				}
 			});
 		});

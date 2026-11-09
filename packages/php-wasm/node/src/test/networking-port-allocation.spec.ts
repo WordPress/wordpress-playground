@@ -31,6 +31,27 @@ describe('networking port allocation', () => {
 		expect(closeNetworkConnections).toHaveBeenCalledOnce();
 	});
 
+	it('does not open outbound or listening sockets after exit', async () => {
+		const emscriptenOptions = await withNetworking({});
+		const OutboundSocket = emscriptenOptions['websocket'].decorator();
+		const Server = emscriptenOptions['websocket'].serverDecorator();
+		const connectSpy = vi.spyOn(net, 'createConnection');
+		const listenSpy = vi.spyOn(net.Server.prototype, 'listen');
+		emscriptenOptions.closeNetworkConnections!();
+
+		expect(
+			() =>
+				new OutboundSocket(
+					emscriptenOptions['websocket'].url(null, '127.0.0.1', '9')
+				)
+		).toThrow('The PHP runtime has exited');
+		expect(() => new Server({ host: '127.0.0.1', port: 0 })).toThrow(
+			'The PHP runtime has exited'
+		);
+		expect(connectSpy).not.toHaveBeenCalled();
+		expect(listenSpy).not.toHaveBeenCalled();
+	});
+
 	it('listens only on the host and port PHP binds to', async () => {
 		const listenSpy = vi.spyOn(net.Server.prototype, 'listen');
 
