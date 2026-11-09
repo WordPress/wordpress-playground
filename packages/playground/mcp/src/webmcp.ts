@@ -72,8 +72,7 @@ function getActiveSite(config: PlaygroundBridgeConfig) {
 }
 
 export async function registerWebMCPTools(
-	config: PlaygroundBridgeConfig,
-	options?: { signal?: AbortSignal }
+	config: PlaygroundBridgeConfig
 ): Promise<void> {
 	const modelContext = getModelContext();
 	if (!modelContext) {
@@ -85,14 +84,6 @@ export async function registerWebMCPTools(
 	registrationController = new AbortController();
 	const controller = registrationController;
 	const signal = controller.signal;
-	if (options?.signal?.aborted) {
-		controller.abort();
-	} else {
-		options?.signal?.addEventListener('abort', () => controller.abort(), {
-			once: true,
-			signal,
-		});
-	}
 
 	function getActiveClient(): PlaygroundClient {
 		const client = config.getClient();
@@ -143,6 +134,9 @@ export async function registerWebMCPTools(
 			await modelContext.registerTool(tool, { signal });
 		})
 	);
+	if (signal.aborted) {
+		return;
+	}
 	const failedRegistrations: Array<{ name: string; reason: unknown }> = [];
 	for (const [index, result] of results.entries()) {
 		if (result.status === 'rejected') {
@@ -167,6 +161,12 @@ export async function registerWebMCPTools(
 					.join(', ')
 		);
 	}
+}
+
+/** Unregisters Playground's built-in WebMCP tools. */
+export function unregisterWebMCPTools(): void {
+	registrationController?.abort();
+	registrationController = null;
 }
 
 export function getModelContext(): ModelContext | undefined {
