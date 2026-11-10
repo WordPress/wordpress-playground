@@ -174,7 +174,11 @@ add_action('admin_print_scripts', function () {
  * on the WordPress origin cannot reach the worker serving the running site and
  * shows a blank page. The wrapper keeps the app origin on top, like the main app.
  *
- * This covers scripts that open WordPress URLs in new tabs, such as "View" actions.
+ * This covers scripts that open WordPress URLs in new tabs, such as "View" actions,
+ * and Core's wp-preview-* windows. Core's preview button writes a message into an
+ * empty window, saves the post, and then sets the window's location. It receives a
+ * stand-in window that sends this final navigation through the wrapper, so Core
+ * keeps its own save, autosave, and menu behavior.
  */
 function playground_open_wordpress_windows_in_app_popup() {
 	if (!defined('PLAYGROUND_PARENT_ORIGIN')) {
@@ -184,9 +188,19 @@ function playground_open_wordpress_windows_in_app_popup() {
 	<script>
 		(function () {
 			const appOrigin = <?php echo json_encode(PLAYGROUND_PARENT_ORIGIN); ?>;
+			const homeUrl = <?php echo json_encode(home_url()); ?>;
 			const open = window.open;
 
 			window.open = function (url, target, features) {
+				if (typeof target === 'string' && target.startsWith('wp-preview-')) {
+					// Post IDs repeat across sites, and related tabs share window names.
+					const name = target + '-' + homeUrl;
+					if (url) {
+						return open.call(window, popupUrl(url), name, features);
+					}
+					const popup = open.call(window, '', name, features);
+					return popup && previewWindow(popup);
+				}
 				// Other names can refer to frames, so wrap only new tabs.
 				if (url && (!target || target === '_blank')) {
 					return open.call(window, popupUrl(url), target, features);
@@ -201,8 +215,33 @@ function playground_open_wordpress_windows_in_app_popup() {
 					return url;
 				}
 				const popup = new URL('/wordpress-popup.html', appOrigin);
+				// Reload a reused named window, even when its destination is unchanged.
+				popup.searchParams.set('load', crypto.randomUUID());
 				popup.hash = destination.href;
 				return popup.href;
+			}
+
+			/** Provides the window members that Core's preview buttons use. */
+			function previewWindow(popup) {
+				return {
+					get closed() {
+						return popup.closed;
+					},
+					focus() {
+						popup.focus();
+					},
+					get document() {
+						try {
+							return popup.document;
+						} catch {
+							// A reused preview is the app-origin wrapper. Keep it until the reload.
+							return document.implementation.createHTMLDocument('');
+						}
+					},
+					set location(url) {
+						popup.location.href = popupUrl(url);
+					},
+				};
 			}
 		})();
 	</script>
