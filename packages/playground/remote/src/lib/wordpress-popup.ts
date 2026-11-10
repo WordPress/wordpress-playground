@@ -2,7 +2,7 @@ import { getURLScope } from '@php-wasm/scopes';
 import { wordPressSiteUrl } from './config';
 
 /**
- * Opens a WordPress tool in a popup with the same frame layout as the main app:
+ * Opens a WordPress page in a popup with the same frame layout as the main app:
  * an app-origin top-level page containing a WordPress-origin iframe.
  *
  * Browsers can select service-worker registrations using both the WordPress

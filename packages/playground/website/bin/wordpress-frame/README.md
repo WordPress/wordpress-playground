@@ -118,10 +118,12 @@ entry documents fetched before the app service worker took control. Production
 deployment uses the WP Cloud handler described above. No saved-site migration or
 account-token flow is changed.
 
-Database-tool popups keep an app-origin top-level document and render WordPress
-inside it. WebKit partitions service workers by the top-level origin, so opening
-the WordPress origin directly would lose the running site's transport. The popup
-accepts only scoped WordPress URLs and exposes no PHP or filesystem API.
+Database-tool popups and new tabs opened by WordPress scripts keep an app-origin
+top-level document and render WordPress inside it. WebKit partitions service
+workers by the top-level origin, so opening the WordPress origin directly would
+lose the running site's transport. The popup accepts only scoped WordPress URLs
+and exposes no PHP or filesystem API. Tabs that the browser opens without a
+script, such as a middle-clicked link, still use the WordPress origin directly.
 phpMyAdmin disables its frame-breaking script only in the split-origin runtime;
 its document still runs in the sandboxed WordPress-origin iframe.
 

@@ -168,6 +168,50 @@ add_action('admin_print_scripts', function () {
 });
 
 /**
+ * Opens new WordPress windows inside the app-origin popup wrapper.
+ *
+ * WebKit partitions service workers by the top-level origin. A tab opened directly
+ * on the WordPress origin cannot reach the worker serving the running site and
+ * shows a blank page. The wrapper keeps the app origin on top, like the main app.
+ *
+ * This covers scripts that open WordPress URLs in new tabs, such as "View" actions.
+ */
+function playground_open_wordpress_windows_in_app_popup() {
+	if (!defined('PLAYGROUND_PARENT_ORIGIN')) {
+		return;
+	}
+	?>
+	<script>
+		(function () {
+			const appOrigin = <?php echo json_encode(PLAYGROUND_PARENT_ORIGIN); ?>;
+			const open = window.open;
+
+			window.open = function (url, target, features) {
+				// Other names can refer to frames, so wrap only new tabs.
+				if (url && (!target || target === '_blank')) {
+					return open.call(window, popupUrl(url), target, features);
+				}
+				return open.apply(window, arguments);
+			};
+
+			/** Wraps a WordPress-origin URL. Other URLs open unchanged. */
+			function popupUrl(url) {
+				const destination = new URL(url, location.href);
+				if (destination.origin !== location.origin) {
+					return url;
+				}
+				const popup = new URL('/wordpress-popup.html', appOrigin);
+				popup.hash = destination.href;
+				return popup.href;
+			}
+		})();
+	</script>
+	<?php
+}
+add_action('wp_head', 'playground_open_wordpress_windows_in_app_popup');
+add_action('admin_head', 'playground_open_wordpress_windows_in_app_popup');
+
+/**
  * Adds target="_blank" to external links when clicked to open them in a new tab.
  * This prevents users from loading non-Playground pages inside the Playground iframe.
  */

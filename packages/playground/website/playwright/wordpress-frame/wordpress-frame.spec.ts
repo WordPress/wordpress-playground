@@ -610,7 +610,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		page,
 	}) => {
 		await page.goto('/?wp=6.9&php=8.3&storage=temp');
-		await ready(page);
+		const wp = await ready(page);
 		const path = await page.evaluate(async () => {
 			const client = (window as any).playgroundSites.getClient();
 			await client.writeFile(
@@ -640,6 +640,23 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			})
 		).toBe('SecurityError');
 		await popup.close();
+
+		// WordPress scripts that open new tabs get the same wrapper, e.g. "View" actions.
+		const wordPressOpened = page.waitForEvent('popup');
+		await wp.evaluate((url) => window.open(url, '_blank'), wpOrigin + path);
+		const wordPressPopup = await wordPressOpened;
+		await expect(
+			wordPressPopup.frameLocator('#wp').locator('body')
+		).toHaveText('popup PHP works');
+		expect(new URL(wordPressPopup.url()).origin).toBe(root);
+		await wordPressPopup.close();
+		// Other origins must not be sent to the wrapper, which would reject them.
+		const externalOpened = page.waitForEvent('popup');
+		await wp.evaluate((url) => window.open(url), external + '/');
+		const externalPopup = await externalOpened;
+		await externalPopup.waitForURL(external + '/');
+		await externalPopup.close();
+
 		// Changing only the first popup's hash would not rerun its URL check.
 		// Start a fresh document at about:blank so the error listener is ready
 		// before navigation executes the popup module with the rejected URL.
