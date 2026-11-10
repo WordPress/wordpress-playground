@@ -9,6 +9,7 @@
  */
 import { test, expect } from '@playwright/test';
 import type { Frame, Page } from '@playwright/test';
+import { getURLScope, setURLScope } from '@php-wasm/scopes';
 import { createServer } from 'node:http';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path';
@@ -604,6 +605,94 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		expect(response.status()).toBe(200);
 		expect(await response.text()).toContain('jQuery');
 		expect(new URL(response.url()).origin).toBe(wpOrigin);
+	});
+
+	// Native new-tab navigation must reach the same PHP runtime without exposing app storage.
+	// A top-level navigation may miss Safari's partitioned worker; the app worker
+	// must also allow its scoped alias through to the trusted wrapper.
+	test('scoped navigation falls back to the app wrapper', async ({
+		page,
+		browser,
+	}) => {
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		const wp = await ready(page);
+		const destination = setURLScope(
+			new URL('/wp-admin/themes.php', wpOrigin),
+			getURLScope(new URL(await wp.evaluate(() => window.location.href)))
+		);
+		destination.search = '?preview_nonce=a%2Bb';
+		destination.hash = '#preview';
+		// Force the server path independently of whether this browser can select
+		// the existing sandbox registration for a top-level navigation.
+		const response = await page.request.get(destination.href, {
+			headers: { 'Sec-Fetch-Dest': 'document' },
+			maxRedirects: 0,
+		});
+		expect(response.status()).toBe(302);
+		const alias = new URL(response.headers().location);
+		alias.hash = destination.hash;
+		expect(alias.origin).toBe(root);
+		const tab = await page.context().newPage();
+		await tab.goto(alias.href);
+		const content = tab.frameLocator('#wp');
+		await expect(
+			content.getByRole('heading', { name: /^Themes\b/ })
+		).toBeVisible();
+		expect(
+			await content.locator('body').evaluate(() => window.location.href)
+		).toBe(destination.href);
+		expect(
+			await content.locator('body').evaluate(() => {
+				try {
+					void window.parent.document;
+					return 'accessible';
+				} catch (error) {
+					return (error as DOMException).name;
+				}
+			})
+		).toBe('SecurityError');
+		await tab.reload();
+		await expect(
+			content.getByRole('heading', { name: /^Themes\b/ })
+		).toBeVisible();
+		await tab.close();
+		await wp.evaluate((href) => {
+			const link = document.createElement('a');
+			link.href = href;
+			link.textContent = 'Open themes in another tab';
+			link.id = 'native-navigation-probe';
+			document.body.prepend(link);
+		}, destination.href);
+		const opened = page.context().waitForEvent('page');
+		await wp
+			.locator('#native-navigation-probe')
+			.click({ button: 'middle' });
+		const nativeTab = await opened;
+		await expect
+			.poll(async () => {
+				for (const frame of nativeTab.frames()) {
+					if (
+						frame.url() === destination.href &&
+						(await frame
+							.getByRole('heading', {
+								name: /^Themes\b/,
+							})
+							.isVisible())
+					) {
+						return true;
+					}
+				}
+				return false;
+			})
+			.toBe(true);
+		await nativeTab.close();
+		const freshContext = await browser.newContext();
+		const missing = await freshContext.newPage();
+		await missing.goto(root + '/scope:unavailable/wp-admin/');
+		await expect(missing.frameLocator('#wp').locator('body')).toContainText(
+			'site is no longer running'
+		);
+		await freshContext.close();
 	});
 
 	test('WordPress popups use the running site without app storage access', async ({

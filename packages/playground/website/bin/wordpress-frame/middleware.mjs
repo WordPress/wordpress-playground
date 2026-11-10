@@ -1,4 +1,5 @@
 import express from 'express';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { isWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path.ts';
 
 /**
@@ -10,7 +11,7 @@ import { isWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-
  * loaders. Other WordPress-host requests return 404 from this server: a running
  * site's /scope:site-a/ pages come from the browser's WordPress service worker.
  *
- * Reject /scope:... on the app host too. Otherwise user HTML could load on the
+ * Scoped app navigations serve only the trusted iframe wrapper. User HTML must never load on the
  * same origin as the SPA and read its OPFS. Reject unknown hosts rather than
  * letting the static-file middleware expose the app under another hostname.
  * This middleware must therefore run before every express.static() handler.
@@ -35,7 +36,19 @@ export function wordPressFrameMiddleware(getSandboxDirectory) {
 	return (req, res, next) => {
 		res.set('X-Content-Type-Options', 'nosniff');
 		res.set('Cache-Control', 'no-store');
+		const scopedNavigation =
+			req.path.startsWith('/scope:') &&
+			req.method === 'GET' &&
+			req.get('Sec-Fetch-Dest') === 'document';
 		if (req.hostname === 'wp.playground.localhost') {
+			if (scopedNavigation) {
+				const app = new URL(
+					req.originalUrl,
+					`http://${req.get('host')}`
+				);
+				app.hostname = 'playground.localhost';
+				return res.redirect(302, app.href);
+			}
 			// Versions in these URLs bypass workers installed by a different release.
 			// They do not select a release from disk: serve the preview's selected
 			// sandbox helper, which already names that release's scripts.
@@ -48,11 +61,30 @@ export function wordPressFrameMiddleware(getSandboxDirectory) {
 				index: false,
 				redirect: false,
 				cacheControl: false,
-			})(req, res, () => res.sendStatus(404));
+			})(req, res, () =>
+				res
+					.status(404)
+					.type('text')
+					.send(
+						req.path.startsWith('/scope:')
+							? 'This Playground site is no longer running. Open it in Playground and try again.'
+							: 'Not found'
+					)
+			);
 		}
 		if (req.hostname !== 'playground.localhost') return res.sendStatus(404);
 		// Do not add COOP here: OAuth must retain its opener after cross-origin navigation.
-		if (req.path.startsWith('/scope:')) return res.sendStatus(404);
+		if (req.path.startsWith('/scope:')) {
+			if (!scopedNavigation) return res.sendStatus(404);
+			return res.sendFile(
+				fileURLToPath(
+					new URL(
+						'../wordpress-popup.html',
+						pathToFileURL(`${getSandboxDirectory()}/`)
+					)
+				)
+			);
+		}
 		if (
 			req.path.endsWith('.js') ||
 			req.path.startsWith('/assets/') ||

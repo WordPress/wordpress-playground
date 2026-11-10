@@ -97,8 +97,12 @@ The app host uses the existing `playground_handle_request()` logic for rewrites,
 conditional and unconditional redirects, directory indexes, MIME types, custom
 headers, cache exceptions, HEAD requests, and native PHP environment setup.
 There is no replacement app handler or new app-side PHP allowlist. Their credentials still come from WP Cloud persistent data via
-`playground_maybe_set_environment()`. The HTTP server returns 404 for scoped WordPress paths; the app service worker
-rejects their app-origin aliases; WordPress responses are served only on the sandbox.
+`playground_maybe_set_environment()`. Top-level GET navigations to scoped sandbox paths redirect to the configured app
+origin, preserving the path and query. Scoped app navigations serve the trusted
+`wordpress-popup.html` wrapper, whose iframe loads the original sandbox URL.
+Other scoped server requests return 404 to prevent iframe redirect loops. The app
+service worker passes top-level app aliases to this wrapper route and rejects
+scoped app subresource requests; WordPress responses are served only on the sandbox.
 The build creates a separate document root inside the private build:
 
 ```text

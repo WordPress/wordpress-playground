@@ -22,8 +22,8 @@
  * The same worker bundle can run on two origins. Its module URL identifies the
  * app origin; self.location.origin identifies the registration serving requests.
  * In a split-origin deployment, only the WordPress registration serves virtual
- * /scope:... pages. The app registration rejects those app-origin URLs so user
- * HTML cannot execute with the app's storage access.
+ * /scope:... pages. Scoped app navigations serve a trusted iframe wrapper; other
+ * scoped app requests are rejected so user HTML cannot access app storage.
  *
  * PHP stays in an app-origin worker. The WordPress service worker sends HTTP
  * requests to a hidden iframe on its own origin, which forwards them to its
@@ -280,6 +280,23 @@ self.addEventListener('fetch', (event) => {
 	// must not intercept sandbox URLs, and the PHP connection rejects their
 	// app-origin aliases so WordPress cannot run with app storage access.
 	if (isURLScoped(url) && url.origin !== self.location.origin) return;
+	if (
+		isURLScoped(url) &&
+		self.location.origin === playgroundOrigin &&
+		wordPressSiteUrl !== playgroundOrigin
+	) {
+		// App aliases serve only the trusted iframe wrapper, never WordPress HTML.
+		return event.respondWith(
+			event.request.mode === 'navigate' &&
+				event.request.destination === 'document'
+				? networkFirstFetch(
+						new Request(
+							new URL('/wordpress-popup.html', playgroundOrigin)
+						)
+					)
+				: Promise.resolve(new Response('Not found', { status: 404 }))
+		);
+	}
 
 	if (
 		self.location.origin !== playgroundOrigin &&
@@ -411,7 +428,11 @@ self.addEventListener('fetch', (event) => {
 		// ignore
 	}
 
-	if (referrerUrl && isURLScoped(referrerUrl)) {
+	if (
+		referrerUrl &&
+		referrerUrl.origin === wordPressSiteUrl &&
+		isURLScoped(referrerUrl)
+	) {
 		if (url.origin !== referrerUrl.origin) {
 			// Cross-origin requests can be handled by the service worker when they
 			// are initiated from a page in the service worker's scope.

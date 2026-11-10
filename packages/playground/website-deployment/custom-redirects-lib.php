@@ -35,8 +35,9 @@ function playground_is_static_file_needing_special_treatment( $path ) {
  *
  * @param string|null $build_directory Private main-website build, or null for the public layout.
  * @param string|null $wordpress_origin Configured sandbox origin; null for the legacy layout.
+ * @param string|null $app_origin Configured app origin; null for the legacy layout.
  */
-function playground_handle_request( $build_directory = null, $wordpress_origin = null ) {
+function playground_handle_request( $build_directory = null, $wordpress_origin = null, $app_origin = null ) {
 	// Endpoints and range handling can fail after setting cacheable headers.
 	// Check the final status before output. PHP has only one header callback;
 	// native endpoints must not replace this callback.
@@ -72,6 +73,11 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 	$original_requested_path = $url['path'];
 	$log( "Requested path: '$original_requested_path'" );
 
+	$is_scoped_navigation = null !== $app_origin &&
+		str_starts_with( $original_requested_path, '/scope:' ) &&
+		'GET' === $_SERVER['REQUEST_METHOD'] &&
+		'document' === ( $_SERVER['HTTP_SEC_FETCH_DEST'] ?? '' );
+
 	// Do not let this host reach the normal app handler, including its redirects
 	// and PHP endpoints. Shared app bundles keep their app-host URLs. WordPress's
 	// static-file redirects also need the /wp-<version>/ files on this origin.
@@ -79,6 +85,12 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 	if ( null !== $wordpress_origin && is_string( $request_host ) &&
 		0 === strcasecmp( $request_host, parse_url( $wordpress_origin, PHP_URL_HOST ) )
 	) {
+		if ( $is_scoped_navigation ) {
+			header( 'Cache-Control: no-store' );
+			header( 'A8C-Edge-Cache: no-cache' );
+			header( 'Location: ' . $app_origin . $_SERVER['REQUEST_URI'], true, 302 );
+			exit;
+		}
 		// Serve built helper/loader files or one WordPress static-asset directory.
 		// Never fall back to app files, redirects, directory indexes, or native PHP.
 		// Scoped WordPress pages come from the browser service worker, not this directory.
@@ -98,6 +110,10 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 			'php' === strtolower( pathinfo( $file, PATHINFO_EXTENSION ) )
 		) {
 			http_response_code( 404 );
+			if ( str_starts_with( $original_requested_path, '/scope:' ) ) {
+				header( 'Content-Type: text/plain; charset=utf-8' );
+				echo 'This Playground site is no longer running. Open it in Playground and try again.';
+			}
 			exit;
 		}
 		require_once __DIR__ . '/mime-types.php';
@@ -115,11 +131,21 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		exit;
 	}
 
+	if ( null !== $app_origin && str_starts_with( $original_requested_path, '/scope:' ) ) {
+		if ( ! $is_scoped_navigation ) {
+			http_response_code( 404 );
+			exit;
+		}
+		$may_edge_cache = false;
+		header( 'A8C-Edge-Cache: no-cache' );
+		header( 'Cache-Control: no-store' );
+	}
+
 	//
 	// REWRITES
 	//
-	$requested_path = $original_requested_path;
-	$rewritten_path = playground_maybe_rewrite( $original_requested_path );
+	$requested_path = $is_scoped_navigation ? '/wordpress-popup.html' : $original_requested_path;
+	$rewritten_path = playground_maybe_rewrite( $requested_path );
 	if ( $rewritten_path ) {
 		$requested_path = $rewritten_path;
 		$log( "Rewrote '$original_requested_path' to '$requested_path'" );
