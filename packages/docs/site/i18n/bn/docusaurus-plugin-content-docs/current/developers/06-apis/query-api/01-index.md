@@ -70,6 +70,7 @@ You can go ahead and try it out. The Playground will automatically install the t
 | `can-save`         |                       | Controls whether the Playground shell offers automatic browser saving. Use `can-save=no` to start a temporary Playground and hide the Dock save status/persistence prompt.                                                                                                                                                                                                                                                                                                  |
 | `mcp-port`         | `7999`                | Sets the WebSocket port used by the MCP bridge to communicate with the MCP server. For example, `mcp-port=8080`.                                                                                                                                                                                                                                                                                                                                                            |
 | `overlay`          |                       | Opens a Playground tool on page load. Supports `new` for the Dock's **New** pane. For example, `?overlay=new`. `blueprints` is kept as a compatibility alias that opens the same **New** pane, so `?overlay=blueprints` still works. The parameter is removed from the URL when the pane is closed.                                                                                                                                                                         |
+| `filebrowser`      |                       | Opens the Dock’s **Files** pane. Accepts an optional file path relative to the WordPress document root, and an optional `:<line>` suffix to place the editor cursor on a 1-based line. Ignored inside embedded iframes and when `mode=seamless`.                                                                                                                                                                 |
 | `dock`             |                       | Sets the initial Dock state. Accepts `minimized`, `collapsed`, `expanded`, `full-width`, or `full-width-collapsed`. Overrides the saved width preference for this visit. Ignored in seamless mode. Minimized and collapsed states are ignored on small screens. Opening a pane restores the Dock as needed.                                                                                                                                                                 |
 -->
 
@@ -99,6 +100,7 @@ You can go ahead and try it out. The Playground will automatically install the t
 | `can-save` | | প্লেগ্রাউন্ড শেল স্বয়ংক্রিয় ব্রাউজার সেভিং অফার করবে কিনা তা নিয়ন্ত্রণ করে। একটি অস্থায়ী প্লেগ্রাউন্ড শুরু করতে এবং ডক (Dock)-এর সেভ স্ট্যাটাস/পারসিস্টেন্স প্রম্পট লুকাতে `can-save=no` ব্যবহার করুন। |
 | `mcp-port` | `7999` | MCP সার্ভারের সাথে যোগাযোগের জন্য MCP ব্রিজ কর্তৃক ব্যবহৃত ওয়েবসকেট (WebSocket) পোর্ট নির্ধারণ করে। উদাহরণস্বরূপ, `mcp-port=8080`। |
 | `overlay` | | পেজ লোডের সময় একটি প্লেগ্রাউন্ড টুল খোলে। ডকের **New** প্যানেলের জন্য `new` সমর্থন করে। উদাহরণস্বরূপ, `?overlay=new`। `blueprints` একটি কম্প্যাটিবিলিটি উপনাম (alias) হিসেবে রাখা হয়েছে যা একই **New** প্যানেল খোলে, ফলে `?overlay=blueprints` এখনও কাজ করে। প্যানেলটি বন্ধ করা হলে URL থেকে প্যারামিটারটি অপসারিত হয়। |
+| `filebrowser` | | ডক (Dock)-এর **Files** প্যানেল খোলে। ওয়ার্ডপ্রেস ডকুমেন্ট রুটের সাপেক্ষে একটি ঐচ্ছিক ফাইল পাথ এবং ১-ভিত্তিক লাইনে এডিটর কার্সার স্থাপনের জন্য একটি ঐচ্ছিক `:<line>` প্রত্যয় গ্রহণ করে। এম্বেডেড iframe-এর অভ্যন্তরে এবং `mode=seamless` হলে এটি উপেক্ষা করা হয়। |
 | `dock` | | ডক (Dock)-এর প্রাথমিক অবস্থা নির্ধারণ করে। `minimized`, `collapsed`, `expanded`, `full-width`, অথবা `full-width-collapsed` গ্রহণ করে। এই ভিজিটের জন্য সংরক্ষিত উইডথ (width) প্রেফারেন্স ওভাররাইড করে। সিমলেস (seamless) মোডে উপেক্ষা করা হয়। ছোট স্ক্রিনে `minimized` এবং `collapsed` অবস্থাগুলো উপেক্ষা করা হয়। কোনো প্যানেল খোলা হলে প্রয়োজন অনুযায়ী ডক পুনরুদ্ধার করা হয়। |
 
 <!--
@@ -119,6 +121,44 @@ For example, the following code embeds a Playground with a preinstalled Gutenber
 
 ```html
 <iframe src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"> </iframe>
+```
+
+<!--
+To open the Dock’s **Files** pane, use:
+
+```text
+https://playground.wordpress.net/?filebrowser
+```
+
+To open the Dock’s **Files** pane with a specific file, use a path relative to the WordPress document root:
+
+```text
+https://playground.wordpress.net/?filebrowser=wp-content/plugins/my-plugin/index.php
+```
+
+To place the cursor on a specific 1-based line number, append `:<line>` to the path:
+
+```text
+https://playground.wordpress.net/?filebrowser=wp-content/plugins/my-plugin/index.php:20
+```
+-->
+
+ডক (Dock)-এর **Files** প্যানেল খুলতে ব্যবহার করুন:
+
+```text
+https://playground.wordpress.net/?filebrowser
+```
+
+ওয়ার্ডপ্রেস ডকুমেন্ট রুটের সাপেক্ষে কোনো নির্দিষ্ট ফাইল সহ ডকের **Files** প্যানেল খুলতে নিচের মতো পাথ ব্যবহার করুন:
+
+```text
+https://playground.wordpress.net/?filebrowser=wp-content/plugins/my-plugin/index.php
+```
+
+নির্দিষ্ট কোনো ১-ভিত্তিক লাইন নম্বরে কার্সার স্থাপন করতে পাথের শেষে `:<line>` যুক্ত করুন:
+
+```text
+https://playground.wordpress.net/?filebrowser=wp-content/plugins/my-plugin/index.php:20
 ```
 
 <!--
