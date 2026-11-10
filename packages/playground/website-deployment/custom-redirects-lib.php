@@ -112,7 +112,7 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 			http_response_code( 404 );
 			if ( str_starts_with( $original_requested_path, '/scope:' ) ) {
 				header( 'Content-Type: text/plain; charset=utf-8' );
-				echo 'This Playground site is no longer running. Open it in Playground and try again.';
+				echo 'This browser could not connect to the Playground site. Open it in Playground and try again.';
 			}
 			exit;
 		}

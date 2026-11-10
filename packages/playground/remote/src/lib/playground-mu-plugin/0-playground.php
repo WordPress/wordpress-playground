@@ -168,6 +168,74 @@ add_action('admin_print_scripts', function () {
 });
 
 /**
+ * Let older editors reuse previews after the sandbox server redirects them to the app.
+ *
+ * Core before 7.1 reads the preview document without checking its origin. A reused
+ * app-origin tab throws before the editor can save. Provide only the window members
+ * these preview buttons use, discarding the interstitial when the tab is cross-origin.
+ * Navigation still uses Core's original URL and the server's general redirect fallback.
+ */
+function playground_legacy_preview_windows() {
+	if (!defined('PLAYGROUND_PARENT_ORIGIN') ||
+		version_compare($GLOBALS['wp_version'], '7.1-alpha', '>=')) {
+		return;
+	}
+	if (!is_admin()) {
+		if (is_preview() && get_the_ID()) {
+			?>
+			<script>
+				// Core resets the preview's name; direct tabs must keep the site's suffix.
+				// In a wrapper, only its top-level window participates in named-tab reuse.
+				if (window === window.top) {
+					window.name = <?php echo json_encode('wp-preview-' . get_the_ID() . '-' . home_url()); ?>;
+				}
+			</script>
+			<?php
+		}
+		return;
+	}
+	?>
+	<script>
+		(function () {
+			const open = window.open;
+			const siteUrl = <?php echo json_encode(home_url()); ?>;
+			window.open = function (url, target, features) {
+				if (typeof target !== 'string' || !target.startsWith('wp-preview-')) {
+					return open.apply(window, arguments);
+				}
+				// Post IDs repeat across running sites, which can share named windows.
+				const popup = open.call(window, url, target + '-' + siteUrl, features);
+				if (!popup || url) {
+					return popup;
+				}
+				return {
+					get closed() {
+						return popup.closed;
+					},
+					focus() {
+						popup.focus();
+					},
+					get document() {
+						try {
+							return popup.document;
+						} catch {
+							return document.implementation.createHTMLDocument('');
+						}
+					},
+					set location(url) {
+						popup.location.href = url;
+					},
+				};
+			};
+		})();
+	</script>
+	<?php
+}
+add_action('admin_head', 'playground_legacy_preview_windows');
+// Run after Core's wp_post_preview_js, which assigns its unscoped window name.
+add_action('wp_head', 'playground_legacy_preview_windows', 2);
+
+/**
  * Adds target="_blank" to external links when clicked to open them in a new tab.
  * This prevents users from loading non-Playground pages inside the Playground iframe.
  */

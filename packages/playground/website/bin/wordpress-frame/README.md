@@ -195,3 +195,9 @@ there, which loads the original sandbox URL in its iframe. This preserves Safari
 service-worker partition for Cmd-click, middle-click, and editor previews. Iframe
 requests never redirect, so a missing runtime cannot create nested wrappers. The
 existing hash-based `wordpress-popup.html` URL remains available for tool popups.
+
+Editors before WordPress 7.1 receive a narrow `wp-preview-*` window adapter from
+the mu-plugin. It lets Core write its loading message after a reused tab has moved
+to the app origin, and scopes preview window names to the running site. Core keeps
+its own save/autosave logic and sandbox destination URLs. Other windows and newer
+Core versions retain their native window behavior.

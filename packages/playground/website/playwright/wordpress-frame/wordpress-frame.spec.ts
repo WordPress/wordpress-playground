@@ -613,6 +613,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	test('scoped navigation falls back to the app wrapper', async ({
 		page,
 		browser,
+		browserName,
 	}) => {
 		await page.goto('/?wp=6.9&php=8.3&storage=temp');
 		const wp = await ready(page);
@@ -668,6 +669,14 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			.locator('#native-navigation-probe')
 			.click({ button: 'middle' });
 		const nativeTab = await opened;
+		if (browserName === 'webkit') {
+			// This must be a real browser navigation, not the API-request probe above.
+			const expected = new URL(destination);
+			const app = new URL(root);
+			expected.protocol = app.protocol;
+			expected.host = app.host;
+			await expect(nativeTab).toHaveURL(expected.href);
+		}
 		await expect
 			.poll(async () => {
 				for (const frame of nativeTab.frames()) {
@@ -690,7 +699,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		const missing = await freshContext.newPage();
 		await missing.goto(root + '/scope:unavailable/wp-admin/');
 		await expect(missing.frameLocator('#wp').locator('body')).toContainText(
-			'site is no longer running'
+			'could not connect to the Playground site'
 		);
 		await freshContext.close();
 	});
@@ -885,6 +894,201 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		expect(title).toBe('Cross-origin editor');
 	});
 
+	// Contract: editor previews show saved drafts and autosaves from their own running site.
+	// Core saves asynchronously and reuses named tabs; either path can lose the sandbox's
+	// service-worker partition, show stale content, or reuse another site's post ID.
+	// WordPress 6.3 keeps its preview window object across clicks; later versions reopen
+	// the window by name.
+	for (const version of ['6.3', '6.9', 'beta']) {
+		test(`editor previews preserve drafts and reused tabs on WordPress ${version}`, async ({
+			page,
+			browserName,
+		}) => {
+			await page.goto(`/?wp=${version}&php=8.3&storage=temp`);
+			const editor = await openPostEditor(page, '/wp-admin/post-new.php');
+			await editPreviewPost(
+				editor,
+				'Draft preview',
+				'First draft content'
+			);
+			const opened = page.context().waitForEvent('page');
+			await previewPost(editor);
+			const popup = await opened;
+			const preview = await previewContent(popup);
+			await expect(preview.locator('body')).toContainText(
+				'First draft content'
+			);
+			expect(new URL(popup.url()).origin).toBe(
+				browserName === 'webkit' ? root : wpOrigin
+			);
+			expect(
+				await preview
+					.locator('body')
+					.evaluate(() => window.location.origin)
+			).toBe(wpOrigin);
+			expect(
+				await preview.locator('body').evaluate(() => {
+					try {
+						void window.parent.document;
+						return 'accessible';
+					} catch (error) {
+						return (error as DOMException).name;
+					}
+				})
+			).toBe(browserName === 'webkit' ? 'SecurityError' : 'accessible');
+
+			await editPreviewPost(
+				editor,
+				'Updated draft preview',
+				'Updated draft content'
+			);
+			await previewPost(editor);
+			await expect(preview.locator('body')).toContainText(
+				'Updated draft content'
+			);
+			await expect(preview.locator('body')).not.toContainText(
+				'First draft content'
+			);
+			expect(page.context().pages()).toHaveLength(2);
+			expect(
+				await editor.evaluate(() =>
+					(window as any).wp.data
+						.select('core/editor')
+						.getCurrentPostAttribute('status')
+				)
+			).toBe('draft');
+
+			// Even an unchanged destination must reload after another Preview click.
+			const reloaded = popup.waitForEvent('framenavigated', {
+				predicate: (frame) =>
+					frame.url().startsWith(wpOrigin + '/scope:'),
+			});
+			await previewPost(editor);
+			await reloaded;
+			await expect(preview.locator('body')).toContainText(
+				'Updated draft content'
+			);
+			expect(page.context().pages()).toHaveLength(2);
+			await popup.close();
+			const reopened = page.context().waitForEvent('page');
+			await previewPost(editor);
+			const reopenedPreview = await reopened;
+			await expect(
+				(await previewContent(reopenedPreview)).locator('body')
+			).toContainText('Updated draft content');
+			await reopenedPreview.close();
+
+			// Published posts use a separate autosave and nonce-bearing preview URL.
+			const published = await openPostEditor(
+				page,
+				'/wp-admin/post.php?post=1&action=edit'
+			);
+			await editPreviewPost(
+				published,
+				'Unpublished revision',
+				'Autosaved preview content'
+			);
+			const revisionOpened = page.context().waitForEvent('page');
+			await previewPost(published);
+			const revision = await revisionOpened;
+			const revisionContent = await previewContent(revision);
+			await expect(revisionContent.locator('body')).toContainText(
+				'Autosaved preview content'
+			);
+			const destination = new URL(
+				await revisionContent
+					.locator('body')
+					.evaluate(() => window.location.href)
+			);
+			expect(destination.searchParams.get('preview')).toBe('true');
+			expect(destination.searchParams.get('preview_id')).toBe('1');
+			expect(destination.searchParams.get('preview_nonce')).toBeTruthy();
+			const original = await page.evaluate(async () => {
+				const response = await (window as any).playgroundSites
+					.getClient()
+					.run({
+						code: "<?php require '/wordpress/wp-load.php'; echo get_post(1)->post_content;",
+					});
+				return response.text;
+			});
+			expect(original).not.toContain('Autosaved preview content');
+			await revision.close();
+		});
+	}
+
+	test('editor previews keep two running sites separate', async ({
+		page,
+	}) => {
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		const firstEditor = await openPostEditor(
+			page,
+			'/wp-admin/post.php?post=1&action=edit'
+		);
+		await editPreviewPost(firstEditor, 'First site', 'First site preview');
+		const firstOpened = page.context().waitForEvent('page');
+		await previewPost(firstEditor);
+		const firstPreview = await firstOpened;
+		const firstContent = await previewContent(firstPreview);
+		await expect(firstContent.locator('body')).toContainText(
+			'First site preview'
+		);
+
+		// Related tabs can find one another's named windows. Both sites preview post 1.
+		const secondOpened = page.waitForEvent('popup');
+		await page.evaluate(
+			(url) => window.open(url),
+			root + '/?wp=6.9&php=8.3&storage=temp'
+		);
+		const second = await secondOpened;
+		const secondEditor = await openPostEditor(
+			second,
+			'/wp-admin/post.php?post=1&action=edit'
+		);
+		await editPreviewPost(
+			secondEditor,
+			'Second site',
+			'Second site preview'
+		);
+		const secondPreviewOpened = second.context().waitForEvent('page');
+		await previewPost(secondEditor);
+		const secondPreview = await secondPreviewOpened;
+		const secondContent = await previewContent(secondPreview);
+		await expect(secondContent.locator('body')).toContainText(
+			'Second site preview'
+		);
+		await expect(firstContent.locator('body')).toContainText(
+			'First site preview'
+		);
+		const firstUrl = new URL(
+			await firstContent
+				.locator('body')
+				.evaluate(() => window.location.href)
+		);
+		const secondUrl = new URL(
+			await secondContent
+				.locator('body')
+				.evaluate(() => window.location.href)
+		);
+		expect(firstUrl.pathname).not.toBe(secondUrl.pathname);
+
+		await editPreviewPost(
+			firstEditor,
+			'First site updated',
+			'First site updated preview'
+		);
+		await previewPost(firstEditor);
+		await expect(firstContent.locator('body')).toContainText(
+			'First site updated preview'
+		);
+		await expect(secondContent.locator('body')).toContainText(
+			'Second site preview'
+		);
+		expect(page.context().pages()).toHaveLength(4);
+		await secondPreview.close();
+		await firstPreview.close();
+		await second.close();
+	});
+
 	test('local-directory saving keeps the actual handle on the root origin', async ({
 		page,
 		browserName,
@@ -1046,6 +1250,78 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		expect(await popup.evaluate(() => window.opener !== null)).toBe(true);
 		await popup.close();
 	});
+
+	/** Locate WordPress in the direct tab or Safari's app-origin wrapper. */
+	async function previewContent(page: Page) {
+		await page.waitForURL(
+			(url) => url.origin === root || url.origin === wpOrigin
+		);
+		return new URL(page.url()).origin === root
+			? page.frameLocator('#wp')
+			: page;
+	}
+
+	async function openPostEditor(page: Page, path: string): Promise<Frame> {
+		await ready(page);
+		await page.evaluate(
+			(path) => (window as any).playgroundSites.getClient().goTo(path),
+			path
+		);
+		const editor = await ready(page);
+		await editor.waitForFunction(() =>
+			Boolean(
+				(window as any).wp?.data
+					?.select('core/editor')
+					?.getCurrentPostId()
+			)
+		);
+		// The guide may render after this point. A preference hides it either way.
+		await editor.evaluate(() =>
+			(window as any).wp.data
+				.dispatch('core/preferences')
+				.set('core/edit-post', 'welcomeGuide', false)
+		);
+		await expect(
+			editor.getByRole('dialog', { name: /^Welcome to the/ })
+		).toBeHidden();
+		await expect(viewMenu(editor)).toBeVisible();
+		return editor;
+	}
+
+	async function editPreviewPost(
+		editor: Frame,
+		title: string,
+		content: string
+	) {
+		await editor.evaluate(
+			({ title, content }) => {
+				const { blocks, data } = (window as any).wp;
+				const store = data.dispatch('core/editor');
+				store.editPost({ title });
+				// WordPress 6.3 saves the editor's blocks over an edited content string.
+				store.resetEditorBlocks(
+					blocks.parse(
+						`<!-- wp:paragraph --><p>${content}</p><!-- /wp:paragraph -->`
+					)
+				);
+			},
+			{ title, content }
+		);
+	}
+
+	async function previewPost(editor: Frame) {
+		const preview = editor.getByRole('menuitem', { name: /^Preview/ });
+		// WordPress 6.3 leaves this menu open after a preview; later versions close it.
+		if (!(await preview.isVisible())) {
+			await viewMenu(editor).click();
+		}
+		await preview.click();
+	}
+
+	/** WordPress 6.5 renamed the editor's Preview menu to View. */
+	function viewMenu(editor: Frame) {
+		return editor.getByRole('button', { name: /^(View|Preview)$/ });
+	}
 
 	/**
 	 * Model a WordPress plugin replacing cached helper HTML with its own script.

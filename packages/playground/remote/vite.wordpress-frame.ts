@@ -117,7 +117,7 @@ export function wordPressFrameDevPlugin(
 				res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 				res.end(
 					url.pathname.startsWith('/scope:')
-						? 'This Playground site is no longer running. Open it in Playground and try again.'
+						? 'This browser could not connect to the Playground site. Open it in Playground and try again.'
 						: 'Not found'
 				);
 			});
