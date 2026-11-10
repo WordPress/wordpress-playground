@@ -199,12 +199,19 @@ function playground_legacy_preview_windows() {
 		(function () {
 			const open = window.open;
 			const siteUrl = <?php echo json_encode(home_url()); ?>;
+			document.addEventListener('DOMContentLoaded', () => {
+				const preview = document.getElementById('post-preview');
+				if (preview && preview.target.startsWith('wp-preview-')) {
+					// Classic Core copies this target to form#post before submitting it.
+					preview.target = previewTarget(preview.target);
+				}
+			});
 			window.open = function (url, target, features) {
 				if (typeof target !== 'string' || !target.startsWith('wp-preview-')) {
 					return open.apply(window, arguments);
 				}
 				// Post IDs repeat across running sites, which can share named windows.
-				const popup = open.call(window, url, target + '-' + siteUrl, features);
+				const popup = open.call(window, url, previewTarget(target), features);
 				if (!popup || url) {
 					return popup;
 				}
@@ -227,6 +234,11 @@ function playground_legacy_preview_windows() {
 					},
 				};
 			};
+
+			function previewTarget(target) {
+				const suffix = '-' + siteUrl;
+				return target.endsWith(suffix) ? target : target + suffix;
+			}
 		})();
 	</script>
 	<?php

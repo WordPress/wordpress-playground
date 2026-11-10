@@ -695,6 +695,11 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			})
 			.toBe(true);
 		await nativeTab.close();
+		// Classic previews submit POST forms, which can open directly only when the
+		// browser can select the sandbox worker without the app-origin wrapper.
+		if (browserName !== 'webkit') {
+			await classicPreviewReuse(page);
+		}
 		const freshContext = await browser.newContext();
 		const missing = await freshContext.newPage();
 		await missing.goto(root + '/scope:unavailable/wp-admin/');
@@ -1250,6 +1255,47 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		expect(await popup.evaluate(() => window.opener !== null)).toBe(true);
 		await popup.close();
 	});
+
+	// Core copies the preview link's target to a POST form. The preview page sets
+	// its own window name independently; a mismatch opens a new tab on every click.
+	async function classicPreviewReuse(page: Page) {
+		await page.evaluate(async () => {
+			const client = (window as any).playgroundSites.getClient();
+			await client.writeFile(
+				'/internal/shared/mu-plugins/classic-editor.php',
+				"<?php add_filter('use_block_editor_for_post', '__return_false');"
+			);
+			await client.goTo('/wp-admin/post-new.php');
+		});
+		const editor = await ready(page);
+		await editor.locator('#content-html').click();
+		await editor.locator('#title').fill('Classic preview');
+		await editor.locator('#content').fill('First classic preview');
+		const opened = page.context().waitForEvent('page');
+		await editor.locator('#post-preview').click();
+		const preview = await opened;
+		await expect(preview.locator('body')).toContainText(
+			'First classic preview'
+		);
+		expect(await preview.evaluate(() => window.name)).toBe(
+			await editor.locator('#post-preview').getAttribute('target')
+		);
+		await editor.locator('#content').fill('Updated classic preview');
+		await editor.locator('#post-preview').click();
+		await expect(preview.locator('body')).toContainText(
+			'Updated classic preview'
+		);
+		expect(page.context().pages()).toHaveLength(2);
+		// Scripts can also reuse Core's already-suffixed target without adding it twice.
+		await editor.evaluate(() => {
+			const link = document.querySelector(
+				'#post-preview'
+			) as HTMLAnchorElement;
+			window.open('', link.target);
+		});
+		expect(page.context().pages()).toHaveLength(2);
+		await preview.close();
+	}
 
 	/** Locate WordPress in the direct tab or Safari's app-origin wrapper. */
 	async function previewContent(page: Page) {
