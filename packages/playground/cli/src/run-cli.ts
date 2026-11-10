@@ -57,7 +57,6 @@ import {
 } from '@php-wasm/universal';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs, { type Argv, type Options as YargsOptions } from 'yargs';
-import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { resolveBlueprint } from './resolve-blueprint';
 import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
@@ -69,7 +68,10 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
-import { type WordPressInstallMode } from '@wp-playground/wordpress';
+import {
+	isValidWordPressVersion,
+	type WordPressInstallMode,
+} from '@wp-playground/wordpress';
 import {
 	type Mount,
 	addXdebugIDEConfig,
@@ -631,16 +633,11 @@ export async function parseOptionsAndRunCLI(
 				if (
 					args['wp'] !== undefined &&
 					typeof args['wp'] === 'string' &&
-					!isValidWordPressSlug(args['wp'])
+					!isValidWordPressVersion(args['wp'])
 				) {
-					try {
-						// Check if is valid URL
-						new URL(args['wp']);
-					} catch {
-						throw new Error(
-							'Unrecognized WordPress version. Please use "latest", "beta", "trunk", "nightly", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1" (see --help for details).'
-						);
-					}
+					throw new Error(
+						'Unrecognized WordPress version. Please use "latest", "beta", "trunk", "nightly", an http(s) URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1" (see --help for details).'
+					);
 				}
 
 				const siteUrlArg = args['site-url'];
