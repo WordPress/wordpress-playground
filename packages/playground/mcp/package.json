@@ -19,7 +19,6 @@
 			"require": "./index.cjs"
 		},
 		"./client": {
-			"types": "./client.d.ts",
 			"import": "./client.js",
 			"require": "./client.cjs"
 		},
