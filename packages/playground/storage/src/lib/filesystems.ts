@@ -421,6 +421,7 @@ export class NodeJsFilesystem implements ReadableFilesystemBackend {
 	private fs: any;
 	private path: any;
 	private root: string;
+	private realRoot?: Promise<string>;
 
 	constructor(root: string) {
 		this.root = root;
@@ -452,8 +453,27 @@ export class NodeJsFilesystem implements ReadableFilesystemBackend {
 			);
 		}
 
+		// The lexical check above does not account for symlinks, so also
+		// require the resolved target to stay under the resolved root.
+		let fullPath: string;
+		try {
+			fullPath = await this.fs.promises.realpath(filePath);
+		} catch (err: any) {
+			throw new Error(
+				`Failed to read file at ${filePath}: ${err.message}`
+			);
+		}
+		const realRoot = await this.getRealRoot();
+		if (
+			fullPath !== realRoot &&
+			!fullPath.startsWith(realRoot + this.path.sep)
+		) {
+			throw new Error(
+				`Refused to read a file outside of the root directory: ${filePath}`
+			);
+		}
+
 		return new Promise((resolve, reject) => {
-			const fullPath = this.path.resolve(filePath);
 			const stream = this.fs.createReadStream(fullPath);
 
 			stream.on('error', (err: any) => {
@@ -484,6 +504,13 @@ export class NodeJsFilesystem implements ReadableFilesystemBackend {
 				}
 			});
 		});
+	}
+
+	private getRealRoot(): Promise<string> {
+		if (!this.realRoot) {
+			this.realRoot = this.fs.promises.realpath(this.root);
+		}
+		return this.realRoot!;
 	}
 }
 

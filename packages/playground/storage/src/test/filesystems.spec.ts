@@ -10,6 +10,8 @@ import {
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { FileTree } from '@php-wasm/universal';
 import type { BlobReader, ZipReader } from '@zip.js/zip.js';
+import fs from 'fs';
+import os from 'os';
 import path from 'path';
 
 // Mock fetch for FetchFilesystem tests
@@ -438,6 +440,76 @@ describe('NodeJsFilesystem', () => {
 		await expect(filesystem.read('../../pygmalion.txt')).rejects.toThrow(
 			'Refused to read a file outside of the root directory'
 		);
+	});
+
+	describe.skipIf(process.platform === 'win32')('symlinks', () => {
+		let tmp: string;
+		let root: string;
+		let outsideFile: string;
+		let outsideDir: string;
+
+		beforeEach(() => {
+			tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'nodejs-fs-'));
+			root = path.join(tmp, 'root');
+			outsideDir = path.join(tmp, 'outside');
+			outsideFile = path.join(outsideDir, 'secret.txt');
+			fs.mkdirSync(path.join(root, 'sub'), { recursive: true });
+			fs.mkdirSync(outsideDir);
+			fs.writeFileSync(path.join(root, 'sub', 'inside.txt'), 'inside');
+			fs.writeFileSync(outsideFile, 'secret');
+			filesystem = new NodeJsFilesystem(root);
+		});
+
+		afterEach(() => {
+			fs.rmSync(tmp, { recursive: true, force: true });
+		});
+
+		it('should refuse a final-component symlink with an absolute outside target', async () => {
+			fs.symlinkSync(outsideFile, path.join(root, 'link.txt'));
+			await expect(filesystem.read('link.txt')).rejects.toThrow(
+				'Refused to read a file outside of the root directory'
+			);
+		});
+
+		it('should refuse a final-component symlink with a relative outside target', async () => {
+			fs.symlinkSync(
+				'../outside/secret.txt',
+				path.join(root, 'link.txt')
+			);
+			await expect(filesystem.read('link.txt')).rejects.toThrow(
+				'Refused to read a file outside of the root directory'
+			);
+		});
+
+		it('should refuse an intermediate directory symlink pointing outside', async () => {
+			fs.symlinkSync(outsideDir, path.join(root, 'absdir'));
+			fs.symlinkSync('../outside', path.join(root, 'reldir'));
+			await expect(filesystem.read('absdir/secret.txt')).rejects.toThrow(
+				'Refused to read a file outside of the root directory'
+			);
+			await expect(filesystem.read('reldir/secret.txt')).rejects.toThrow(
+				'Refused to read a file outside of the root directory'
+			);
+		});
+
+		it('should allow symlinks that stay inside the root', async () => {
+			fs.symlinkSync('sub/inside.txt', path.join(root, 'link.txt'));
+			fs.symlinkSync(path.join(root, 'sub'), path.join(root, 'subdir'));
+
+			const viaFile = await filesystem.read('link.txt');
+			expect(await streamToString(viaFile.stream())).toBe('inside');
+			const viaDir = await filesystem.read('subdir/inside.txt');
+			expect(await streamToString(viaDir.stream())).toBe('inside');
+		});
+
+		it('should allow reads when the root itself is reached through a symlink', async () => {
+			const rootLink = path.join(tmp, 'root-link');
+			fs.symlinkSync(root, rootLink);
+			filesystem = new NodeJsFilesystem(rootLink);
+
+			const file = await filesystem.read('sub/inside.txt');
+			expect(await streamToString(file.stream())).toBe('inside');
+		});
 	});
 });
 
