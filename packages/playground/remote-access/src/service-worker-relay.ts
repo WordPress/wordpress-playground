@@ -29,15 +29,27 @@ export function handleRemoteAccessRelayMessage(
 		if (typeof scope !== 'string' || typeof sessionId !== 'string') {
 			return true;
 		}
-		const existing = remoteAccessRelayMappings[scope];
+		const clientId = getSourceClientId(event);
+		const existing = getRemoteAccessRelayMapping(scope);
+		if (!isRelayMappingOwner(existing, clientId)) {
+			event.ports[0]?.postMessage({
+				type: 'remote-access-relay-map-error',
+				error: 'Remote access relay scope belongs to another page.',
+			});
+			return true;
+		}
+		// Cookies and diagnostics belong to a session; never carry them across.
+		const sameSession = existing?.sessionId === sessionId;
 		const ttlMs = getSafeRelayMappingTtl(ttl);
 		remoteAccessRelayMappings[scope] = {
 			scope,
 			sessionId,
-			clientId: getSourceClientId(event),
-			cookies: existing?.cookies,
-			interceptedRequests: existing?.interceptedRequests ?? 0,
-			lastInterceptedPath: existing?.lastInterceptedPath,
+			clientId,
+			cookies: (sameSession && existing.cookies) || {},
+			interceptedRequests: sameSession ? existing.interceptedRequests : 0,
+			lastInterceptedPath: sameSession
+				? existing.lastInterceptedPath
+				: undefined,
 			expiresAt: Date.now() + ttlMs,
 		};
 		event.ports[0]?.postMessage({
@@ -50,13 +62,30 @@ export function handleRemoteAccessRelayMessage(
 
 	if (data.type === 'remote-access-relay-clear') {
 		const { scope } = data as Record<string, unknown>;
-		if (typeof scope === 'string') {
+		if (
+			typeof scope === 'string' &&
+			isRelayMappingOwner(
+				getRemoteAccessRelayMapping(scope),
+				getSourceClientId(event)
+			)
+		) {
 			delete remoteAccessRelayMappings[scope];
 		}
 		return true;
 	}
 
 	return false;
+}
+
+/**
+ * A live mapping can only be replaced or cleared by the page that created it.
+ * Mappings recovered from a viewer URL have no owner until a page claims them.
+ */
+function isRelayMappingOwner(
+	mapping: RemoteAccessRelayMapping | undefined,
+	clientId: string | undefined
+): boolean {
+	return !mapping?.clientId || mapping.clientId === clientId;
 }
 
 function getSafeRelayMappingTtl(ttl: unknown): number {
@@ -96,14 +125,15 @@ export function getRemoteAccessRelayMappingFromUrl(
 	if (!sessionId) {
 		return;
 	}
-	const existing = remoteAccessRelayMappings[scope];
+	const existing = getRemoteAccessRelayMapping(scope);
+	if (existing) {
+		return existing;
+	}
 	remoteAccessRelayMappings[scope] = {
 		scope,
 		sessionId,
-		clientId: existing?.clientId,
-		cookies: existing?.cookies,
-		interceptedRequests: existing?.interceptedRequests ?? 0,
-		lastInterceptedPath: existing?.lastInterceptedPath,
+		cookies: {},
+		interceptedRequests: 0,
 		expiresAt: Date.now() + DEFAULT_RELAY_MAPPING_TTL_MS,
 	};
 	return remoteAccessRelayMappings[scope];
@@ -161,6 +191,10 @@ export async function handleRemoteAccessRelayRequest(
 	const path = `${unscopedUrl.pathname}${unscopedUrl.search}`;
 	mapping.interceptedRequests += 1;
 	mapping.lastInterceptedPath = `${event.request.method} ${path}`;
+	mapping.cookies ??= {};
+	// Bind this request to the session, client, and cookie jar it started with
+	// so a later remap cannot retarget it or receive its cookies.
+	mapping = { ...mapping };
 	const body = await requestBodyToBytes(event.request);
 	const headers = collectHeaders(event.request.headers);
 	applyRemoteAccessCookies(mapping, headers);
