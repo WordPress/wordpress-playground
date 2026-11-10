@@ -656,6 +656,30 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		await expect(
 			content.getByRole('heading', { name: /^Themes\b/ })
 		).toBeVisible();
+		// The controlled app worker must reject POST, rather than fetching a GET
+		// wrapper that silently drops the submitted form body. Server-only probes
+		// cannot catch this independent service-worker routing path.
+		const postTarget = new URL(alias);
+		postTarget.hash = '';
+		const posted = tab.waitForResponse(
+			(response) =>
+				response.url() === postTarget.href &&
+				response.request().method() === 'POST'
+		);
+		await tab.evaluate((action) => {
+			const form = document.createElement('form');
+			form.method = 'POST';
+			form.action = action;
+			const input = document.createElement('input');
+			input.name = 'preview_content';
+			input.value = 'This submission must not become a GET preview';
+			form.append(input);
+			document.body.append(form);
+			form.submit();
+		}, postTarget.href);
+		const rejected = await posted;
+		expect(rejected.fromServiceWorker()).toBe(true);
+		expect(rejected.status()).toBe(404);
 		await tab.close();
 		await wp.evaluate((href) => {
 			const link = document.createElement('a');

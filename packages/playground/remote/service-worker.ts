@@ -287,7 +287,8 @@ self.addEventListener('fetch', (event) => {
 	) {
 		// App aliases serve only the trusted iframe wrapper, never WordPress HTML.
 		return event.respondWith(
-			event.request.mode === 'navigate' &&
+			event.request.method === 'GET' &&
+				event.request.mode === 'navigate' &&
 				event.request.destination === 'document'
 				? networkFirstFetch(
 						new Request(
