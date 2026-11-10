@@ -1,14 +1,37 @@
-import { describe, it, expect, vi, type Mock } from 'vitest';
+import {
+	describe,
+	it,
+	expect,
+	vi,
+	beforeEach,
+	afterEach,
+	type Mock,
+} from 'vitest';
 import http from 'http';
 import { pipeline } from 'stream/promises';
 import { StreamedPHPResponse } from '@php-wasm/universal';
 import { startServer } from '../src/start-server';
 import { logger } from '@php-wasm/logger';
 import type StreamPromisesModule from 'stream/promises';
+import type * as ChildProcess from 'child_process';
+import { exec } from 'child_process';
 
 vi.mock('@php-wasm/logger', () => ({
-	logger: { error: vi.fn() },
+	logger: { error: vi.fn(), log: vi.fn() },
 }));
+
+vi.mock('child_process', async (importOriginal) => {
+	const actual = await importOriginal<typeof ChildProcess>();
+	return {
+		...actual,
+		exec: vi.fn((_command, callback) => {
+			if (typeof callback === 'function') {
+				callback(null as any, '' as any, '' as any);
+			}
+			return {} as any;
+		}),
+	};
+});
 
 vi.mock('stream/promises', async (importOriginal) => {
 	const actual = await importOriginal<typeof StreamPromisesModule>();
@@ -16,6 +39,51 @@ vi.mock('stream/promises', async (importOriginal) => {
 });
 
 describe('startServer', () => {
+	describe('in GitHub Codespaces', () => {
+		beforeEach(() => {
+			vi.stubEnv('CODESPACE_NAME', 'test-codespace');
+			vi.mocked(exec).mockClear();
+		});
+
+		afterEach(() => {
+			vi.unstubAllEnvs();
+		});
+
+		async function startAndClose(codespacesPublicPort?: boolean) {
+			const result = await startServer({
+				port: 0,
+				codespacesPublicPort,
+				handleRequest: async () => {
+					throw new Error('Unexpected request');
+				},
+				async onBind(server, port) {
+					return { server, port } as any;
+				},
+			});
+			const { server, port } = result as any;
+			server.close();
+			return port as number;
+		}
+
+		it('keeps the forwarded port private by default', async () => {
+			await startAndClose();
+
+			expect(exec).not.toHaveBeenCalledWith(
+				expect.stringMatching(/ports visibility .*:public/),
+				expect.anything()
+			);
+		});
+
+		it('makes the forwarded port public when asked to', async () => {
+			const port = await startAndClose(true);
+
+			expect(exec).toHaveBeenCalledWith(
+				`gh codespace ports visibility ${port}:public -c test-codespace`,
+				expect.anything()
+			);
+		});
+	});
+
 	it('closes the randomly assigned port when onBind throws', async () => {
 		const expectedError = new Error('onBind failed');
 		let boundServer: http.Server | undefined;

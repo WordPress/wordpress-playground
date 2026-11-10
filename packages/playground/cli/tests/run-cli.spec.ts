@@ -3,6 +3,7 @@ import os from 'node:os';
 import http from 'node:http';
 import { Worker } from 'node:worker_threads';
 import type * as ChildProcess from 'child_process';
+import { exec } from 'child_process';
 import {
 	runCLI,
 	parseOptionsAndRunCLI,
@@ -1473,6 +1474,63 @@ describe('start command', () => {
 		} finally {
 			exitSpy.mockRestore();
 			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	}, 180000);
+
+	test('turns off default auto-login when making the Codespaces port public', async () => {
+		vi.stubEnv('CODESPACE_NAME', 'test-codespace');
+		vi.mocked(exec).mockClear();
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-test-codespaces-public-')
+		);
+		const pluginDir = path.join(tmpDir, 'sample-plugin');
+		mkdirSync(pluginDir, { recursive: true });
+		writeFileSync(
+			path.join(pluginDir, 'sample-plugin.php'),
+			`<?php\n/*\nPlugin Name: Sample Plugin\n*/\n`
+		);
+		// `start` stores the site under a hash of the working directory.
+		const sitePath = path.join(
+			os.homedir(),
+			'.wordpress-playground/sites',
+			createHash('sha256').update(tmpDir).digest('hex')
+		);
+		const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+		try {
+			await using cliResult = (await parseOptionsAndRunCLI([
+				'start',
+				`--path=${pluginDir}`,
+				'--skip-browser',
+				'--quiet',
+				'--codespaces-public-port',
+			])) as CLIServerResult;
+			const { serverUrl } = cliResult[internalsKeyForTesting].cliServer;
+
+			expect(exec).toHaveBeenCalledWith(
+				`gh codespace ports visibility ${new URL(serverUrl).port}:public -c test-codespace`,
+				expect.anything()
+			);
+
+			const getWpAdmin = () =>
+				new Promise<http.IncomingMessage>((resolve, reject) => {
+					// http.get() exposes redirect responses; fetch() follows them.
+					http.get(new URL('/wp-admin/', serverUrl), (res) => {
+						res.resume();
+						resolve(res);
+					}).on('error', reject);
+				});
+			// The first request only clears a stale auto-login cookie.
+			await getWpAdmin();
+			const res = await getWpAdmin();
+
+			expect(res.statusCode).toBe(302);
+			expect(res.headers['location']).toContain('/wp-login.php');
+		} finally {
+			vi.unstubAllEnvs();
+			cwdSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true, force: true });
+			rmSync(sitePath, { recursive: true, force: true });
 		}
 	}, 180000);
 
