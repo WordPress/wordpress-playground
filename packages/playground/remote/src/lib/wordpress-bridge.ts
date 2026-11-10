@@ -4,11 +4,10 @@
  * This script runs in a hidden WordPress-origin helper iframe, not in remote.html
  * or the visible WordPress page. The helper's URL includes the app's buildVersion.
  * The service worker can reach this iframe because they share an origin. The
- * iframe can then postMessage() to its app-origin parent. Responses take the same
- * path back, with requestId kept intact so each response resolves the right
- * pending service-worker request.
+ * iframe registers a MessagePort for its scope with the worker, which sends that
+ * scope's requests only through it. The iframe forwards them to its app-origin
+ * parent, and each response returns through the port that carried its request.
  *
- * Accept worker messages only from this registration's active worker and scope.
  * Accept responses only from the actual parent window at playgroundOrigin, with
  * that scope. The parent performs the HTTP URL and method checks before calling
  * PHP. No directory handles or general PHP API connection cross this iframe.
@@ -25,6 +24,8 @@
 import { playgroundOrigin } from './config';
 import { portToStream, streamToPort } from '@php-wasm/universal';
 import { buildVersion } from 'virtual:remote-config';
+import { serveScopedRequests } from './scoped-request-port';
+import type { ScopedRequestReply } from './scoped-request-port';
 
 const scope = new URL(location.href).searchParams.get('scope');
 // The host serves /sw.js as a same-origin loader for the app's public worker.
@@ -64,11 +65,21 @@ while (worker.state !== 'activated') {
 	);
 }
 
-navigator.serviceWorker.addEventListener('message', (event) => {
-	if (event.source !== registration.active || event.data?.scope !== scope)
-		return;
+// The worker sends this scope's requests only to the port registered here.
+// Give each relayed request a local ID: after a worker restart, requests from
+// the old and new worker can share a requestId but must reply on different ports.
+const pendingReplies = new Map<number, ScopedRequestReply>();
+let lastRelayId = 0;
+serveScopedRequests(scope!, registration.active!, (request, reply) => {
+	const relayId = ++lastRelayId;
+	pendingReplies.set(relayId, reply);
 	window.parent.postMessage(
-		{ ...event.data, type: 'wordpress-bridge-request' },
+		{
+			...request,
+			type: 'wordpress-bridge-request',
+			scope,
+			requestId: relayId,
+		},
 		playgroundOrigin
 	);
 });
@@ -81,16 +92,16 @@ window.addEventListener('message', (event) => {
 	)
 		return;
 	const { requestId, response } = event.data;
+	const reply = pendingReplies.get(requestId);
+	if (!reply) return;
+	pendingReplies.delete(requestId);
 	// Rebuild the stream bridge instead of transferring the same port twice.
 	// Firefox can lose queued body chunks when the producer closes during that second transfer.
 	// https://bugzilla.mozilla.org/show_bug.cgi?id=2077609
 	if (response.bodyPort) {
 		response.bodyPort = streamToPort(portToStream(response.bodyPort));
 	}
-	registration.active!.postMessage(
-		{ type: 'response', requestId, response },
-		response.bodyPort ? [response.bodyPort] : []
-	);
+	reply(response, response.bodyPort ? [response.bodyPort] : []);
 });
 // Report ready only after worker activation and both listeners are installed.
 // The parent waits for this before completing its PHP boot() call.

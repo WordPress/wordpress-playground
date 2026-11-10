@@ -1,6 +1,5 @@
 import { getURLScope } from '@php-wasm/scopes';
 import { streamToPort } from '@php-wasm/universal';
-import { responseTo } from '@php-wasm/web-service-worker';
 import type { RemoteAPI } from '@php-wasm/universal';
 import type { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
 import { wordPressSiteUrl } from './config';
@@ -39,10 +38,10 @@ import { buildVersion } from 'virtual:remote-config';
  * which the server may no longer serve. The deployed helper then registers
  * the deployed WordPress worker and waits for it to activate.
  *
- * After connection, reject app-service-worker HTTP requests for this scope with
- * 404. Returning this site's HTML there would let its scripts run on the app
- * origin with app storage access, bypassing the sandbox origin entirely.
- * The rejection listener lasts with remote.html and survives worker restarts.
+ * The app's service worker never serves this scope's app-origin URLs from PHP:
+ * navigations get the trusted iframe wrapper and other requests get 404.
+ * Returning this site's HTML there would let its scripts run on the app origin
+ * with app storage access, bypassing the sandbox origin entirely.
  *
  * The scope selects a PHP instance; it does not prove which WordPress page made
  * the HTTP request. Pages sharing the WordPress origin can still request another
@@ -79,7 +78,7 @@ export async function connectWordPressOrigin(
 		 * scope: a valid helper must not choose a different PHP instance by changing
 		 * either field. Copy only HTTP request fields into requestStreamed(), and
 		 * return only staticAssetsDirectory for the metadata operation. Keep the
-		 * requestId unchanged so the service worker can match concurrent replies.
+		 * requestId unchanged so the helper can match concurrent replies.
 		 */
 		async function onMessage(event: MessageEvent) {
 			if (
@@ -146,20 +145,5 @@ export async function connectWordPressOrigin(
 		}
 		window.addEventListener('message', onMessage);
 		document.body.append(bridge);
-	});
-	// Explicitly reject this site's app-origin HTTP route so /scope:site-a/ cannot
-	// render its WordPress HTML with app storage access. Only the sandbox helper above
-	// may send this site's HTTP requests to PHP. Keep this listener with the
-	// connection for remote.html's lifetime; it must also work after a SW restart.
-	navigator.serviceWorker.addEventListener('message', (event) => {
-		if (event.data?.scope !== scope || event.data.method !== 'request')
-			return;
-		event.source!.postMessage(
-			responseTo(event.data.requestId, {
-				httpStatusCode: 404,
-				headers: {},
-				bytes: new Uint8Array(),
-			})
-		);
 	});
 }
