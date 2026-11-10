@@ -12,6 +12,7 @@ import {
 	extractTarStreamToPhp,
 	isZstdBundle,
 } from './streaming-tar-extract';
+import { isValidWordPressVersion } from './is-valid-wordpress-version';
 
 export {
 	bootWordPress,
@@ -28,6 +29,7 @@ export type {
 export { defineWpConfigConstants, ensureWpConfig } from './wp-config';
 export { getLoadedWordPressVersion } from './version-detect';
 export { getWordPressStableVersions } from './wordpress-releases';
+export { isValidWordPressVersion } from './is-valid-wordpress-version';
 export { PLAYGROUND_MANAGED_DB_PHP_MARKER } from './legacy-wp/legacy-fixes';
 
 export * from './version-detect';
@@ -651,20 +653,28 @@ const WORDPRESS_TRUNK_ZIP_URL =
 export async function resolveWordPressRelease(versionQuery = 'latest') {
 	if (versionQuery === null) {
 		versionQuery = 'latest';
+	} else if (!isValidWordPressVersion(versionQuery)) {
+		throw new Error(
+			`Unrecognized WordPress version "${versionQuery}". Use "latest", "beta", ` +
+				'"trunk", "nightly", an http(s) URL, or a numeric version such as ' +
+				'"6.2", "6.0.1", "6.2-beta1", or "6.2-RC1".'
+		);
 	} else if (
 		versionQuery.startsWith('https://') ||
 		versionQuery.startsWith('http://')
 	) {
+		// The version doubles as a download cache key, so it must identify
+		// the complete URL.
 		const shasum = await crypto.subtle.digest(
-			'SHA-1',
+			'SHA-256',
 			new TextEncoder().encode(versionQuery)
 		);
-		const sha1 = Array.from(new Uint8Array(shasum))
+		const sha256 = Array.from(new Uint8Array(shasum))
 			.map((b) => b.toString(16).padStart(2, '0'))
 			.join('');
 		return {
 			releaseUrl: versionQuery,
-			version: 'custom-' + sha1.substring(0, 8),
+			version: 'custom-' + sha256,
 			source: 'inferred',
 		};
 	} else if (versionQuery === 'trunk' || versionQuery === 'nightly') {

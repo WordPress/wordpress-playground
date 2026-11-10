@@ -14,12 +14,11 @@ import {
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
 import fs from 'fs';
-import path from 'path';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import {
-	CACHE_FOLDER,
 	cachedDownload,
 	fetchSqliteIntegration,
+	getCachePath,
 	readAsFile,
 } from './download';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
@@ -101,8 +100,7 @@ export class BlueprintsV1Handler {
 			wpDetails = await resolveWordPressRelease(
 				runtimeConfiguration.wpVersion
 			);
-			preinstalledWpContentPath = path.join(
-				CACHE_FOLDER,
+			preinstalledWpContentPath = getCachePath(
 				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
 			);
 			wordPressZip = fs.existsSync(preinstalledWpContentPath)
