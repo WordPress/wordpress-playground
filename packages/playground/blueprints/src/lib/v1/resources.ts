@@ -720,6 +720,45 @@ export class UrlResource extends FetchResource {
 				};
 			}
 		}
+
+		/**
+		 * Translates Gist URLs into gist.githubusercontent.com URLs for the same reason.
+		 *
+		 * Examples:
+		 * https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee
+		 * https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/40832fe912dc1187c4e9114e175e328f0e7d147b
+		 * https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/block-hooks-demo.php
+		 *
+		 * Become
+		 * https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw
+		 * https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/40832fe912dc1187c4e9114e175e328f0e7d147b
+		 * https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/block-hooks-demo.php
+		 *
+		 * gist.github.com doesn't provide the necessary CORS headers, not even when it
+		 * redirects /raw/ URLs to gist.githubusercontent.com.
+		 *
+		 * ## Caveats
+		 *
+		 * The raw URL of a Gist without a file name serves the first file in that Gist.
+		 * Link to a specific file in a multi-file Gist with the /raw/<file name> URL.
+		 * Page URLs with a #file-… anchor are left untouched because the anchor doesn't
+		 * reliably identify the file name.
+		 */
+		if (this.resource.url.startsWith('https://gist.github.com/')) {
+			const match =
+				this.resource.url.match(
+					/^https:\/\/gist\.github\.com\/(?<owner>[^/]+)\/(?<id>[0-9a-zA-Z]+)\/raw(?<path>\/.*)?$/
+				) ||
+				this.resource.url.match(
+					/^https:\/\/gist\.github\.com\/(?<owner>[^/]+)\/(?<id>[0-9a-zA-Z]+)(?<path>\/[0-9a-f]{40})?\/?$/
+				);
+			if (match?.groups) {
+				this.resource = {
+					...this.resource,
+					url: `https://gist.githubusercontent.com/${match.groups['owner']}/${match.groups['id']}/raw${match.groups['path'] ?? ''}`,
+				};
+			}
+		}
 	}
 
 	/** @inheritDoc */

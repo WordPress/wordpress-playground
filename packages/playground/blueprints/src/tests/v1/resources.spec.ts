@@ -45,6 +45,49 @@ describe('UrlResource', () => {
 			'https://raw.githubusercontent.com/adamziel/blueprints/f49382e89099806a8eede4feba41a9a7ab89bcfe/blueprints%2Fbeta-rc%2Fblueprint.json'
 		);
 	});
+
+	it.each([
+		[
+			'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee',
+			'https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw',
+		],
+		[
+			'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/',
+			'https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw',
+		],
+		[
+			'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/40832fe912dc1187c4e9114e175e328f0e7d147b',
+			'https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/40832fe912dc1187c4e9114e175e328f0e7d147b',
+		],
+		[
+			'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw',
+			'https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw',
+		],
+		[
+			'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/block-hooks-demo.php',
+			'https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/block-hooks-demo.php',
+		],
+		[
+			'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php',
+			'https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/ff00cf25e6eebe4f5a4eaecff10286f71e65340b/block-hooks-demo.php',
+		],
+	])(
+		'should translate gist.github.com URLs into gist.githubusercontent.com URLs (%s)',
+		(url, expected) => {
+			const resource = new UrlResource({ resource: 'url', url });
+			expect(resource.getURL()).toBe(expected);
+		}
+	);
+
+	it.each([
+		'https://gist.github.com/ndiego',
+		'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee#file-block-hooks-demo-php',
+		'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee.js',
+		'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/revisions',
+	])('should leave other gist.github.com URLs untouched (%s)', (url) => {
+		const resource = new UrlResource({ resource: 'url', url });
+		expect(resource.getURL()).toBe(url);
+	});
 });
 
 describe('GitDirectoryResource', () => {

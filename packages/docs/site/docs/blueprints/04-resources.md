@@ -62,6 +62,39 @@ For GitHub source code, do not point `url` at a repository page or a generated
 ZIP from a branch when you can use `git:directory`. Use `url` for built ZIP
 artifacts and `git:directory` for source directories.
 
+#### GitHub and Gist file URLs
+
+GitHub does not serve raw file contents with CORS headers from its file viewer
+pages, so Blueprint steps rewrite these URLs to their raw equivalents before
+downloading them:
+
+| URL in the Blueprint                                        | Downloaded URL                                                         |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `https://github.com/OWNER/REPO/blob/BRANCH/PATH`            | `https://raw.githubusercontent.com/OWNER/REPO/BRANCH/PATH`             |
+| `https://github.com/OWNER/REPO/raw/BRANCH/PATH`             | `https://raw.githubusercontent.com/OWNER/REPO/BRANCH/PATH`             |
+| `https://gist.github.com/OWNER/GIST_ID`                     | `https://gist.githubusercontent.com/OWNER/GIST_ID/raw`                 |
+| `https://gist.github.com/OWNER/GIST_ID/REVISION`            | `https://gist.githubusercontent.com/OWNER/GIST_ID/raw/REVISION`        |
+| `https://gist.github.com/OWNER/GIST_ID/raw/[REVISION/]FILE` | `https://gist.githubusercontent.com/OWNER/GIST_ID/raw/[REVISION/]FILE` |
+
+For example, this `writeFile` step downloads a plugin file straight from a Gist:
+
+```json
+{
+	"step": "writeFile",
+	"path": "/wordpress/wp-content/plugins/block-hooks-demo.php",
+	"data": {
+		"resource": "url",
+		"url": "https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee"
+	}
+}
+```
+
+A Gist URL without a file name downloads the first file in the Gist. To download
+another file from a multi-file Gist, use its `/raw/FILE` URL. Steps that rely on the
+downloaded file name, such as `installPlugin` with a single `.php` file, also need
+the `/raw/FILE` URL, for example
+`https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/block-hooks-demo.php`.
+
 #### Hosting URL resources on Amazon S3
 
 Amazon S3 can host Blueprint files, Blueprint bundles, plugin ZIP files, and
