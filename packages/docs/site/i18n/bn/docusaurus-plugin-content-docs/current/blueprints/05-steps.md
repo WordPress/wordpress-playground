@@ -1,20 +1,12 @@
 ---
 sidebar_position: 3
 slug: /blueprints/steps
-description: স্টেপস প্রপার্টির প্রধান এপিআই রেফারেন্স। একটি ব্লুপ্রিন্টে আপনি যেসব স্টেপ টাইপ ব্যবহার করতে পারেন, সেগুলো সম্পর্কে জানুন।
+description: steps প্রপার্টির জন্য প্রধান API রেফারেন্স। একটি ব্লুপ্রিন্টে আপনি ব্যবহার করতে পারেন এমন সমস্ত উপলব্ধ স্টেপ টাইপ আবিষ্কার করুন।
 ---
 
-<!--
-# Steps
--->
+# স্টেপ
 
-# স্টেপস
-
-<!--
-The `steps` property of a Blueprint is an array of steps to run. For example this Blueprint logs the user in as an admin:
--->
-
-একটি ব্লুপ্রিন্টের `steps` প্রপার্টি হলো চালানোর জন্য স্টেপের একটি অ্যারে। উদাহরণস্বরূপ, এই ব্লুপ্রিন্টটি ইউজারকে অ্যাডমিন হিসেবে লগ ইন করায়:
+একটি ব্লুপ্রিন্টের `steps` প্রপার্টি চালানোর জন্য স্টেপের একটি অ্যারে। উদাহরণস্বরূপ এই ব্লুপ্রিন্ট ব্যবহারকারীকে অ্যাডমিন হিসাবে লগইন করে:
 
 import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.mdx';
 
@@ -28,27 +20,13 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 	]
 }} />
 
-<!--
-Each step is an object that contains a `step` property that specifies the type of step to run. The rest of the properties depend on the type of step. Learn and try each step type below.
--->
+প্রতিটি স্টেপ একটি অবজেক্ট যাতে একটি `step` প্রপার্টি থাকে যা চালানোর জন্য স্টেপের টাইপ নির্দিষ্ট করে। বাকি প্রপার্টিগুলি স্টেপের টাইপের উপর নির্ভর করে। নিচে প্রতিটি স্টেপ টাইপ শিখুন এবং চেষ্টা করুন।
 
-প্রতিটি স্টেপ হলো একটি অবজেক্ট যেটিতে একটি `step` প্রপার্টি থাকে যা চালানোর জন্য স্টেপের টাইপ নির্দিষ্ট করে। বাকি প্রপার্টিগুলো স্টেপের টাইপের উপর নির্ভর করে। নিচে প্রতিটি স্টেপ টাইপ শিখুন এবং ট্রাই করুন।
-
-<!--
-The following step-related topics are addressed on dedicated pages included in this section:
--->
-
-নিম্নলিখিত স্টেপ-সম্পর্কিত বিষয়গুলো এই সেকশনে অন্তর্ভুক্ত ডেডিকেটেড পেজগুলোতে আলোচনা করা হয়েছে:
-
-<!--
--   [Resources References](/blueprints/steps/resources) allow you use external files in Blueprints.
--->
+নিম্নলিখিত স্টেপ-সম্পর্কিত বিষয়গুলি এই বিভাগে অন্তর্ভুক্ত ডেডিকেটেড পৃষ্ঠাগুলিতে সম্বোধন করা হয়েছে:
 
 - [রিসোর্স রেফারেন্স](/blueprints/steps/resources) আপনাকে ব্লুপ্রিন্টে এক্সটার্নাল ফাইল ব্যবহার করতে দেয়।
 
-<!--
--   Some steps have a shorthand version. Check the [Shorthands](/blueprints/steps/shorthands) section for more information about them.
--->
+-   কিছু স্টেপের একটি শর্টহ্যান্ড সংস্করণ রয়েছে। তাদের সম্পর্কে আরও তথ্যের জন্য [Shorthands](/blueprints/steps/shorthands) বিভাগ দেখুন।
 
 - কিছু স্টেপের একটি শর্টহ্যান্ড সংস্করণ রয়েছে। এগুলো সম্পর্কে আরও তথ্যের জন্য [শর্টহ্যান্ডস](/blueprints/steps/shorthands) সেকশনটি দেখুন।
 
