@@ -1,6 +1,5 @@
-import type { PHPResponse, UniversalPHP } from '@php-wasm/universal';
+import { PHPResponse, type UniversalPHP } from '@php-wasm/universal';
 import type { StepHandler } from '.';
-import { joinPaths, phpVar } from '@php-wasm/util';
 import type { UrlReference } from '../v1/resources';
 import { logger } from '@php-wasm/logger';
 
@@ -20,14 +19,14 @@ export const defaultWpCliResource: UrlReference = {
 	url: 'https://playground.wordpress.net/wp-cli.phar',
 };
 
-const stdinUnsupportedMessage =
-	'This WP-CLI command tried to read from STDIN, but the wp-cli Blueprint ' +
-	'step does not support interactive input. Provide all required arguments.';
-
 const wpCliOverridesPath = '/tmp/playground-wp-cli-overrides.php';
 
 /**
  * Loaded via `--require` before WP-CLI dispatches the command.
+ *
+ * The step has no way to provide STDIN, so it closes it. A command that
+ * reads it then fails before it treats the missing input as an empty value.
+ * PHP 7.4 only warns on a closed stream, so the command still reads ''.
  *
  * `wp db query` normally shells out to the `mysql` binary, which does not
  * exist in Playground and whose spawn traps the WASM runtime. Re-register it
@@ -37,6 +36,8 @@ const wpCliOverrides = `<?php
 if ( ! class_exists( 'WP_CLI' ) ) {
 	return;
 }
+
+fclose( STDIN );
 
 WP_CLI::add_command(
 	'db query',
@@ -186,81 +187,25 @@ This will ensure your code works reliably regardless of the current working dire
 
 	const documentRoot = await playground.documentRoot;
 
-	await playground.writeFile('/tmp/stdout', '');
-	await playground.writeFile('/tmp/stderr', '');
 	await playground.writeFile(wpCliOverridesPath, wpCliOverrides);
-	await playground.writeFile(
-		joinPaths(documentRoot, 'run-cli.php'),
-		`<?php
-		// Set up the environment to emulate a shell script
-		// call.
-
-		// Set SHELL_PIPE to 0 to ensure WP-CLI formats
-		// the output as ASCII tables.
-		// @see https://github.com/wp-cli/wp-cli/issues/1102
-		putenv( 'SHELL_PIPE=0' );
-
-		// Set the argv global.
-		$GLOBALS['argv'] = array_merge([
-		  "/tmp/wp-cli.phar",
-		  "--path=${documentRoot}",
-		  "--require=${wpCliOverridesPath}"
-		], ${phpVar(argsWithRewrittenPaths)});
-
-		// Fail before a command can treat missing interactive input as an empty
-		// value. The Blueprint step has no way to provide STDIN.
-		class Playground_No_Stdin_Stream {
-			public $context;
-
-			public function stream_open($path, $mode, $options, &$opened_path) {
-				return true;
-			}
-
-			public function stream_eof() {
-				throw new RuntimeException(
-					${phpVar(stdinUnsupportedMessage)}
-				);
-			}
-
-			public function stream_read($count) {
-				return $this->stream_eof();
-			}
-
-			public function stream_stat() {
-				return [];
-			}
+	const response = await playground.cli(
+		[
+			'php',
+			wpCliPath,
+			`--path=${documentRoot}`,
+			`--require=${wpCliOverridesPath}`,
+			...argsWithRewrittenPaths,
+		],
+		{
+			env: {
+				// Set SHELL_PIPE to 0 to ensure WP-CLI formats
+				// the output as ASCII tables.
+				// @see https://github.com/wp-cli/wp-cli/issues/1102
+				SHELL_PIPE: '0',
+			},
 		}
-
-		$playground_no_stdin_scheme =
-			'playground-no-stdin-' . str_replace('.', '-', uniqid('', true));
-		if (
-			!stream_wrapper_register(
-				$playground_no_stdin_scheme,
-				Playground_No_Stdin_Stream::class
-			)
-		) {
-			throw new RuntimeException(${phpVar(stdinUnsupportedMessage)});
-		}
-		$playground_no_stdin = fopen(
-			$playground_no_stdin_scheme . '://input',
-			'rb'
-		);
-		if (!is_resource($playground_no_stdin)) {
-			throw new RuntimeException(${phpVar(stdinUnsupportedMessage)});
-		}
-		define('STDIN', $playground_no_stdin);
-
-		// Provide stdout and stderr streams outside of the CLI SAPI.
-		define('STDOUT', fopen('php://stdout', 'wb'));
-		define('STDERR', fopen('php://stderr', 'wb'));
-
-		require( ${phpVar(wpCliPath)} );
-		`
 	);
-
-	const result = await playground.run({
-		scriptPath: joinPaths(documentRoot, 'run-cli.php'),
-	});
+	const result = await PHPResponse.fromStreamedResponse(response);
 
 	if (result.exitCode !== 0) {
 		throw new Error(result.errors);
