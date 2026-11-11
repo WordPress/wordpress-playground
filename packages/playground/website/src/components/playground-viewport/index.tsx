@@ -1,4 +1,4 @@
-import { wordPressSiteUrl } from '@wp-playground/remote';
+import { wordPressSiteUrl } from '@wp-playground/remote/config';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 
 import css from './style.module.css';

@@ -131,6 +131,9 @@
 			"@wp-playground/remote-access": [
 				"packages/playground/remote-access/src/index.ts"
 			],
+			"@wp-playground/remote/config": [
+				"packages/playground/remote/src/lib/config.ts"
+			],
 			"@wp-playground/remote/webmcp-frame-bridge": [
 				"packages/playground/remote/src/lib/webmcp-frame-bridge.ts"
 			],

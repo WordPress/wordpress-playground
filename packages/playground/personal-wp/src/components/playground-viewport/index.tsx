@@ -1,4 +1,4 @@
-import { wordPressSiteUrl } from '@wp-playground/remote';
+import { wordPressSiteUrl } from '@wp-playground/remote/config';
 import {
 	memo,
 	useCallback,
