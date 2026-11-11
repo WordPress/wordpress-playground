@@ -84,6 +84,10 @@ export type WorkerBootOptions = {
 	wordPressZip?: File;
 	sqliteDriverVersion?: string;
 	phpVersion?: AllPHPVersion;
+	/**
+	 * @deprecated PHP reports `php-wasm` for requests and `cli` for
+	 * `php.cli()`.
+	 */
 	sapiName?: string;
 	scope: string;
 	extensions?: PHPWebExtension[];

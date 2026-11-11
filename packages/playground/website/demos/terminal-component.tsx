@@ -4,7 +4,7 @@ import 'xterm/css/xterm.css';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import type { PlaygroundClient } from '@wp-playground/client';
-import { phpVar } from '@wp-playground/client';
+import { wpCLI } from '@wp-playground/client';
 
 interface TerminalComponentProps {
 	playground: PlaygroundClient;
@@ -114,61 +114,19 @@ export function TerminalComponent({ playground }: TerminalComponentProps) {
 
 				case 'wp':
 					if (playground) {
-						await playground?.writeFile('/tmp/stdout', '');
-						await playground?.writeFile('/tmp/stderror', '');
-						await playground?.writeFile(
-							'/wordpress/run-cli.php',
-							`<?php
-			// Set up the environment to emulate a shell script
-			// call.
-
-			// Set SHELL_PIPE to 0 to ensure WP-CLI formats
-			// the output as ASCII tables.
-			// @see https://github.com/wp-cli/wp-cli/issues/1102
-			putenv( 'SHELL_PIPE=0' );
-
-			// Set the argv global.
-            $GLOBALS['argv'] = array_merge([
-              "/wordpress/wp-cli.phar",
-              "--path=/wordpress"
-			], ${phpVar(args)});
-
-			// Provide stdin, stdout, stderr streams outside of
-			// the CLI SAPI.
-            define('STDIN', fopen('php://stdin', 'rb'));
-            define('STDOUT', fopen('php://stdout', 'wb'));
-            define('STDERR', fopen('/tmp/stderr', 'wb'));
-
-            require( "/wordpress/wp-cli.phar" );
-            `
-						);
-
-						const output = await playground.run({
-							scriptPath: '/wordpress/run-cli.php',
-						});
-
-						const stderr = await playground?.readFileAsText(
-							'/tmp/stderr'
-						);
-						stderr.split('\n').forEach((line: string) => {
-							if (line.includes('Warning')) {
-								return;
-							}
+						let output: string;
+						try {
+							const response = await wpCLI(playground, {
+								command: ['wp', ...args],
+								wpCliPath: '/wordpress/wp-cli.phar',
+							});
+							output = response.text + response.errors;
+						} catch (error) {
+							output = (error as Error).message;
+						}
+						output.split('\n').forEach((line: string) => {
 							terminalRef.current?.writeln(line);
 						});
-
-						output.text
-							.split('\n')
-							.slice(1, output.text.length)
-							.forEach((line: string) => {
-								if (
-									line.includes('Warning') ||
-									line.includes('<br />')
-								) {
-									return;
-								}
-								terminalRef.current?.writeln(line);
-							});
 					}
 					break;
 
