@@ -1,5 +1,5 @@
 import { connectWordPressOrigin } from './connect-wordpress-origin';
-import { wordPressSiteUrl } from './config';
+import { playgroundOrigin, wordPressSiteUrl } from './config';
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
@@ -194,7 +194,11 @@ export async function bootPlaygroundRemote() {
 	// requests from reaching the server, so it is not a substitute for CSRF protection.
 	// https://wicg.github.io/local-network-access/#permission-prompt
 	// https://fetch.spec.whatwg.org/#http-access-control-allow-origin
-	wpFrame.allow = `loopback-network ${wordPressSiteUrl}`;
+	// Keep permission grants limited to Personal WP; the public Playground host
+	// shares its origin across unrelated sites.
+	if (playgroundOrigin === 'https://my.wordpress.net') {
+		wpFrame.allow = `loopback-network ${wordPressSiteUrl}`;
+	}
 	// Pointer events stop at the WordPress document boundary. Accept messages from
 	// this #wp window at the WordPress origin, then dispatch a press in remote.html,
 	// where the app's outside-click listeners can observe it. Checking the origin

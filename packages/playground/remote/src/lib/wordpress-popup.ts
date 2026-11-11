@@ -1,5 +1,5 @@
 import { getURLScope } from '@php-wasm/scopes';
-import { wordPressSiteUrl } from './config';
+import { playgroundOrigin, wordPressSiteUrl } from './config';
 
 /**
  * Opens a WordPress tool in a popup with the same frame layout as the main app:
@@ -19,7 +19,10 @@ function bootWordPressPopup() {
 		throw new Error('The popup URL must name a scoped WordPress page.');
 	}
 	const frame = document.querySelector('#wp') as HTMLIFrameElement;
-	frame.allow = `loopback-network ${wordPressSiteUrl}`;
+	// Match the Personal WP restriction in bootPlaygroundRemote.
+	if (playgroundOrigin === 'https://my.wordpress.net') {
+		frame.allow = `loopback-network ${wordPressSiteUrl}`;
+	}
 	frame.src = target.href;
 }
 
