@@ -1,7 +1,7 @@
 const dependencyFilename = new URL('./8_2_35/php_8_2.wasm', import.meta.url)
 	.href;
 export { dependencyFilename };
-export const dependenciesTotalSize = 18016349;
+export const dependenciesTotalSize = 18016362;
 const phpVersionString = '8.2.35';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
