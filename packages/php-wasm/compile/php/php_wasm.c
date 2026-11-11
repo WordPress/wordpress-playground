@@ -977,7 +977,7 @@ static char *wasm_sapi_getenv(char *name, unsigned long name_len)
 
 
 SAPI_API sapi_module_struct php_wasm_sapi_module = {
-	"wasm",			 /* name */
+	"php-wasm", /* name */
 #ifdef PLAYGROUND_JSPI
 	"PHP WASM SAPI (JSPI)", /* pretty name */
 #else

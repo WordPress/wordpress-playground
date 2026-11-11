@@ -1038,6 +1038,24 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
+		describe('SAPI name', { skip }, () => {
+			it('should be php-wasm when serving a request', async () => {
+				const response = await php.run({
+					code: `<?php echo PHP_SAPI, ' ', php_sapi_name();`,
+				});
+				expect(response.text).toBe('php-wasm php-wasm');
+			});
+
+			it('should be cli when running php.cli()', async () => {
+				const response = await php.cli([
+					'php',
+					'-r',
+					`echo PHP_SAPI, ' ', php_sapi_name();`,
+				]);
+				expect(await response.stdoutText).toBe('cli cli');
+			});
+		});
+
 		describe('CLI', { skip }, () => {
 			let consoleLogMock: any;
 			let consoleErrorMock: any;
