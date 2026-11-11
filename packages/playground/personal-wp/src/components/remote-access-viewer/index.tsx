@@ -656,6 +656,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 				<div className={css.iframeWrapper}>
 					<iframe
 						ref={iframeRef}
+						allow="loopback-network *; local-network *"
 						src={iframeSrc}
 						className={css.iframe}
 						onLoad={handleIframeLoad}

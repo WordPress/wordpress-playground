@@ -2435,6 +2435,7 @@ export const JustViewport = function JustViewport({
 		<>
 			<iframe
 				key={siteSlug}
+				allow="loopback-network *; local-network *"
 				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
 				className={classNames('playground-viewport', css.fullSize, {
 					[css.viewportLoading]: isLoading,
