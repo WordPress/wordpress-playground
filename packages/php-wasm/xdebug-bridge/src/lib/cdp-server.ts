@@ -1,6 +1,5 @@
 import { logger } from '@php-wasm/logger';
 import { EventEmitter } from 'events';
-import type { IncomingMessage } from 'http';
 import { type WebSocket, WebSocketServer } from 'ws';
 
 export class CDPServer extends EventEmitter {
@@ -11,49 +10,46 @@ export class CDPServer extends EventEmitter {
 
 	constructor(host = '127.0.0.1', port = 9229) {
 		super();
-		this.wss = new WebSocketServer({ host, port });
-		this.wss.on(
-			'connection',
-			(ws: WebSocket, request?: IncomingMessage) => {
-				const origin = request?.headers.origin;
-				if (origin && !origin.startsWith('devtools://')) {
-					ws.close(1008, 'Origin not allowed');
-					return;
-				}
-				// Only one client at a time
-				if (this.ws) {
-					ws.close();
-					return;
-				}
-				this.ws = ws;
-				this.emit('clientConnected');
-				ws.on('message', (data) => {
-					logger.debug(
-						'\x1b[1;32m[CDP][received]\x1b[0m',
-						data.toString()
-					);
-					let message: any;
-					try {
-						message = JSON.parse(data.toString());
-					} catch {
-						return;
-					}
-
-					if (this.connected) {
-						this.emit('message', message);
-					} else {
-						this.buffer.push(message);
-					}
-				});
-				ws.on('close', () => {
-					this.ws = null;
-					this.emit('clientDisconnected');
-				});
-				ws.on('error', (err) => {
-					this.emit('error', err);
-				});
+		this.wss = new WebSocketServer({
+			host,
+			port,
+			verifyClient: ({ origin }: { origin: string }) =>
+				!origin || origin.startsWith('devtools://'),
+		});
+		this.wss.on('connection', (ws: WebSocket) => {
+			// Only one client at a time
+			if (this.ws) {
+				ws.close();
+				return;
 			}
-		);
+			this.ws = ws;
+			this.emit('clientConnected');
+			ws.on('message', (data) => {
+				logger.debug(
+					'\x1b[1;32m[CDP][received]\x1b[0m',
+					data.toString()
+				);
+				let message: any;
+				try {
+					message = JSON.parse(data.toString());
+				} catch {
+					return;
+				}
+
+				if (this.connected) {
+					this.emit('message', message);
+				} else {
+					this.buffer.push(message);
+				}
+			});
+			ws.on('close', () => {
+				this.ws = null;
+				this.emit('clientDisconnected');
+			});
+			ws.on('error', (err) => {
+				this.emit('error', err);
+			});
+		});
 
 		// When a new 'message' listener is registered,
 		// it replays any buffered messages on the next

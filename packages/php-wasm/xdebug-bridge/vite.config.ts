@@ -71,6 +71,7 @@ export default defineConfig({
 			external: [
 				'assert',
 				'crypto',
+				'dns',
 				'fs',
 				'net',
 				'path',

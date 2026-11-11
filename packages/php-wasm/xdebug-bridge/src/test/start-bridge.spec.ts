@@ -77,6 +77,27 @@ describe('Bridge', () => {
 			expect(DbgpSession).toHaveBeenCalledWith('0.0.0.0', 8888);
 		});
 
+		it('binds to loopback when the hosts are empty', async () => {
+			await startBridge({ cdpHost: '', dbgpHost: '' });
+
+			expect(CDPServer).toHaveBeenCalledWith('127.0.0.1', 9229);
+			expect(DbgpSession).toHaveBeenCalledWith('127.0.0.1', 9003);
+		});
+
+		it('resolves the DBGp host to an IPv4 address', async () => {
+			await startBridge({ dbgpHost: 'localhost' });
+
+			expect(DbgpSession).toHaveBeenCalledWith('127.0.0.1', 9003);
+		});
+
+		it('rejects a DBGp host that does not resolve', async () => {
+			await expect(
+				startBridge({ dbgpHost: 'foo.invalid' })
+			).rejects.toThrow();
+
+			expect(CDPServer).not.toHaveBeenCalled();
+		});
+
 		it('finds PHP files', async () => {
 			await startBridge({ phpRoot: '/foo/bar' });
 
@@ -216,7 +237,7 @@ describe('Bridge', () => {
 				'Connect Chrome DevTools to CDP at:',
 				`devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229\n`,
 				'Chrome connected! Initializing Xdebug receiver...',
-				'XDebug receiver running on port 9003',
+				'XDebug receiver running on 127.0.0.1:9003',
 				'Running a PHP script with Xdebug enabled...',
 			]);
 
@@ -237,7 +258,7 @@ describe('Bridge', () => {
 				'Connect Chrome DevTools to CDP at:',
 				`devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229\n`,
 				'Chrome connected! Initializing Xdebug receiver...',
-				'XDebug receiver running on port 9003',
+				'XDebug receiver running on 127.0.0.1:9003',
 				'Running a PHP script with Xdebug enabled...',
 			]);
 

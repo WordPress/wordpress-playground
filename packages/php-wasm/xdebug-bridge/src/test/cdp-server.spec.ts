@@ -34,28 +34,20 @@ describe('CDPServer', () => {
 		expect(onClientConnected).toHaveBeenCalled();
 	});
 
-	it('closes a connection that carries a browser Origin', () => {
-		const onClientConnected = vi.fn();
-
-		server.on('clientConnected', onClientConnected);
-		server.wss.emit('connection', socket, {
-			headers: { origin: 'https://foo.bar' },
-		});
-
-		expect(socket.close).toHaveBeenCalledWith(1008, 'Origin not allowed');
-		expect(onClientConnected).not.toHaveBeenCalled();
+	it('refuses a handshake that carries a browser Origin', () => {
+		expect(
+			server.wss.options.verifyClient({ origin: 'https://foo.bar' })
+		).toBe(false);
 	});
 
-	it('accepts a connection from the DevTools front-end', () => {
-		const onClientConnected = vi.fn();
+	it('accepts a handshake from the DevTools front-end', () => {
+		expect(
+			server.wss.options.verifyClient({ origin: 'devtools://devtools' })
+		).toBe(true);
+	});
 
-		server.on('clientConnected', onClientConnected);
-		server.wss.emit('connection', socket, {
-			headers: { origin: 'devtools://devtools' },
-		});
-
-		expect(socket.close).not.toHaveBeenCalled();
-		expect(onClientConnected).toHaveBeenCalled();
+	it('accepts a handshake without an Origin', () => {
+		expect(server.wss.options.verifyClient({})).toBe(true);
 	});
 
 	it('only allows one client at a time', () => {

@@ -1,5 +1,6 @@
 import { logger } from '@php-wasm/logger';
 import type { UniversalPHP } from '@php-wasm/universal';
+import dns from 'dns';
 import { readdirSync, readFileSync, lstatSync } from 'fs';
 import path from 'path';
 import { CDPServer } from './cdp-server';
@@ -19,9 +20,12 @@ export type StartBridgeConfig = {
 };
 
 export async function startBridge(config: StartBridgeConfig) {
-	const cdpHost = config.cdpHost ?? '127.0.0.1';
+	const cdpHost = config.cdpHost || '127.0.0.1';
 	const cdpPort = config.cdpPort ?? 9229;
-	const dbgpHost = config.dbgpHost ?? '127.0.0.1';
+	const { address: dbgpHost } = await dns.promises.lookup(
+		config.dbgpHost || '127.0.0.1',
+		{ family: 4 }
+	);
 	const dbgpPort = config.dbgpPort ?? 9003;
 	const phpRoot = config.phpRoot ?? process.cwd();
 	const breakOnFirstLine = config.breakOnFirstLine ?? false;
@@ -44,7 +48,7 @@ export async function startBridge(config: StartBridgeConfig) {
 
 	const dbgpSession = new DbgpSession(dbgpHost, dbgpPort);
 
-	logger.log(`XDebug receiver running on port ${dbgpPort}`);
+	logger.log(`XDebug receiver running on ${dbgpHost}:${dbgpPort}`);
 	logger.log('Running a PHP script with Xdebug enabled...');
 
 	function isExcluded(p: string): boolean {
