@@ -29,7 +29,7 @@
 			function createWordPressFrame() {
 				const frame = document.createElement('iframe');
 				frame.id = 'wp';
-				frame.allow = 'loopback-network *';
+				frame.allow = `loopback-network ${window.location.origin}`;
 				frame.title = 'Remote WordPress site';
 				frame.sandbox =
 					'allow-same-origin allow-scripts allow-popups allow-forms allow-downloads allow-modals';

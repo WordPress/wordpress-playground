@@ -186,6 +186,7 @@ export async function bootPlaygroundRemote() {
 	let runStartupBlueprint = true;
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
+	wpFrame.allow = `loopback-network ${wordPressSiteUrl}`;
 	// Pointer events stop at the WordPress document boundary. Accept messages from
 	// this #wp window at the WordPress origin, then dispatch a press in remote.html,
 	// where the app's outside-click listeners can observe it. Checking the origin

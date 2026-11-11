@@ -19,6 +19,7 @@ function bootWordPressPopup() {
 		throw new Error('The popup URL must name a scoped WordPress page.');
 	}
 	const frame = document.querySelector('#wp') as HTMLIFrameElement;
+	frame.allow = `loopback-network ${wordPressSiteUrl}`;
 	frame.src = target.href;
 }
 
