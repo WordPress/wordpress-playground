@@ -50,15 +50,16 @@ npx xdebug-bridge --help
 ## Configuration Options (CLI)
 
 - `port`: Xdebug port to listen on (default: 9003)
-- `host`: Xdebug host to bind to (default: 'localhost')
+- `host`: Xdebug host to bind to (default: '127.0.0.1')
 - `php-root`: Path to PHP root directory (default: './')
 - `verbosity`: Output logs and progress messages (choices: "quiet", "normal", "debug") (default: "normal")
 - `help`: Display help
 
 ## Configuration Options (API)
 
-- `cdpPort`: Port to listen for CDP connections (default: 9229)
 - `cdpHost`: Host to bind to (default: '127.0.0.1')
+- `cdpPort`: Port to listen for CDP connections (default: 9229)
+- `dbgpHost`: Host to bind the XDebug listener to (default: '127.0.0.1')
 - `dbgpPort`: Port to listen for XDebug connections (default: 9003)
 - `phpRoot`: Root path for php files
 - `verbosity`: Output logs and progress messages (choices: "quiet", "normal", "debug") (default: "normal")
