@@ -46,7 +46,20 @@ export function wordPressFrameDevPlugin(
 				}
 				if (!localDevelopmentHostnames.has(host.hostname))
 					return next();
-				if (host.port === app.port) return next();
+				if (host.port === app.port) {
+					if (req.url?.startsWith('/scope:')) {
+						if (
+							req.method !== 'GET' ||
+							req.headers['sec-fetch-dest'] !== 'document'
+						) {
+							res.statusCode = 404;
+							res.end('Not found');
+							return;
+						}
+						req.url = '/wordpress-popup.html';
+					}
+					return next();
+				}
 
 				res.setHeader('X-Content-Type-Options', 'nosniff');
 				res.setHeader('Cache-Control', 'no-store');
@@ -55,6 +68,18 @@ export function wordPressFrameDevPlugin(
 				const target = new URL(app);
 				target.hostname = host.hostname;
 				if (host.port === wordpress.port) {
+					if (
+						url.pathname.startsWith('/scope:') &&
+						req.method === 'GET' &&
+						req.headers['sec-fetch-dest'] === 'document'
+					) {
+						target.pathname = url.pathname;
+						target.search = url.search;
+						res.statusCode = 302;
+						res.setHeader('Location', target.href);
+						res.end();
+						return;
+					}
 					if (isWordPressBridgePath(url.pathname)) {
 						target.pathname = '/src/lib/wordpress-bridge.ts';
 						res.setHeader('Content-Type', 'text/html');
@@ -89,7 +114,12 @@ export function wordPressFrameDevPlugin(
 				}
 				// Only the browser service worker can synthesize scoped WordPress pages.
 				res.statusCode = 404;
-				res.end('Not found');
+				res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+				res.end(
+					url.pathname.startsWith('/scope:')
+						? 'This browser could not connect to the Playground site. Open it in Playground and try again.'
+						: 'Not found'
+				);
 			});
 		},
 	};
