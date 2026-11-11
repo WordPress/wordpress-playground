@@ -199,7 +199,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		onProgress,
 	}: {
 		siteUrl: string;
-		sapiName: string;
+		sapiName?: string;
 		corsProxyUrl?: string;
 		knownRemoteAssetPaths: Set<string>;
 		extensions?: PHPWebExtension[];

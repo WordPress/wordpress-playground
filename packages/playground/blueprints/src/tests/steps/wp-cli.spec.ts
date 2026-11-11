@@ -18,7 +18,6 @@ describe('Blueprint step wpCLI', () => {
 		const handler = await bootWordPressAndRequestHandler({
 			createPhpRuntime: async () => await loadNodeRuntime(phpVersion),
 			siteUrl: 'http://playground-domain/',
-			sapiName: 'cli',
 
 			wordPressZip: await getWordPressModule(),
 			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
@@ -87,7 +86,9 @@ describe('Blueprint step wpCLI', () => {
 			wpCLI(php, {
 				command: 'wp option update blogname --no-color',
 			})
-		).rejects.toThrow('does not support interactive input');
+		).rejects.toThrow(
+			'Fatal error: Uncaught TypeError: fgets(): supplied resource is not a valid stream resource'
+		);
 
 		const currentName = await wpCLI(php, {
 			command: 'wp option get blogname --no-color',

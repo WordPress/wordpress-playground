@@ -22,7 +22,6 @@ export async function runDemo(iframe: HTMLIFrameElement) {
 			landingPage: '/',
 			steps: [{ step: 'login', username: 'admin', password: 'password' }],
 		},
-		sapiName: 'cli',
 	});
 
 	const wpCliResponse = await wpCliRequest;

@@ -52,7 +52,6 @@ describe('remote sendmail transport', () => {
 			createRequestHandlerForTest() {
 				return this.createRequestHandler({
 					siteUrl: 'http://playground.test/',
-					sapiName: 'cli',
 					knownRemoteAssetPaths: new Set<string>(),
 					withNetworking: false,
 					phpVersion: '8.4',

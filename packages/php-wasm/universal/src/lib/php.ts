@@ -496,7 +496,10 @@ export class PHP implements Disposable {
 		});
 	}
 
-	/** @inheritDoc */
+	/**
+	 * @deprecated PHP reports `php-wasm` for requests and `cli` for
+	 * `php.cli()`. Run command-line programs through `php.cli()` instead.
+	 */
 	async setSapiName(newName: string) {
 		const result = this[__private__dont__use].ccall(
 			'wasm_set_sapi_name',
