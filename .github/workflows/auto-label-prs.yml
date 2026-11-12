@@ -84,7 +84,13 @@ jobs:
               run: node packages/meta/bin/label-pr.mjs
               env:
                   PR_NUMBER: ${{ github.event.pull_request.number }}
-                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+                  # Pass the base BRANCH name, not base.sha. The webhook's
+                  # base.sha can lag the real branch tip, and diffing against a
+                  # stale base makes the trunk commits a PR pulled in (by updating
+                  # from trunk) look like the PR's own changes, so it gets
+                  # mislabeled. The runner fetches this branch fresh and diffs
+                  # against its current tip instead.
+                  BASE_REF: ${{ github.event.pull_request.base.ref }}
                   # Passed as env (not interpolated into the shell), so an
                   # attacker-controlled title can't inject commands.
                   PR_TITLE: ${{ github.event.pull_request.title }}
