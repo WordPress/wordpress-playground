@@ -1,8 +1,16 @@
 import { createSpawnHandler, splitShellCommand } from '@php-wasm/util';
-import type { PHP } from './php';
 import type { PHPWorker } from './php-worker';
-import type { Remote } from './comlink-sync';
 import { logger } from '@php-wasm/logger';
+
+type MaybeRemoteMethod<T> = T extends (...args: infer Args) => infer Result
+	? (...args: Args) => Result | Promise<Awaited<Result>>
+	: never;
+
+type SandboxedSpawnPHP = {
+	[Method in 'chdir' | 'cwd' | 'cli' | 'listFiles']: MaybeRemoteMethod<
+		PHPWorker[Method]
+	>;
+};
 
 /**
  * An isomorphic proc_open() handler that implements typical shell in TypeScript
@@ -16,8 +24,8 @@ import { logger } from '@php-wasm/logger';
  */
 export function sandboxedSpawnHandlerFactory(
 	getPHPInstance?: () => Promise<{
-		php: PHP | Remote<PHPWorker>;
-		reap: () => void;
+		php: SandboxedSpawnPHP;
+		reap: () => void | Promise<void>;
 	}>
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
@@ -158,16 +166,17 @@ export function sandboxedSpawnHandlerFactory(
 			}
 		} catch (e) {
 			// An exception here means the PHP runtime has crashed.
-			const errMsg = e instanceof Error
-				? e.message + '\n' + e.stack
-				: typeof e === 'object' && e !== null
-					? JSON.stringify(e, Object.getOwnPropertyNames(e))
-					: String(e);
+			const errMsg =
+				e instanceof Error
+					? e.message + '\n' + e.stack
+					: typeof e === 'object' && e !== null
+						? JSON.stringify(e, Object.getOwnPropertyNames(e))
+						: String(e);
 			processApi.stderr(`[spawn error] ${errMsg}`);
 			processApi.exit(1);
 			throw e;
 		} finally {
-			reap();
+			await reap();
 		}
 	});
 }
