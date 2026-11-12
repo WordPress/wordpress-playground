@@ -31,6 +31,13 @@ foreach ( [ $app_origin, $wordpress_origin ] as $origin ) {
         isset( $url["user"] ) || isset( $url["pass"] ) ) {
         throw new RuntimeException( "Expected an HTTPS origin without a path." );
     }
+    // Browsers compare serialized origins exactly: lowercase host, no default port.
+    $default_port = [ "http" => 80, "https" => 443 ][ $url["scheme"] ];
+    $canonical = $url["scheme"] . "://" . strtolower( $url["host"] ) .
+        ( isset( $url["port"] ) && $url["port"] !== $default_port ? ":" . $url["port"] : "" );
+    if ( $origin !== $canonical ) {
+        throw new RuntimeException( "Expected the origin in canonical form: $canonical" );
+    }
 }
 if ( strcasecmp( parse_url( $app_origin, PHP_URL_HOST ), parse_url( $wordpress_origin, PHP_URL_HOST ) ) === 0 ) {
     throw new RuntimeException( "The app and sandbox must use different hostnames." );

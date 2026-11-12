@@ -109,6 +109,24 @@ process.stdout.write(process.env.PUBLIC_HIDDEN === '1' ? '200' : process.argv.at
 			{ env: { ...env, ...extra } }
 		);
 	await assert.rejects(install({ PUBLIC_HIDDEN: '1' }));
+	// The bootstrap compares these strings with location.origin on every page load.
+	for (const origin of ['https://App.example', 'https://app.example:443']) {
+		await assert.rejects(
+			run(
+				'bash',
+				[
+					join(deployment, 'apply-update.sh'),
+					origin,
+					wordPressOrigin,
+					upload,
+					webRoot,
+					backups,
+				],
+				{ env }
+			),
+			(error) => error.stderr.includes('canonical form')
+		);
+	}
 	await assert.rejects(
 		run(
 			'bash',
