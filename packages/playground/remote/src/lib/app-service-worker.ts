@@ -12,6 +12,7 @@ import {
 import { getReleaseRoot } from '@wp-playground/common';
 import { basename } from '@php-wasm/util';
 import { wordPressSiteUrl, playgroundOrigin, assetBaseUrl } from './config';
+import { isFetchAnswered } from './answered-fetches';
 
 declare const self: ServiceWorkerGlobalScope;
 const clientReleases = new Map<string, string>();
@@ -28,10 +29,10 @@ export function installAppServiceWorker() {
 			!getReleaseRoot(assetBaseUrl) &&
 			wordPressSiteUrl === playgroundOrigin
 		) {
-			event.waitUntil(
-				cacheOfflineModeAssetsForCurrentRelease(
-					sharedMode ? ['/personal-wp-version.json'] : []
-				)
+			// Do not delay activation: pages wait for it before starting PHP, and fetches
+			// to an activating worker queue until the full offline manifest arrives.
+			void cacheOfflineModeAssetsForCurrentRelease(
+				sharedMode ? ['/personal-wp-version.json'] : []
 			);
 		}
 	});
@@ -53,6 +54,7 @@ export function installAppServiceWorker() {
 		);
 	});
 	self.addEventListener('fetch', (event) => {
+		if (isFetchAnswered(event)) return;
 		const url = new URL(event.request.url);
 		if (url.origin !== self.location.origin) return;
 		if (isURLScoped(url)) {
@@ -80,6 +82,8 @@ export function installAppServiceWorker() {
 			url.pathname === '/sw.js' ||
 			url.pathname.endsWith('.php') ||
 			url.pathname.startsWith('/plugin-proxy') ||
+			// The public SDK must always match the deployed remote.html.
+			url.pathname.startsWith('/client/index.js') ||
 			url.pathname.startsWith('/relay/') ||
 			url.pathname.startsWith('/@fs/') ||
 			(sharedMode && url.pathname.endsWith('/personal-wp-version.json'))
@@ -152,10 +156,13 @@ function updateReleaseRegistry(
 			else if (!pinnedClients.has(client.id)) unknownClient = true;
 		}
 		// Unknown legacy clients may still need older cached assets. Never evict a live release.
+		// Builds without releases never pin clients; like before releases, each new
+		// build replaces the previous build's cache as soon as it activates.
 		await pruneOfflineModeCaches(
 			unknownClient ? undefined : retained,
-			!unknownClient &&
-				[...retained].every((value) => value === currentRoot)
+			!currentRoot ||
+				(!unknownClient &&
+					[...retained].every((value) => value === currentRoot))
 		);
 	});
 	registryQueue = update.catch(() => {});
@@ -190,6 +197,11 @@ async function fetchAppAsset(event: FetchEvent): Promise<Response> {
 				new URL(root, url)
 			);
 			request = await cloneRequest(request, { url: target });
+		} else if (getReleaseRoot(assetBaseUrl)) {
+			// Root URLs without a pinned release (navigations to tool pages, external SDK
+			// downloads) are served from whichever release is selected. The release cache
+			// name never changes, so caching them first would pin users to an old release.
+			return networkFirstFetch(request);
 		}
 	}
 	if (/^bytes=[1-9]\d*-$/.test(request.headers.get('range') ?? ''))

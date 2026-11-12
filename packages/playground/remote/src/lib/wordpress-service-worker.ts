@@ -106,11 +106,10 @@ function handleWordPressFetch(event: FetchEvent) {
 	// module graph into scoped 404 responses.
 	const sharedMode =
 		new URL(self.location.href).searchParams.get('shared-worker') === '1';
-	if (sharedMode && url.pathname.endsWith('/shared-playground-worker.js')) {
-		// Refresh the stable entrypoint online while preserving offline startup.
-		return event.respondWith(fetch(event.request));
-	}
+	// The app handler refreshes the shared PHP worker entry point network-first,
+	// which preserves offline startup.
 	const isReservedUrl =
+		(sharedMode && url.pathname.endsWith('/shared-playground-worker.js')) ||
 		(sharedMode && url.pathname.endsWith('/personal-wp-version.json')) ||
 		url.pathname.startsWith('/plugin-proxy') ||
 		url.pathname.startsWith('/client/index.js') ||
@@ -143,6 +142,8 @@ function handleWordPressFetch(event: FetchEvent) {
 		return event.respondWith(fetch(event.request));
 	}
 	if (isSiteThumbnailModule || isSiteThumbnailWorker) {
+		// On a single-origin build the app handler serves these from its offline cache.
+		if (self.location.origin === playgroundOrigin) return;
 		return event.respondWith(fetch(event.request));
 	}
 

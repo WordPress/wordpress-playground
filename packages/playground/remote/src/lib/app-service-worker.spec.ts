@@ -120,6 +120,16 @@ it('refreshes the root selector instead of resolving it inside a document releas
 	expect(await (await fetchEvent('/', 'document')).text()).toBe('bootstrap');
 });
 
+it('refreshes root pages that no document release has pinned', async () => {
+	vi.mocked(
+		(self as unknown as ServiceWorkerGlobalScope).clients.get
+	).mockResolvedValue(undefined);
+	(await import('./app-service-worker')).installAppServiceWorker();
+	for (const path of ['/php-playground.html', '/builder/builder.html']) {
+		expect(await (await fetchEvent(path, '')).text()).toBe('bootstrap');
+	}
+});
+
 it('collects dead pins while retaining caches required by live documents and PHP workers', async () => {
 	const { pruneOfflineModeCaches } = await import('./offline-mode-cache');
 	const clients = (self as unknown as ServiceWorkerGlobalScope).clients;
@@ -171,4 +181,24 @@ it('collects dead pins while retaining caches required by live documents and PHP
 		new Set(['/releases/release.B/']),
 		true
 	);
+});
+
+it('replaces the previous build cache when a single-origin build activates beside open pages', async () => {
+	vi.doMock('./config', () => ({
+		playgroundOrigin: 'https://app.test',
+		wordPressSiteUrl: 'https://app.test',
+		assetBaseUrl: new URL('https://app.test/'),
+	}));
+	const { pruneOfflineModeCaches } = await import('./offline-mode-cache');
+	vi.mocked(
+		(self as unknown as ServiceWorkerGlobalScope).clients.matchAll
+	).mockResolvedValue([{ id: 'page', url: 'https://app.test/' }] as Client[]);
+	(await import('./app-service-worker')).installAppServiceWorker();
+	const pending: Promise<void>[] = [];
+	listeners['activate']({
+		waitUntil: (promise: Promise<void>) => pending.push(promise),
+	});
+	await Promise.all(pending);
+	expect(pending).toHaveLength(1);
+	expect(pruneOfflineModeCaches).toHaveBeenLastCalledWith(undefined, true);
 });
