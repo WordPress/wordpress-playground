@@ -56,7 +56,6 @@ interface RemoteAccessFrameMessage {
 
 const STATUS_POLL_INTERVAL_MS = 3000;
 const GUEST_ID_STORAGE_KEY = 'personal-wp-remote-access-guest-id';
-const REMOTE_ACCESS_RELAY_SCOPE = 'default';
 const SERVICE_WORKER_RELAY_TTL_MS = 5 * 60 * 1000;
 const SERVICE_WORKER_RELAY_REFRESH_MS = 60 * 1000;
 
@@ -88,6 +87,9 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 	const directTunnelRef = useRef<DirectTunnelGuest | null>(null);
 	const guestId = useRef(getOrCreateGuestId()).current;
 	const verificationCode = useRef(generateVerificationCode()).current;
+	// Each viewer gets its own unguessable service worker relay scope so
+	// viewers open in the same browser profile cannot share a mapping.
+	const [relayScope] = useState(() => crypto.randomUUID());
 	const shouldLoadIframe =
 		serviceWorkerReady && (dataChannelReady || iframeHasLoaded);
 	const remoteAccessRelayIframeUrl = useMemo(
@@ -95,9 +97,9 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			buildRemoteAccessScopedIframeUrl(
 				getRemoteAccessPathFromConnectUrl(window.location.href),
 				sessionId,
-				{ scope: REMOTE_ACCESS_RELAY_SCOPE }
+				{ scope: relayScope }
 			),
-		[sessionId]
+		[relayScope, sessionId]
 	);
 	const remoteAccessViewerFrameUrl = useMemo(() => {
 		return buildRemoteAccessViewerFrameUrl(remoteAccessRelayIframeUrl);
@@ -311,7 +313,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			registration: ServiceWorkerRegistration
 		): Promise<void> => {
 			return postRemoteAccessRelayMapping(registration, {
-				scope: REMOTE_ACCESS_RELAY_SCOPE,
+				scope: relayScope,
 				sessionId,
 				ttl: SERVICE_WORKER_RELAY_TTL_MS,
 			}).then(({ clientId }) => {
@@ -326,13 +328,13 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 
 		const refreshServiceWorkerProbe = async () => {
 			const data = await fetchRemoteAccessRelayProbe(
-				REMOTE_ACCESS_RELAY_SCOPE,
+				relayScope,
 				sessionId
 			);
 			setRelayDiagnostics((current) => ({
 				...current,
 				serviceWorker: data.hasMapping
-					? `Controlling /scope:default/ · intercepted ${data.interceptedRequests}`
+					? `Controlling /scope:${relayScope}/ · intercepted ${data.interceptedRequests}`
 					: 'Probe reached worker without mapping',
 				intercepted: data.interceptedRequests,
 				lastPath:
@@ -353,17 +355,18 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			setStatus('error');
 		});
 
-		window.addEventListener('pagehide', clearRemoteAccessRelay);
+		const clearRelay = () => clearRemoteAccessRelayMapping(relayScope);
+		window.addEventListener('pagehide', clearRelay);
 		return () => {
 			cancelled = true;
 			setServiceWorkerReady(false);
 			if (interval !== null) {
 				clearInterval(interval);
 			}
-			window.removeEventListener('pagehide', clearRemoteAccessRelay);
-			clearRemoteAccessRelay();
+			window.removeEventListener('pagehide', clearRelay);
+			clearRelay();
 		};
-	}, [sessionId]);
+	}, [relayScope, sessionId]);
 
 	useEffect(() => {
 		function handleServiceWorkerMessage(event: MessageEvent) {
@@ -450,16 +453,16 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 		setIframeSrc(remoteAccessViewerFrameUrl);
 		setRelayDiagnostics((current) => ({
 			...current,
-			iframe: 'Loading /scope:default/',
+			iframe: `Loading /scope:${relayScope}/`,
 		}));
-	}, [remoteAccessViewerFrameUrl, iframeSrc, shouldLoadIframe]);
+	}, [relayScope, remoteAccessViewerFrameUrl, iframeSrc, shouldLoadIframe]);
 
 	useEffect(() => {
 		function handleMessage(event: MessageEvent) {
 			if (isRemoteAccessFrameLoad(event, iframeRef.current)) {
 				const loadedUrl = new URL(event.data.href);
 				setIframeHasLoaded(true);
-				syncDesktopUrlFromScopedUrl(event.data.href);
+				syncDesktopUrlFromScopedUrl(event.data.href, relayScope);
 				setRelayDiagnostics((current) => ({
 					...current,
 					iframe:
@@ -497,7 +500,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 
 		window.addEventListener('message', handleMessage);
 		return () => window.removeEventListener('message', handleMessage);
-	}, []);
+	}, [relayScope]);
 
 	const handleIframeLoad = useCallback(() => {
 		if (!iframeRef.current?.src.includes(remoteAccessFrameUrl)) {
@@ -529,7 +532,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 									window.location.href
 								),
 								sessionId,
-								{ scope: REMOTE_ACCESS_RELAY_SCOPE }
+								{ scope: relayScope }
 							)
 						)
 					);
@@ -542,7 +545,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 				lastError: '-',
 			}));
 		},
-		[sessionId, shouldLoadIframe]
+		[relayScope, sessionId, shouldLoadIframe]
 	);
 
 	const retry = () => {
@@ -550,7 +553,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 	};
 
 	const disconnect = () => {
-		clearRemoteAccessRelay();
+		clearRemoteAccessRelayMapping(relayScope);
 		window.location.href = '/connect';
 	};
 
@@ -755,16 +758,12 @@ export function getRemoteAccessSessionId(): string | null {
 	return getRemoteAccessSessionIdFromUrl(window.location.href);
 }
 
-function clearRemoteAccessRelay() {
-	clearRemoteAccessRelayMapping(REMOTE_ACCESS_RELAY_SCOPE);
-}
-
-function syncDesktopUrlFromScopedUrl(scopedUrl: string) {
+function syncDesktopUrlFromScopedUrl(scopedUrl: string, relayScope: string) {
 	try {
 		const nextUrl = buildConnectUrlFromScopedIframeUrl(
 			scopedUrl,
 			window.location.href,
-			{ scope: REMOTE_ACCESS_RELAY_SCOPE }
+			{ scope: relayScope }
 		);
 		if (!nextUrl) {
 			return;

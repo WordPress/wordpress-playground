@@ -1,11 +1,13 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	applyRemoteAccessCookies,
 	collectHeaders,
 	createRemoteAccessRelayResponse,
 	getRemoteAccessRelayMapping,
 	getRemoteAccessRelayMappingFromUrl,
+	handleRemoteAccessRelayMessage,
 	handleRemoteAccessRelayProbe,
+	handleRemoteAccessRelayRequest,
 	requestBodyToBytes,
 	scopeRemoteAccessHtmlUrls,
 	storeRemoteAccessCookies,
@@ -270,3 +272,169 @@ describe('remote access service worker relay helpers', () => {
 		expect(html).toContain('href="#section"');
 	});
 });
+
+describe('remote access service worker relay scopes', () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	it('keeps concurrent relay scopes isolated', async () => {
+		const clients = stubRelayClients();
+		postRelayMessage('client-a', mapMessage('concurrent-a', 'session-a'));
+		postRelayMessage('client-b', mapMessage('concurrent-b', 'session-b'));
+
+		await relay('concurrent-a', ['a_auth=1; Path=/']);
+		await relay('concurrent-b');
+		await relay('concurrent-a');
+
+		expect(clients.received).toEqual([
+			{ clientId: 'client-a', sessionId: 'session-a', cookie: undefined },
+			{ clientId: 'client-b', sessionId: 'session-b', cookie: undefined },
+			{
+				clientId: 'client-a',
+				sessionId: 'session-a',
+				cookie: 'a_auth=1',
+			},
+		]);
+	});
+
+	it('keeps cookies when the same session refreshes its mapping', async () => {
+		const clients = stubRelayClients();
+		postRelayMessage('client-a', mapMessage('reconnect', 'session-a'));
+		await relay('reconnect', ['auth=1; Path=/']);
+
+		postRelayMessage('client-a', mapMessage('reconnect', 'session-a'));
+		await relay('reconnect');
+
+		expect(clients.received.at(-1)).toEqual({
+			clientId: 'client-a',
+			sessionId: 'session-a',
+			cookie: 'auth=1',
+		});
+	});
+
+	it('drops cookies, including in-flight ones, when the session changes', async () => {
+		const clients = stubRelayClients();
+		postRelayMessage('client-a', mapMessage('session-change', 'session-a'));
+		await relay('session-change', ['auth=1; Path=/']);
+
+		const inFlight = relay('session-change', ['late=1; Path=/']);
+		postRelayMessage('client-a', mapMessage('session-change', 'session-b'));
+		await inFlight;
+		await relay('session-change');
+
+		expect(clients.received.slice(1)).toEqual([
+			{ clientId: 'client-a', sessionId: 'session-a', cookie: 'auth=1' },
+			{ clientId: 'client-a', sessionId: 'session-b', cookie: undefined },
+		]);
+	});
+
+	it('does not let another client replace or clear a mapping', () => {
+		postRelayMessage('client-a', mapMessage('owned', 'session-a'));
+
+		const reply = postRelayMessage(
+			'client-b',
+			mapMessage('owned', 'session-b')
+		);
+		postRelayMessage('client-b', {
+			type: 'remote-access-relay-clear',
+			scope: 'owned',
+		});
+
+		expect(reply).toMatchObject({ type: 'remote-access-relay-map-error' });
+		expect(getRemoteAccessRelayMapping('owned')).toMatchObject({
+			sessionId: 'session-a',
+			clientId: 'client-a',
+		});
+
+		postRelayMessage('client-a', {
+			type: 'remote-access-relay-clear',
+			scope: 'owned',
+		});
+		expect(getRemoteAccessRelayMapping('owned')).toBeUndefined();
+	});
+
+	it('does not let a viewer URL replace an existing mapping', () => {
+		postRelayMessage('client-a', mapMessage('url-owned', 'session-a'));
+
+		getRemoteAccessRelayMappingFromUrl(
+			'url-owned',
+			new URL(
+				'https://example.com/scope:url-owned/?remote-access-view=session-b'
+			)
+		);
+
+		expect(getRemoteAccessRelayMapping('url-owned')).toMatchObject({
+			sessionId: 'session-a',
+			clientId: 'client-a',
+		});
+	});
+});
+
+function mapMessage(scope: string, sessionId: string) {
+	return { type: 'remote-access-relay-map', scope, sessionId };
+}
+
+function postRelayMessage(clientId: string, data: Record<string, unknown>) {
+	let reply: unknown;
+	handleRemoteAccessRelayMessage({
+		data,
+		source: { id: clientId },
+		ports: [{ postMessage: (message: unknown) => (reply = message) }],
+	} as unknown as ExtendableMessageEvent);
+	return reply;
+}
+
+/**
+ * Stubs the service worker's window clients. Each client answers relay
+ * requests with the Set-Cookie headers passed to relay() for that request.
+ */
+function stubRelayClients() {
+	const received: Array<{
+		clientId: string;
+		sessionId: string;
+		cookie?: string;
+	}> = [];
+	const getClient = async (id: string) => ({
+		id,
+		postMessage: (
+			message: {
+				sessionId: string;
+				headers: Record<string, string>;
+				path: string;
+			},
+			[port]: MessagePort[]
+		) => {
+			received.push({
+				clientId: id,
+				sessionId: message.sessionId,
+				cookie: message.headers['cookie'],
+			});
+			const cookies = new URL(
+				message.path,
+				'https://example.com'
+			).searchParams.getAll('set-cookie');
+			setTimeout(() =>
+				port.postMessage({
+					type: 'remote-access-relay-response',
+					response: { status: 200, headers: {}, cookies },
+				})
+			);
+		},
+	});
+	vi.stubGlobal('self', { clients: { get: getClient } });
+	return { received };
+}
+
+async function relay(scope: string, setCookies: string[] = []) {
+	const url = new URL(`https://example.com/scope:${scope}/wp-admin/`);
+	for (const cookie of setCookies) {
+		url.searchParams.append('set-cookie', cookie);
+	}
+	const mapping = getRemoteAccessRelayMapping(scope)!;
+	const response = await handleRemoteAccessRelayRequest(
+		{ request: new Request(url) } as FetchEvent,
+		mapping
+	);
+	expect(response.status).toBe(200);
+}
