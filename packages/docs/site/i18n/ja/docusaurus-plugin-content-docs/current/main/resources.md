@@ -75,7 +75,6 @@ Playground に関連するいくつかのツールへのアクセスを容易に
 - [Synchronization between two Playgrounds](https://playground.wordpress.net/demos/sync.html)
 - [Time Travel](https://playground.wordpress.net/demos/time-traveling.html)
 - [WP-CLI](https://playground.wordpress.net/demos/wp-cli.html)
-- [PHP implementation of Blueprints](https://playground.wordpress.net/demos/php-blueprints.html)
 -->
 
 ## WordPress Playground で構築されたアプリ {#apps-built-with-wordpress-playground}
@@ -93,7 +92,6 @@ Playground に関連するいくつかのツールへのアクセスを容易に
 - [2 つの Playground 間の同期](https://playground.wordpress.net/demos/sync.html)
 - [タイムトラベル](https://playground.wordpress.net/demos/time-traveling.html)
 - [WP-CLI](https://playground.wordpress.net/demos/wp-cli.html)
-- [Blueprints の PHP 実装](https://playground.wordpress.net/demos/php-blueprints.html)
 
 <!--
 ## Reading materials

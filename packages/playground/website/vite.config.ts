@@ -332,23 +332,6 @@ export default defineConfig(({ command, mode }) => {
 				},
 			} as Plugin,
 			/**
-			 * Copy the `blueprints.phar` file to the `dist/demos` directory.
-			 */
-			{
-				name: 'blueprints-plugin',
-				apply: 'build',
-				writeBundle({ dir: outputDir }) {
-					const blueprintsPath = path('demos/blueprints.phar');
-
-					if (existsSync(blueprintsPath) && outputDir) {
-						copyFileSync(
-							blueprintsPath,
-							join(outputDir, 'demos/blueprints.phar')
-						);
-					}
-				},
-			} as Plugin,
-			/**
 			 * Generate a list of files needed for the website to function offline.
 			 */
 			listAssetsRequiredForOfflineMode({
@@ -413,9 +396,6 @@ export default defineConfig(({ command, mode }) => {
 					),
 					'wp-cli.html': fileURLToPath(
 						new URL('./demos/wp-cli.html', import.meta.url)
-					),
-					'php-blueprints.html': fileURLToPath(
-						new URL('./demos/php-blueprints.html', import.meta.url)
 					),
 					'sync.html': fileURLToPath(
 						new URL('./demos/sync.html', import.meta.url)
