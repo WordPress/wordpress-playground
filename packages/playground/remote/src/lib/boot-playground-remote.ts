@@ -1,5 +1,5 @@
 import { connectWordPressOrigin } from './connect-wordpress-origin';
-import { playgroundOrigin, wordPressSiteUrl } from './config';
+import { wordPressSiteUrl } from './config';
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
@@ -186,19 +186,6 @@ export async function bootPlaygroundRemote() {
 	let runStartupBlueprint = true;
 
 	const wpFrame = document.querySelector('#wp') as HTMLIFrameElement;
-	// Delegation preserves two defenses for cross-origin fetches to localhost:
-	// browsers enforcing Local Network Access require user permission (and prompt
-	// unless a decision is already saved); reading responses also requires the
-	// local server's Access-Control-Allow-Origin to allow the requesting sandbox
-	// origin, or * for requests without credentials. CORS does not prevent all
-	// requests from reaching the server, so it is not a substitute for CSRF protection.
-	// https://wicg.github.io/local-network-access/#permission-prompt
-	// https://fetch.spec.whatwg.org/#http-access-control-allow-origin
-	// Keep permission grants limited to Personal WP; the public Playground host
-	// shares its origin across unrelated sites.
-	if (playgroundOrigin === 'https://my.wordpress.net') {
-		wpFrame.allow = `loopback-network ${wordPressSiteUrl}`;
-	}
 	// Pointer events stop at the WordPress document boundary. Accept messages from
 	// this #wp window at the WordPress origin, then dispatch a press in remote.html,
 	// where the app's outside-click listeners can observe it. Checking the origin

@@ -231,6 +231,14 @@ for the separate SharedWorker inspector.
 
 The build process combines `playground-remote` and `playground-personal-wp` into a single deployable package at `dist/packages/playground/my-wordpress-net/`.
 
+Personal WP installs loopback-network delegation on its same-origin runtime frame
+before the client boots WordPress. Its own `wordpress-popup.html` entry opts into
+the shared popup renderer's delegation and replaces the default popup when these
+builds are assembled. These policies follow the configured WordPress origin on
+localhost and custom domains; they do not depend on `my.wordpress.net`. The shared
+remote and public popup documents leave delegation disabled. Browser permission
+and the local server's CORS policy are still required. LAN access is not delegated.
+
 Build targets:
 
 - `build` - Full build (runs `build:my-wordpress-net`)

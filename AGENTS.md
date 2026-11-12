@@ -158,6 +158,11 @@ The core architecture uses an iframe-based isolation model:
 Personal WP explicitly opts into SharedWorkers via `startPlaygroundWeb`.
 Its ServiceWorker sends HTTP requests directly to the shared PHP runtime through MessagePorts.
 The main website retains dedicated workers and the existing window relay by default.
+Personal WP owns loopback-network delegation: its startup load listener configures
+its same-origin remote's WordPress frame before PHP boots. Its popup HTML entry
+opts in to the shared renderer and replaces the default popup in the combined
+Personal WP build. Shared remote and public popup documents do not opt in based
+on their hostname or URL parameters. Keep these app-specific policies in Personal WP.
 Deployment checks run once per Personal WP document; stale runtimes drain requests and flush
 OPFS before shutting down. Keep shared-runtime behavior behind the explicit opt-in.
 
