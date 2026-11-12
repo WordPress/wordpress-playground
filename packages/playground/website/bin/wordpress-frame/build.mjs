@@ -25,6 +25,17 @@ await cp(
 	'packages/playground/blueprints/public/blueprint-schema.json',
 	`${upload}/blueprint-schema.json`
 );
+// Start from empty web roots, as on a fresh host. Otherwise each build adds a
+// retained release, and files left by other build targets (such as the
+// single-origin upgrade build) would shadow the release's own fallbacks.
+for (const root of ['wordpress-frame-public', 'wasm-wordpress-net-new']) {
+	for (const directory of [root, `${root}-backups`]) {
+		await rm(`dist/packages/playground/${directory}`, {
+			recursive: true,
+			force: true,
+		});
+	}
+}
 installLocalRelease(
 	upload,
 	'dist/packages/playground/wordpress-frame-public',
