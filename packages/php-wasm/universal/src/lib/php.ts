@@ -111,6 +111,7 @@ export class PHP implements Disposable {
 	protected [__private__dont__use]: any;
 	#sapiName?: string;
 	#phpWasmInitCalled = false;
+	#cliCalled = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map([
 		// Listen to all events
@@ -751,6 +752,15 @@ export class PHP implements Disposable {
 		 * be dispatched before the first one is finished.
 		 */
 		const release = await this.semaphore.acquire();
+
+		if (this.#cliCalled && !this.#rotationOptions.enabled) {
+			release();
+			throw new Error(
+				'php.cli() already ran on this PHP runtime. Call enableRuntimeRotation() ' +
+					'to run more code on this PHP instance.'
+			);
+		}
+
 		let heapBodyPointer: number | undefined;
 		const streamedResponsePromise = this.#executeWithErrorHandling(
 			async () => {
@@ -1691,12 +1701,12 @@ export class PHP implements Disposable {
 	/**
 	 * Starts a PHP CLI session with given arguments.
 	 *
-	 * This method can only be used when PHP was compiled with the CLI SAPI
-	 * and it cannot be used in conjunction with `run()`.
+	 * This method can only be used when PHP was compiled with the CLI SAPI.
 	 *
-	 * Once this method finishes running, the PHP instance is no
-	 * longer usable and should be discarded. This is because PHP
-	 * internally cleans up all the resources and calls exit().
+	 * A CLI session needs a PHP runtime that ran no other code, and it leaves
+	 * the runtime unusable, because PHP internally cleans up all the resources
+	 * and calls exit(). Call `enableRuntimeRotation()` to mix `cli()` and `run()`
+	 * calls on one PHP instance. Without it, such a call throws an error.
 	 *
 	 * @param  argv - The arguments to pass to the CLI.
 	 * @returns The exit code of the CLI session.
@@ -1709,11 +1719,20 @@ export class PHP implements Disposable {
 			return this.subProcess(argv, options);
 		}
 
+		const release = await this.semaphore.acquire();
+
+		const runtimeIsUsed = this.#phpWasmInitCalled || this.#cliCalled;
+		if (runtimeIsUsed && !this.#rotationOptions.enabled) {
+			release();
+			throw new Error(
+				'php.cli() needs a PHP runtime that ran no other code. Call ' +
+					'enableRuntimeRotation() to run it on this PHP instance.'
+			);
+		}
+
 		if (this.#phpWasmInitCalled) {
 			this.#rotationOptions.needsRotating = true;
 		}
-
-		const release = await this.semaphore.acquire();
 
 		return await this.#executeWithErrorHandling(() => {
 			const env = options.env || {};
@@ -1731,14 +1750,22 @@ export class PHP implements Disposable {
 				);
 			}
 
+			this.#cliCalled = true;
 			return this[__private__dont__use].ccall('run_cli', null, [], [], {
 				async: true,
 			});
 		})
-			.then((response) => {
-				response.exitCode.finally(release);
-				return response;
-			})
+			.then(
+				(response) => {
+					// The caller handles a rejected exit code through the response.
+					response.exitCode.finally(release).catch(() => {});
+					return response;
+				},
+				(error) => {
+					release();
+					throw error;
+				}
+			)
 			.finally(() => {
 				this.#rotationOptions.needsRotating = true;
 			});
@@ -1856,6 +1883,7 @@ export class PHP implements Disposable {
 
 		// Clean up any initialized state
 		this.#phpWasmInitCalled = false;
+		this.#cliCalled = false;
 
 		// Delete any links between this PHP instance and the runtime
 		this.#wasmErrorsTarget = null;
