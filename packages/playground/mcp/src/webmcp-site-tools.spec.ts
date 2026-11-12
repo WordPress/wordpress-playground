@@ -9,6 +9,7 @@ import { registerWebMCPTools } from './webmcp';
 import { startWebMCPSiteToolGateway } from './webmcp-site-tools';
 import { createSiteAccess } from './webmcp-site-access';
 import { createSiteAccessRegistry } from './webmcp-site-access-registry';
+import { createMemorySiteAccessStore } from '../tests/unit/memory-site-access-store';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -236,21 +237,8 @@ async function setUp() {
 }
 
 function createMemoryRegistry() {
-	const values = new Map<string, string>();
-	let queue: Promise<unknown> = Promise.resolve();
 	return createSiteAccessRegistry({
-		storage: {
-			getItem: (key) => values.get(key) ?? null,
-			setItem: (key, value) => {
-				values.set(key, value);
-			},
-		},
-		locks: {
-			request: (_name: string, run: () => Promise<unknown>) => {
-				const result = queue.then(run);
-				queue = result.catch(() => undefined);
-				return result;
-			},
-		} as unknown as Pick<LockManager, 'request'>,
+		store: createMemorySiteAccessStore(),
+		channel: null,
 	});
 }

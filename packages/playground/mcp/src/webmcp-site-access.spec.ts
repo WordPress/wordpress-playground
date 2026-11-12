@@ -7,6 +7,7 @@ import type {
 } from './webmcp-site-access';
 import { createSiteAccess } from './webmcp-site-access';
 import { createSiteAccessRegistry } from './webmcp-site-access-registry';
+import { createMemorySiteAccessStore } from '../tests/unit/memory-site-access-store';
 
 // Contract: a grant token reaches only the site the user approved, and every
 // failure of the token, the site or the shared record refuses access. Token
@@ -66,10 +67,41 @@ describe('site access grants', () => {
 		);
 	});
 
+	it('count only the answer the confirmation gives', async () => {
+		const tab = createBrowser().openTab(
+			[site('a', true)],
+			async () => 'deny'
+		);
+		// A wrapper may drop the answer, invent one, or never ask at all.
+		for (const interact of [
+			async (confirm: () => Promise<unknown>) => void (await confirm()),
+			async (confirm: () => Promise<unknown>) => {
+				await confirm();
+				return 'allow-revoke-others';
+			},
+			async () => 'allow',
+		]) {
+			await expect(tab.access.request('a', { interact })).rejects.toThrow(
+				'did not grant'
+			);
+		}
+	});
+
+	it('are not issued for abandoned requests', async () => {
+		const controller = new AbortController();
+		const tab = createBrowser().openTab([site('a', true)], async () => {
+			controller.abort();
+			return 'allow';
+		});
+		await expect(
+			tab.access.request('a', { signal: controller.signal })
+		).rejects.toThrow('did not grant');
+	});
+
 	it('are refused while the shared record is unreadable', async () => {
 		const browser = createBrowser();
 		const tab = browser.openTab([site('a', true)]);
-		browser.storage.setItem('playground-webmcp-site-access', '{');
+		browser.store.value = '{';
 		await expect(tab.access.request('a')).rejects.toThrow('unavailable');
 		await tab.access.endSession();
 		await expect(tab.access.request('a')).resolves.toMatchObject({
@@ -108,15 +140,17 @@ describe('cross-site access', () => {
 
 	it('keeps both grants only with a reason', async () => {
 		const browser = createBrowser();
-		const decide = vi.fn(async (): Promise<SiteAccessDecision> => 'allow');
+		const decide = vi.fn<
+			(request: SiteAccessRequest) => Promise<SiteAccessDecision>
+		>(async () => 'allow');
 		const tab = browser.openTab([site('a', true), site('b')], decide);
 		const a = await tab.access.request('a');
 		decide.mockResolvedValue('allow-cross-site');
 		await expect(tab.access.request('b')).rejects.toThrow('did not grant');
 		const b = await tab.access.request('b', { reason: 'Compare themes' });
-		expect(decide).toHaveBeenLastCalledWith(
-			expect.objectContaining({ reason: 'Compare themes' })
-		);
+		expect(decide.mock.lastCall?.[0]).toMatchObject({
+			reason: 'Compare themes',
+		});
 		await expect(tab.access.authorize('a', a.grant)).resolves.toBe(
 			tab.clients.get('a')
 		);
@@ -157,27 +191,13 @@ function site(slug: string, isActive = false): SiteAccessSite {
 	return { slug, name: `Site ${slug}`, isActive };
 }
 
-/** Tabs of one browser profile sharing storage, locks and a clock. */
+/** Tabs of one browser profile sharing storage and a clock. */
 function createBrowser() {
 	let time = Date.UTC(2026, 0, 1);
-	const values = new Map<string, string>();
-	const storage = {
-		getItem: (key: string) => values.get(key) ?? null,
-		setItem: (key: string, value: string) => {
-			values.set(key, value);
-		},
-	};
-	let queue: Promise<unknown> = Promise.resolve();
-	const locks = {
-		request: (_name: string, run: () => Promise<unknown>) => {
-			const result = queue.then(run);
-			queue = result.catch(() => undefined);
-			return result;
-		},
-	} as unknown as Pick<LockManager, 'request'>;
+	const store = createMemorySiteAccessStore();
 	const now = () => time;
 	return {
-		storage,
+		store,
 		advance(ms: number) {
 			time += ms;
 		},
@@ -195,7 +215,11 @@ function createBrowser() {
 				getActiveClient: () =>
 					clients.get(sites.find((s) => s.isActive)?.slug ?? ''),
 				confirm,
-				registry: createSiteAccessRegistry({ storage, locks, now }),
+				registry: createSiteAccessRegistry({
+					store,
+					channel: null,
+					now,
+				}),
 				now,
 			});
 			return {

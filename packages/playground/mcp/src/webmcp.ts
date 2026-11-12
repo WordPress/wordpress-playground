@@ -17,11 +17,7 @@ import {
 } from './tools/tool-definitions';
 import { toolExecutors, createToolClient } from './tools/tool-executors';
 import type { PlaygroundBridgeConfig } from './bridge-client';
-import type {
-	SiteAccess,
-	SiteAccessDecision,
-	SiteAccessOptions,
-} from './webmcp-site-access';
+import type { SiteAccess, SiteAccessOptions } from './webmcp-site-access';
 import { createSiteAccess } from './webmcp-site-access';
 import { createSiteToolGatewayTools } from './webmcp-site-tools';
 
@@ -263,16 +259,10 @@ function createSiteAccessTools(
 							: undefined;
 					// Hand control to the user while they decide, so the agent
 					// does not act on the dialog itself where browsers support it.
-					const requestUserInteraction =
-						client?.requestUserInteraction?.bind(client);
 					return await siteAccess.request(String(input['siteId']), {
 						reason,
-						interact: requestUserInteraction
-							? async (confirm) =>
-									(await requestUserInteraction(
-										confirm
-									)) as SiteAccessDecision
-							: undefined,
+						interact: client?.requestUserInteraction?.bind(client),
+						signal: client?.signal,
 					});
 				} catch (error) {
 					return {

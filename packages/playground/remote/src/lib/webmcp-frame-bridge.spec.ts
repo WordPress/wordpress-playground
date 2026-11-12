@@ -159,6 +159,42 @@ describe('WebMCP frame interaction relay', () => {
 		});
 		await expect(handled).resolves.toBe('done');
 
+		// A handler that ends without running the callback refuses it, and
+		// an interaction ID already in progress cannot be requested again.
+		void bridge
+			.callTool('site_tool', {}, 'skipped', async () => 'skipped')
+			.catch(() => undefined);
+		let release!: () => void;
+		void bridge
+			.callTool(
+				'site_tool',
+				{},
+				'waiting',
+				() => new Promise((resolve) => (release = () => resolve(null)))
+			)
+			.catch(() => undefined);
+		request('skipped', 'i-5');
+		request('waiting', 'i-6');
+		request('waiting', 'i-6');
+		await vi.waitFor(() =>
+			expect(sent()).toContainEqual({
+				type: 'playground-webmcp-interaction-denied',
+				documentId: 'doc',
+				interactionId: 'i-5',
+				error: expect.any(String),
+			})
+		);
+		expect(
+			sent().filter(
+				(message) =>
+					message.type === 'playground-webmcp-interaction-denied' &&
+					message.interactionId === 'i-6'
+			)
+		).toHaveLength(1);
+		release();
+		bridge.cancelTool('skipped');
+		bridge.cancelTool('waiting');
+
 		let siteResult: Promise<unknown> | undefined;
 		void bridge
 			.callTool('site_tool', {}, 'cancelled', async (runInSite) => {

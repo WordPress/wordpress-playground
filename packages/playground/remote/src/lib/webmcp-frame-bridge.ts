@@ -105,6 +105,8 @@ export function createWebMCPFrameBridge(
 			onUserInteraction?: WebMCPUserInteractionHandler;
 		}
 	>();
+	/** Interaction IDs whose request is being handled, to refuse duplicates. */
+	const requestedInteractions = new Set<string>();
 	const pendingInteractions = new Map<
 		string,
 		{
@@ -294,13 +296,21 @@ export function createWebMCPFrameBridge(
 		if (
 			!pending ||
 			pending.documentId !== requestDocumentId ||
-			!pending.onUserInteraction
+			!pending.onUserInteraction ||
+			requestedInteractions.has(interactionId)
 		) {
 			deny('User interaction is not available for this tool call.');
 			return;
 		}
+		requestedInteractions.add(interactionId);
+		let started = false;
 		const runInSite = () =>
 			new Promise<unknown>((resolve, reject) => {
+				if (started) {
+					reject(new Error('The interaction has already run.'));
+					return;
+				}
+				started = true;
 				if (!pendingCalls.has(callId)) {
 					reject(new Error('The tool call has already ended.'));
 					return;
@@ -317,18 +327,27 @@ export function createWebMCPFrameBridge(
 					interactionId,
 				});
 			});
+		// Once the callback runs, the WordPress document settles it. A handler
+		// that finishes without running it refuses the interaction.
 		Promise.resolve()
 			.then(() => pending.onUserInteraction!(runInSite))
-			.catch((error: unknown) => {
-				// Once the callback runs, the WordPress document settles it.
-				if (!pendingInteractions.has(interactionId)) {
-					deny(
-						error instanceof Error && error.message
-							? error.message
-							: 'The user interaction was refused.'
-					);
+			.then(
+				() => {
+					if (!started) {
+						deny('The user interaction was not started.');
+					}
+				},
+				(error: unknown) => {
+					if (!started) {
+						deny(
+							error instanceof Error && error.message
+								? error.message
+								: 'The user interaction was refused.'
+						);
+					}
 				}
-			});
+			)
+			.finally(() => requestedInteractions.delete(interactionId));
 	}
 
 	function resolveInteraction(data: {

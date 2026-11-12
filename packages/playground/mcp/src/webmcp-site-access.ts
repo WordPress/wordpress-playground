@@ -101,9 +101,13 @@ export interface SiteAccessOptions {
 	getActiveClient(): PlaygroundClient | undefined;
 	/**
 	 * Asks the user. Without it, access is granted only when exactly one site
-	 * exists and no other site was used, as in a single-site embed.
+	 * exists and no other site was used, as in a single-site embed. `signal`
+	 * aborts when the request is abandoned, so the UI can stop asking.
 	 */
-	confirm?: (request: SiteAccessRequest) => Promise<SiteAccessDecision>;
+	confirm?: (
+		request: SiteAccessRequest,
+		signal: AbortSignal
+	) => Promise<SiteAccessDecision>;
 	registry?: SiteAccessRegistry;
 	now?: () => number;
 }
@@ -112,11 +116,12 @@ export interface SiteAccessRequestOptions {
 	reason?: string;
 	/**
 	 * Runs the confirmation, e.g. inside the browser's
-	 * `requestUserInteraction()` so the agent yields to the user.
+	 * `requestUserInteraction()` so the agent yields to the user. Its return
+	 * value is ignored: only the answer `confirm` receives counts.
 	 */
-	interact?: (
-		confirm: () => Promise<SiteAccessDecision>
-	) => Promise<SiteAccessDecision>;
+	interact?: (confirm: () => Promise<unknown>) => Promise<unknown>;
+	/** Abandons the request. Nothing is granted once it aborts. */
+	signal?: AbortSignal;
 }
 
 export interface SiteAccess {
@@ -142,7 +147,11 @@ export interface SiteAccess {
 		tool: string;
 		input?: Record<string, unknown>;
 	}): void;
-	setInteractingSite(siteId: string | undefined): void;
+	/**
+	 * Marks a site as asking the user for input until the returned function
+	 * is called.
+	 */
+	beginInteraction(siteId: string): () => void;
 	getSnapshot(): SiteAccessSnapshot;
 	subscribe(listener: () => void): () => void;
 }
@@ -186,7 +195,8 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 	const tokens = new Map<string, { grantId: string; siteId: string }>();
 	const calls: SiteAccessCall[] = [];
 	const listeners = new Set<() => void>();
-	let interactingSiteId: string | undefined;
+	const interactions: string[] = [];
+	let expiryTimer: ReturnType<typeof setTimeout> | undefined;
 	let snapshot: SiteAccessSnapshot | undefined;
 
 	registry.subscribe(() => {
@@ -283,11 +293,28 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 		}
 	}
 
+	/** Refreshes the snapshot when its earliest grant expires. */
+	function scheduleExpiryRefresh(current: SiteAccessSnapshot) {
+		clearTimeout(expiryTimer);
+		const nextExpiry = Math.min(
+			...current.grants.map((grant) => grant.expiresAt)
+		);
+		if (Number.isFinite(nextExpiry)) {
+			expiryTimer = setTimeout(
+				() => {
+					snapshot = undefined;
+					notify();
+				},
+				Math.max(0, nextExpiry - now()) + 1000
+			);
+		}
+	}
+
 	function buildSnapshot(): SiteAccessSnapshot {
 		const base = {
 			calls: [...calls],
-			...(interactingSiteId
-				? { interactingSite: describeSite(interactingSiteId) }
+			...(interactions.length > 0
+				? { interactingSite: describeSite(interactions.at(-1)!) }
 				: {}),
 		};
 		let state: SiteAccessState;
@@ -326,7 +353,7 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 	}
 
 	return {
-		async request(siteId, { reason, interact } = {}) {
+		async request(siteId, { reason, interact, signal } = {}) {
 			const site = findSite(siteId);
 			if (!site) {
 				throw new SiteAccessError(ERRORS.unknownSite);
@@ -341,11 +368,24 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 				...(reason ? { reason } : {}),
 			};
 			const confirm = options.confirm;
-			let decision: SiteAccessDecision;
+			// Only the answer the confirmation itself returns counts: whatever
+			// wraps it, such as a browser's requestUserInteraction(), cannot
+			// supply or alter the decision.
+			let decision: unknown = 'deny';
 			if (confirm) {
-				decision = interact
-					? await interact(() => confirm(request))
-					: await confirm(request);
+				const asking = new AbortController();
+				const abandon = () => asking.abort();
+				signal?.addEventListener('abort', abandon);
+				const ask = async () => {
+					decision = await confirm(request, asking.signal);
+					return decision;
+				};
+				try {
+					await (interact ? interact(ask) : ask());
+				} finally {
+					asking.abort();
+					signal?.removeEventListener('abort', abandon);
+				}
 			} else {
 				decision =
 					options.listSites().length === 1 &&
@@ -355,9 +395,12 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 						: 'deny';
 			}
 			if (
-				decision === 'deny' ||
-				(decision === 'allow' && shown.grants.length > 0) ||
-				(decision === 'allow-cross-site' && !reason)
+				!(
+					decision === 'allow-revoke-others' ||
+					(decision === 'allow' && shown.grants.length === 0) ||
+					(decision === 'allow-cross-site' && !!reason)
+				) ||
+				signal?.aborted
 			) {
 				throw new SiteAccessError(ERRORS.denied);
 			}
@@ -457,14 +500,27 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 			notify();
 		},
 
-		setInteractingSite(siteId) {
-			interactingSiteId = siteId;
+		beginInteraction(siteId) {
+			interactions.push(siteId);
 			snapshot = undefined;
 			notify();
+			let ended = false;
+			return () => {
+				if (ended) {
+					return;
+				}
+				ended = true;
+				interactions.splice(interactions.indexOf(siteId), 1);
+				snapshot = undefined;
+				notify();
+			};
 		},
 
 		getSnapshot() {
-			snapshot ??= buildSnapshot();
+			if (!snapshot) {
+				snapshot = buildSnapshot();
+				scheduleExpiryRefresh(snapshot);
+			}
 			return snapshot;
 		},
 
@@ -497,8 +553,14 @@ function createToken(): string {
 }
 
 export interface SiteAccessPrompt {
-	/** Pass as `confirmSiteAccess`. A second request while one is open is denied. */
-	confirm(request: SiteAccessRequest): Promise<SiteAccessDecision>;
+	/**
+	 * Pass as `confirmSiteAccess`. A second request while one is open is
+	 * denied, and an aborted request stops being shown.
+	 */
+	confirm(
+		request: SiteAccessRequest,
+		signal?: AbortSignal
+	): Promise<SiteAccessDecision>;
 	/** The request the UI should show, if any. */
 	getPending(): SiteAccessRequest | undefined;
 	/** Answers the pending request. */
@@ -517,12 +579,20 @@ export function createSiteAccessPrompt(): SiteAccessPrompt {
 	const listeners = new Set<() => void>();
 	const notify = () => listeners.forEach((listener) => listener());
 	return {
-		confirm(request) {
-			if (pending) {
+		confirm(request, signal) {
+			if (pending || signal?.aborted) {
 				return Promise.resolve('deny');
 			}
 			return new Promise((resolve) => {
-				pending = { request, resolve };
+				const entry = { request, resolve };
+				pending = entry;
+				signal?.addEventListener('abort', () => {
+					if (pending === entry) {
+						pending = undefined;
+						resolve('deny');
+						notify();
+					}
+				});
 				notify();
 			});
 		},

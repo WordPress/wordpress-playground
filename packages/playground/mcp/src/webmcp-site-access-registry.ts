@@ -5,16 +5,19 @@
  * Grant tokens stay in the memory of the tab that issued them. This registry
  * holds what other tabs must see to enforce cross-site rules: which sites have
  * live grants, which grants the user allowed to share data, and which sites an
- * agent used recently. Every change runs under a Web Lock, and anything that
- * cannot be read or written makes the change fail, so a bookkeeping problem
- * denies access rather than granting it.
+ * agent used recently.
+ *
+ * Every change is one IndexedDB read-write transaction, which browsers
+ * serialize across tabs and processes. Anything that cannot be read or written
+ * makes the change fail, so a bookkeeping problem denies access rather than
+ * granting it.
  */
 
 export const GRANT_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 export const GRANT_MAX_LIFETIME_MS = 4 * 60 * 60 * 1000;
 export const HISTORY_LIFETIME_MS = GRANT_MAX_LIFETIME_MS;
 
-const DEFAULT_KEY = 'playground-webmcp-site-access';
+const DEFAULT_NAME = 'playground-webmcp-site-access';
 
 export interface SiteAccessGrantRecord {
 	grantId: string;
@@ -35,49 +38,50 @@ export interface SiteAccessState {
 
 export interface SiteAccessRegistry {
 	/**
-	 * Applies `change` to the current state under the registry lock and stores
-	 * the result. Rejects when the state cannot be read or written.
+	 * Applies `change` to the current state atomically and stores the result.
+	 * Rejects, without storing anything, when the state cannot be read or
+	 * written or when `change` throws.
 	 */
 	update<T>(change: (state: SiteAccessState) => T): Promise<T>;
 	/** Replaces the state with an empty one, even if it is unreadable. */
 	reset(): Promise<void>;
-	/** Reads the state without the lock, for display only. */
+	/**
+	 * The last state this tab read or wrote, for display only. Throws when it
+	 * was unreadable.
+	 */
 	read(): SiteAccessState;
 	/** Notifies about changes from this tab and from other tabs. */
 	subscribe(listener: () => void): () => void;
 }
 
+/** Stores the serialized state with atomic read-modify-write transactions. */
+export interface SiteAccessStore {
+	transact<T>(
+		change: (stored: string | undefined) => { result: T; next: string }
+	): Promise<T>;
+}
+
 export interface SiteAccessRegistryOptions {
-	storage?: Pick<Storage, 'getItem' | 'setItem'>;
-	locks?: Pick<LockManager, 'request'>;
+	store?: SiteAccessStore;
+	/** Tells other tabs about changes. `null` disables cross-tab updates. */
+	channel?: Pick<
+		BroadcastChannel,
+		'postMessage' | 'addEventListener' | 'removeEventListener'
+	> | null;
 	now?: () => number;
-	key?: string;
 }
 
 export function createSiteAccessRegistry(
 	options: SiteAccessRegistryOptions = {}
 ): SiteAccessRegistry {
-	const key = options.key ?? DEFAULT_KEY;
+	const store = options.store ?? createIndexedDBStore(DEFAULT_NAME);
+	const channel =
+		options.channel === undefined
+			? createChannel(DEFAULT_NAME)
+			: options.channel;
 	const now = options.now ?? Date.now;
 	const listeners = new Set<() => void>();
-
-	function getStorage() {
-		const storage = options.storage ?? globalThis.localStorage;
-		if (!storage) {
-			throw new Error('Agent site access needs localStorage.');
-		}
-		return storage;
-	}
-
-	async function withLock<T>(run: () => T): Promise<T> {
-		const locks = options.locks ?? globalThis.navigator?.locks;
-		if (!locks) {
-			throw new Error('Agent site access needs the Web Locks API.');
-		}
-		const result = await locks.request(key, async () => run());
-		notify();
-		return result as T;
-	}
+	let cached: SiteAccessState | Error = emptyState();
 
 	function notify() {
 		for (const listener of listeners) {
@@ -85,45 +89,137 @@ export function createSiteAccessRegistry(
 		}
 	}
 
-	function onStorage(event: StorageEvent) {
-		if (event.key === key || event.key === null) {
-			notify();
+	async function refresh() {
+		try {
+			cached = await store.transact((stored) => ({
+				result: parseState(stored),
+				next: stored ?? JSON.stringify(emptyState()),
+			}));
+		} catch (error) {
+			cached = error instanceof Error ? error : new Error(String(error));
 		}
+		notify();
 	}
+
+	async function commit<T>(
+		change: (stored: string | undefined) => {
+			result: T;
+			state: SiteAccessState;
+		}
+	): Promise<T> {
+		let state: SiteAccessState | undefined;
+		const result = await store.transact((stored) => {
+			const changed = change(stored);
+			state = changed.state;
+			return {
+				result: changed.result,
+				next: JSON.stringify(changed.state),
+			};
+		});
+		cached = state!;
+		channel?.postMessage('changed');
+		notify();
+		return result;
+	}
+
+	channel?.addEventListener('message', () => void refresh());
+	void refresh();
 
 	return {
 		update(change) {
-			return withLock(() => {
-				const storage = getStorage();
-				const state = parseState(storage.getItem(key));
+			return commit((stored) => {
+				const state = parseState(stored);
 				prune(state, now());
 				const result = change(state);
 				prune(state, now());
-				storage.setItem(key, JSON.stringify(state));
-				return result;
+				return { result, state };
 			});
 		},
 		reset() {
-			return withLock(() => {
-				getStorage().setItem(key, JSON.stringify(emptyState()));
-			});
+			return commit(() => ({ result: undefined, state: emptyState() }));
 		},
 		read() {
-			const state = parseState(getStorage().getItem(key));
+			if (cached instanceof Error) {
+				throw cached;
+			}
+			const state = structuredClone(cached);
 			prune(state, now());
 			return state;
 		},
 		subscribe(listener) {
-			if (listeners.size === 0 && typeof window !== 'undefined') {
-				window.addEventListener('storage', onStorage);
-			}
 			listeners.add(listener);
 			return () => {
 				listeners.delete(listener);
-				if (listeners.size === 0 && typeof window !== 'undefined') {
-					window.removeEventListener('storage', onStorage);
-				}
 			};
+		},
+	};
+}
+
+function createChannel(name: string) {
+	return typeof BroadcastChannel === 'undefined'
+		? null
+		: new BroadcastChannel(name);
+}
+
+function createIndexedDBStore(name: string): SiteAccessStore {
+	const KEY = 'state';
+	let database: Promise<IDBDatabase> | undefined;
+	function open() {
+		database ??= new Promise((resolve, reject) => {
+			if (typeof indexedDB === 'undefined') {
+				reject(new Error('Agent site access needs IndexedDB.'));
+				return;
+			}
+			const request = indexedDB.open(name, 1);
+			request.onupgradeneeded = () =>
+				request.result.createObjectStore(KEY);
+			request.onsuccess = () => resolve(request.result);
+			request.onerror = () => reject(request.error);
+		});
+		return database;
+	}
+	return {
+		async transact(change) {
+			const db = await open();
+			return await new Promise((resolve, reject) => {
+				const transaction = db.transaction(KEY, 'readwrite');
+				const objects = transaction.objectStore(KEY);
+				let outcome:
+					| { ok: true; result: any }
+					| { ok: false; error: unknown }
+					| undefined;
+				const get = objects.get(KEY);
+				get.onsuccess = () => {
+					try {
+						const stored = get.result;
+						const { result, next } = change(
+							typeof stored === 'string' ? stored : undefined
+						);
+						outcome = { ok: true, result };
+						objects.put(next, KEY);
+					} catch (error) {
+						outcome = { ok: false, error };
+						transaction.abort();
+					}
+				};
+				transaction.oncomplete = () => {
+					if (outcome?.ok) {
+						resolve(outcome.result);
+					} else {
+						reject(
+							new Error('The agent access record was not read.')
+						);
+					}
+				};
+				transaction.onabort = transaction.onerror = () => {
+					reject(
+						outcome && !outcome.ok
+							? outcome.error
+							: (transaction.error ??
+									new Error('Storing agent access failed.'))
+					);
+				};
+			});
 		},
 	};
 }
@@ -132,8 +228,8 @@ function emptyState(): SiteAccessState {
 	return { grants: {}, history: {} };
 }
 
-function parseState(serialized: string | null): SiteAccessState {
-	if (serialized === null) {
+function parseState(serialized: string | undefined): SiteAccessState {
+	if (serialized === undefined) {
 		return emptyState();
 	}
 	let value: unknown;

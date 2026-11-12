@@ -189,11 +189,11 @@ export function createSiteToolGatewayTools(
 					}
 					return await modelContextClient.requestUserInteraction(
 						async () => {
-							siteAccess.setInteractingSite(siteId);
+							const end = siteAccess.beginInteraction(siteId);
 							try {
 								return await runInSite();
 							} finally {
-								siteAccess.setInteractingSite(undefined);
+								end();
 							}
 						}
 					);
