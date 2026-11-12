@@ -274,6 +274,9 @@ export default defineConfig(({ command, mode }) => {
 			sourcemap: true,
 			rollupOptions: {
 				input: {
+					'wordpress-popup': fileURLToPath(
+						new URL('./wordpress-popup.html', import.meta.url)
+					),
 					index: fileURLToPath(
 						new URL('./index.html', import.meta.url)
 					),

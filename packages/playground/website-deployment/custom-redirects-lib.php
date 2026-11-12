@@ -9,6 +9,29 @@ function playground_handle_public_release_request( $web_root, $private, $release
 	$path = parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH );
 	$host = parse_url( 'https://' . ( $_SERVER['HTTP_HOST'] ?? '' ), PHP_URL_HOST );
 	$is_sandbox = 0 === strcasecmp( $host ?? '', parse_url( $release['wordPressOrigin'], PHP_URL_HOST ) );
+	// Browsers reach the server for scoped pages only when no sandbox worker handled them,
+	// such as a new Safari tab. Never serve WordPress HTML here: send top-level GET
+	// navigations to the app's trusted iframe wrapper and reject everything else.
+	if ( str_starts_with( $path, '/scope:' ) ) {
+		header( 'A8C-Edge-Cache: no-cache' );
+		header( 'Cache-Control: no-store' );
+		$is_navigation = 'GET' === $_SERVER['REQUEST_METHOD'] &&
+			'document' === ( $_SERVER['HTTP_SEC_FETCH_DEST'] ?? '' );
+		if ( $is_navigation && $is_sandbox ) {
+			header( 'Location: ' . $release['appOrigin'] . $_SERVER['REQUEST_URI'], true, 302 );
+		} elseif ( $is_navigation ) {
+			header( 'Content-Type: text/html; charset=utf-8' );
+			header( 'X-Content-Type-Options: nosniff' );
+			readfile( $web_root . '/releases/' . $release['release'] . '/wordpress-popup.html' );
+		} else {
+			http_response_code( 404 );
+			if ( $is_sandbox ) {
+				header( 'Content-Type: text/plain; charset=utf-8' );
+				echo 'This browser could not connect to the Playground site. Open it in Playground and try again.';
+			}
+		}
+		exit;
+	}
 	if ( preg_match( '~^/wordpress-bridge-[a-f0-9]+\.html$~D', $path ) ) {
 		header( 'Content-Type: text/html' );
 		header( 'Cache-Control: no-store' );

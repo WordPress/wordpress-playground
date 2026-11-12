@@ -5,6 +5,7 @@ import type { ReprintKeyPair } from '../../reprint/keys';
 import type { ProgressDetails } from '@php-wasm/progress';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
 import { BREAKPOINTS } from '../../constants/breakpoints';
+import { shouldUseFileBrowserQuery } from '../url/filebrowser-query';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
@@ -202,6 +203,10 @@ const cloneSiteUrl =
 const isEmbeddedInAnIframe = window.self !== window.top;
 
 const shouldOpenDockPaneByDefault = false;
+const useFileBrowserQuery = shouldUseFileBrowserQuery(
+	query,
+	isEmbeddedInAnIframe
+);
 
 const initialState: UIState = {
 	/**
@@ -231,7 +236,8 @@ const initialState: UIState = {
 	dockPaneIsOpen:
 		// The Dock pane should not be shown at all in seamless mode.
 		query.get('mode') !== 'seamless' &&
-		(!!cloneSiteUrl ||
+		(useFileBrowserQuery ||
+			!!cloneSiteUrl ||
 			query.get('overlay') !== null ||
 			(shouldOpenDockPaneByDefault &&
 				// We do not expect to render the Playground app UI in an iframe.
@@ -242,12 +248,14 @@ const initialState: UIState = {
 				window.innerWidth >= BREAKPOINTS.tablet)),
 	dockPaneSection: cloneSiteUrl
 		? 'transfer'
-		: query.get('overlay') === 'blueprints' ||
-			  query.get('overlay') === 'new'
-			? 'new'
-			: query.get('overlay') !== null
-				? 'playgrounds'
-				: 'settings',
+		: useFileBrowserQuery
+			? 'files'
+			: query.get('overlay') === 'blueprints' ||
+				  query.get('overlay') === 'new'
+				? 'new'
+				: query.get('overlay') !== null
+					? 'playgrounds'
+					: 'settings',
 	cloneRequested: cloneSiteUrl ? { url: cloneSiteUrl } : undefined,
 };
 

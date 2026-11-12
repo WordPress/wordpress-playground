@@ -57,7 +57,21 @@ export function installAppServiceWorker() {
 		if (url.origin !== self.location.origin) return;
 		if (isURLScoped(url)) {
 			if (wordPressSiteUrl !== playgroundOrigin) {
-				event.respondWith(new Response('Not found', { status: 404 }));
+				// App aliases serve only the trusted iframe wrapper, never WordPress HTML.
+				event.respondWith(
+					event.request.method === 'GET' &&
+						event.request.mode === 'navigate' &&
+						event.request.destination === 'document'
+						? networkFirstFetch(
+								new Request(
+									new URL(
+										'wordpress-popup.html',
+										assetBaseUrl
+									)
+								)
+							)
+						: new Response('Not found', { status: 404 })
+				);
 			}
 			return;
 		}

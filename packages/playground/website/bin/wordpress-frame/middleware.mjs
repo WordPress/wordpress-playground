@@ -76,8 +76,36 @@ function servePublicRelease(directory, req, res, next) {
 		return res.sendStatus(404);
 	}
 	res.set('X-Content-Type-Options', 'nosniff');
-	if (req.path.startsWith('/scope:') || req.path.endsWith('.php'))
-		return res.sendStatus(404);
+	// Model the PHP fallback for scoped pages no sandbox worker handled.
+	if (req.path.startsWith('/scope:')) {
+		res.set('Cache-Control', 'no-store');
+		const navigation =
+			req.method === 'GET' && req.get('Sec-Fetch-Dest') === 'document';
+		if (navigation && req.hostname === 'wpsandbox.wordpress.localhost') {
+			const app = new URL(req.originalUrl, `http://${req.get('host')}`);
+			app.hostname = 'playground.wordpress.localhost';
+			return res.redirect(302, app.href);
+		}
+		if (navigation) {
+			return res.sendFile(
+				join(
+					directory,
+					'releases',
+					getSelectedRelease(directory),
+					'wordpress-popup.html'
+				)
+			);
+		}
+		return res
+			.status(404)
+			.type('text')
+			.send(
+				req.hostname === 'wpsandbox.wordpress.localhost'
+					? 'This browser could not connect to the Playground site. Open it in Playground and try again.'
+					: 'Not found'
+			);
+	}
+	if (req.path.endsWith('.php')) return res.sendStatus(404);
 	if (
 		!getReleaseRoot(new URL(req.url, 'http://localhost')) &&
 		isWordPressBridgePath(req.path)
@@ -104,12 +132,16 @@ function servePublicRelease(directory, req, res, next) {
 		},
 	};
 	express.static(directory, options)(req, res, () => {
-		const release = JSON.parse(
-			readFileSync(join(directory, 'index.html'), 'utf8').match(
-				/<script id="playground-release" type="application\/json">(.*?)<\/script>/s
-			)[1]
-		);
-		req.url = `/releases/${release.release}${req.url}`;
+		req.url = `/releases/${getSelectedRelease(directory)}${req.url}`;
 		express.static(directory, options)(req, res, next);
 	});
+}
+
+/** Read the release id from the root selector, as the PHP fallback does. */
+function getSelectedRelease(directory) {
+	return JSON.parse(
+		readFileSync(join(directory, 'index.html'), 'utf8').match(
+			/<script id="playground-release" type="application\/json">(.*?)<\/script>/s
+		)[1]
+	).release;
 }

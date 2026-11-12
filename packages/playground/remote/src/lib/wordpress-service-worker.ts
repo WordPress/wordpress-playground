@@ -1,6 +1,6 @@
 /// <reference lib="WebWorker" />
 declare const self: ServiceWorkerGlobalScope;
-import { playgroundOrigin, assetBaseUrl } from './config';
+import { playgroundOrigin, assetBaseUrl, wordPressSiteUrl } from './config';
 // @ts-ignore -- Supplied by Vite.
 import { buildVersion } from 'virtual:remote-config';
 import {
@@ -181,7 +181,11 @@ function handleWordPressFetch(event: FetchEvent) {
 		// ignore
 	}
 
-	if (referrerUrl && isURLScoped(referrerUrl)) {
+	if (
+		referrerUrl &&
+		referrerUrl.origin === wordPressSiteUrl &&
+		isURLScoped(referrerUrl)
+	) {
 		if (url.origin !== referrerUrl.origin) {
 			// Cross-origin requests can be handled by the service worker when they
 			// are initiated from a page in the service worker's scope.

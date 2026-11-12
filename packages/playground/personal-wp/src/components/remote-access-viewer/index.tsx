@@ -1,3 +1,5 @@
+import { createWebMCPFrameBridge } from '@wp-playground/remote/webmcp-frame-bridge';
+import { startWebMCPSiteToolProxy } from '@wp-playground/mcp/client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import css from './style.module.css';
 import {
@@ -117,6 +119,28 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			),
 		[guestId, sessionId]
 	);
+
+	useEffect(() => {
+		const frame = iframeRef.current;
+		if (!frame || status !== 'connected' || !dataChannelReady) {
+			return;
+		}
+		const bridge = createWebMCPFrameBridge(frame, {
+			origin: window.location.origin,
+			relayMessages: true,
+		});
+		const proxy = startWebMCPSiteToolProxy({
+			onWebMCPToolsChanged: async (listener) =>
+				bridge.subscribe(listener),
+			callWebMCPTool: async (name, args, callId) =>
+				bridge.callTool(name, args, callId),
+			cancelWebMCPTool: async (callId) => bridge.cancelTool(callId),
+		});
+		return () => {
+			proxy.stop();
+			bridge.dispose();
+		};
+	}, [status, dataChannelReady, sessionId]);
 
 	useEffect(() => {
 		const url = new URL(window.location.href);
@@ -632,6 +656,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 				<div className={css.iframeWrapper}>
 					<iframe
 						ref={iframeRef}
+						allow="loopback-network 'self'"
 						src={iframeSrc}
 						className={css.iframe}
 						onLoad={handleIframeLoad}

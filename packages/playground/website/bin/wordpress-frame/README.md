@@ -160,6 +160,13 @@ sites' known scopes. The HTTP scope selects a runtime; it is not per-site
 authorization. PHP still runs on the app origin with its assigned filesystem
 mounts. Parent-domain cookies are not separated merely by using these hostnames.
 
+Top-level GET navigations to scoped URLs that no sandbox worker handled, such as a
+new Safari tab, reach the server. The sandbox host redirects them to the same path
+and query on the app origin, which serves the selected release's trusted
+`wordpress-popup.html` wrapper; its iframe loads the original sandbox URL. The app
+worker serves the same wrapper for scoped app navigations. Other scoped requests
+return 404, so iframes never redirect and a missing runtime cannot nest wrappers.
+
 Database-tool popups use an app-origin wrapper containing a scoped sandbox frame,
 so browsers keep the same storage partition as the running app. Local-directory
 save checks use an OPFS-backed substitute for automation; verify the actual OS

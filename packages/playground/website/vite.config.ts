@@ -275,7 +275,11 @@ export default defineConfig(({ command, mode }) => {
 					server.middlewares.use((req, res, next) => {
 						// User HTML must never execute with the app's OPFS access,
 						// including before the app service worker takes control.
-						if (req.url?.startsWith('/scope:')) {
+						if (
+							req.url?.startsWith('/scope:') &&
+							(req.method !== 'GET' ||
+								req.headers['sec-fetch-dest'] !== 'document')
+						) {
 							res.statusCode = 404;
 							res.end('Not found');
 							return;

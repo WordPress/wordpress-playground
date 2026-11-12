@@ -88,7 +88,7 @@ set_error_handler( static function ( $severity, $message, $file, $line ) {
     throw new ErrorException( $message, 0, $severity, $file, $line );
 } );
 [ , $deployment, $app_origin, $wordpress_origin, $build, $web_root, $backups ] = $argv;
-foreach ( [ 'index.html', 'remote.html', 'app-runtime.html', 'api.html', 'app-sw.js', 'sandbox-sw.js', 'wordpress-bridge.html' ] as $file ) {
+foreach ( [ 'index.html', 'remote.html', 'app-runtime.html', 'api.html', 'wordpress-popup.html', 'app-sw.js', 'sandbox-sw.js', 'wordpress-bridge.html' ] as $file ) {
     if ( ! is_file( "$build/$file" ) || ! filesize( "$build/$file" ) ) {
         throw new RuntimeException( "Incomplete upload: $file" );
     }

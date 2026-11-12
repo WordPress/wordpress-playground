@@ -53,6 +53,7 @@ try {
 		'remote.html',
 		'app-runtime.html',
 		'api.html',
+		'wordpress-popup.html',
 		'wordpress-bridge.html',
 	]) {
 		await writeFile(
@@ -290,6 +291,43 @@ process.stdout.write(process.env.PUBLIC_HIDDEN === '1' ? '200' : process.argv.at
 	assert.equal(
 		docs.headers.get('location'),
 		'https://wordpress.github.io/wordpress-playground/'
+	);
+	// A missing top-level sandbox worker falls back to the app wrapper. Iframe
+	// requests must never redirect: an unavailable runtime would create a loop.
+	const scopedPath = '/scope:test/wp-admin/?preview=true&preview_nonce=a%2Bb';
+	const navigation = { headers: { 'Sec-Fetch-Dest': 'document' } };
+	const redirect = await request(scopedPath, 'wordpress.example', navigation);
+	assert.equal(redirect.status, 302);
+	assert.equal(redirect.headers.get('location'), appOrigin + scopedPath);
+	assert.match(redirect.headers.get('cache-control'), /no-store/);
+	const wrapper = await request(scopedPath, 'app.example', navigation);
+	assert.equal(wrapper.status, 200);
+	assert.equal(
+		await wrapper.text(),
+		await readFile(
+			join(webRoot, 'releases', first.release, 'wordpress-popup.html'),
+			'utf8'
+		)
+	);
+	assert.match(wrapper.headers.get('content-type'), /text\/html/);
+	assert.equal(wrapper.headers.get('a8c-edge-cache'), 'no-cache');
+	for (const destination of ['iframe', 'empty', 'script']) {
+		for (const host of ['app.example', 'wordpress.example']) {
+			const headers = { 'Sec-Fetch-Dest': destination };
+			assert.equal(
+				(await request(scopedPath, host, { headers })).status,
+				404
+			);
+		}
+	}
+	assert.equal(
+		(
+			await request(scopedPath, 'wordpress.example', {
+				...navigation,
+				method: 'POST',
+			})
+		).status,
+		404
 	);
 	await writeFile(join(upload, 'assets/runtime.wasm'), 'abcdefghij');
 	await install();

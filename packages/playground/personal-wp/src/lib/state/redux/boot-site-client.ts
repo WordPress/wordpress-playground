@@ -26,6 +26,7 @@ import { ProgressTracker } from '@php-wasm/progress';
 import type { ProgressDetails, ProgressTrackerEvent } from '@php-wasm/progress';
 import type { AppPlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
+import { wordPressSiteUrl } from '@wp-playground/remote/config';
 import { setActiveSiteError } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
@@ -284,6 +285,22 @@ export function bootSiteClient(
 		window.addEventListener('message', onRuntimeStartupProgress, {
 			signal,
 		});
+		// Personal WP owns this same-origin runtime document. Install delegation
+		// before the client's load listener continues into PHP/WordPress startup.
+		// The shared remote and the public Playground do not opt in themselves.
+		iframe.addEventListener(
+			'load',
+			() => {
+				const wordpressFrame =
+					iframe.contentDocument?.querySelector<HTMLIFrameElement>(
+						'#wp'
+					);
+				if (wordpressFrame) {
+					wordpressFrame.allow = `loopback-network ${wordPressSiteUrl}`;
+				}
+			},
+			{ signal }
+		);
 		try {
 			reportBootProgress(20, 'Starting Playground runtime');
 			await startPlaygroundWebForApp({

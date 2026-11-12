@@ -11,6 +11,13 @@ the app origin. Each worker also rejects installation on the wrong origin.
 These checks prevent our entry points from running in the wrong context. They are
 not a server-side restriction on fetching public files.
 
+Top-level GET navigations to scoped URLs that no sandbox worker handled, such as a
+new Safari tab, reach the server. The sandbox host redirects them to the same path
+and query on the app origin, which serves the selected release's trusted
+`wordpress-popup.html` wrapper; its iframe loads the original sandbox URL. The app
+worker serves the same wrapper for scoped app navigations. Other scoped requests
+return 404, so iframes never redirect and a missing runtime cannot nest wrappers.
+
 The app worker owns release routing, platform caches, offline startup, and
 rejection of app-origin scoped WordPress requests. The sandbox worker owns
 WordPress HTTP transport, static-file backfill, and response transformations. It

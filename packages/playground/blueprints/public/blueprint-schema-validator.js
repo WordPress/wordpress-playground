@@ -58,7 +58,7 @@ const schema11 = {
 								{ type: 'string', const: 'latest' },
 							],
 							description:
-								'The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.',
+								'The preferred PHP version to use. If not specified, the recommended PHP version for WordPress will be used. Use `latest` for the latest supported version.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.',
 						},
 						wp: {
 							anyOf: [
@@ -1259,7 +1259,8 @@ const schema11 = {
 						step: { type: 'string', const: 'setSiteLanguage' },
 						language: {
 							type: 'string',
-							description: "The language to set, e.g. 'en_US'",
+							description:
+								"The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available translation using navigator.languages, in preference order, with regional language fallbacks. Falls back to 'en_US' if no match or browser is unavailable.",
 						},
 					},
 					required: ['language', 'step'],
@@ -1586,7 +1587,7 @@ const schema12 = {
 						{ type: 'string', const: 'latest' },
 					],
 					description:
-						'The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.',
+						'The preferred PHP version to use. If not specified, the recommended PHP version for WordPress will be used. Use `latest` for the latest supported version.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.',
 				},
 				wp: {
 					anyOf: [
@@ -5366,7 +5367,8 @@ const schema33 = {
 				step: { type: 'string', const: 'setSiteLanguage' },
 				language: {
 					type: 'string',
-					description: "The language to set, e.g. 'en_US'",
+					description:
+						"The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available translation using navigator.languages, in preference order, with regional language fallbacks. Falls back to 'en_US' if no match or browser is unavailable.",
 				},
 			},
 			required: ['language', 'step'],

@@ -262,7 +262,7 @@ jobs:
                     { "step": "login", "username": "admin", "password": "password" },
                     {
                       "step": "installPlugin",
-                      "pluginZipFile": {
+                      "pluginData": {
                         "resource": "url",
                         "url": "{{ARTIFACT_URL:my-plugin}}"
                       },
@@ -273,6 +273,8 @@ jobs:
 ```
 
 `{{ARTIFACT_URL:my-plugin}}` is replaced with the public URL of the matching ZIP. The name must match the left side of the corresponding `artifacts` entry.
+
+For a theme ZIP, use `installTheme` with `themeData`. Custom Blueprints must use `pluginData` or `themeData` to satisfy the current Blueprint schema; the older `pluginZipFile` and `themeZipFile` fields are deprecated.
 
 For a monorepo with multiple plugins or themes, add one `artifacts` entry per ZIP and reference each one with `{{ARTIFACT_URL:<name>}}` in the Blueprint.
 

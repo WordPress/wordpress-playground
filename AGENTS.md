@@ -111,7 +111,9 @@ once using a history-state marker, preserves the URL, and repeats verification.
 It must fail closed if the replacement document still has no matching controller.
 
 The dedicated app worker owns static routing/caching and rejects scoped WordPress
-execution on the app origin. The sandbox worker owns WordPress HTTP transport and
+execution on the app origin. Scoped top-level GET navigations on the app origin get
+the trusted `wordpress-popup.html` wrapper instead; the sandbox server redirects
+them to the app origin when no sandbox worker handles them. The sandbox worker owns WordPress HTTP transport and
 response transforms. Shared code remains in imported modules; single-origin builds
 compose both handlers through the compatibility `sw.js` entry. Internal sandbox
 assets use sandbox URLs and need no CORS. External SDK/download contracts remain.
@@ -207,6 +209,11 @@ The core architecture uses an iframe-based isolation model:
 Personal WP explicitly opts into SharedWorkers via `startPlaygroundWebForApp`.
 Its ServiceWorker sends HTTP requests directly to the shared PHP runtime through MessagePorts.
 The main website retains dedicated workers and the existing window relay by default.
+Personal WP owns loopback-network delegation: its startup load listener configures
+its same-origin remote's WordPress frame before PHP boots. Its popup HTML entry
+opts in to the shared renderer and replaces the default popup in the combined
+Personal WP build. Shared remote and public popup documents do not opt in based
+on their hostname or URL parameters. Keep these app-specific policies in Personal WP.
 Deployment checks run once per Personal WP document; stale runtimes drain requests and flush
 OPFS before shutting down. Keep shared-runtime behavior behind the explicit opt-in.
 
