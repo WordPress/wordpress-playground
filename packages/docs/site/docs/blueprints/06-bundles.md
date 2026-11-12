@@ -32,6 +32,8 @@ The WordPress Playground website supports Blueprint bundles through **New → Bl
 https://playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint-bundle.zip
 ```
 
+When the Playground URL includes the `mcp-port` parameter, Playground rejects the `blueprint-url` parameter. Remove `mcp-port` from the URL to load a bundle this way.
+
 The ZIP file should contain a `blueprint.json` file at the root level, along with any additional resources referenced by the Blueprint.
 
 ### In the CLI
