@@ -109,63 +109,38 @@ const client = await startPlaygroundWeb({
 
 <!-- ## Static assets -->
 
-## Recursos estáticos
+## Recursos estáticos {#static-assets}
 
-<!-- There are several ways to get the static assets necessary to host the Playground. -->
+<!-- Build the browser website from source to host it on your own domain. This does
+not require a GitHub Actions artifact. The `@wp-playground/client` npm package
+connects your app to an already hosted browser runtime. The
+`@wp-playground/cli` npm package runs WordPress locally with Node.js. Neither
+installs the browser website and its Dock. -->
 
-Hay varias formas de obtener los recursos estáticos necesarios para hospedar el Playground.
+Compila el sitio web de Playground a partir del código fuente para alojarlo en tu propio dominio. Esto no requiere un artefacto de GitHub Actions. El paquete npm `@wp-playground/client` conecta tu aplicación a un entorno de ejecución en el navegador ya alojado. El paquete npm `@wp-playground/cli` ejecuta WordPress localmente con Node.js. Ninguno de los dos instala el sitio web de Playground y su Dock.
 
-<!-- In order of convenience and ease: -->
+<!-- The [Deploy Playground website workflow](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml)
+produces a temporary artifact for the public deployment. It expires, and the
+build is configured to render WordPress on `wpsandbox.wordpress.net`. Use the
+source build below for another domain, even if the artifact is still available.
+Running the deploy workflow in a fork without the deployment secrets skips
+the build, too. -->
 
-En orden de conveniencia y facilidad:
-
-<!-- - Download pre-built package -->
-<!-- - Fork the repository and build with GitHub Action -->
-<!-- - Build locally -->
-
-- Descargar paquete pre-construido
-- Hacer fork del repositorio y construir con GitHub Action
-- Construir localmente
-
-<!-- ### Download pre-built package -->
-
-### Descargar paquete pre-construido
-
-<!-- To host the Playground as is, without making changes, you can download the built artifact from [the latest successful GitHub Action](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml?query=is%3Asuccess). -->
-
-Para hospedar el Playground tal como está, sin hacer cambios, puedes descargar el artefacto construido desde [la última GitHub Action exitosa](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml?query=is%3Asuccess).
-
-<!-- - Click on **Deploy Playground website**. -->
-<!-- - In the section **Artifacts** at the bottom of the page, click `playground-website`. -->
-<!-- - It's a zip package with the same files deployed to the public site. -->
-
-- Haz clic en **Deploy Playground website**.
-- En la sección **Artifacts** en la parte inferior de la página, haz clic en `playground-website`.
-- Es un paquete zip con los mismos archivos desplegados en el sitio público.
-
-<!-- ### Fork the repository and build with GitHub Action -->
-
-### Hacer fork del repositorio y construir con GitHub Action
-
-<!-- To customize the Playground, you can [fork the Git repository](https://github.com/WordPress/wordpress-playground/fork). -->
-
-Para personalizar el Playground, puedes [hacer fork del repositorio Git](https://github.com/WordPress/wordpress-playground/fork).
-
-<!-- Build it from the fork's GitHub page by going to: **Actions -> Deploy Playground website -> Run workflow**. -->
-
-Constrúyelo desde la página de GitHub de tu fork yendo a: **Actions -> Deploy Playground website -> Run workflow**.
+El [flujo de trabajo Deploy Playground website](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml) genera un artefacto temporal para el despliegue público. Este caduca, y la compilación está configurada para mostrar WordPress en `wpsandbox.wordpress.net`. Para otro dominio, compila a partir del código fuente siguiendo las instrucciones de abajo, aunque el artefacto siga disponible. Ejecutar el flujo de despliegue en un fork sin los secretos de despliegue también hace que se omita la compilación.
 
 <!-- ### Build locally -->
 
-### Construir localmente
+### Compilar localmente {#build-locally}
 
-<!-- The most flexible and customizable method is to build the site locally. -->
+<!-- Create a shallow clone of the Playground repository or your own fork. The
+command below uses the latest development source on `trunk`. To pin the
+Playground source to a specific version, replace `trunk` with a tag from the
+[releases page](https://github.com/WordPress/wordpress-playground/releases).
+The tag does not make the build reproducible: the build downloads
+`wp-cli.phar` from the `wp-cli/builds` repository's `gh-pages` branch, which
+can change between builds. -->
 
-El método más flexible y personalizable es construir el sitio localmente.
-
-<!-- Create a shallow clone of the Playground repository, or your own fork. -->
-
-Crea un clon superficial del repositorio de Playground, o de tu propio fork.
+Crea un clon superficial del repositorio de Playground o de tu propio fork. El siguiente comando usa el código de desarrollo más reciente de `trunk`. Para fijar el código fuente de Playground a una versión específica, sustituye `trunk` por una etiqueta de la [página de versiones](https://github.com/WordPress/wordpress-playground/releases). La etiqueta no hace que la compilación sea reproducible: la compilación descarga `wp-cli.phar` de la rama `gh-pages` del repositorio `wp-cli/builds`, que puede cambiar entre compilaciones.
 
 ```sh
 git clone -b trunk --single-branch --depth 1 --recurse-submodules https://github.com/WordPress/wordpress-playground.git
@@ -179,26 +154,95 @@ Entra en el directorio `wordpress-playground`.
 cd wordpress-playground
 ```
 
-<!-- Install dependencies, and build the website. -->
+<!-- Use the Node.js version in `.nvmrc`. The commands below require
+[nvm](https://github.com/nvm-sh/nvm#installing-and-updating) to be installed.
+`nvm install` installs and activates the required Node.js version. If you use
+another version manager, install and activate the version in `.nvmrc` with it
+instead. Then install the locked dependencies: -->
 
-Instala las dependencias y construye el sitio web.
+Usa la versión de Node.js indicada en `.nvmrc`. Los siguientes comandos requieren tener instalado [nvm](https://github.com/nvm-sh/nvm#installing-and-updating). `nvm install` instala y activa la versión necesaria de Node.js. Si usas otro gestor de versiones, úsalo para instalar y activar la versión indicada en `.nvmrc`. Después, instala las dependencias con las versiones fijadas en el archivo de bloqueo:
 
 ```sh
-npm install
+nvm install
+npm ci
+```
+
+<!-- Before building, leave `PLAYGROUND_APP_ORIGIN` and `VITE_WORDPRESS_SITE_URL` unset to serve
+the Playground app and its WordPress pages from the same origin. For a public
+instance that runs untrusted plugins or Blueprints, use a separate WordPress
+origin to reduce exposure. This does not fully protect saved files or native
+directory handles. See the [split-origin deployment guide](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website-deployment/wordpress-frame/README.md). -->
+
+Antes de compilar, deja `PLAYGROUND_APP_ORIGIN` y `VITE_WORDPRESS_SITE_URL` sin definir para servir la aplicación Playground y sus páginas de WordPress desde el mismo origen. Para una instancia pública que ejecute plugins o Blueprints que no sean de confianza, usa un origen separado para WordPress para reducir la exposición. Esto no protege completamente los archivos guardados ni los identificadores de acceso a directorios nativos. Consulta la [guía de despliegue con orígenes separados](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website-deployment/wordpress-frame/README.md).
+
+<!-- For a same-origin build, run the following in a POSIX-compatible shell, such
+as Bash or Zsh: -->
+
+Para compilar con el mismo origen, ejecuta lo siguiente en un shell compatible con POSIX, como Bash o Zsh:
+
+```sh
+unset PLAYGROUND_APP_ORIGIN VITE_WORDPRESS_SITE_URL
 npm run build:website
 ```
 
 <!-- This command internally runs the `nx` task `build:wasm-wordpress-net`. It copies the built assets from packages `remote` and `website` into a new folder at the following path: -->
 
-Este comando internamente ejecuta la tarea `nx` `build:wasm-wordpress-net`. Copia los recursos construidos desde los paquetes `remote` y `website` a una nueva carpeta en la siguiente ruta:
+Este comando ejecuta internamente la tarea `nx` `build:wasm-wordpress-net`. Copia los recursos compilados de los paquetes `remote` y `website` a una nueva carpeta en la siguiente ruta:
 
 ```
 dist/packages/playground/wasm-wordpress-net
 ```
 
-<!-- The entire service of the Playground consists of the content of this folder. -->
+<!-- Serve the contents of this folder as your site root. -->
 
-El servicio completo del Playground consiste en el contenido de esta carpeta.
+Sirve el contenido de esta carpeta como la raíz de tu sitio.
+
+<!-- This builds the files you serve. It does not make every Playground feature
+independent of external services. For example, production builds use the
+project's CORS proxy for requests that the browser cannot make directly,
+unless you set `CORS_PROXY_URL` at build time. -->
+
+Este proceso compila los archivos que vas a servir. No hace que todas las funciones de Playground sean independientes de los servicios externos. Por ejemplo, las compilaciones de producción usan el proxy CORS del proyecto para las solicitudes que el navegador no puede realizar directamente, a menos que definas `CORS_PROXY_URL` en el momento de la compilación.
+
+<!-- ### Verify the local build -->
+
+### Verificar la compilación local {#verify-the-local-build}
+
+<!-- With Python 3 installed, run this command from the `wordpress-playground`
+directory to serve the built files locally: -->
+
+Con Python 3 instalado, ejecuta este comando desde el directorio `wordpress-playground` para servir los archivos compilados localmente:
+
+```sh
+python3 -m http.server 8768 --bind 127.0.0.1 \
+  --directory dist/packages/playground/wasm-wordpress-net
+```
+
+<!-- Open [http://127.0.0.1:8768/](http://127.0.0.1:8768/) in your browser. Confirm that: -->
+
+Abre [http://127.0.0.1:8768/](http://127.0.0.1:8768/) en tu navegador. Comprueba que:
+
+<!-- 1. The WordPress welcome page and Playground Dock appear.
+2. Entering `/wp-admin/` in the Dock's address field opens the WordPress Dashboard.
+3. The WordPress iframe URL, inspected with your browser's developer tools,
+   starts with `http://127.0.0.1:8768/scope:`. The app and WordPress should use
+   the same scheme, hostname, and port, rather than `wpsandbox.wordpress.net`. -->
+
+1. Aparecen la página de bienvenida de WordPress y el Dock de Playground.
+2. Al introducir `/wp-admin/` en el campo de dirección del Dock, se abre el escritorio de WordPress.
+3. La URL del iframe de WordPress, inspeccionada con las herramientas de desarrollo del navegador, empieza por `http://127.0.0.1:8768/scope:`. La aplicación y WordPress deben usar el mismo protocolo, nombre de host y puerto, en lugar de `wpsandbox.wordpress.net`.
+
+<!-- Stop the server with `Ctrl+C`. This server is for local verification only.
+Use HTTPS when deploying to a public domain; service workers can run over
+HTTP on loopback addresses such as `127.0.0.1`. -->
+
+Detén el servidor con `Ctrl+C`. Este servidor es solo para la verificación local. Usa HTTPS al desplegar en un dominio público; los service workers pueden funcionar mediante HTTP en direcciones de loopback como `127.0.0.1`.
+
+<!-- When reporting a test result, include the output of `git rev-parse HEAD`,
+`node --version`, and `npm --version`, along with the browser version and
+the command used to serve the files. -->
+
+Al informar del resultado de una prueba, incluye la salida de `git rev-parse HEAD`, `node --version` y `npm --version`, junto con la versión del navegador y el comando usado para servir los archivos.
 
 <!-- ## Summary of included files -->
 
