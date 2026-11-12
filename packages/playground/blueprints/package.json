@@ -1,6 +1,6 @@
 {
 	"name": "@wp-playground/blueprints",
-	"version": "3.1.63",
+	"version": "3.1.64",
 	"exports": {
 		".": {
 			"import": "./index.js",

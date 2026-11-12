@@ -10,12 +10,19 @@ describe('CDPServer', () => {
 	beforeEach(() => {
 		// @ts-ignore
 		socket = new WebSocket();
-		server = new CDPServer(9999);
+		server = new CDPServer('127.0.0.1', 9999);
 	});
 
 	afterEach(() => {
 		server.removeAllListeners();
 		vi.clearAllMocks();
+	});
+
+	it('binds the WebSocket server to the given host', () => {
+		expect(server.wss.options).toMatchObject({
+			port: 9999,
+			host: '127.0.0.1',
+		});
 	});
 
 	it('emits clientConnected on new connection', () => {
@@ -25,6 +32,22 @@ describe('CDPServer', () => {
 		server.wss.emit('connection', socket);
 
 		expect(onClientConnected).toHaveBeenCalled();
+	});
+
+	it('refuses a handshake that carries a browser Origin', () => {
+		expect(
+			server.wss.options.verifyClient({ origin: 'https://foo.bar' })
+		).toBe(false);
+	});
+
+	it('accepts a handshake from the DevTools front-end', () => {
+		expect(
+			server.wss.options.verifyClient({ origin: 'devtools://devtools' })
+		).toBe(true);
+	});
+
+	it('accepts a handshake without an Origin', () => {
+		expect(server.wss.options.verifyClient({})).toBe(true);
 	});
 
 	it('only allows one client at a time', () => {

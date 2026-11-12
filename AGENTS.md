@@ -108,7 +108,9 @@ back to app files. The built preview uses the same directory and generators.
 Do not add a second installer script. Host checks live in
 `website-deployment/custom-redirects-lib.php`, reached
 through its existing `playground_handle_request()` entry point. Only the sandbox host takes an early
-bootstrap-only path; app requests keep the existing redirects, headers, and PHP
+bootstrap-only path, with scoped top-level GET navigations redirected to the configured
+app origin. Scoped app navigations serve the trusted WordPress iframe wrapper;
+iframe and subresource requests never redirect. App requests keep the existing redirects, headers, and PHP
 setup. The deployment script selects a complete
 private release and checks both hosts and Nginx's hidden-path deny rule before
 activation. Personal WP keeps its no-argument public-file layout and separate script.

@@ -55,6 +55,10 @@ try {
 	);
 	await mkdir(join(upload, 'assets'), { recursive: true });
 	await writeFile(join(upload, 'index.html'), '<title>Trusted app</title>');
+	await writeFile(
+		join(upload, 'wordpress-popup.html'),
+		'<title>WordPress wrapper</title>'
+	);
 	await writeFile(join(upload, 'api.html'), '<title>Trusted API</title>');
 	await writeFile(
 		join(upload, 'remote.html'),
@@ -502,6 +506,36 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 			assert.match(response.headers.get('cache-control'), /no-store/);
 		}
 	}
+	// A missing top-level sandbox worker falls back to the app wrapper. Iframe
+	// requests must never redirect: an unavailable runtime would create a loop.
+	const scopedPath = '/scope:test/wp-admin/?preview=true&preview_nonce=a%2Bb';
+	const navigationHeaders = { 'Sec-Fetch-Dest': 'document' };
+	const redirect = await request(scopedPath, wordpress, navigationHeaders);
+	assert.equal(redirect.status, 302);
+	assert.equal(redirect.headers.get('location'), app + scopedPath);
+	assert.match(redirect.headers.get('cache-control'), /no-store/);
+	const wrapper = await request(scopedPath, app, navigationHeaders);
+	assert.equal(wrapper.status, 200);
+	assert.match(await wrapper.text(), /WordPress wrapper/);
+	assert.match(wrapper.headers.get('content-type'), /text\/html/);
+	assert.equal(wrapper.headers.get('a8c-edge-cache'), 'no-cache');
+	for (const destination of ['iframe', 'empty', 'script']) {
+		for (const host of [app, wordpress]) {
+			assert.equal(
+				(
+					await request(scopedPath, host, {
+						'Sec-Fetch-Dest': destination,
+					})
+				).status,
+				404
+			);
+		}
+	}
+	assert.equal(
+		(await request(scopedPath, wordpress, navigationHeaders, 'POST'))
+			.status,
+		404
+	);
 	for (const host of [app, wordpress]) {
 		for (const path of ['/scope:test/', '/%2e%2e%2fsecret.txt']) {
 			assert.equal((await request(path, host)).status, 404);

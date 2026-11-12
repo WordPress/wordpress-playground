@@ -71,7 +71,7 @@ script installs the private build and its public entry. See the [deployment guid
 - Public scripts, PHP WASM, and WordPress downloads use identical root-origin
   URLs. The WordPress service worker imports its public code from that origin.
   The root keeps its existing on-demand asset cache, shared by every PHP worker.
-  Eager offline prefetch is disabled. Root-origin scoped requests return 404
+  Eager offline prefetch is disabled. Root-origin scoped subresource requests return 404
   for sandbox sites. Each runtime explicitly rejects its app-origin HTTP route,
   so WordPress cannot use that alias to run with app storage access. Tabs share
   one app service worker and platform asset cache.
@@ -188,3 +188,16 @@ To run the same full suite locally, build the normal CI fixtures first, then the
 prototype. Set `PLAYWRIGHT_TEST_GROUP` to `regular`, `storage`, or `reprint-import`
 and run this configuration. The import lane also needs its source-site server.
 For a single existing test, pass its filename to `e2e:wordpress-frame`.
+
+Top-level GET navigations to scoped sandbox URLs that reach the HTTP server redirect
+to the same path and query on the app origin. The app serves the trusted popup wrapper
+there, which loads the original sandbox URL in its iframe. This preserves Safari’s
+service-worker partition for Cmd-click, middle-click, and editor previews. Iframe
+requests never redirect, so a missing runtime cannot create nested wrappers. The
+existing hash-based `wordpress-popup.html` URL remains available for tool popups.
+
+Editors before WordPress 7.1 receive a narrow `wp-preview-*` window adapter from
+the mu-plugin. It lets Core write its loading message after a reused tab has moved
+to the app origin, and scopes preview window names to the running site. Core keeps
+its own save/autosave logic and sandbox destination URLs. Other windows and newer
+Core versions retain their native window behavior.

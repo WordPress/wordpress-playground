@@ -4,6 +4,32 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.64] (2026-11-10) 
+
+### Enhancements
+
+- \[MCP\] Allow callers to unregister WebMCP tools\. ([#4575](https://github.com/WordPress/wordpress-playground/pull/4575))
+
+### Documentation
+
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/sites\-api\/01\-index\.md\. ([#4586](https://github.com/WordPress/wordpress-playground/pull/4586))
+- \[i18n\] Add Bengali translation for developers\/07\-xdebug\/01\-introduction\.md\. ([#4578](https://github.com/WordPress/wordpress-playground/pull/4578))
+- \[i18n\] Add Bengali translation for developers\/23\-architecture\/08\-browser\-concepts\.md\. ([#4582](https://github.com/WordPress/wordpress-playground/pull/4582))
+- \[i18n\] Add Bengali translation for developers\/23\-architecture\/10\-browser\-iframe\-rendering\.md\. ([#4583](https://github.com/WordPress/wordpress-playground/pull/4583))
+- \[i18n\] Add Bengali translation for developers\/24\-limitations\/01\-index\.md\. ([#4579](https://github.com/WordPress/wordpress-playground/pull/4579))
+- \[i18n\] Add Bengali translation for local\-development\/wp\-playground\-cli\.md\. ([#4571](https://github.com/WordPress/wordpress-playground/pull/4571))
+
+### Website
+
+- Add URL query support for the site file browser\. ([#3600](https://github.com/WordPress/wordpress-playground/pull/3600))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@bgrgicak @dhrupo @fellyph @shamiulbishal
+
+
 ## [v3.1.63] (2026-11-09) 
 
 ### Blueprints

@@ -32,7 +32,7 @@ SITE_API_BASE="${SITE_API_BASE:-$( "$SITE_PHP" -r 'require "/scripts/env.php"; e
 ' "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
 
 # A partial upload must not replace the running site.
-for file in index.html api.html remote.html sw.js wordpress-sandbox/wordpress-bridge.html wordpress-sandbox/sw.js; do
+for file in index.html api.html remote.html wordpress-popup.html sw.js wordpress-sandbox/wordpress-bridge.html wordpress-sandbox/sw.js; do
     test -s "$BUILD/$file"
 done
 
@@ -101,8 +101,8 @@ cp "$DEPLOYMENT/custom-redirects-lib.php" "$RELEASE/"
     echo "<?php\nif (\"cli\" === php_sapi_name()) { return; }\n";
     echo "define(\"PLAYGROUND_DEBUG\", false);\n";
     echo "require_once __DIR__ . " . var_export($relative . "/custom-redirects-lib.php", true) . ";\n";
-    echo "playground_handle_request(__DIR__ . " . var_export($relative . "/files", true) . ", " . var_export($argv[2], true) . ");\n";
-' "$RELEASE" "$WORDPRESS_ORIGIN" > "$RELEASE/public-entry.php"
+    echo "playground_handle_request(__DIR__ . " . var_export($relative . "/files", true) . ", " . var_export($argv[2], true) . ", " . var_export($argv[3], true) . ");\n";
+' "$RELEASE" "$WORDPRESS_ORIGIN" "$APP_ORIGIN" > "$RELEASE/public-entry.php"
 for file in "$RELEASE/"*.php; do
     "$SITE_PHP" -l "$file"
 done

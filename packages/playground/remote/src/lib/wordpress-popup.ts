@@ -10,13 +10,19 @@ import { wordPressSiteUrl } from './config';
  * worker serving it inside the main app. This app-origin wrapper preserves
  * that top-level site, so #wp can use the existing worker and PHP instance.
  *
- * The hash supplies the destination. Accept only scoped WordPress URLs so this
+ * Scoped app routes preserve the path, query, and fragment on the WordPress origin.
+ * The explicit popup route supplies its destination in the hash. Accept only scoped URLs so this
  * wrapper cannot be used to load trusted app documents into the iframe.
  * Loopback delegation is off by default. Personal WP's own entry document opts in;
  * neither the hosting domain nor URL parameters enable it.
  */
 export function bootWordPressPopup({ allowLoopbackNetwork = false } = {}) {
-	const target = new URL(location.hash.substring(1), wordPressSiteUrl);
+	const target = getURLScope(new URL(location.href))
+		? new URL(
+				location.pathname + location.search + location.hash,
+				wordPressSiteUrl
+			)
+		: new URL(location.hash.substring(1), wordPressSiteUrl);
 	if (target.origin !== wordPressSiteUrl || !getURLScope(target)) {
 		throw new Error('The popup URL must name a scoped WordPress page.');
 	}
