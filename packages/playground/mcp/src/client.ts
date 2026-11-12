@@ -13,9 +13,11 @@ export {
 	startWebMCPSiteToolMirror,
 } from './webmcp-site-tools';
 export type { WebMCPSiteToolProxy } from './webmcp-site-tools';
+export { createSiteAccessPrompt } from './webmcp-site-access';
 export type {
 	SiteAccess,
 	SiteAccessDecision,
+	SiteAccessPrompt,
 	SiteAccessRequest,
 	SiteAccessSiteRef,
 	SiteAccessSnapshot,

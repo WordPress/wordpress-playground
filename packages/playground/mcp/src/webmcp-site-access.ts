@@ -447,7 +447,10 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 				at: now(),
 				siteId,
 				tool,
-				summary: input ? summarize(input) : '',
+				summary:
+					input && Object.keys(input).length > 0
+						? summarize(input)
+						: '',
 			});
 			calls.length = Math.min(calls.length, MAX_LOGGED_CALLS);
 			snapshot = undefined;
@@ -491,4 +494,52 @@ function createToken(): string {
 		.replace(/\+/g, '-')
 		.replace(/\//g, '_')
 		.replace(/=+$/, '');
+}
+
+export interface SiteAccessPrompt {
+	/** Pass as `confirmSiteAccess`. A second request while one is open is denied. */
+	confirm(request: SiteAccessRequest): Promise<SiteAccessDecision>;
+	/** The request the UI should show, if any. */
+	getPending(): SiteAccessRequest | undefined;
+	/** Answers the pending request. */
+	answer(decision: SiteAccessDecision): void;
+	subscribe(listener: () => void): () => void;
+}
+
+/** Holds the confirmation the UI is showing, one request at a time. */
+export function createSiteAccessPrompt(): SiteAccessPrompt {
+	let pending:
+		| {
+				request: SiteAccessRequest;
+				resolve: (decision: SiteAccessDecision) => void;
+		  }
+		| undefined;
+	const listeners = new Set<() => void>();
+	const notify = () => listeners.forEach((listener) => listener());
+	return {
+		confirm(request) {
+			if (pending) {
+				return Promise.resolve('deny');
+			}
+			return new Promise((resolve) => {
+				pending = { request, resolve };
+				notify();
+			});
+		},
+		getPending() {
+			return pending?.request;
+		},
+		answer(decision) {
+			const current = pending;
+			pending = undefined;
+			current?.resolve(decision);
+			notify();
+		},
+		subscribe(listener) {
+			listeners.add(listener);
+			return () => {
+				listeners.delete(listener);
+			};
+		},
+	};
 }

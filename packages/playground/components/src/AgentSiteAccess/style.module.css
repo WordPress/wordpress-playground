@@ -1,0 +1,65 @@
+.interaction-banner {
+	position: absolute;
+	inset-inline: 16px;
+	top: 16px;
+	z-index: 2;
+	max-width: 640px;
+	margin-inline: auto;
+}
+
+.panel {
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+}
+
+.section {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.section h3 {
+	margin: 0;
+	font-size: 13px;
+	font-weight: 600;
+}
+
+.list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.details {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	min-width: 0;
+}
+
+.meta {
+	color: var(--wp-components-color-gray-700, #757575);
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
+
+.dialog {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.dialog-buttons {
+	margin-top: 1rem;
+}

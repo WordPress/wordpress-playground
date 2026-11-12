@@ -1,60 +1,10 @@
 import { test as base, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
+import { grantActiveSiteAccess, webmcpMock } from './webmcp-helpers';
 
 const test = base.extend<{ webmcpPage: Page }>({
 	webmcpPage: async ({ page }, use) => {
-		// WebMCP (document.modelContext) is only available in
-		// Chrome 148+ Canary behind chrome://flags/#enable-webmcp-testing.
-		// Playwright uses a stock Chromium that doesn't
-		// expose the API, so we inject a mock before the page
-		// loads. The mock captures registered tools so we can
-		// inspect and invoke them from tests.
-		await page.addInitScript(() => {
-			const registeredTools: Array<{
-				name: string;
-				description: string;
-				inputSchema?: Record<string, unknown>;
-				annotations?: Record<string, unknown>;
-				execute: (input: Record<string, unknown>) => Promise<unknown>;
-			}> = [];
-
-			(window as any).__webmcpExecutors = {};
-
-			Object.defineProperty(document as any, 'modelContext', {
-				configurable: true,
-				value: {
-					get tools() {
-						return registeredTools;
-					},
-					clearContext() {
-						registeredTools.length = 0;
-						(window as any).__webmcpExecutors = {};
-					},
-					async registerTool(
-						tool: (typeof registeredTools)[0],
-						options?: { signal?: AbortSignal }
-					) {
-						registeredTools.push(tool);
-						// Expose on window so tests can inspect and invoke
-						(window as any).__webmcpTools = registeredTools;
-						(window as any).__webmcpExecutors[tool.name] = (
-							input: Record<string, unknown>
-						) => tool.execute(input);
-						options?.signal?.addEventListener('abort', () => {
-							const idx = registeredTools.findIndex(
-								(t) => t.name === tool.name
-							);
-							if (idx !== -1) {
-								registeredTools.splice(idx, 1);
-								delete (window as any).__webmcpExecutors[
-									tool.name
-								];
-							}
-						});
-					},
-				},
-			});
-		});
+		await page.addInitScript(webmcpMock);
 
 		await page.goto('/');
 		// Wait for WordPress to load inside nested iframes
@@ -70,11 +20,18 @@ const test = base.extend<{ webmcpPage: Page }>({
 
 		// Wait for WebMCP tools to be registered
 		await expect
-			.poll(() => page.evaluate(() => (window as any).__webmcpTools), {
-				timeout: 30_000,
-				intervals: [1_000],
-			})
-			.toBeTruthy();
+			.poll(
+				() =>
+					page.evaluate(
+						() =>
+							!!(window as any).__webmcpExecutors
+								.playground_request_site_access
+					),
+				{ timeout: 30_000, intervals: [1_000] }
+			)
+			.toBe(true);
+
+		await grantActiveSiteAccess(page);
 
 		// Wait for the PlaygroundClient to be available via
 		// WebMCP tools. The client is added to the Redux store
@@ -113,6 +70,7 @@ test('WebMCP registers all tools', async ({ webmcpPage }) => {
 	);
 	const names = tools.map((t: { name: string }) => t.name).sort();
 	expect(names).toEqual([
+		'playground_call_site_tool',
 		'playground_delete_directory',
 		'playground_delete_file',
 		'playground_execute_php',
@@ -122,15 +80,32 @@ test('WebMCP registers all tools', async ({ webmcpPage }) => {
 		'playground_get_website_url',
 		'playground_list_emails',
 		'playground_list_files',
+		'playground_list_site_tools',
 		'playground_list_sites',
 		'playground_mkdir',
 		'playground_navigate',
 		'playground_read_file',
 		'playground_rename_site',
 		'playground_request',
+		'playground_request_site_access',
 		'playground_save_in_browser',
+		'playground_switch_site',
 		'playground_write_file',
 	]);
+});
+
+test('WebMCP site tools refuse calls without a grant', async ({
+	webmcpPage,
+}) => {
+	const result = await webmcpPage.evaluate(async () =>
+		(window as any).__webmcpTools
+			.find(
+				(tool: { name: string }) =>
+					tool.name === 'playground_execute_php'
+			)
+			.execute({ code: '<?php echo "no";' })
+	);
+	expect(result.error).toContain('grant');
 });
 
 test('WebMCP cleanup preserves other tools and allows registration again', async ({
