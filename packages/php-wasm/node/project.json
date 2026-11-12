@@ -170,6 +170,7 @@
 					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
+					"php-email-capture.spec.ts",
 					"php-fsockopen.spec.ts",
 					"php-socket-timeouts.spec.ts"
 				]
@@ -185,6 +186,7 @@
 					"php-imagick.spec.ts",
 					"php-soap.spec.ts",
 					"php-image-extensions.spec.ts",
+					"php-email-capture.spec.ts",
 					"php-fsockopen.spec.ts",
 					"php-socket-timeouts.spec.ts"
 				]
@@ -231,6 +233,7 @@
 					"php-sqlite3.spec.ts",
 					"php-networking.spec.ts",
 					"networking-port-allocation.spec.ts",
+					"outbound-ws-to-tcp-proxy.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-mysqli.spec.ts",
 					"php-process-manager.spec.ts",
@@ -249,6 +252,7 @@
 					"php-sqlite3.spec.ts",
 					"php-networking.spec.ts",
 					"networking-port-allocation.spec.ts",
+					"outbound-ws-to-tcp-proxy.spec.ts",
 					"php-dynamic-loading.spec.ts",
 					"php-mysqli.spec.ts",
 					"php-process-manager.spec.ts",
@@ -358,7 +362,9 @@
 					"file-lock-manager-in-memory.spec.ts",
 					"file-lock-manager-for-posix.spec.ts",
 					"file-lock-manager-for-windows.spec.ts",
-					"file-lock-manager-composite.spec.ts"
+					"file-lock-manager-composite.spec.ts",
+					"create-file-lock-manager.spec.ts",
+					"file-lock-manager-fallback.spec.ts"
 				]
 			}
 		},
@@ -373,7 +379,9 @@
 					"file-lock-manager-in-memory.spec.ts",
 					"file-lock-manager-for-posix.spec.ts",
 					"file-lock-manager-for-windows.spec.ts",
-					"file-lock-manager-composite.spec.ts"
+					"file-lock-manager-composite.spec.ts",
+					"create-file-lock-manager.spec.ts",
+					"file-lock-manager-fallback.spec.ts"
 				]
 			}
 		},

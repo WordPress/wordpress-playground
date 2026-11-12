@@ -35,4 +35,25 @@ describe('DockTogglePill', () => {
 		expect(markup).toContain('aria-label="Full width"');
 		expect(markup).toContain('aria-pressed="false"');
 	});
+
+	it('can disable collapsing without disabling full-width mode', () => {
+		const markup = renderToStaticMarkup(
+			<DockTogglePill
+				isCollapsed={false}
+				isFullWidth={false}
+				collapseDisabled
+				onToggleCollapsed={() => {}}
+				onToggleFullWidth={() => {}}
+			/>
+		);
+
+		expect(markup).toContain('title="Tools cannot be hidden right now"');
+		expect(markup).toContain(
+			'aria-label="Tools cannot be hidden right now"'
+		);
+		const buttons = markup.match(/<button\b[^>]*>/g);
+		expect(buttons).toHaveLength(2);
+		expect(buttons?.[0]).toMatch(/\sdisabled(?:="")?(?=\s|>)/);
+		expect(buttons?.[1]).not.toMatch(/\sdisabled(?:="")?(?=\s|>)/);
+	});
 });

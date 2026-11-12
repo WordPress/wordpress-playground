@@ -49,12 +49,6 @@
   box-sizing: border-box;
   width: 100%;
 }
-.wp-block-post-comments-form .comment-form-author label,
-.wp-block-post-comments-form .comment-form-email label,
-.wp-block-post-comments-form .comment-form-url label {
-  display: block;
-  margin-bottom: 0.25em;
-}
 .wp-block-post-comments-form .comment-form-cookies-consent {
   display: flex;
   gap: 0.25em;
@@ -68,4 +62,11 @@
 .wp-block-post-comments-form .comment-reply-title :where(small) {
   font-size: var(--wp--preset--font-size--medium, smaller);
   margin-right: 0.5em;
+}
+
+:where(.wp-block-post-comments-form .comment-form-author label),
+:where(.wp-block-post-comments-form .comment-form-email label),
+:where(.wp-block-post-comments-form .comment-form-url label) {
+  display: block;
+  margin-bottom: 0.25em;
 }

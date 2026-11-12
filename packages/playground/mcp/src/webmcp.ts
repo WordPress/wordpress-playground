@@ -1,7 +1,7 @@
 /**
  * WebMCP registration for WordPress Playground.
  *
- * Registers playground tools with `navigator.modelContext` (the
+ * Registers playground tools with `document.modelContext` (the
  * Chrome WebMCP API) so that browser-side AI agents can interact
  * with the running Playground site.
  */
@@ -21,19 +21,26 @@ const siteToolDefinitions = getSiteToolDefinitions();
 
 // -- WebMCP type declarations --
 
-interface ModelContextTool {
+export interface ModelContextTool {
 	name: string;
 	description: string;
 	inputSchema?: Record<string, unknown>;
 	execute: (
 		input: Record<string, unknown>,
-		client: ModelContextClient
+		client?: ModelContextClient
 	) => Promise<unknown>;
-	annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
+	annotations?: {
+		readOnlyHint?: boolean;
+		destructiveHint?: boolean;
+		consequentialHint?: boolean;
+		untrustedContentHint?: boolean;
+		debugging?: boolean;
+	};
 }
 
 interface ModelContextClient {
-	requestUserInteraction(callback: () => Promise<unknown>): Promise<unknown>;
+	signal?: AbortSignal;
+	requestUserInteraction?(callback: () => Promise<unknown>): Promise<unknown>;
 }
 
 interface ModelContext {
@@ -41,12 +48,12 @@ interface ModelContext {
 	registerTool(
 		tool: ModelContextTool,
 		options?: { signal?: AbortSignal }
-	): void;
+	): Promise<void> | void;
 	readonly tools: ModelContextTool[];
 }
 
 declare global {
-	interface Navigator {
+	interface Document {
 		modelContext?: ModelContext;
 	}
 }
@@ -64,15 +71,25 @@ function getActiveSite(config: PlaygroundBridgeConfig) {
 	return active;
 }
 
-export function registerWebMCPTools(config: PlaygroundBridgeConfig): void {
-	if (typeof navigator === 'undefined' || !navigator.modelContext) {
+/**
+ * Registers Playground's built-in WebMCP tools, replacing any previous registration.
+ * Does nothing when WebMCP is unavailable. If registration fails, removes the tools
+ * registered by this attempt and rejects. An aborted registration returns after its
+ * pending registration operations settle.
+ */
+export async function registerWebMCPTools(
+	config: PlaygroundBridgeConfig
+): Promise<void> {
+	const modelContext = getModelContext();
+	if (!modelContext) {
 		return;
 	}
 
 	// Abort any previous registration before re-registering.
-	registrationController?.abort();
+	unregisterWebMCPTools();
 	registrationController = new AbortController();
-	const signal = registrationController.signal;
+	const controller = registrationController;
+	const signal = controller.signal;
 
 	function getActiveClient(): PlaygroundClient {
 		const client = config.getClient();
@@ -89,8 +106,9 @@ export function registerWebMCPTools(config: PlaygroundBridgeConfig): void {
 			description: def.description,
 			inputSchema: paramsToJsonSchema(def.params),
 			annotations: def.annotations,
-			execute: async (input) => {
+			execute: async (input, client) => {
 				try {
+					client?.signal?.throwIfAborted();
 					const executor = toolExecutors[name];
 					if (!executor) {
 						return {
@@ -98,7 +116,13 @@ export function registerWebMCPTools(config: PlaygroundBridgeConfig): void {
 						};
 					}
 					const adapter = createToolClient(getActiveClient());
-					return await executor(adapter, input);
+					const result = await executor(
+						adapter,
+						input,
+						client?.signal
+					);
+					client?.signal?.throwIfAborted();
+					return result;
 				} catch (error) {
 					return {
 						error: `${def.errorPrefix}: ${stringifyError(error)}`,
@@ -111,9 +135,57 @@ export function registerWebMCPTools(config: PlaygroundBridgeConfig): void {
 	// Site management tools
 	tools.push(...createSiteManagementTools(config));
 
-	for (const tool of tools) {
-		navigator.modelContext.registerTool(tool, { signal });
+	const results = await Promise.allSettled(
+		tools.map(async (tool) => {
+			await modelContext.registerTool(tool, { signal });
+		})
+	);
+	if (signal.aborted) {
+		return;
 	}
+	const failedRegistrations: Array<{ name: string; reason: unknown }> = [];
+	for (const [index, result] of results.entries()) {
+		if (result.status === 'rejected') {
+			failedRegistrations.push({
+				name: tools[index].name,
+				reason: result.reason,
+			});
+		}
+	}
+	if (failedRegistrations.length > 0) {
+		controller.abort();
+		if (registrationController === controller) {
+			registrationController = null;
+		}
+		throw new Error(
+			'Failed to register WebMCP tools: ' +
+				failedRegistrations
+					.map(
+						({ name, reason }) =>
+							`${name} (${stringifyError(reason)})`
+					)
+					.join(', ')
+		);
+	}
+}
+
+/**
+ * Unregisters Playground's built-in WebMCP tools and signals any pending registration
+ * to stop. Tools registered separately by the application or site are unaffected.
+ */
+export function unregisterWebMCPTools(): void {
+	registrationController?.abort();
+	registrationController = null;
+}
+
+export function getModelContext(): ModelContext | undefined {
+	if (typeof document === 'undefined') {
+		return undefined;
+	}
+	const modelContext = document.modelContext;
+	return typeof modelContext?.registerTool === 'function'
+		? modelContext
+		: undefined;
 }
 
 function createSiteManagementTools(
@@ -128,9 +200,11 @@ function createSiteManagementTools(
 		{
 			name: 'playground_list_sites',
 			description: listDef.description,
+			inputSchema: paramsToJsonSchema(listDef.params),
 			annotations: listDef.annotations,
-			execute: async () => {
+			execute: async (_input, client) => {
 				try {
+					client?.signal?.throwIfAborted();
 					return {
 						connectedTabs: 1,
 						sites: config.list().map((s) => ({
@@ -150,9 +224,11 @@ function createSiteManagementTools(
 		{
 			name: 'playground_save_in_browser',
 			description: saveDef.description,
+			inputSchema: paramsToJsonSchema(saveDef.params),
 			annotations: saveDef.annotations,
-			execute: async () => {
+			execute: async (_input, client) => {
 				try {
+					client?.signal?.throwIfAborted();
 					const site = getActiveSite(config);
 					const storage = formatStorageLabel(site.storage);
 					if (storage !== 'temporary') {
@@ -164,7 +240,9 @@ function createSiteManagementTools(
 							storage,
 						};
 					}
+					// Storage operations do not currently expose an interrupt API.
 					const saved = await config.saveInBrowser();
+					client?.signal?.throwIfAborted();
 					return {
 						success: true,
 						alreadySaved: false,
@@ -184,12 +262,14 @@ function createSiteManagementTools(
 			description: renameDef.description,
 			inputSchema: paramsToJsonSchema(renameDef.params),
 			annotations: renameDef.annotations,
-			execute: async (input) => {
+			execute: async (input, client) => {
 				try {
+					client?.signal?.throwIfAborted();
 					const newName = input['newName'] as string;
 					const sites = config.list();
 					const activeSite = sites.find((s) => s.isActive);
 					await config.rename(newName);
+					client?.signal?.throwIfAborted();
 					return {
 						success: true,
 						siteId: activeSite?.slug,
@@ -205,9 +285,11 @@ function createSiteManagementTools(
 		{
 			name: 'playground_get_website_url',
 			description: websiteUrlDef.description,
+			inputSchema: paramsToJsonSchema(websiteUrlDef.params),
 			annotations: websiteUrlDef.annotations,
-			execute: async () => {
+			execute: async (_input, client) => {
 				try {
+					client?.signal?.throwIfAborted();
 					return {
 						url: window.location.href,
 					};

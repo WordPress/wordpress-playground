@@ -54,7 +54,8 @@ npx nx build <package-name>              # Build specific package
 # Testing
 npm test                                 # Run all tests
 npx nx test <package-name>               # Test specific package
-npx nx e2e playground-website            # Run end-to-end tests
+npx nx e2e playground-website            # Run website Playwright E2E tests
+npx nx run playground-website:e2e:playwright:ci # Run website Playwright E2E tests
 
 # Running a single test file
 npx nx test <package-name> --testFile=<test-file-name>
@@ -74,6 +75,58 @@ npm run sync:php-next                  # Fetch gitignored PHP next assets for lo
 # WordPress Builds
 npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 ```
+
+Normal loopback website development keeps the SPA, PHP, OPFS, and directory
+handles on `127.0.0.1:5400`, with rendered WordPress on `127.0.0.1:4400`.
+`localhost` uses the same two ports. Vite's app proxy preserves the app Host;
+the remote server restricts direct WordPress-port requests to the HTTP helper and
+worker loaders. Standalone remote, Personal WP, sync, and forwarded hosts retain
+their previous routing. Do not replace either server with an auto-selected port.
+A single Chromium CI smoke test covers the live Vite module graph; the full
+browser suite still runs once against the built cross-origin preview.
+
+The WordPress-only origin prototype has `build:wordpress-frame`,
+`preview:wordpress-frame`, and `e2e:wordpress-frame` website targets. It runs on
+port 9500, separately from normal development. CI runs all website E2E tests once
+against the separate WordPress origin, with shared storage/import grouping.
+Deployment tests use the same boundary on port 7999. See
+`packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
+WordPress always uses the configured sandbox origin. PHP, OPFS, and directory
+handles stay on the app origin. Tabs share one app service worker and asset cache.
+Standalone and self-hosted builds without a sandbox retain one origin.
+External embeds do not need a referrer or new URL parameters. This mode does not
+block WordPress from embedding fresh app/API documents.
+The normal WP Cloud deployment sets `VITE_WORDPRESS_SITE_URL` to
+`https://wpsandbox.wordpress.net` and `PLAYGROUND_APP_ORIGIN` to
+`https://playground.wordpress.net` in one workflow environment. Pass those same
+values to the single `apply-update.sh` deployment script; it writes the sandbox
+origin into the release's PHP entry. The remote Vite build uses `PLAYGROUND_APP_ORIGIN` to
+create a `wordpress-sandbox/` subdirectory containing only the HTTP helper and
+worker loaders, all importing shared app-origin scripts. The PHP host gate
+serves that directory as-is, without constructing response bodies or falling
+back to app files. The built preview uses the same directory and generators.
+Do not add a second installer script. Host checks live in
+`website-deployment/custom-redirects-lib.php`, reached
+through its existing `playground_handle_request()` entry point. Only the sandbox host takes an early
+bootstrap-only path, with scoped top-level GET navigations redirected to the configured
+app origin. Scoped app navigations serve the trusted WordPress iframe wrapper;
+iframe and subresource requests never redirect. App requests keep the existing redirects, headers, and PHP
+setup. The deployment script selects a complete
+private release and checks both hosts and Nginx's hidden-path deny rule before
+activation. Personal WP keeps its no-argument public-file layout and separate script.
+The HTTP/install contract tests run with
+`playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
+WordPress request-helper URLs include the app build version. Servers map them to
+the deployed release's sandbox helper file; workers generate helper HTML only for
+their own buildVersion and the unversioned /wordpress-bridge.html URL. Requests
+naming any other buildVersion reach the server, so a worker installed during a
+previous visit cannot supply a script URL removed by deployment. The deployed
+helper waits for the worker it registers to activate before completing PHP startup.
+
+WP Cloud's PHP-served static files support single bounded and open-ended byte
+ranges for runtime download retries. Other range forms get the full response;
+HEAD ignores Range. Run `playground-website:test:static-file-ranges` for the real
+PHP HTTP contract tests (Node 24 and PHP required); CI runs them with lint checks.
 
 ### Package Naming Convention
 
@@ -104,6 +157,17 @@ The core architecture uses an iframe-based isolation model:
 - `@php-wasm/node`: Node.js-based PHP runtime
 - `@php-wasm/universal`: Abstract interface shared by web and node implementations
 
+Personal WP explicitly opts into SharedWorkers via `startPlaygroundWeb`.
+Its ServiceWorker sends HTTP requests directly to the shared PHP runtime through MessagePorts.
+The main website retains dedicated workers and the existing window relay by default.
+Personal WP owns loopback-network delegation: its startup load listener configures
+its same-origin remote's WordPress frame before PHP boots. Its popup HTML entry
+opts in to the shared renderer and replaces the default popup in the combined
+Personal WP build. Shared remote and public popup documents do not opt in based
+on their hostname or URL parameters. Keep these app-specific policies in Personal WP.
+Deployment checks run once per Personal WP document; stale runtimes drain requests and flush
+OPFS before shutting down. Keep shared-runtime behavior behind the explicit opt-in.
+
 ### Blueprint System
 
 Blueprints are declarative JSON configurations that define WordPress site states. Located in `@wp-playground/blueprints`.
@@ -133,6 +197,12 @@ The schema is NOT auto-rebuilt in `npm run dev` mode.
 - `@wp-playground/storage`: Provides filesystem backends (IndexedDB in browser, filesystem in Node)
 - `@wp-playground/sync`: Multi-client synchronization for collaborative editing
 - `@php-wasm/fs-journal`: Tracks filesystem changes for synchronization
+
+Browser WordPress boots record the site's public base URL in `/wordpress/.playground-site-url`.
+Stored sites without that record are migrated from their scoped app-origin URL before startup
+completes. Flush migrated data before saving the record; later boots must not rescan the database
+when the recorded URL still matches. Log migration failures and keep the site accessible;
+a missing completion record allows a later boot to retry.
 
 ### WordPress Builds
 
@@ -167,6 +237,19 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
     - `scope:independent-from-php-binaries` packages cannot depend on `scope:php-binaries`
 - **Function ordering:** First caller, then callee. When function A calls function B, write first A, then B.
 - **Method ordering:** First public, then protected, then private. Respect **Function ordering** as well.
+- **UI consistency:** Before adding custom control styles or wrappers, inspect equivalent controls in
+  adjacent screens and reuse the existing shared component, variant, sizing, and design tokens. Add
+  bespoke CSS only when shared primitives cannot express the required behavior, and verify the result
+  side by side with neighboring UI.
+- **Progress states:** Use `PaneLoading` when an entire Dock pane is unavailable and `InlineProgress`
+  when an operation leaves the surrounding pane visible. Keep progress inside an action button only
+  when the button is the sole progress surface; do not show a second spinner or invent another loading
+  container for the same operation.
+- **Dock tools:** Register destinations in `packages/playground/website/src/components/dock/tool-registry.tsx`.
+  Each entry owns its group, navigation labels/icon, pane copy/layout, and optional site-tool panel.
+  Developer tools use `group: 'developer'` and the shared `SiteToolPanelProps` interface; adapters for
+  existing tools live in `site-info-panel/site-tool-renderers.tsx`. The host mounts panels on first use
+  and retains them until the site changes. Do not add parallel navigation or routing lists.
 - **Path manipulation**: Never use ad-hoc string operations for file paths. Use
   the POSIX path utilities from `@php-wasm/util` (`joinPaths`, `dirname`,
   `basename`, `normalizePath`, `ensureAbsolutePath`, `resolvePathUnder`, etc.)
@@ -185,11 +268,56 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 
 ### Testing
 
+CI removes the slow Azure Ubuntu mirror from the runner's apt mirror list before
+installing browser dependencies. The public Ubuntu archive and security mirrors
+remain available.
+
 - **Test files**: Co-located with implementation as `*.spec.ts`
 - **Test runner**: Vitest (via `@nx/vite:test`) for most packages; some packages use Jest (via `@nx/jest`)
 - **Coverage**: Reports to `coverage/packages/<package-name>`
-- **E2E tests**: Playwright and Cypress for website testing
+- **E2E tests**: Playwright for website testing
 - **Always fix failing tests**: Never skip failing tests; fix the code to make tests pass
+
+#### Test-value gate
+
+Tests are maintenance code. Do not add one merely because production code
+changed.
+
+Do not test:
+
+- literal JSX or static configuration;
+- copy, CSS classes, visual variants, element counts, or ordering;
+- exact pixel dimensions, spacing values, or other CSS outcomes copied into
+  unit-test fixtures;
+- presentation-only visibility controlled by an adjacent conditional;
+- behavior that would change only when someone intentionally reverses the
+  product decision.
+
+Before adding a test, name all three:
+
+1. The stable contract it protects.
+2. A plausible accidental regression.
+3. The independent code path that could cause that regression.
+
+If you cannot name all three concretely, do not add the test.
+
+A test is not independent when its expected value must be edited whenever
+adjacent CSS changes. Delete or avoid that test instead of updating its numbers.
+
+Use screenshots and manual interaction for visual-only changes. Tests are not
+required for every PR. Never add tests simply to make a PR appear complete.
+
+CI tests the Node file-lock fallback on Node 24 and the current Node release.
+It builds the published Node package, checks that the native addon is optional,
+and runs PHP/SQLite, CLI multi-worker, and worker-wait tests with that addon moved
+out of resolution.
+The addon is restored before the shared dependency cache is saved.
+
+Dependabot's daily version check opens PRs for `fs-ext-extra-prebuilt` patch
+releases. It raises the minimum package version and updates the lockfile; the
+existing Dependabot lockfile workflow preserves workspace links. An explicit
+`trunk` target keeps this version-update allow-list out of security-update
+settings. Other dependencies remain eligible for security updates.
 
 ### Package Structure
 
@@ -276,6 +404,14 @@ Located in `packages/nx-extensions/src/executors/`:
 - `assert-built-esm-and-cjs`: Verifies dual-format build
 - `package-for-self-hosting`: Creates distributable archives
 
+### Reprint Client Asset
+
+The website's `sync-reprint` target verifies and downloads the selected Reprint client
+before builds and standalone dev startup. The generated asset lives in the ignored
+`packages/playground/website/public/assets/optional/reprint/` directory and is loaded
+on demand. Use `npm exec -- nx run playground-website:update-reprint` to update the
+version and checksum together in `src/lib/reprint/release.json`; see the website README.
+
 ## Key Files & Directories
 
 - `nx.json`: NX workspace configuration
@@ -296,6 +432,19 @@ Located in `packages/nx-extensions/src/executors/`:
 - Deployed to https://wordpress.github.io/wordpress-playground/
 - Built with Docusaurus in `packages/docs/`
 - API reference generated with TypeDoc from package source
+- Docusaurus generates `manifest.json` and `translation-availability.json` in the
+  build output for the default locale. The handbook manifest derives pages, titles,
+  hierarchy, and order from loaded docs and sidebars. Legacy handbook URL and
+  generated Markdown exceptions live in `plugins/generate-handbook-manifest.js`.
+  Run `npx nx run docs-site:test-plugins` when changing these build plugins.
+- The docs build generates handbook Markdown in `packages/docs/site/static/handbook/`
+  from TypeDoc. Regenerate and commit these files when their source docs or API
+  comments change; the WordPress.org importer reads them through `manifest.json`.
+- When adding screenshots to Markdown docs, use the raw GitHub URL for the
+  committed asset, for example
+  `https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/...`.
+  Relative `/img/...` links work in Docusaurus but are not preserved by the
+  WordPress.org handbook importer.
 
 ## Important Notes
 

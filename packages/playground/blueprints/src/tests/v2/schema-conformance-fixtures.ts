@@ -138,6 +138,7 @@ function createFileReferences(
 	return [
 		`https://example.com/${name}/url.${extension}`,
 		`./${name}/execution-context.${extension}`,
+		`site:wp-content/blueprint-v2-conformance/${name}/target-site.${extension}`,
 		{
 			filename: `inline.${extension}`,
 			content: inlineContent,
@@ -241,9 +242,7 @@ const statusPosts = postStatuses.map((post_status, index) => ({
 }));
 
 const mediaDefinitions = [
-	mediaFileReferences[0],
-	mediaFileReferences[1],
-	mediaFileReferences[2],
+	...mediaFileReferences,
 	...mediaFileReferences.map((source, index) => ({
 		source,
 		title: `Media ${index}`,
@@ -314,6 +313,14 @@ const contentDefinitions = [
 	},
 	{
 		type: 'wxr' as const,
+		source: wxrFileReferences[3],
+		authorsMode: 'map' as const,
+		authorsMap: {
+			remote: 'admin',
+		},
+	},
+	{
+		type: 'wxr' as const,
 		source: [...wxrFileReferences],
 		authorsMode: 'map' as const,
 		authorsMap: {
@@ -368,6 +375,11 @@ const contentDefinitions = [
 		importComments: false,
 		urlsMode: 'rewrite' as const,
 		urlsMap,
+	},
+	{
+		type: 'wxr' as const,
+		source: wxrFileReferences[3],
+		authorsMode: 'default-author' as const,
 	},
 ] satisfies NonNullable<BlueprintV2Declaration['content']>;
 
@@ -493,6 +505,10 @@ const fontCollection = {
 							src: fontFileReferences[index],
 						})
 					),
+					{
+						fontFamily: 'Conformance Sans',
+						src: fontFileReferences[3],
+					},
 				],
 			},
 			categories: ['sans-serif'],
@@ -718,6 +734,13 @@ const additionalSteps = [
 		command: 'wp option get blogname',
 		wpCliPath: '/tmp/wp-cli.phar',
 	},
+	{
+		step: 'enableMultisite' as const,
+	},
+	{
+		step: 'resetData' as const,
+		contentTypes: ['posts', 'pages', 'comments'] as const,
+	},
 ] satisfies NonNullable<
 	BlueprintV2Declaration['additionalStepsAfterExecution']
 >;
@@ -741,8 +764,11 @@ const maximalDeclaration = {
 			landingPage: '/wp-admin/',
 			login: true,
 			networkAccess: true,
+			loadPhpExtensions: ['intl'],
 		},
 	},
+	contentBaseline: 'empty' as const,
+	usersBaseline: 'empty' as const,
 	siteLanguage: 'en_US',
 	siteOptions: {
 		blogname: 'Schema conformance',
@@ -790,12 +816,22 @@ const maximalDeclaration = {
 	fonts: {
 		url_font: fontFileReferences[0],
 		execution_context_font: fontFileReferences[1],
-		inline_font: fontFileReferences[2],
+		target_site_font: fontFileReferences[2],
+		inline_font: fontFileReferences[3],
 		collection: fontCollection,
 	},
 	media: mediaDefinitions,
 	content: contentDefinitions,
 	users: [
+		{
+			username: 'admin',
+			email: 'admin@example.com',
+			role: 'administrator',
+			meta: {
+				first_name: 'Schema',
+				last_name: 'Administrator',
+			},
+		},
 		{
 			username: 'editor',
 			email: 'editor@example.com',
@@ -881,10 +917,19 @@ export const v2SchemaConformanceCases = [
 		declaration: maximalDeclaration,
 	},
 	{
+		name: 'PHP-only Blueprint',
+		declaration: {
+			version: 2,
+			wordpressVersion: 'none',
+		},
+	},
+	{
 		name: 'scalar alternatives',
 		declaration: {
 			version: 2,
 			$schema: './blueprint-schema.json',
+			contentBaseline: 'keep-all',
+			usersBaseline: 'keep-all',
 			applicationOptions: {
 				'wordpress-playground': {
 					login: {
@@ -907,6 +952,27 @@ export const v2SchemaConformanceCases = [
 				max: '8.4',
 			},
 			activeTheme: 'conformance-theme',
+		},
+	},
+	{
+		name: 'selected content baseline types',
+		declaration: {
+			version: 2,
+			contentBaseline: ['posts', 'pages', 'comments'],
+		},
+	},
+	{
+		name: 'single content baseline type',
+		declaration: {
+			version: 2,
+			contentBaseline: 'posts',
+		},
+	},
+	{
+		name: 'single page baseline type',
+		declaration: {
+			version: 2,
+			contentBaseline: 'pages',
 		},
 	},
 	...directActiveThemeCases,

@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { logger } from '@php-wasm/logger';
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { external } from '@wordpress/icons';
 import css from './style.module.css';
+import { getWordPressPopupUrl } from '../../../lib/wordpress-popup';
 import {
 	type PlaygroundClient,
 	type UniversalPHP,
@@ -10,8 +12,9 @@ import {
 } from '@wp-playground/client';
 import {
 	getPhpMyAdminInstallSteps,
+	PHPMYADMIN_CONFIG_PATH,
 	PHPMYADMIN_ENTRY_PATH,
-	PHPMYADMIN_INSTALL_PATH,
+	PHPMYADMIN_URL_PATH,
 } from '@wp-playground/tools';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
@@ -25,29 +28,46 @@ async function installPhpMyAdmin(playground: PlaygroundClient) {
 	await runBlueprintV1Steps(blueprint, playground as UniversalPHP);
 }
 
+/** Install and open phpMyAdmin without moving WordPress into another storage partition. */
 export function PhpMyAdminButton({
 	playground,
 }: {
 	playground: PlaygroundClient | undefined;
 }) {
-	const [state, setState] = useState<'idle' | 'loading' | 'ready'>('idle');
+	const [state, setState] = useState<'idle' | 'loading' | 'ready'>('loading');
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
-		async function detectPhpMyAdmin() {
-			if (!playground) {
-				return;
-			}
+		if (!playground) {
+			setState('loading');
+			setError(null);
+			return;
+		}
+		setState('loading');
+		let cancelled = false;
 
-			if (await playground.isDir(PHPMYADMIN_INSTALL_PATH)) {
-				setState('ready');
-			} else {
+		async function detectPhpMyAdmin() {
+			try {
+				if (!playground) return;
+				const isInstalled = await playground.isFile(
+					PHPMYADMIN_CONFIG_PATH
+				);
+				if (cancelled) return;
+				setState(isInstalled ? 'ready' : 'idle');
+			} catch (error) {
+				if (cancelled) return;
+				logger.error('Failed to detect phpMyAdmin', error);
 				setState('idle');
 			}
 		}
-		detectPhpMyAdmin();
+
+		void detectPhpMyAdmin();
+		return () => {
+			cancelled = true;
+		};
 	}, [playground]);
 
+	/** Open the installed tool through the matching WordPress browsing context. */
 	const handleOpenPhpMyAdmin = async () => {
 		if (!playground) {
 			return;
@@ -74,7 +94,9 @@ export function PhpMyAdminButton({
 		const playgroundUrl = await playground.absoluteUrl;
 		if (playgroundUrl) {
 			window.open(
-				`${playgroundUrl}/phpmyadmin${PHPMYADMIN_ENTRY_PATH}`,
+				getWordPressPopupUrl(
+					`${playgroundUrl}${PHPMYADMIN_URL_PATH}${PHPMYADMIN_ENTRY_PATH}`
+				),
 				'_blank',
 				'noopener,noreferrer'
 			);
@@ -86,7 +108,7 @@ export function PhpMyAdminButton({
 		<>
 			<Flex direction="column" gap={0} expanded={false}>
 				<Button
-					variant="primary"
+					variant="secondary"
 					disabled={!playground || isLoading}
 					isBusy={isLoading}
 					onClick={handleOpenPhpMyAdmin}

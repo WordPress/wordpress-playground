@@ -557,6 +557,39 @@ describe('BlueprintsV2Handler', () => {
 		);
 	});
 
+	test('boots v2 PHP-only Blueprints without WordPress or SQLite', async () => {
+		const handler = new BlueprintsV2Handler(
+			{
+				command: 'server',
+				wordpressInstallMode: 'download-and-install',
+				blueprint: {
+					version: 2,
+					wordpressVersion: 'none',
+				},
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(cachedDownload).not.toHaveBeenCalled();
+		expect(fetchSqliteIntegration).not.toHaveBeenCalled();
+		expect(playground.bootWordPress).toHaveBeenCalledWith(
+			expect.objectContaining({
+				wordpressInstallMode: 'do-not-attempt-installing',
+				wordPressZip: undefined,
+				sqliteIntegrationPluginZip: undefined,
+			}),
+			expect.anything()
+		);
+	});
+
 	test('passes v2 network access to the worker boot', async () => {
 		const handler = new BlueprintsV2Handler(
 			{

@@ -1,29 +1,29 @@
 /*! This file is auto-generated */
-/*------------------------------------------------------------------------------
-  22.0 - About Pages
-
-   1.0 Global: About, Credits, Freedoms, Privacy, Get Involved
-    1.1 Layout
-    1.2 Typography & Elements
-    1.3 Header
-   2.0 Credits Page
-   3.0 Freedoms Page
-   4.0 Privacy Page
-   x.2.0 Legacy About Styles: Global
-    x.2.1 Typography
-    x.2.2 Structure
-    x.2.3 Point Releases
-   x.3.0 Legacy About Styles: About Page
-    x.3.1 Typography
-    x.3.2 Structure
-   x.4.0 Legacy About Styles: Credits & Freedoms Pages
-   x.5.0 Legacy About Styles: Media Queries
-------------------------------------------------------------------------------*/
+/**
+ * About Pages
+ *
+ * 1.0 Global: About, Credits, Freedoms, Privacy, Get Involved
+ *	1.1 Layout
+ *	1.2 Typography & Elements
+ *	1.3 Header
+ * 2.0 Credits Page
+ * 3.0 Freedoms Page
+ * 4.0 Privacy Page
+ * 5.0 Legacy About Styles: Global
+ *	5.1 Typography
+ *	5.2 Structure
+ *	5.3 Point Releases
+ * 6.0 Legacy About Styles: About Page
+ *	6.1 Typography
+ *	6.2 Structure
+ * 7.0 Legacy About Styles: Credits & Freedoms Pages
+ * 8.0 Legacy About Styles: Media Queries
+ */
 
 .about__container {
 	/* Section backgrounds */
-	--background: #ebe8e5;
-	--subtle-background: #ebe8e5;
+	--background: #3858e9;
+	--subtle-background: #f4f4f4;
 
 	/* Main text color */
 	--text: #1e1e1e;
@@ -35,7 +35,7 @@
 	--accent-3: #ececec; /* hr background */
 
 	/* Header background on small screens */
-	--accent-gradient: linear-gradient(-90deg, #000000 4.7%, var(--accent-1) 83.84%)/*rtl:linear-gradient(-90deg, #000000 4.7%, var(--accent-1) 83.84%)*/;
+	--accent-gradient: linear-gradient(-90deg, #000 4.7%, var(--accent-1) 83.84%)/*rtl:linear-gradient(-90deg, #000 4.7%, var(--accent-1) 83.84%)*/;
 
 	/* Navigation colors. */
 	--nav-background: #fff;
@@ -48,9 +48,9 @@
 	--gap: 2rem;
 }
 
-/*------------------------------------------------------------------------------
-  1.0 - Global: About, Credits, Freedoms, Privacy, Get Involved
-------------------------------------------------------------------------------*/
+/**
+ * 1.0 Global: About, Credits, Freedoms, Privacy, Get Involved
+ */
 
 .about-php,
 .credits-php,
@@ -79,6 +79,7 @@
 	}
 }
 
+/* stylelint-disable-next-line no-duplicate-selectors -- For historical reasons this file is split in sections and contains duplicate selectors based on the sections. */
 .about__container {
 	max-width: 1000px;
 	margin: 24px auto;
@@ -142,8 +143,11 @@
 	background-position: center;
 }
 
-/* 1.1 - Layout */
+/**
+ * 1.1 Layout
+ */
 
+/* stylelint-disable-next-line no-duplicate-selectors -- For historical reasons this file is split in sections and contains duplicate selectors based on the sections. */
 .about__section {
 	margin: 0;
 }
@@ -240,6 +244,7 @@
 	grid-template-columns: 3fr 2fr;
 }
 
+/* stylelint-disable-next-line no-duplicate-selectors -- For historical reasons this file is split in sections and contains duplicate selectors based on the sections. */
 .about__section .is-section-header {
 	grid-column-start: 1;
 	grid-column-end: -1;
@@ -279,7 +284,7 @@
 	.about__section.has-2-columns.is-wider-right,
 	.about__section.has-2-columns.is-wider-left,
 	.about__section.has-3-columns {
-		display: block;
+		grid-template-columns: 1fr;
 		margin-bottom: calc(var(--gap) / 2);
 	}
 
@@ -295,12 +300,10 @@
 	}
 
 	.about__section.has-2-columns.has-gutters .column,
-	.about__section.has-2-columns.has-gutters .column,
 	.about__section.has-3-columns.has-gutters .column {
 		margin-bottom: var(--gap);
 	}
 
-	.about__section.has-2-columns.has-gutters .column:last-child,
 	.about__section.has-2-columns.has-gutters .column:last-child,
 	.about__section.has-3-columns.has-gutters .column:last-child {
 		margin-bottom: 0;
@@ -330,8 +333,18 @@
 
 @media screen and (max-width: 600px) {
 	.about__section.has-2-columns {
-		display: block;
+		grid-template-columns: 1fr;
 		margin-bottom: var(--gap);
+	}
+
+	.about__section.has-2-columns:not(.is-wider-right,.is-wider-left) div:has(img) {
+		/* stylelint-disable-next-line property-disallowed-list -- Only applies to decorative images. */
+		order: 1;
+	}
+
+	.about__section.has-2-columns:not(.is-wider-right,.is-wider-left) div:not(:has(img)) {
+		/* stylelint-disable-next-line property-disallowed-list -- Only applies to decorative images. */
+		order: 0;
 	}
 
 	.about__section.has-2-columns:not(.has-gutters) .column:nth-of-type(n) {
@@ -352,12 +365,12 @@
 	}
 
 	.about__section .column.is-left-padding-zero {
-        padding-left: 0;
-    }
+		padding-left: 0;
+	}
 
-    .about__section .column.is-right-padding-zero {
-        padding-right: 0;
-    }
+	.about__section .column.is-right-padding-zero {
+		padding-right: 0;
+	}
 }
 
 @media screen and (max-width: 480px) {
@@ -385,8 +398,11 @@
 	}
 }
 
-/* 1.2 - Typography & Elements */
+/**
+ * 1.2 Typography & Elements
+ */
 
+/* stylelint-disable-next-line no-duplicate-selectors -- For historical reasons this file is split in sections and contains duplicate selectors based on the sections. */
 .about__container {
 	line-height: 1.4;
 	color: var(--text);
@@ -438,9 +454,6 @@
 
 .about__container p {
 	text-wrap: pretty;
-}
-
-.about__container p {
 	font-size: inherit;
 	line-height: inherit;
 }
@@ -450,7 +463,7 @@
 	margin-bottom: 1rem;
 	font-size: 1.5rem;
 	font-weight: 300;
-	line-height: 160%;
+	line-height: 1.6;
 }
 
 .about__section a {
@@ -532,7 +545,7 @@
 	margin: calc(var(--gap) / 2) var(--gap);
 	height: 0;
 	border: none;
-	border-top: 4px solid var(--accent-3);
+	border-top: 6px solid var(--accent-3);
 }
 
 .about__container hr.is-small {
@@ -558,11 +571,13 @@
 	font-size: inherit;
 }
 
+/* stylelint-disable-next-line no-duplicate-selectors -- For historical reasons this file is split in sections and contains duplicate selectors based on the sections. */
 .about__section {
 	font-size: 1.125rem;
 	line-height: 1.55;
 }
 
+/* stylelint-disable-next-line no-duplicate-selectors -- For historical reasons this file is split in sections and contains duplicate selectors based on the sections. */
 .about__section.is-feature {
 	font-size: 1.6em;
 }
@@ -582,9 +597,15 @@
 	.about__container h3.is-larger-heading {
 		font-size: 2em;
 	}
+
+	.about__container h1 {
+		text-shadow: 0 0 2px var(--background);
+	}
 }
 
-/* 1.3 - Header */
+/**
+ * 1.3 Header
+ */
 
 .about__header {
 	position: relative;
@@ -597,48 +618,49 @@
 	padding-left: 26rem; /* Space for the background image. */
 	min-height: clamp(10rem, 25vw, 18.75rem);
 	border-radius: var(--border-radius);
-	background-image: url( "../images/about-header-default.webp?ver=20260514" );
+	background-image: url(../images/about-header-default.svg?ver=7.1);
 	background-repeat: no-repeat;
 	background-position: left center;
 	background-size: cover;
 	background-color: var(--background);
 	color: var(--text-light);
+	margin-bottom: 0.25rem;
 }
 
-.credits-php  .about__header {
-	background-image: url( "../images/about-header-credits.webp?ver=20260514" );
+.credits-php .about__header {
+	background-image: url(../images/about-header-credits.svg?ver=7.1);
 }
 
-.freedoms-php  .about__header {
-	background-image: url( "../images/about-header-freedoms.webp?ver=20260514" );
+.freedoms-php .about__header {
+	background-image: url(../images/about-header-freedoms.svg?ver=7.1);
 }
 
-.privacy-php  .about__header {
-	background-image: url( "../images/about-header-privacy.webp?ver=20260514" );
+.privacy-php .about__header {
+	background-image: url(../images/about-header-privacy.svg?ver=7.1);
 }
 
 .contribute-php .about__header {
-	background-image: url( "../images/about-header-get-involved.webp?ver=20260514" );
+	background-image: url(../images/about-header-get-involved.svg?ver=7.1);
 }
 
 [dir="rtl"] .about__header {
-	background-image: url( "../images/about-header-default-rtl.webp?ver=20260514" );
+	background-image: url(../images/about-header-default-rtl.svg?ver=7.1);
 }
 
-[dir="rtl"] .credits-php  .about__header {
-	background-image: url( "../images/about-header-credits-rtl.webp?ver=20260514" );
+[dir="rtl"] .credits-php .about__header {
+	background-image: url(../images/about-header-credits-rtl.svg?ver=7.1);
 }
 
-[dir="rtl"] .freedoms-php  .about__header {
-	background-image: url( "../images/about-header-freedoms-rtl.webp?ver=20260514" );
+[dir="rtl"] .freedoms-php .about__header {
+	background-image: url(../images/about-header-freedoms-rtl.svg?ver=7.1);
 }
 
-[dir="rtl"] .privacy-php  .about__header {
-	background-image: url( "../images/about-header-privacy-rtl.webp?ver=20260514" );
+[dir="rtl"] .privacy-php .about__header {
+	background-image: url(../images/about-header-privacy-rtl.svg?ver=7.1);
 }
 
 [dir="rtl"] .contribute-php .about__header {
-	background-image: url( "../images/about-header-get-involved-rtl.webp?ver=20260514" );
+	background-image: url(../images/about-header-get-involved-rtl.svg?ver=7.1);
 }
 
 .about__header-image {
@@ -658,7 +680,7 @@
 	font-size: clamp(2rem, 20vw - 9rem, 4rem);
 	line-height: 1;
 	font-weight: 600;
-	color: var(--text);
+	color: var(--text-light);
 }
 
 .about-php .about__header-title h1,
@@ -677,7 +699,7 @@
 	padding: 0;
 	font-size: 1.6rem;
 	line-height: 1.15;
-	color: var(--text);
+	color: var(--text-light);
 }
 
 .about__header-navigation {
@@ -800,10 +822,9 @@
 	}
 }
 
-
-/*------------------------------------------------------------------------------
-  2.0 - Credits Page
-------------------------------------------------------------------------------*/
+/**
+ * 2.0 Credits Page
+ */
 
 .about__section .wp-people-group-title {
 	margin-bottom: calc(var(--gap) * 2 - 10px);
@@ -916,20 +937,18 @@
 	}
 }
 
-
-/*------------------------------------------------------------------------------
-  3.0 - Freedoms Page
-------------------------------------------------------------------------------*/
+/**
+ * 3.0 Freedoms Page
+ */
 
 .about__section .column .freedom-image {
 	margin-bottom: var(--gap);
 	max-height: 180px;
 }
 
-
-/*------------------------------------------------------------------------------
-  4.0 - Privacy Page
-------------------------------------------------------------------------------*/
+/**
+ * 4.0 Privacy Page
+ */
 
 .about__section .column .privacy-image {
 	display: block;
@@ -938,10 +957,9 @@
 	max-width: 25rem;
 }
 
-
-/*------------------------------------------------------------------------------
-  x.2.0 - Legacy About Styles: Global
-------------------------------------------------------------------------------*/
+/**
+ * 5.0 Legacy About Styles: Global
+ */
 
 .about-wrap {
 	position: relative;
@@ -988,8 +1006,6 @@
 	margin: 1.5em auto;
 }
 
-/* WordPress Version Badge */
-
 .wp-badge {
 	background: #0073aa url(../images/w-logo-white.png?ver=20160308) no-repeat;
 	background-position: center 25px;
@@ -1017,8 +1033,6 @@
 	left: 0;
 }
 
-/* Tabs */
-
 .about-wrap .nav-tab {
 	padding-left: 15px;
 	padding-right: 15px;
@@ -1026,7 +1040,9 @@
 	line-height: 1.33333333;
 }
 
-/* x.2.1 - Typography */
+/**
+ * 5.1 Typography
+ */
 
 .about-wrap h1 {
 	margin: 0.2em 0 0 200px;
@@ -1070,7 +1086,7 @@
 .about-wrap figcaption {
 	font-size: 13px;
 	text-align: center;
-	color: white;
+	color: #fff;
 	text-overflow: ellipsis;
 }
 
@@ -1087,7 +1103,9 @@
 	color: #555d66;
 }
 
-/* x.2.2 - Structure */
+/**
+ * 5.2 Structure
+ */
 
 .about-wrap .has-1-columns,
 .about-wrap .has-2-columns,
@@ -1205,7 +1223,9 @@
 	align-self: end;
 }
 
-/* x.2.3 - Point Releases */
+/**
+ * 5.3 Point Releases
+ */
 
 .about-wrap .point-releases {
 	margin-top: 5px;
@@ -1228,11 +1248,13 @@
 	margin-top: 40px;
 }
 
-/*------------------------------------------------------------------------------
-  x.3.0 - Legacy About Styles: About Page
-------------------------------------------------------------------------------*/
+/**
+ * 6.0 Legacy About Styles: About Page
+ */
 
-/* x.3.1 - Typography */
+/**
+ * 6.1 Typography
+ */
 
 .about-wrap .lead-description {
 	font-size: 1.5em;
@@ -1243,7 +1265,9 @@
 	margin-top: 0.6em;
 }
 
-/* x.3.2 - Structure */
+/**
+ * 6.2 Structure
+ */
 
 .about-wrap .headline-feature {
 	margin: 0 auto 40px;
@@ -1259,8 +1283,6 @@
 	width: 100%;
 }
 
-/* Go to Dashboard Home link */
-
 .about-wrap .return-to-dashboard {
 	margin: 30px -5px 0 0;
 	font-size: 14px;
@@ -1272,11 +1294,9 @@
 	padding: 0 5px;
 }
 
-/*------------------------------------------------------------------------------
-  x.4.0 - Legacy About Styles: Credits & Freedoms Pages
-------------------------------------------------------------------------------*/
-
-/* Credits */
+/**
+ * 7.0 Legacy About Styles: Credits & Freedoms Pages
+ */
 
 .about-wrap h2.wp-people-group {
 	margin: 2.6em 0 1.33em;
@@ -1345,8 +1365,6 @@
 	white-space: nowrap;
 }
 
-/* Freedoms */
-
 .freedoms-php .about-wrap ol {
 	margin: 40px 60px;
 }
@@ -1361,9 +1379,9 @@
 	margin: 0.6em 0;
 }
 
-/*------------------------------------------------------------------------------
-  x.5.0 - Legacy About Styles: Media Queries
-------------------------------------------------------------------------------*/
+/**
+ * 8.0 Legacy About Styles: Media Queries
+ */
 
 @media screen and (max-width: 782px) {
 	.about-wrap .has-3-columns,

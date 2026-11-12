@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).primitives = (() => {
@@ -65,7 +66,7 @@ var wp;
     View: () => View
   });
 
-  // node_modules/clsx/dist/clsx.mjs
+  // node_modules/.store/clsx@2.1.1-XOLP1vUL9vEGfpiXm37fAw/node_modules/clsx/dist/clsx.mjs
   function r(e) {
     var t, f, n = "";
     if ("string" == typeof e || "number" == typeof e) n += e;
@@ -123,4 +124,6 @@ var wp;
   // packages/primitives/build-module/view/index.mjs
   var View = "div";
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).primitives = wp.primitives;
 })();

@@ -13,7 +13,10 @@ import { joinPaths, phpVar } from '@php-wasm/util';
 import { unzipFile } from '@wp-playground/common';
 import type { SqliteIntegrationOptions } from '..';
 import { SQLITE_PRELOAD_LOADER_CLASS } from '../sqlite-preload-loader';
-import { LEGACY_WP_ERROR_REPORTING_PHP_EXPR } from './legacy-fixes';
+import {
+	LEGACY_WP_ERROR_REPORTING_PHP_EXPR,
+	PLAYGROUND_MANAGED_DB_PHP_MARKER,
+} from './legacy-fixes';
 import { MYSQL_SHIMS_PHP } from './mysql-shims';
 
 export async function preloadLegacySqliteIntegration(
@@ -73,7 +76,7 @@ export async function preloadLegacySqliteIntegration(
 	const dbPhpGuard = `
 if(file_exists(${phpVar(dbPhpPath)})) {
 	$_pg_db_php = @file_get_contents(${phpVar(dbPhpPath)});
-	if (strpos($_pg_db_php, '@playground-managed') === false) {
+	if (strpos($_pg_db_php, ${phpVar(PLAYGROUND_MANAGED_DB_PHP_MARKER)}) === false) {
 		return;
 	}
 	unset($_pg_db_php);

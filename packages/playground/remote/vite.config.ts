@@ -2,9 +2,17 @@
 import { defineConfig } from 'vite';
 import type { Plugin } from 'vite';
 import { join } from 'path';
+import { fileURLToPath } from 'node:url';
 import dts from 'vite-plugin-dts';
 // eslint-disable-next-line @nx/enforce-module-boundaries
-import { remoteDevServerHost, remoteDevServerPort } from '../build-config';
+import {
+	remoteDevServerHost,
+	remoteDevServerPort,
+	websiteDevServerHost,
+	websiteDevServerPort,
+} from '../build-config';
+import { wordPressFrameDevPlugin } from './vite.wordpress-frame';
+import { wordPressSandboxPlugin } from './vite.wordpress-sandbox';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { copyFileSync, existsSync } from 'fs';
@@ -17,7 +25,8 @@ import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
 
-const path = (filename: string) => new URL(filename, import.meta.url).pathname;
+const path = (filename: string) =>
+	fileURLToPath(new URL(filename, import.meta.url));
 
 const plugins = [
 	viteTsConfigPaths({
@@ -96,8 +105,17 @@ export default defineConfig(({ mode }) => {
 
 		server: {
 			port: remoteDevServerPort,
-			host: remoteDevServerHost,
-			allowedHosts: ['playground.test', 'playground-preview.test'],
+			// The website's WordPress origin names this port; do not silently move it.
+			strictPort: true,
+			host:
+				process.env['VITE_DEVCONTAINER'] === 'true'
+					? '0.0.0.0'
+					: remoteDevServerHost,
+			allowedHosts: [
+				'playground.test',
+				'playground-preview.test',
+				...(process.env['CODESPACE_NAME'] ? ['.app.github.dev'] : []),
+			],
 			proxy: {
 				// Proxy CORS requests to the local PHP CORS proxy server.
 				// This avoids Private Network Access (PNA) restrictions in Chrome
@@ -115,7 +133,18 @@ export default defineConfig(({ mode }) => {
 			},
 		},
 
-		plugins,
+		plugins: [
+			...plugins,
+			process.env['PLAYGROUND_APP_ORIGIN']
+				? wordPressSandboxPlugin(process.env['PLAYGROUND_APP_ORIGIN'])
+				: null,
+			mode === 'wordpress-frame'
+				? wordPressFrameDevPlugin(
+						`http://${websiteDevServerHost}:${websiteDevServerPort}`,
+						`http://${remoteDevServerHost}:${remoteDevServerPort}`
+					)
+				: null,
+		],
 
 		worker: {
 			format: 'es',
@@ -170,6 +199,9 @@ export default defineConfig(({ mode }) => {
 					},
 					// Ensure the service worker always has the same name
 					entryFileNames: (chunkInfo: any) => {
+						if (chunkInfo.name === 'shared-playground-worker') {
+							return 'shared-playground-worker.js';
+						}
 						if (chunkInfo.name === 'service-worker') {
 							return 'sw.js';
 						}
@@ -190,6 +222,8 @@ export default defineConfig(({ mode }) => {
 			rollupOptions: {
 				input: {
 					wordpress: path('/remote.html'),
+					'wordpress-bridge': path('/wordpress-bridge.html'),
+					'wordpress-popup': path('/wordpress-popup.html'),
 				},
 				output: {
 					assetFileNames: (chunkInfo) => {

@@ -1,22 +1,25 @@
 import React, {
+	forwardRef,
 	useEffect,
+	useImperativeHandle,
 	useMemo,
 	useRef,
 	useState,
 	type Dispatch,
 	type SetStateAction,
 } from 'react';
-import { Icon } from '@wordpress/components';
+import { Button, Icon, Tooltip } from '@wordpress/components';
 import { file as folderIcon, page as fileIcon, upload } from '@wordpress/icons';
 import classNames from 'classnames';
 import styles from './file-explorer.module.css';
 import {
 	FilePickerTree,
 	type FilePickerTreeHandle,
+	type PathBadge,
 } from '@wp-playground/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
-import { basename, dirname } from '@php-wasm/util';
+import { basename, dirname, isParentOf } from '@php-wasm/util';
 import { BinaryFilePreview } from '@wp-playground/components';
 import {
 	seemsLikeBinary,
@@ -44,24 +47,69 @@ export type FileExplorerSidebarProps = {
 	) => Promise<void> | void;
 	documentRoot: string;
 	readOnly?: boolean;
+	title?: string;
+	mobileSubsectionTitle?: string;
+	showBinaryPreviewHeader?: boolean;
+	dockPresentation?: boolean;
+	useWordPressTooltips?: boolean;
+	/** Badges to render next to specific paths in the file tree, keyed by absolute path. */
+	pathBadges?: Record<string, PathBadge>;
+	/** See `FilePickerTreeProps.onMountFromGit`. */
+	onMountFromGit?: (kind: 'plugin' | 'theme', parentPath: string) => void;
+	/** See `FilePickerTreeProps.onPathRenamed`. */
+	onPathRenamed?: (oldPath: string, newPath: string) => void | Promise<void>;
+};
+
+export type FileExplorerSidebarHandle = {
+	/** Re-fetches a folder's children, e.g. after writing files outside the tree's own UI. */
+	refreshPath: (path: string) => Promise<void>;
+	/** Expands, selects, and scrolls an externally created path into view. */
+	revealPath: (path: string) => Promise<void>;
 };
 
 /**
  * Renders the file explorer and opens selected files in the editor preview area.
  */
-export function FileExplorerSidebar({
-	filesystem,
-	currentPath,
-	selectedDirPath,
-	setSelectedDirPath,
-	onFileOpened,
-	onSelectionCleared,
-	onShowMessage,
-	documentRoot,
-	readOnly = false,
-}: FileExplorerSidebarProps) {
+export const FileExplorerSidebar = forwardRef<
+	FileExplorerSidebarHandle,
+	FileExplorerSidebarProps
+>(function FileExplorerSidebar(
+	{
+		filesystem,
+		currentPath,
+		selectedDirPath,
+		setSelectedDirPath,
+		onFileOpened,
+		onSelectionCleared,
+		onShowMessage,
+		documentRoot,
+		readOnly = false,
+		title = 'Files',
+		mobileSubsectionTitle,
+		showBinaryPreviewHeader = true,
+		dockPresentation = false,
+		useWordPressTooltips = false,
+		pathBadges,
+		onMountFromGit,
+		onPathRenamed,
+	},
+	ref
+) {
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
+
+	useImperativeHandle(
+		ref,
+		() => ({
+			refreshPath: async (path: string) => {
+				await treeRef.current?.refresh(path);
+			},
+			revealPath: async (path: string) => {
+				await treeRef.current?.revealPath(path);
+			},
+		}),
+		[]
+	);
 
 	const treeInitialPath = useMemo(() => {
 		return currentPath
@@ -79,14 +127,37 @@ export function FileExplorerSidebar({
 		if (!currentPath || !treeRef.current) {
 			return;
 		}
-		setSelectedDirPath(dirname(currentPath));
-		treeRef.current.focusPath(currentPath, {
-			select: true,
-			domFocus: false,
-			notify: false,
-		});
-		void treeRef.current.expandToPath(currentPath);
-	}, [currentPath, setSelectedDirPath]);
+		let cancelled = false;
+		const tree = treeRef.current;
+		const syncCurrentPathSelection = async () => {
+			// Blueprint steps may have created folders after the tree first loaded.
+			const parents: string[] = [];
+			for (
+				let parent = dirname(currentPath);
+				parent === documentRoot || isParentOf(documentRoot, parent);
+				parent = dirname(parent)
+			) {
+				parents.unshift(parent);
+				if (parent === documentRoot) break;
+			}
+			for (const parent of parents) {
+				await tree.refresh(parent);
+				if (cancelled) return;
+			}
+			await tree.expandToPath(currentPath);
+			if (cancelled) return;
+			setSelectedDirPath(dirname(currentPath));
+			tree.focusPath(currentPath, {
+				select: true,
+				domFocus: false,
+				notify: false,
+			});
+		};
+		void syncCurrentPathSelection();
+		return () => {
+			cancelled = true;
+		};
+	}, [currentPath, documentRoot, setSelectedDirPath]);
 
 	/**
 	 * Opens a selected file as editable text, binary preview, or too-large notice.
@@ -98,12 +169,34 @@ export function FileExplorerSidebar({
 
 			if (previewRead.type === 'too-large') {
 				const maxInlineMegabytes = MAX_INLINE_FILE_BYTES / 1024 / 1024;
+				if (!dockPresentation) {
+					await onShowMessage(
+						path,
+						<>
+							<p>{`File too large to open (>${maxInlineMegabytes}MB).`}</p>
+							<p>
+								Open or download it outside the in-browser
+								editor.
+							</p>
+						</>
+					);
+					return;
+				}
+				const filename = basename(path) || 'download';
 				await onShowMessage(
 					path,
 					<>
 						<p>{`File too large to open (>${maxInlineMegabytes}MB).`}</p>
 						<p>
-							Open or download it outside the in-browser editor.
+							<Button
+								type="button"
+								variant="link"
+								onClick={() => {
+									void downloadFile(path, filename);
+								}}
+							>
+								Download {filename}
+							</Button>
 						</p>
 					</>
 				);
@@ -132,6 +225,7 @@ export function FileExplorerSidebar({
 							mimeType={mimeType}
 							dataUrl={dataUrl}
 							downloadUrl={downloadUrl}
+							showHeader={showBinaryPreviewHeader}
 						/>
 					);
 					return;
@@ -157,6 +251,24 @@ export function FileExplorerSidebar({
 		} catch (error) {
 			logger.error('Could not open file', error);
 			await onShowMessage(null, 'Could not open file.');
+		}
+	};
+
+	/** Reads a rejected large file only after the user asks to download it. */
+	const downloadFile = async (path: string, filename: string) => {
+		try {
+			const file = await filesystem.read(path);
+			const data = new Uint8Array(await file.arrayBuffer());
+			const { url } = createDownloadUrl(data, filename);
+			const anchor = document.createElement('a');
+			anchor.href = url;
+			anchor.download = filename;
+			document.body.appendChild(anchor);
+			anchor.click();
+			document.body.removeChild(anchor);
+		} catch (error) {
+			logger.error('Could not download file', error);
+			await onShowMessage(path, 'Could not download file.');
 		}
 	};
 
@@ -201,6 +313,7 @@ export function FileExplorerSidebar({
 		<div
 			className={classNames(styles['fileExplorerContainer'], {
 				[styles['dropActive']]: isDraggingSidebar,
+				[styles['dockPresentation']]: dockPresentation,
 			})}
 			onDragEnter={(event) => {
 				if (
@@ -236,55 +349,99 @@ export function FileExplorerSidebar({
 			onDrop={handleSidebarDrop}
 		>
 			<div className={styles['fileExplorerHeader']}>
-				<span className={styles['fileExplorerTitle']}>Files</span>
+				<span className={styles['fileExplorerTitle']}>{title}</span>
+				{mobileSubsectionTitle ? (
+					<span className={styles['fileExplorerSubsectionTitle']}>
+						{mobileSubsectionTitle}
+					</span>
+				) : null}
 				{!readOnly ? (
 					<div className={styles['fileExplorerActions']}>
-						<button
-							className={classNames(
-								styles['fileExplorerButton'],
-								styles['fileExplorerIconButton']
-							)}
-							type="button"
-							onClick={() => {
-								if (!treeRef.current) {
-									return;
+						<FileActionTooltip
+							label="Create new file"
+							useWordPressTooltip={useWordPressTooltips}
+						>
+							<button
+								className={classNames(
+									styles['fileExplorerButton'],
+									styles['fileExplorerIconButton']
+								)}
+								type="button"
+								onClick={() => {
+									if (!treeRef.current) {
+										return;
+									}
+									void treeRef.current.createFile();
+								}}
+								aria-label="Create new file"
+								title={
+									useWordPressTooltips
+										? undefined
+										: 'Create new file'
 								}
-								void treeRef.current.createFile();
-							}}
-							aria-label="Create new file"
-							title="Create new file"
+							>
+								{dockPresentation ? (
+									<FilePlusIcon />
+								) : (
+									<Icon icon={fileIcon} size={20} />
+								)}
+							</button>
+						</FileActionTooltip>
+						<FileActionTooltip
+							label="Create new folder"
+							useWordPressTooltip={useWordPressTooltips}
 						>
-							<Icon icon={fileIcon} size={20} />
-						</button>
-						<button
-							className={classNames(
-								styles['fileExplorerButton'],
-								styles['fileExplorerIconButton']
-							)}
-							type="button"
-							onClick={() => {
-								if (!treeRef.current) {
-									return;
+							<button
+								className={classNames(
+									styles['fileExplorerButton'],
+									styles['fileExplorerIconButton']
+								)}
+								type="button"
+								onClick={() => {
+									if (!treeRef.current) {
+										return;
+									}
+									void treeRef.current.createFolder();
+								}}
+								aria-label="Create new folder"
+								title={
+									useWordPressTooltips
+										? undefined
+										: 'Create new folder'
 								}
-								void treeRef.current.createFolder();
-							}}
-							aria-label="Create new folder"
-							title="Create new folder"
+							>
+								{dockPresentation ? (
+									<FolderPlusIcon />
+								) : (
+									<Icon icon={folderIcon} size={20} />
+								)}
+							</button>
+						</FileActionTooltip>
+						<FileActionTooltip
+							label="Upload files"
+							useWordPressTooltip={useWordPressTooltips}
 						>
-							<Icon icon={folderIcon} size={20} />
-						</button>
-						<button
-							className={classNames(
-								styles['fileExplorerButton'],
-								styles['fileExplorerIconButton']
-							)}
-							type="button"
-							onClick={() => uploadInputRef.current?.click()}
-							aria-label="Upload files"
-							title="Upload files"
-						>
-							<Icon icon={upload} size={20} />
-						</button>
+							<button
+								className={classNames(
+									styles['fileExplorerButton'],
+									styles['fileExplorerIconButton'],
+									styles['fileExplorerUploadButton']
+								)}
+								type="button"
+								onClick={() => uploadInputRef.current?.click()}
+								aria-label="Upload files"
+								title={
+									useWordPressTooltips
+										? undefined
+										: 'Upload files'
+								}
+							>
+								<Icon
+									icon={upload}
+									size={dockPresentation ? 16 : 20}
+								/>
+							</button>
+						</FileActionTooltip>
 						<input
 							ref={uploadInputRef}
 							type="file"
@@ -302,6 +459,9 @@ export function FileExplorerSidebar({
 					filesystem={filesystem}
 					root={documentRoot}
 					initialSelectedPath={treeInitialPath}
+					pathBadges={pathBadges}
+					onMountFromGit={onMountFromGit}
+					onPathRenamed={onPathRenamed}
 					onSelect={async (path) => {
 						if (!path) {
 							setSelectedDirPath(documentRoot);
@@ -328,4 +488,81 @@ export function FileExplorerSidebar({
 			</div>
 		</div>
 	);
+});
+
+function FileActionTooltip({
+	label,
+	useWordPressTooltip,
+	children,
+}: {
+	label: string;
+	useWordPressTooltip: boolean;
+	children: JSX.Element;
+}) {
+	if (!useWordPressTooltip) {
+		return children;
+	}
+	return (
+		<Tooltip text={label} delay={0} placement="top">
+			{children}
+		</Tooltip>
+	);
 }
+
+const FilePlusIcon = () => (
+	<svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+		<path
+			d="M11 6h7l5 5v12a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<path
+			d="M18 6v5h5"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<g transform="translate(19 19)">
+			<circle cx="5" cy="5" r="8" fill="var(--paper-2, #fff)" />
+			<path
+				d="M5 1.5v7M1.5 5h7"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+			/>
+		</g>
+	</svg>
+);
+
+const FolderPlusIcon = () => (
+	<svg viewBox="0 0 32 32" width="24" height="24" aria-hidden="true">
+		<path
+			d="M6 9h7l3 3h10v11a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9z"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<path
+			d="M6 9V8a2 2 0 0 1 2-2h5l3 3"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="2"
+			strokeLinejoin="round"
+		/>
+		<g transform="translate(19 19)">
+			<circle cx="5" cy="5" r="8" fill="var(--paper-2, #fff)" />
+			<path
+				d="M5 1.5v7M1.5 5h7"
+				fill="none"
+				stroke="currentColor"
+				strokeWidth="2"
+				strokeLinecap="round"
+			/>
+		</g>
+	</svg>
+);

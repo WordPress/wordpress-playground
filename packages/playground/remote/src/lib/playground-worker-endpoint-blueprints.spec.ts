@@ -23,68 +23,145 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 		vi.unstubAllGlobals();
 	});
 
-	it('runs WordPress boot setup for mounted installed WordPress sites', async () => {
-		const php = {} as PHP;
-		const bootWordPress = vi.fn(async (_requestHandler, options) => {
-			await options.hooks.beforeWordPressFiles(php);
-		});
-		const requestHandler = {
-			getPrimaryPhp: vi.fn(async () => php),
-		};
-		let endpoint:
-			| {
-					boot(options: Record<string, unknown>): Promise<void>;
-			  }
-			| undefined;
-		vi.doMock('@wp-playground/wordpress', () => ({
-			bootWordPress,
-		}));
-		vi.doMock('@php-wasm/web', () => ({
-			certificateToPEM: vi.fn(),
-			createDirectoryHandleMountHandler: vi.fn(),
-			exposeAPI: vi.fn((api) => {
-				endpoint = api;
-				return [vi.fn(), vi.fn()];
-			}),
-			loadWebRuntime: vi.fn(),
-		}));
-		await import('./playground-worker-endpoint-blueprints');
-		if (!endpoint) {
-			throw new Error('Expected exposeAPI to receive an endpoint');
-		}
-		vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
-			'http://playground.test'
-		);
-		vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue(
-			requestHandler
-		);
-		vi.spyOn(endpoint as any, 'finalizeAfterBoot').mockResolvedValue(
-			undefined
-		);
-		const mountOpfsIntoPhp = vi
-			.spyOn(endpoint as any, 'mountOpfsIntoPhp')
-			.mockResolvedValue(undefined);
-		const mount = {
-			device: { type: 'local-fs', handle: {} },
-			initialSyncDirection: 'opfs-to-memfs',
-			mountpoint: '/wordpress',
-		};
+	it.each([
+		['do-not-attempt-installing', '/'],
+		['do-not-attempt-installing', '/sites'],
+		['install-from-existing-files-if-needed', '/'],
+		['install-from-existing-files-if-needed', '/sites'],
+	])(
+		'rejects OPFS root mounts during %s boot from %s',
+		async (wordpressInstallMode, path) => {
+			const php = createFakePhp();
+			const bootWordPress = vi.fn(async (_requestHandler, options) => {
+				await options.hooks.beforeWordPressFiles(php);
+			});
+			let endpoint:
+				| { boot(options: Record<string, unknown>): Promise<void> }
+				| undefined;
+			vi.doMock('@wp-playground/wordpress', () => ({ bootWordPress }));
+			vi.doMock('@php-wasm/web', () => ({
+				certificateToPEM: vi.fn(),
+				createDirectoryHandleMountHandler: vi.fn(),
+				exposeAPI: vi.fn((api) => {
+					endpoint = api;
+					return [vi.fn(), vi.fn()];
+				}),
+				loadWebRuntime: vi.fn(),
+			}));
+			await import('./playground-worker-endpoint-blueprints');
+			if (!endpoint) {
+				throw new Error('Expected exposeAPI to receive an endpoint');
+			}
+			vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
+				'http://playground.test'
+			);
+			vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue(
+				{
+					getPrimaryPhp: vi.fn(async () => php),
+				}
+			);
+			const getDirectory = vi.fn();
+			vi.stubGlobal('navigator', { storage: { getDirectory } });
 
-		await endpoint.boot({
-			scope: 'test',
-			mounts: [mount as any],
-			phpVersion: '8.3',
-			wordpressInstallMode: 'install-from-existing-files-if-needed',
-			withNetworking: false,
-		});
+			await expect(
+				endpoint.boot({
+					scope: 'test',
+					mounts: [
+						{
+							device: { type: 'opfs', path },
+							mountpoint: '/wordpress',
+							initialSyncDirection: 'opfs-to-memfs',
+						},
+					],
+					phpVersion: '8.3',
+					wordpressInstallMode,
+					withNetworking: false,
+				})
+			).rejects.toThrow(
+				'Cannot mount the OPFS root or the /sites directory.'
+			);
+			expect(getDirectory).not.toHaveBeenCalled();
+		},
+		10000
+	);
 
-		expect(bootWordPress).toHaveBeenCalledTimes(1);
-		expect(bootWordPress.mock.calls[0][1].wordPressZip).toBeUndefined();
-		expect(bootWordPress.mock.calls[0][1].wordpressInstallMode).toBe(
-			'install-from-existing-files-if-needed'
-		);
-		expect(mountOpfsIntoPhp).toHaveBeenCalledWith(php, mount);
-	}, 10000);
+	it.each([false, true])(
+		'runs mounted-site boot setup (migration failure: %s)',
+		async (migrationFails) => {
+			const php = createFakePhp();
+			const bootWordPress = vi.fn(async (_requestHandler, options) => {
+				await options.hooks.beforeWordPressFiles(php);
+			});
+			const requestHandler = {
+				getPrimaryPhp: vi.fn(async () => php),
+			};
+			let endpoint:
+				| {
+						boot(options: Record<string, unknown>): Promise<void>;
+				  }
+				| undefined;
+			vi.doMock('@wp-playground/wordpress', () => ({
+				bootWordPress,
+			}));
+			vi.doMock('@php-wasm/web', () => ({
+				certificateToPEM: vi.fn(),
+				createDirectoryHandleMountHandler: vi.fn(),
+				exposeAPI: vi.fn((api) => {
+					endpoint = api;
+					return [vi.fn(), vi.fn()];
+				}),
+				loadWebRuntime: vi.fn(),
+			}));
+			await import('./playground-worker-endpoint-blueprints');
+			if (!endpoint) {
+				throw new Error('Expected exposeAPI to receive an endpoint');
+			}
+			vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
+				'http://playground.test'
+			);
+			vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue(
+				requestHandler
+			);
+			vi.spyOn(endpoint as any, 'finalizeAfterBoot').mockResolvedValue(
+				undefined
+			);
+			const mountOpfsIntoPhp = vi
+				.spyOn(endpoint as any, 'mountOpfsIntoPhp')
+				.mockResolvedValue(undefined);
+			const mount = {
+				device: { type: 'local-fs', handle: {} },
+				initialSyncDirection: 'opfs-to-memfs',
+				mountpoint: '/wordpress',
+			};
+			if (migrationFails) {
+				vi.spyOn(
+					endpoint as any,
+					'migrateSiteUrl'
+				).mockRejectedValueOnce(new Error('Storage full'));
+			}
+
+			await endpoint.boot({
+				scope: 'test',
+				mounts: [mount as any],
+				phpVersion: '8.3',
+				wordpressInstallMode: 'install-from-existing-files-if-needed',
+				withNetworking: false,
+			});
+
+			expect(bootWordPress).toHaveBeenCalledTimes(1);
+			expect(bootWordPress.mock.calls[0][1].wordPressZip).toBeUndefined();
+			expect(bootWordPress.mock.calls[0][1].wordpressInstallMode).toBe(
+				'install-from-existing-files-if-needed'
+			);
+			expect(mountOpfsIntoPhp).toHaveBeenCalledWith(php, mount);
+			expect((endpoint as any).finalizeAfterBoot).toHaveBeenCalledWith(
+				requestHandler,
+				false,
+				expect.any(Set)
+			);
+		},
+		10000
+	);
 
 	it('mounts PHP-only playgrounds without running WordPress boot setup', async () => {
 		const php = {} as PHP;
@@ -204,12 +281,50 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 	}, 10000);
 
 	it.each([
-		['6.8.0', 'https://wordpress.org/wordpress-6.8.zip'],
-		['7.0-rc1', 'https://wordpress.org/wordpress-7.0-RC1.zip'],
+		{
+			wpVersion: '6.8.0',
+			releaseUrl: 'https://wordpress.org/wordpress-6.8.zip',
+			status: 200,
+		},
+		{
+			wpVersion: '7.0-rc1',
+			releaseUrl: 'https://wordpress.org/wordpress-7.0-RC1.zip',
+			status: 200,
+		},
+		{
+			wpVersion: '6.8.0',
+			releaseUrl: 'https://wordpress.org/wordpress-6.8.zip',
+			status: 404,
+			expectedName: 'ResourceUnavailableError',
+			expectedMessage: 'WordPress 6.8 is not available for download.',
+		},
+		{
+			wpVersion: '6.8.0',
+			releaseUrl: 'https://wordpress.org/wordpress-6.8.zip',
+			status: 500,
+			expectedName: 'Error',
+			expectedMessage: 'Failed to download WordPress 6.8 (HTTP 500)',
+		},
 	])(
-		'downloads concrete WordPress release %s without changing its identity',
-		async (wpVersion, releaseUrl) => {
-			const bootWordPress = vi.fn();
+		'handles a concrete WordPress release $wpVersion with HTTP $status',
+		async ({
+			wpVersion,
+			releaseUrl,
+			status,
+			expectedName,
+			expectedMessage,
+		}) => {
+			vi.stubGlobal(
+				'fetch',
+				vi.fn(async (url) =>
+					String(url).includes('wordpress-')
+						? new Response(null, { status })
+						: new Response(new ArrayBuffer(0))
+				)
+			);
+			const bootWordPress = vi.fn(async (_requestHandler, options) => {
+				await options.wordPressZip;
+			});
 			let endpoint:
 				| {
 						boot(options: Record<string, unknown>): Promise<void>;
@@ -235,13 +350,13 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 				'http://playground.test'
 			);
 			vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue(
-				{}
+				{ getPrimaryPhp: async () => createFakePhp() }
 			);
 			vi.spyOn(endpoint as any, 'finalizeAfterBoot').mockResolvedValue(
 				undefined
 			);
 
-			await endpoint.boot({
+			const boot = endpoint.boot({
 				scope: 'test',
 				phpVersion: '8.3',
 				wpVersion,
@@ -249,6 +364,14 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 				corsProxyUrl: 'https://proxy.test/?url=',
 				withNetworking: false,
 			});
+			if (expectedMessage) {
+				await expect(boot).rejects.toMatchObject({
+					name: expectedName,
+					message: expectedMessage,
+				});
+			} else {
+				await boot;
+			}
 
 			expect(fetch).toHaveBeenCalledWith(
 				`https://proxy.test/?url=${releaseUrl}`
@@ -283,7 +406,9 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 		vi.spyOn(endpoint as any, 'computeSiteUrl').mockReturnValue(
 			'http://playground.test'
 		);
-		vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue({});
+		vi.spyOn(endpoint as any, 'createRequestHandler').mockResolvedValue({
+			getPrimaryPhp: async () => createFakePhp(),
+		});
 		vi.spyOn(endpoint as any, 'finalizeAfterBoot').mockResolvedValue(
 			undefined
 		);
@@ -324,3 +449,12 @@ describe('PlaygroundWorkerEndpointBlueprints', () => {
 		);
 	});
 });
+
+/** Supplies the filesystem calls used by the boot tests' PHP stub. */
+function createFakePhp() {
+	return {
+		documentRoot: '/wordpress',
+		fileExists: vi.fn(() => false),
+		writeFile: vi.fn(),
+	} as unknown as PHP;
+}

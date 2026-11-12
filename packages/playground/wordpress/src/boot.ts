@@ -11,6 +11,7 @@ import type {
 import {
 	isLegacyPHPVersion,
 	PHP,
+	PHP_EXTENSIONS_DIR,
 	PHPRequestHandler,
 	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
@@ -214,6 +215,8 @@ export interface BootWordPressOptions {
 	 * and WP_SITEURL constants in WordPress.
 	 */
 	siteUrl: string;
+	/** Called when WordPress boot advances to a new high-level step. */
+	onProgress?: (caption: string) => void;
 }
 
 /**
@@ -238,24 +241,32 @@ export async function bootWordPress(
 	if (isLegacyPHPVersion(options.phpVersion)) {
 		return bootLegacyWordPress(requestHandler, options);
 	}
+
+	options.onProgress?.('Creating PHP runtime');
 	const php = await requestHandler.getPrimaryPhp();
 	if (options.hooks?.beforeWordPressFiles) {
+		options.onProgress?.('Mounting WordPress files');
 		await options.hooks.beforeWordPressFiles(php);
 	}
 
 	if (options.wordPressZip) {
+		options.onProgress?.('Extracting WordPress files');
 		await unzipWordPress(php, await options.wordPressZip, {
 			expectedFileCount: options.wordPressBundleFileCount,
 		});
 	}
 
 	if (options.constants) {
+		options.onProgress?.('Defining WordPress constants');
 		for (const key in options.constants) {
 			php.defineConstant(key, options.constants[key]);
 		}
 	}
 
 	if (options.dataSqlPath) {
+		php.defineConstant('DB_PATH', options.dataSqlPath);
+
+		// Older SQLite integrations only understand these legacy constants.
 		php.defineConstant('DB_DIR', dirname(options.dataSqlPath));
 		php.defineConstant('DB_FILE', basename(options.dataSqlPath));
 	}
@@ -268,9 +279,14 @@ export async function bootWordPress(
 	 * them. This is needed because some WordPress backups and exports may not
 	 * include definitions for some of the necessary constants.
 	 */
+	// This is the first PHP script of the boot, so it also pays for PHP
+	// module startup and (on V8) lazy WASM compilation. Say so in the caption
+	// rather than blaming wp-config.php for a multi-second pause on mobile.
+	options.onProgress?.('Starting PHP');
 	await ensureWpConfig(php, requestHandler.documentRoot);
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
+		options.onProgress?.('Preparing database files');
 		await options.hooks.beforeDatabaseSetup(php);
 	}
 
@@ -279,6 +295,7 @@ export async function bootWordPress(
 	let usesSqlite = false;
 	if (options.sqliteIntegrationPluginZip) {
 		usesSqlite = true;
+		options.onProgress?.('Installing SQLite integration');
 		await preloadSqliteIntegration(
 			php,
 			await options.sqliteIntegrationPluginZip,
@@ -297,12 +314,14 @@ export async function bootWordPress(
 		)
 	) {
 		// Check database prerequisites before attempting installation
+		options.onProgress?.('Checking database prerequisites');
 		await assertDatabasePrerequisites(requestHandler, {
 			usesSqlite,
 			hasCustomDatabasePath,
 		});
 		// Install WordPress if it's not installed.
 		try {
+			options.onProgress?.('Running WordPress installer');
 			await installWordPress(php);
 		} catch (error) {
 			// If installation failed, check if it's a database issue
@@ -315,17 +334,21 @@ export async function bootWordPress(
 		}
 		// Validate the database connection after installation (skip if user provided custom DB path)
 		if (!hasCustomDatabasePath) {
+			options.onProgress?.('Validating database connection');
 			await assertValidDatabaseConnection(requestHandler);
 		}
 	} else if ('install-from-existing-files-if-needed' === installationMode) {
 		// Check database prerequisites before attempting installation
+		options.onProgress?.('Checking database prerequisites');
 		await assertDatabasePrerequisites(requestHandler, {
 			usesSqlite,
 			hasCustomDatabasePath,
 		});
+		options.onProgress?.('Checking existing WordPress installation');
 		if (!(await isWordPressInstalled(php))) {
 			// Install WordPress if it's not installed.
 			try {
+				options.onProgress?.('Running WordPress installer');
 				await installWordPress(php);
 			} catch (error) {
 				// If installation failed, check if it's a database issue
@@ -339,10 +362,12 @@ export async function bootWordPress(
 		}
 		// Validate the database connection after installation (skip if user provided custom DB path)
 		if (!hasCustomDatabasePath) {
+			options.onProgress?.('Validating database connection');
 			await assertValidDatabaseConnection(requestHandler);
 		}
 	}
 
+	options.onProgress?.('WordPress boot complete');
 	return requestHandler;
 }
 
@@ -396,10 +421,31 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			php.requestHandler = requestHandler;
 		}
 		if (options.phpIniEntries) {
-			setPhpIniEntries(php, options.phpIniEntries);
+			// PHP reads php.ini first and the extension ini files after, so an
+			// entry such as `xdebug.mode` set in php.ini loses to the value
+			// xdebug.ini ships. Entries named after an extension that has its
+			// own ini file go to that file. Every other entry goes to php.ini.
+			const entriesByPath = new Map<string | undefined, PhpIniOptions>();
+			for (const [key, value] of Object.entries(options.phpIniEntries)) {
+				const [extensionName, setting] = key.split('.');
+				const extensionIniPath = setting
+					? joinPaths(PHP_EXTENSIONS_DIR, `${extensionName}.ini`)
+					: undefined;
+				const path =
+					extensionIniPath && (await php.fileExists(extensionIniPath))
+						? extensionIniPath
+						: undefined;
+				entriesByPath.set(path, {
+					...entriesByPath.get(path),
+					[key]: value,
+				});
+			}
+			for (const [path, pathEntries] of entriesByPath) {
+				await setPhpIniEntries(php, pathEntries, path);
+			}
 		}
 
-		applyLegacyPhpIniOverrides(php, {
+		await applyLegacyPhpIniOverrides(php, {
 			phpVersion: options.phpVersion,
 			phpIniEntries: options.phpIniEntries,
 		});

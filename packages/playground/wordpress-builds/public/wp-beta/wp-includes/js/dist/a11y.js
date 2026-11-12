@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).a11y = (() => {
@@ -61,7 +62,7 @@ var wp;
     container.className = "a11y-speak-region";
     container.setAttribute(
       "style",
-      "position:absolute;margin:-1px;padding:0;height:1px;width:1px;overflow:hidden;clip-path:inset(50%);border:0;word-wrap:normal !important;"
+      "position:absolute;margin:-1px;padding:0;height:1px;width:1px;overflow:hidden;clip-path:inset(50%);border:0;word-wrap:normal !important;word-break:normal !important;"
     );
     container.setAttribute("aria-live", ariaLive);
     container.setAttribute("aria-relevant", "additions text");
@@ -82,7 +83,7 @@ var wp;
     introText.textContent = (0, import_i18n.__)("Notifications");
     introText.setAttribute(
       "style",
-      "position:absolute;margin:-1px;padding:0;height:1px;width:1px;overflow:hidden;clip-path:inset(50%);border:0;word-wrap:normal !important;"
+      "position:absolute;margin:-1px;padding:0;height:1px;width:1px;overflow:hidden;clip-path:inset(50%);border:0;word-wrap:normal !important;word-break:normal !important;"
     );
     introText.setAttribute("hidden", "");
     const { body } = document;
@@ -153,4 +154,6 @@ var wp;
   }
   (0, import_dom_ready.default)(setup);
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).a11y = wp.a11y;
 })();

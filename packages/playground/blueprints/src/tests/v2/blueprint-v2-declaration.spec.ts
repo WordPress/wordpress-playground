@@ -1,6 +1,48 @@
 import type { BlueprintV2Declaration } from '../../lib/v2/blueprint-v2-declaration';
 
 describe('Blueprint v2 declaration types', () => {
+	it('accepts a PHP-only WordPress version sentinel', () => {
+		const blueprints = [
+			{ version: 2, wordpressVersion: 'latest' },
+			{ version: 2, wordpressVersion: 'none' },
+		] satisfies BlueprintV2Declaration[];
+
+		expect(blueprints).toHaveLength(2);
+	});
+
+	it('accepts site-creation baselines', () => {
+		const blueprints = [
+			{
+				version: 2,
+				contentBaseline: 'keep-all',
+				usersBaseline: 'keep-all',
+			},
+			{
+				version: 2,
+				contentBaseline: 'empty',
+				usersBaseline: 'empty',
+				users: [
+					{
+						username: 'new-admin',
+						email: 'new-admin@example.com',
+						role: 'administrator',
+						meta: {},
+					},
+				],
+			},
+			{
+				version: 2,
+				contentBaseline: 'posts',
+			},
+			{
+				version: 2,
+				contentBaseline: ['posts', 'pages', 'comments'],
+			},
+		] satisfies BlueprintV2Declaration[];
+
+		expect(blueprints).toHaveLength(4);
+	});
+
 	it('accepts file data references for file-only fields', () => {
 		const blueprint = {
 			version: 2,
@@ -18,7 +60,7 @@ describe('Blueprint v2 declaration types', () => {
 				},
 				{
 					type: 'wxr',
-					source: './content.wxr',
+					source: 'site:wp-content/plugins/woocommerce/sample-data/sample_products.xml',
 				},
 			],
 			media: [
@@ -32,6 +74,9 @@ describe('Blueprint v2 declaration types', () => {
 				},
 			],
 			additionalStepsAfterExecution: [
+				{
+					step: 'enableMultisite',
+				},
 				{
 					step: 'runPHP',
 					code: {
@@ -355,6 +400,24 @@ const blueprintWithUrlMappingForMysqlDump = {
 	],
 } satisfies BlueprintV2Declaration;
 
+const blueprintWithEmptyContentBaselineList = {
+	version: 2,
+	// @ts-expect-error Use "empty" instead of an empty baseline list.
+	contentBaseline: [],
+} satisfies BlueprintV2Declaration;
+
+const blueprintWithUnsupportedContentBaselineType = {
+	version: 2,
+	// @ts-expect-error Users are not a content type.
+	contentBaseline: ['users'],
+} satisfies BlueprintV2Declaration;
+
+const blueprintWithUnsupportedWordPressVersion = {
+	version: 2,
+	// @ts-expect-error Only supported WordPress version values are accepted.
+	wordpressVersion: 'node',
+} satisfies BlueprintV2Declaration;
+
 void blueprintWithDirectoryAsRunPHPCode;
 void blueprintWithDirectoryAsMediaSource;
 void blueprintWithNestedDirectoryName;
@@ -367,3 +430,6 @@ void blueprintWithExtraWordPressVersionComponent;
 void blueprintWithUnsupportedWordPressVersionRecommendation;
 void blueprintWithNonComparablePHPVersionRecommendation;
 void blueprintWithUrlMappingForMysqlDump;
+void blueprintWithEmptyContentBaselineList;
+void blueprintWithUnsupportedContentBaselineType;
+void blueprintWithUnsupportedWordPressVersion;

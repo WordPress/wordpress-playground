@@ -21,18 +21,7 @@ import type { Blueprint } from '@wp-playground/blueprints';
  * successfully (which implicitly verifies parent/child DIP parity).
  *
  * These tests are Chromium-only (DIP is a Chromium-only spec and Gutenberg
- * only sends the header there). The file-level `test.skip()` below must
- * run before the file-level `test.use({ channel })` takes effect so the
- * non-Chromium projects never try to launch WebKit/Firefox with a
- * chromium channel, which would error with `Unsupported <browser>
- * channel "chromium"`.
- *
- * The `channel: 'chromium'` opt-in is required because Playwright's
- * default `chromium_headless_shell` build does not honor
- * Document-Isolation-Policy — `window.crossOriginIsolated` is always
- * false there even when the response carries a DIP header. The full
- * Chromium channel is already installed by Playwright's CI step
- * (`playwright install chromium --with-deps`).
+ * only sends the header there).
  *
  * @see https://github.com/WordPress/wordpress-playground/issues/3514
  * @see https://github.com/WordPress/wordpress-playground/issues/2954
@@ -44,8 +33,6 @@ test.skip(
 	({ browserName }) => browserName !== 'chromium',
 	'Document-Isolation-Policy and client-side media are only supported in Chromium-based browsers'
 );
-
-test.use({ channel: 'chromium' });
 
 const clientSideMediaBlueprint: Blueprint = {
 	landingPage: '/wp-admin/post-new.php',

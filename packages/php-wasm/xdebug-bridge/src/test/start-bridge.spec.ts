@@ -59,8 +59,8 @@ describe('Bridge', () => {
 		it('starts the bridge with default config', async () => {
 			const bridge = await startBridge({});
 
-			expect(CDPServer).toHaveBeenCalledWith(9229);
-			expect(DbgpSession).toHaveBeenCalledWith(9003);
+			expect(CDPServer).toHaveBeenCalledWith('127.0.0.1', 9229);
+			expect(DbgpSession).toHaveBeenCalledWith('127.0.0.1', 9003);
 			expect(XdebugCDPBridge).toHaveBeenCalled();
 			expect(bridge).toBeInstanceOf(XdebugCDPBridge);
 		});
@@ -68,11 +68,34 @@ describe('Bridge', () => {
 		it('respects custom ports and hosts', async () => {
 			await startBridge({
 				cdpPort: 9999,
+				cdpHost: '0.0.0.0',
 				dbgpPort: 8888,
+				dbgpHost: '0.0.0.0',
 			});
 
-			expect(CDPServer).toHaveBeenCalledWith(9999);
-			expect(DbgpSession).toHaveBeenCalledWith(8888);
+			expect(CDPServer).toHaveBeenCalledWith('0.0.0.0', 9999);
+			expect(DbgpSession).toHaveBeenCalledWith('0.0.0.0', 8888);
+		});
+
+		it('binds to loopback when the hosts are empty', async () => {
+			await startBridge({ cdpHost: '', dbgpHost: '' });
+
+			expect(CDPServer).toHaveBeenCalledWith('127.0.0.1', 9229);
+			expect(DbgpSession).toHaveBeenCalledWith('127.0.0.1', 9003);
+		});
+
+		it('resolves the DBGp host to an IPv4 address', async () => {
+			await startBridge({ dbgpHost: 'localhost' });
+
+			expect(DbgpSession).toHaveBeenCalledWith('127.0.0.1', 9003);
+		});
+
+		it('rejects a DBGp host that does not resolve', async () => {
+			await expect(
+				startBridge({ dbgpHost: 'foo.invalid' })
+			).rejects.toThrow();
+
+			expect(CDPServer).not.toHaveBeenCalled();
 		});
 
 		it('finds PHP files', async () => {
@@ -214,7 +237,7 @@ describe('Bridge', () => {
 				'Connect Chrome DevTools to CDP at:',
 				`devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229\n`,
 				'Chrome connected! Initializing Xdebug receiver...',
-				'XDebug receiver running on port 9003',
+				'XDebug receiver running on 127.0.0.1:9003',
 				'Running a PHP script with Xdebug enabled...',
 			]);
 
@@ -235,7 +258,7 @@ describe('Bridge', () => {
 				'Connect Chrome DevTools to CDP at:',
 				`devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229\n`,
 				'Chrome connected! Initializing Xdebug receiver...',
-				'XDebug receiver running on port 9003',
+				'XDebug receiver running on 127.0.0.1:9003',
 				'Running a PHP script with Xdebug enabled...',
 			]);
 

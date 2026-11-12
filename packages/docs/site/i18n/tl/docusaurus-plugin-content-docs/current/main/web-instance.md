@@ -1,7 +1,7 @@
 ---
 title: Web Instance
 slug: /web-instance
-description: Isang detalyadong gabay sa web interface sa playground.wordpress.net, na sumasaklaw sa toolbar, settings, at instance manager.
+description: Isang detalyadong gabay sa web interface sa playground.wordpress.net, na sumasaklaw sa Dock, persistence, settings, at mga tool ng site.
 ---
 
 <!--
@@ -11,38 +11,24 @@ description: Isang detalyadong gabay sa web interface sa playground.wordpress.ne
 # WordPress Playground web instance
 
 <!--
-[https://playground.wordpress.net/](https://playground.wordpress.net/) lets developers run WordPress in a browser without a server. This environment makes testing plugins, themes, and features quick and easy.
+[https://playground.wordpress.net/](https://playground.wordpress.net/) runs
+WordPress in your browser without a server. The page opens a Playground, shows
+the WordPress site, and keeps the site tools in the **Dock**.
 -->
 
-Ang [https://playground.wordpress.net/](https://playground.wordpress.net/) ay nagbibigay-daan sa mga developer na patakbuhin ang WordPress sa browser nang walang server. Ang environment na ito ay nagpapadali at nagpapabilis sa pagsubok ng plugins, themes, at features.
+Ang [https://playground.wordpress.net/](https://playground.wordpress.net/) ay
+nagpapatakbo ng WordPress sa iyong browser nang walang server. Binubuksan ng
+pahina ang isang Playground, ipinapakita ang WordPress site, at inilalagay ang
+mga tool ng site sa **Dock**.
+
+![Ang Playground web instance na may nakikitang Dock sa ibaba ng pahina](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-overview.webp)
 
 <!--
-Some key features:
-
-- **Browser-based**: No local server setup required.
-- **Instant Setup**: Run WordPress with a single click.
-- **Testing Environment**: Ideal for testing plugins and themes.
+The Dock has an address field, a save status, layout controls, and destinations for creating, storing, inspecting, and exporting Playgrounds.
 -->
 
-Ilang pangunahing tampok:
-
-- **Browser-based**: Hindi kailangan ng lokal na server setup.
-- **Instant Setup**: Patakbuhin ang WordPress sa isang click lang.
-- **Testing Environment**: Perpekto para sa pagsubok ng plugins at themes.
-
-<!--
-The [Query Params API](/developers/apis/query-api/) allows you to directly load specific configurations into a Playground instance. This includes setting a particular WordPress version, theme, or plugin. You can also define more complex setups using blueprints (see [examples here](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
--->
-
-Ang [Query Params API](/developers/apis/query-api/) ay nagbibigay-daan sa iyo na direktang mag-load ng mga partikular na configuration sa isang Playground instance. Kasama dito ang pagtatakda ng partikular na bersyon ng WordPress, theme, o plugin. Maaari ka ring magtakda ng mas kumplikadong setup gamit ang blueprints (tingnan ang [mga halimbawa dito](/quick-start-guide#try-a-block-a-theme-or-a-plugin)).
-
-<!--
-The Playground website includes toolbars that customize your instance and provide quick access to resources and utilities.
--->
-
-Ang Playground website ay may kasamang mga toolbar na nagpapasadya sa iyong instance at nagbibigay ng mabilis na access sa mga resources at utilities.
-
-![Playground Toolbar Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-toolbar.webp)
+May address field, save status, layout controls, at mga destination ang Dock
+para sa paglikha, pag-imbak, pagsusuri, at pag-export ng mga Playground.
 
 <!--
 ## Customize Playground
@@ -51,126 +37,347 @@ Ang Playground website ay may kasamang mga toolbar na nagpapasadya sa iyong inst
 ## I-customize ang Playground
 
 <!--
-On the toolbar, you'll find:
-
-- **Playground Settings**: A panel for configuring your current instance, like PHP and WordPress versions.
-- **Playground Dashboard**: This panel lets you manage WordPress Playground instances, save and export them, edit files from your WordPress instance, and create new Blueprints.
-- **Playground Launch Panel**: The Launch Panel shows all the ways to launch a WordPress Playground instance.
+The Dock includes these destinations:
 -->
 
-Sa toolbar, makikita mo ang:
-
-- **Playground Settings**: Isang panel para sa pag-configure ng iyong kasalukuyang instance, tulad ng PHP at WordPress versions.
-- **Playground Dashboard**: Ang panel na ito ay nagbibigay-daan sa iyo na pamahalaan ang mga WordPress Playground instance, i-save at i-export sila, mag-edit ng mga file mula sa iyong WordPress instance, at lumikha ng mga bagong Blueprint.
-- **Playground Launch Panel**: Ang Launch Panel ay nagpapakita ng lahat ng paraan para maglunsad ng WordPress Playground instance.
+Kabilang sa Dock ang mga destination na ito:
 
 <!--
-### Playground Settings
+- **New**: Start from the Blueprint gallery, a public Blueprint URL, a new
+  Blueprint, a pull request preview, a GitHub repository, or an imported `.zip`
+  file.
+- **Playgrounds**: Switch between recent and saved Playgrounds.
+- **Blueprint**: View, edit, export, and run the current Blueprint.
+- **Site Settings**: Configure WordPress version, PHP version, language,
+  networking, and multisite.
+- **Database**: Inspect or download the SQLite database and open database tools.
+- **Files**: Browse and edit files in the WordPress filesystem.
+- **Logs**: Inspect PHP errors, warnings, and notices.
+- **Export**: Download a `.zip`, copy the original setup link, or export selected
+  files to a GitHub pull request.
 -->
 
-### Playground Settings
-
-![snapshot of customize Playground window at Playground instance](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-settings-panel.webp)
+- **New**: Magsimula mula sa Blueprint gallery, isang public Blueprint URL,
+  isang bagong Blueprint, isang pull request preview, isang GitHub repository,
+  o isang naka-import na `.zip` file.
+- **Playgrounds**: Lumipat sa pagitan ng mga kamakailan at naka-save na
+  Playground.
+- **Blueprint**: Tingnan, i-edit, i-export, at patakbuhin ang kasalukuyang
+  Blueprint.
+- **Site Settings**: I-configure ang bersyon ng WordPress, bersyon ng PHP,
+  wika, networking, at multisite.
+- **Database**: Suriin o i-download ang SQLite database at buksan ang mga
+  database tool.
+- **Files**: Mag-browse at mag-edit ng mga file sa WordPress filesystem.
+- **Logs**: Suriin ang mga PHP error, warning, at notice.
+- **Export**: Mag-download ng `.zip`, kopyahin ang orihinal na setup link, o
+  i-export ang mga napiling file sa isang GitHub pull request.
 
 <!--
-The **Playground Settings Panel** includes these [Query API options](/developers/apis/query-api#available-options):
-
-- `wp`: Defines the WordPress version.
-- `php`: Specifies the PHP version for the instance.
-- `language`: Sets the WordPress instance language.
-- `multisite`: Enables WordPress multisite support.
-- `networking`: Enables network access to the WordPress Plugin Directory and WordPress APIs.
+## Navigate inside WordPress
 -->
 
-Ang **Playground Settings Panel** ay may kasamang mga [Query API options](/developers/apis/query-api#available-options) na ito:
-
-- `wp`: Tinutukoy ang bersyon ng WordPress.
-- `php`: Tinutukoy ang bersyon ng PHP para sa instance.
-- `language`: Itinatakda ang wika ng WordPress instance.
-- `multisite`: Pinapagana ang WordPress multisite support.
-- `networking`: Pinapagana ang network access sa WordPress Plugin Directory at WordPress APIs.
+## Mag-navigate sa loob ng WordPress
 
 <!--
-## Playground Manager
+Use the Dock address field to open a path inside the current WordPress site.
+For example, enter `/wp-admin/` to open the dashboard or
+`/wp-admin/plugins.php` to open the Plugins screen. **Refresh page** reloads
+the current WordPress path.
 -->
 
-## Playground Manager
-
-![Playground settings panel allow users to save export and edit the WordPress directly](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard.webp)
+Gamitin ang address field ng Dock para magbukas ng path sa loob ng kasalukuyang
+WordPress site. Halimbawa, i-type ang `/wp-admin/` para buksan ang dashboard o
+`/wp-admin/plugins.php` para buksan ang Plugins screen. Ang **Refresh page** ay
+nagre-reload ng kasalukuyang WordPress path.
 
 <!--
-This panel lets you manage Playground instances and provides access to the following panels:
-
-- **Settings**: To manage the current Playground's settings
-- **File Browser**: Built-in IDE for editing files, uploading plugins and themes, and live editing. Playground auto-reloads changes in real time.
-- **Blueprint**: A Blueprint editor for creating, saving, and running Blueprints in your Playground web instance.
-- **Database**: Tools for managing the database with Adminer and phpMyAdmin, and downloading as a `.sqlite` file.
-- **Logs**: Displays log messages when something goes wrong.
+You can also use the [Query Params API](/developers/apis/query-api/) to open Playground with a specific setup, such as a WordPress version, PHP version, plugin, theme, or Blueprint.
 -->
 
-Ang panel na ito ay nagbibigay-daan sa iyo na pamahalaan ang mga Playground instance at nagbibigay ng access sa mga sumusunod na panel:
-
-- **Settings**: Para pamahalaan ang mga setting ng kasalukuyang Playground
-- **File Browser**: Built-in IDE para sa pag-edit ng mga file, pag-upload ng plugins at themes, at live editing. Awtomatikong nire-reload ng Playground ang mga pagbabago sa real time.
-- **Blueprint**: Isang Blueprint editor para sa paglikha, pag-save, at pagpapatakbo ng mga Blueprint sa iyong Playground web instance.
-- **Database**: Mga tool para sa pamamahala ng database gamit ang Adminer at phpMyAdmin, at pag-download bilang `.sqlite` file.
-- **Logs**: Nagpapakita ng mga log message kapag may problema.
-
-![Save Playground Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-dashboard-save.webp)
+Maaari mo ring gamitin ang [Query Params API](/developers/apis/query-api/) para
+buksan ang Playground na may partikular na setup, tulad ng bersyon ng
+WordPress, bersyon ng PHP, plugin, theme, o Blueprint.
 
 <!--
-Click "Save" to create an instance and list it in the Playground Launch Panel. The Playground Dashboard also offers export and download options through the Additional actions menu:
+## Understand the save status
 -->
 
-I-click ang "Save" para lumikha ng instance at ilista ito sa Playground Launch Panel. Ang Playground Dashboard ay nag-aalok din ng mga export at download options sa pamamagitan ng Additional actions menu:
+## Unawain ang save status
 
 <!--
-### Additional actions menu
+The status next to the address field tells you how the current Playground is stored:
 -->
 
-### Additional actions menu
-
-![Additional actions Menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/additional-options-playground-dashboard.webp)
+Ang status sa tabi ng address field ay nagsasabi kung paano naka-imbak ang
+kasalukuyang Playground:
 
 <!--
-- **Export Pull Request to GitHub**: Export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository. Watch a [demo of this feature](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s).
-- **Download as .zip**: Creates a `.zip` file with the setup of the Playground instance, including any themes or plugins installed. This `.zip` excludes content and database changes.
+- **Autosaved** means the Playground is stored in this browser and can be recovered from **Your Playgrounds**. Playground keeps up to five recent autosaves.
+- **Saved** means the Playground was stored permanently in browser storage or saved to a local directory.
+- **Unsaved** means the Playground has not been saved. Temporary Playgrounds, including `?storage=temp`, are lost when the tab is closed or refreshed.
 -->
 
-- **Export Pull Request to GitHub**: I-export ang mga WordPress plugin, theme, at buong wp-content directory bilang mga pull request sa anumang public GitHub repository. Panoorin ang isang [demo ng feature na ito](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s).
-- **Download as .zip**: Gumagawa ng `.zip` file na may setup ng Playground instance, kasama ang anumang naka-install na theme o plugin. Ang `.zip` na ito ay hindi kasama ang content at database changes.
+- Nangangahulugan ang **Autosaved** na naka-imbak ang Playground sa browser na
+  ito at maaaring mabawi mula sa **Your Playgrounds**. Hanggang limang
+  kamakailang autosave ang iniingatan ng Playground.
+- Nangangahulugan ang **Saved** na permanente nang naka-imbak ang Playground sa
+  browser storage o na-save sa isang lokal na directory.
+- Nangangahulugan ang **Unsaved** na hindi pa na-save ang Playground. Ang mga
+  pansamantalang Playground, kabilang ang `?storage=temp`, ay mawawala kapag
+  isinara o ni-refresh ang tab.
 
 <!--
-### Blueprint Editor
+Click **Autosaved** or **Unsaved** to open **Store permanently**.
 -->
 
-### Blueprint Editor
+I-click ang **Autosaved** o **Unsaved** para buksan ang **Store permanently**.
 
-![Blueprint editor WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-blueprint-editor.webp)
+![Ang Store permanently pane na naka-select ang browser storage](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-browser.webp)
 
 <!--
-The Blueprint editor replaced the older Blueprint builder, offering the ability to manage multiple Blueprints and code validation.
+Store permanently can keep an autosaved Playground in browser storage so autosave pruning no longer removes it. In browsers that support the File System Access API, it can also save the Playground to a local directory.
 -->
 
-Ang Blueprint editor ay pinalitan ang lumang Blueprint builder, na nag-aalok ng kakayahang pamahalaan ang maraming Blueprint at code validation.
+Maaaring panatilihin ng Store permanently ang isang naka-autosave na Playground
+sa browser storage para hindi na ito alisin ng autosave pruning. Sa mga browser
+na sumusuporta sa File System Access API, maaari rin nitong i-save ang
+Playground sa isang lokal na directory.
 
 <!--
-### Launch Playground Panel
+Browser storage still belongs to the browser. The browser may remove stored data when storage pressure or privacy settings require it. Export a ZIP when you need a portable backup.
 -->
 
-### Launch Playground Panel
-
-![Playground Launch Panel](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
+Nasa browser pa rin ang browser storage. Maaaring tanggalin ng browser ang
+naka-imbak na data kapag kinakailangan ito dahil sa kakulangan sa storage o
+privacy settings. Mag-export ng ZIP kapag kailangan mo ng portable backup.
 
 <!--
-This panel shows all the ways to launch WordPress Playground: import `.zip` files, load from GitHub repositories, and preview PRs from WordPress core and Gutenberg.
-
-The Launch Panel also lists more than 40 blueprints from the Blueprint Gallery and your Saved Playgrounds.
+## Start a Playground
 -->
 
-Ang panel na ito ay nagpapakita ng lahat ng paraan para ilunsad ang WordPress Playground: mag-import ng `.zip` files, mag-load mula sa GitHub repositories, at mag-preview ng mga PR mula sa WordPress core at Gutenberg.
+## Magsimula ng Playground
 
-Ang Launch Panel ay naglilista rin ng higit sa 40 blueprints mula sa Blueprint Gallery at iyong mga Saved Playground.
+<!--
+Open **New Playground** from the Dock by clicking **New**. The pane contains
+**Blueprint gallery**, **From a URL**, **Write a Blueprint**, **Preview a PR**,
+**From GitHub**, and **Import zip**.
+-->
+
+Buksan ang **New Playground** mula sa Dock sa pamamagitan ng pag-click sa
+**New**. Kabilang sa pane ang **Blueprint gallery**, **From a URL**,
+**Write a Blueprint**, **Preview a PR**, **From GitHub**, at **Import zip**.
+
+![Ang New Playground pane na naka-select ang Blueprint gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
+
+<!--
+The Blueprint gallery starts with **Vanilla WordPress**, which creates a clean
+WordPress install. **From a URL** opens a public Blueprint URL. **Write a
+Blueprint** opens an editor for a new Blueprint. **Import zip** restores a ZIP
+exported from Playground.
+-->
+
+Nagsisimula ang Blueprint gallery sa **Vanilla WordPress**, na gumagawa ng
+malinis na WordPress install. Binubuksan ng **From a URL** ang isang public
+Blueprint URL. Binubuksan ng **Write a Blueprint** ang editor para sa bagong
+Blueprint. Ibinabalik ng **Import zip** ang ZIP na na-export mula sa Playground.
+
+![Ang New Playground pane na naka-select ang Import zip](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
+
+<!--
+## Return to recent and saved Playgrounds
+-->
+
+## Bumalik sa mga kamakailan at naka-save na Playground
+
+<!--
+Open **Your Playgrounds** from the Dock by clicking **Playgrounds**. It lists the current Playground, recent autosaves, and Playgrounds you saved permanently.
+-->
+
+Buksan ang **Your Playgrounds** mula sa Dock sa pamamagitan ng pag-click sa
+**Playgrounds**. Nililista nito ang kasalukuyang Playground, mga kamakailang
+autosave, at mga Playground na permanente mong na-save.
+
+![Ang Your Playgrounds pane na may kasalukuyang Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
+
+<!--
+Autosaved Playgrounds are recovery points. Playground retains up to five recent
+autosaves. Use **Store permanently** to keep one as a saved Playground.
+-->
+
+Ang mga naka-autosave na Playground ay punto ng pagbawi. Hanggang limang
+kamakailang autosave ang iniingatan ng Playground. Gamitin ang
+**Store permanently** para panatilihin ang isa bilang naka-save na Playground.
+
+<!--
+## Change site settings
+-->
+
+## Baguhin ang site settings
+
+<!--
+Open **Site Settings** to change runtime and WordPress setup options.
+-->
+
+Buksan ang **Site Settings** para baguhin ang runtime at WordPress setup
+options.
+
+![Ang Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
+
+<!--
+PHP version and networking can be applied to an existing stored Playground. WordPress version, language, and multisite change the WordPress installation itself, so they require a fresh Playground.
+-->
+
+Maaaring ilapat ang bersyon ng PHP at networking sa umiiral nang naka-imbak na
+Playground. Binabago ng bersyon ng WordPress, wika, at multisite ang mismong
+WordPress installation, kaya kailangan nila ng bagong Playground.
+
+<!--
+Running an edited Blueprint keeps stored and autosaved Playgrounds. It discards a temporary Playground because the new run starts from a fresh setup.
+-->
+
+Pinapanatili ng pagpapatakbo ng na-edit na Blueprint ang mga naka-imbak at
+naka-autosave na Playground. Itinatapon nito ang pansamantalang Playground
+dahil nagsisimula ang bagong run mula sa bagong setup.
+
+<!--
+## Inspect the current Blueprint
+-->
+
+## Suriin ang kasalukuyang Blueprint
+
+<!--
+Open **Blueprint** to view and edit the Blueprint for the current Playground.
+-->
+
+Buksan ang **Blueprint** para tingnan at i-edit ang Blueprint ng kasalukuyang
+Playground.
+
+![Ang Blueprint editor pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-current-blueprint.webp)
+
+<!--
+The editor can run the edited Blueprint in a new Playground. For a stored or autosaved Playground, the original Playground remains available in **Your Playgrounds**.
+-->
+
+Maaaring patakbuhin ng editor ang na-edit na Blueprint sa isang bagong
+Playground. Para sa naka-imbak o naka-autosave na Playground, nananatiling
+available ang orihinal na Playground sa **Your Playgrounds**.
+
+<!--
+## Inspect files, database, and logs
+-->
+
+## Suriin ang mga file, database, at log
+
+<!--
+Open **Files** to browse and edit the current Playground files.
+-->
+
+Buksan ang **Files** para mag-browse at mag-edit ng mga file ng kasalukuyang
+Playground.
+
+![Ang Files pane na may naka-select na WordPress file](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/files.webp)
+
+<!--
+Open **Database** to use database tools or download the SQLite database.
+-->
+
+Buksan ang **Database** para gumamit ng mga database tool o mag-download ng
+SQLite database.
+
+![Ang Database pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/database.webp)
+
+<!--
+Open **Logs** to inspect PHP errors, warnings, and notices.
+-->
+
+Buksan ang **Logs** para suriin ang mga PHP error, warning, at notice.
+
+![Ang PHP error log pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/logs.webp)
+
+<!--
+## Export and share {#playground-options-menu}
+-->
+
+## I-export at ibahagi {#playground-options-menu}
+
+<!--
+Open **Export** to download or share the current Playground.
+-->
+
+Buksan ang **Export** para i-download o ibahagi ang kasalukuyang Playground.
+
+![Ang Export pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-export-playground.webp)
+
+<!--
+**Download as .zip** exports the current files, database, plugins, themes, uploads, and edits. The ZIP can be restored later with **New → Import zip**.
+-->
+
+Ini-export ng **Download as .zip** ang kasalukuyang mga file, database, plugin,
+theme, upload, at edit. Maaaring i-restore ang ZIP sa ibang pagkakataon gamit
+ang **New → Import zip**.
+
+<!--
+**Copy original setup link** copies a link that recreates only the original
+setup. It does not include edits made after the Playground started.
+-->
+
+Kinokopya ng **Copy original setup link** ang isang link na muling gumagawa
+lamang ng orihinal na setup. Hindi kasama rito ang mga edit na ginawa pagkatapos
+magsimula ang Playground.
+
+<!--
+**Export to GitHub** can create a pull request with selected files from the current Playground.
+-->
+
+Maaaring gumawa ang **Export to GitHub** ng pull request na may mga napiling
+file mula sa kasalukuyang Playground.
+
+<!--
+## Change the Dock layout
+-->
+
+## Baguhin ang layout ng Dock
+
+<!--
+The Dock can be shown as a floating panel or full-width bar. Use **Full width** to switch layouts.
+-->
+
+Maaaring ipakita ang Dock bilang floating panel o full-width bar. Gamitin ang
+**Full width** para palitan ang layout.
+
+| Floating                                                                                                                                                                 | Full width                                                                                                                                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| ![Ang default na floating Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-overview.webp) | ![Ang full-width na layout ng Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-full-width.webp) |
+
+<!--
+Use **Hide tools** to collapse the Dock to its address field and save status.
+Use **Show tools** to reopen the tool row.
+-->
+
+Gamitin ang **Hide tools** para i-collapse ang Dock sa address field at save
+status nito. Gamitin ang **Show tools** para muling buksan ang tool row.
+
+![Ang Playground na nakatago ang mga tool ng Dock](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-hidden-tools.webp)
+
+<!--
+You can drag the floating Dock on desktop. Drag it past the left or right edge
+to fold it into a corner launcher, then click the launcher to restore the Dock.
+-->
+
+Maaari mong i-drag ang floating Dock sa desktop. I-drag ito lampas sa kaliwa o
+kanang gilid para i-fold ito sa isang corner launcher, pagkatapos ay i-click
+ang launcher para ibalik ang Dock.
+
+![Ang Dock na naka-fold sa corner launcher](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-corner-launcher.webp)
+
+<!--
+On narrow screens, the Dock uses a full-width mobile layout.
+-->
+
+Sa makitid na screen, gumagamit ang Dock ng full-width na mobile layout.
+
+![Ang Dock sa isang mobile viewport](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-mobile.webp)
 
 <!--
 <div class="callout callout-warning">
@@ -184,8 +391,11 @@ If you need certain availability, you should [host your own WordPress Playground
 
 <div class="callout callout-warning">
 
-Ang site sa https://playground.wordpress.net ay para suportahan ang komunidad, ngunit walang garantiya na ito ay patuloy na gagana kung ang traffic ay lumaki nang malaki.
+Ang site sa https://playground.wordpress.net ay para suportahan ang komunidad,
+ngunit walang garantiya na ito ay patuloy na gagana kung ang traffic ay lumaki
+nang malaki.
 
-Kung kailangan mo ng tiyak na availability, dapat mong [i-host ang sarili mong WordPress Playground](/developers/architecture/host-your-own-playground).
+Kung kailangan mo ng tiyak na availability, dapat mong [i-host ang sarili mong
+WordPress Playground](/developers/architecture/host-your-own-playground).
 
 </div>

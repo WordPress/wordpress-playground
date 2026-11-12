@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).styleEngine = (() => {
@@ -22,12 +23,13 @@ var wp;
   // packages/style-engine/build-module/index.mjs
   var index_exports = {};
   __export(index_exports, {
+    VALID_BACKGROUND_CLIP_VALUES: () => VALID_BACKGROUND_CLIP_VALUES,
     compileCSS: () => compileCSS,
     getCSSRules: () => getCSSRules,
     getCSSValueFromRawStyle: () => getCSSValueFromRawStyle
   });
 
-  // node_modules/tslib/tslib.es6.mjs
+  // node_modules/.store/tslib@2.8.1-LT-dxu1EkVy7OUDyVf5glQ/node_modules/tslib/tslib.es6.mjs
   var __assign = function() {
     __assign = Object.assign || function __assign2(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -39,12 +41,12 @@ var wp;
     return __assign.apply(this, arguments);
   };
 
-  // node_modules/lower-case/dist.es2015/index.js
+  // node_modules/.store/lower-case@2.0.2-5YZP5nczP5_f_8Vt5KBPjA/node_modules/lower-case/dist.es2015/index.js
   function lowerCase(str) {
     return str.toLowerCase();
   }
 
-  // node_modules/no-case/dist.es2015/index.js
+  // node_modules/.store/no-case@3.0.4-R4Hzt6qn-erEsTak7ojDpg/node_modules/no-case/dist.es2015/index.js
   var DEFAULT_SPLIT_REGEXP = [/([a-z0-9])([A-Z])/g, /([A-Z])([A-Z][a-z])/g];
   var DEFAULT_STRIP_REGEXP = /[^A-Z0-9]+/gi;
   function noCase(input, options) {
@@ -69,7 +71,7 @@ var wp;
     }, input);
   }
 
-  // node_modules/dot-case/dist.es2015/index.js
+  // node_modules/.store/dot-case@3.0.4-hi-rLWlWmiZ169n4dWcbUA/node_modules/dot-case/dist.es2015/index.js
   function dotCase(input, options) {
     if (options === void 0) {
       options = {};
@@ -77,7 +79,7 @@ var wp;
     return noCase(input, __assign({ delimiter: "." }, options));
   }
 
-  // node_modules/param-case/dist.es2015/index.js
+  // node_modules/.store/param-case@3.0.4-rdAht_VwpGpefPRylN2bTA/node_modules/param-case/dist.es2015/index.js
   function paramCase(input, options) {
     if (options === void 0) {
       options = {};
@@ -178,7 +180,7 @@ var wp;
   function safeDecodeURI(uri) {
     try {
       return decodeURI(uri);
-    } catch (uriError) {
+    } catch {
       return uri;
     }
   }
@@ -312,6 +314,17 @@ var wp;
       );
     }
   };
+  var minWidth = {
+    name: "minWidth",
+    generate: (style, options) => {
+      return generateRule(
+        style,
+        options,
+        ["dimensions", "minWidth"],
+        "minWidth"
+      );
+    }
+  };
   var aspectRatio = {
     name: "aspectRatio",
     generate: (style, options) => {
@@ -334,31 +347,39 @@ var wp;
       );
     }
   };
-  var dimensions_default = [height, minHeight, aspectRatio, width2];
+  var objectFit = {
+    name: "objectFit",
+    generate: (style, options) => {
+      return generateRule(
+        style,
+        options,
+        ["dimensions", "objectFit"],
+        "objectFit"
+      );
+    }
+  };
+  var dimensions_default = [height, minHeight, minWidth, aspectRatio, width2, objectFit];
 
   // packages/style-engine/build-module/styles/background/index.mjs
   var backgroundImage = {
     name: "backgroundImage",
     generate: (style, options) => {
       const _backgroundImage = style?.background?.backgroundImage;
-      if (typeof _backgroundImage === "object" && _backgroundImage?.url) {
-        return [
-          {
-            selector: options.selector,
-            key: "backgroundImage",
-            // Passed `url` may already be encoded. To prevent double encoding, decodeURI is executed to revert to the original string.
-            value: `url( '${encodeURI(
-              safeDecodeURI(_backgroundImage.url)
-            )}' )`
-          }
-        ];
+      const gradient2 = getCSSValueFromRawStyle(style?.background?.gradient) || "";
+      if (!_backgroundImage && !gradient2) {
+        return [];
       }
-      return generateRule(
-        style,
-        options,
-        ["background", "backgroundImage"],
-        "backgroundImage"
-      );
+      const backgroundImageValue = typeof _backgroundImage === "object" && _backgroundImage?.url ? `url( '${encodeURI(
+        safeDecodeURI(_backgroundImage.url)
+      )}' )` : getCSSValueFromRawStyle(_backgroundImage);
+      const cssValue = [gradient2, backgroundImageValue].filter(Boolean).join(", ");
+      return !!cssValue ? [
+        {
+          selector: options.selector,
+          key: "backgroundImage",
+          value: cssValue
+        }
+      ] : [];
     }
   };
   var backgroundPosition = {
@@ -405,12 +426,56 @@ var wp;
       );
     }
   };
+  var VALID_BACKGROUND_CLIP_VALUES = [
+    "border-box",
+    "padding-box",
+    "content-box",
+    "text"
+  ];
+  var backgroundClip = {
+    name: "backgroundClip",
+    generate: (style, options) => {
+      const value = style?.background?.backgroundClip;
+      if (!value || !VALID_BACKGROUND_CLIP_VALUES.includes(value)) {
+        return [];
+      }
+      const rules = [
+        {
+          selector: options.selector,
+          key: "backgroundClip",
+          value
+        }
+      ];
+      if (value === "text") {
+        rules.push(
+          {
+            selector: options.selector,
+            key: "-webkit-background-clip",
+            value: "text"
+          },
+          {
+            selector: options.selector,
+            key: "-webkit-text-fill-color",
+            value: "transparent"
+          }
+        );
+      } else {
+        rules.push({
+          selector: options.selector,
+          key: "-webkit-text-fill-color",
+          value: "currentColor"
+        });
+      }
+      return rules;
+    }
+  };
   var background_default2 = [
     backgroundImage,
     backgroundPosition,
     backgroundRepeat,
     backgroundSize,
-    backgroundAttachment
+    backgroundAttachment,
+    backgroundClip
   ];
 
   // packages/style-engine/build-module/styles/shadow/index.mjs
@@ -598,6 +663,17 @@ var wp;
       );
     }
   };
+  var textShadow = {
+    name: "textShadow",
+    generate: (style, options) => {
+      return generateRule(
+        style,
+        options,
+        ["typography", "textShadow"],
+        "textShadow"
+      );
+    }
+  };
   var typography_default = [
     fontFamily,
     fontSize,
@@ -608,6 +684,7 @@ var wp;
     textColumns,
     textDecoration,
     textIndent,
+    textShadow,
     textTransform,
     writingMode
   ];
@@ -630,7 +707,9 @@ var wp;
     if (!options?.selector) {
       const inlineRules = [];
       rules.forEach((rule) => {
-        inlineRules.push(`${paramCase(rule.key)}: ${rule.value};`);
+        inlineRules.push(
+          `${rule.key.startsWith("-") ? rule.key : paramCase(rule.key)}: ${rule.value};`
+        );
       });
       return inlineRules.join(" ");
     }
@@ -652,7 +731,7 @@ var wp;
       (acc, subSelector) => {
         acc.push(
           `${subSelector} { ${groupedRules[subSelector].map(
-            (rule) => `${paramCase(rule.key)}: ${rule.value};`
+            (rule) => `${rule.key.startsWith("-") ? rule.key : paramCase(rule.key)}: ${rule.value};`
           ).join(" ")} }`
         );
         return acc;
@@ -671,4 +750,6 @@ var wp;
     return rules;
   }
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).styleEngine = wp.styleEngine;
 })();

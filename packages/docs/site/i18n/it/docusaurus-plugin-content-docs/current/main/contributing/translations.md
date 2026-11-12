@@ -202,7 +202,7 @@ As a guideline, a language should be made publicly available in the switcher onl
 -   [About Playground](https://wordpress.github.io/wordpress-playground/about)
 -   [Guides](https://wordpress.github.io/wordpress-playground/guides)
 -   [Contributing](https://wordpress.github.io/wordpress-playground/contributing)
--   [Links and Resources](https://wordpress.github.io/wordpress-playground/resources)
+-   [Links and Resources](https://wordpress.github.io/wordpress-playground/links-and-resources)
 
 All languages are available once the i18n setup for a language is complete and the correct file structure is in place under `i18n`.
 
@@ -251,7 +251,7 @@ Come linea guida, una lingua dovrebbe essere resa pubblicamente disponibile nel 
 - [Informazioni su Playground](https://wordpress.github.io/wordpress-playground/about)
 - [Guide](https://wordpress.github.io/wordpress-playground/guides)
 - [Contribuire](https://wordpress.github.io/wordpress-playground/contributing)
-- [Link e risorse](https://wordpress.github.io/wordpress-playground/resources)
+- [Link e risorse](https://wordpress.github.io/wordpress-playground/links-and-resources)
 
 Tutte le lingue sono disponibili una volta che la configurazione i18n per una lingua è completa e la struttura dei file corretta è in posto sotto `i18n`.
 
