@@ -98,9 +98,9 @@ Browser request (navigation, AJAX, etc.)
     ↓
 Service Worker intercepts fetch event
     ↓
-broadcastMessageExpectReply() → broadcasts to all window clients
+sendScopedRequest() → posts to the MessagePort registered for that scope
     ↓
-remote.html window receives message (filtered by scope) → proxies to Web Worker
+remote.html (or, split-origin, its hidden WordPress-origin helper) → proxies to Web Worker
     ↓
 PHPProcessManager.acquirePHPInstance() → Semaphore (max 2 instances, 30s timeout)
     ↓
