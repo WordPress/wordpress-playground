@@ -92,6 +92,24 @@ switch ($path) {
         echo 'body';
         break;
 
+    case '/upload':
+        $files = [];
+        foreach ($_FILES as $name => $file) {
+            $files[$name] = [
+                'name' => $file['name'],
+                'contents' => file_get_contents($file['tmp_name']),
+                'error' => $file['error'],
+            ];
+        }
+        header('Content-Type: application/json');
+        echo json_encode([
+            'headers' => array_change_key_case(getallheaders(), CASE_LOWER),
+            'body' => file_get_contents('php://input'),
+            'fields' => $_POST,
+            'files' => $files,
+        ]);
+        break;
+
     case '/headers':
         $request_headers = array_change_key_case(getallheaders(), CASE_LOWER);
         // Also reported as a header, since HEAD responses have no body.
