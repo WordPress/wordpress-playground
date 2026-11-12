@@ -155,6 +155,27 @@ describe('BlueprintsV2Handler', () => {
 		expect(onClientConnected).toHaveBeenCalledWith(mocks.playground);
 	});
 
+	it('boots with the cli-server SAPI unless told otherwise', async () => {
+		const iframe = createIframe();
+		const boot = (sapiName?: string) =>
+			new BlueprintsV2Handler({
+				iframe,
+				remoteUrl: 'http://example.com/remote.html',
+				blueprint: { version: 2 },
+				sapiName,
+			}).bootPlayground(iframe, createProgressTracker());
+
+		await boot();
+		expect(mocks.playground.boot).toHaveBeenLastCalledWith(
+			expect.objectContaining({ sapiName: 'cli-server' })
+		);
+
+		await boot('cli');
+		expect(mocks.playground.boot).toHaveBeenLastCalledWith(
+			expect.objectContaining({ sapiName: 'cli' })
+		);
+	});
+
 	it('boots PHP-only Blueprints without installing WordPress', async () => {
 		const iframe = createIframe();
 		const blueprint = {

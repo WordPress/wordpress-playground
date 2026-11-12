@@ -156,10 +156,10 @@ export async function setupPlatformLevelMuPlugins(
 			 * a HTTP request. If it's a PHP CLI run, we can't login the user
 			 * because logins require cookies which aren't available in the CLI.
 			 *
-			 * Currently all Playground requests use the "cli" SAPI name
-			 * to ensure support for WP-CLI, so the best way to distinguish
-			 * between a CLI run and an HTTP request is by checking if the
-			 * $_SERVER['REQUEST_URI'] global is set.
+			 * The wp-cli Blueprint step runs under the same SAPI name as HTTP
+			 * requests, so the best way to distinguish between a CLI run and
+			 * an HTTP request is by checking if the $_SERVER['REQUEST_URI']
+			 * global is set.
 			 *
 			 * If $_SERVER['REQUEST_URI'] is not set, we assume it's a CLI run.
 			 */
