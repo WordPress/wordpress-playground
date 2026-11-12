@@ -2280,6 +2280,20 @@ describe('other run-cli behaviors', () => {
 	});
 
 	describe('return types', () => {
+		// These tests need a real ZIP, but not a full WordPress install. A tiny
+		// local site keeps the Windows run well below the default test timeout.
+		const snapshotBlueprint: RunCLIArgs['blueprint'] = {
+			steps: [
+				{
+					step: 'runPHP',
+					code: `<?php
+						mkdir('/wordpress', 0777, true);
+						file_put_contents('/wordpress/index.php', '');
+					`,
+				},
+			],
+		};
+
 		test('runCLI returns void for run-blueprint command', async () => {
 			const result = await runCLI({
 				command: 'run-blueprint',
@@ -2298,15 +2312,18 @@ describe('other run-cli behaviors', () => {
 			try {
 				const result = await runCLI({
 					command: 'build-snapshot',
-					blueprint: undefined,
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: snapshotBlueprint,
 					outfile,
+					workers: 1,
 				});
 				expect(result).toBeUndefined();
 				expect(existsSync(outfile)).toBe(true);
 			} finally {
 				rmSync(tmpDir, { recursive: true });
 			}
-		}, 60_000 /* allow extra time to avoid testing timeouts on Windows */);
+		});
 
 		test('runCLI returns RunCLIServer for server command', async () => {
 			await using result = await runCLI({
@@ -2367,10 +2384,18 @@ describe('other run-cli behaviors', () => {
 				path.join(tmpdir(), 'playground-snapshot-test-')
 			);
 			const outfile = path.join(tmpDir, 'snapshot.zip');
+			const blueprintPath = path.join(tmpDir, 'blueprint.json');
 			try {
+				await writeFile(
+					blueprintPath,
+					JSON.stringify(snapshotBlueprint)
+				);
 				const result = await parseOptionsAndRunCLI([
 					'build-snapshot',
 					`--outfile=${outfile}`,
+					`--blueprint=${blueprintPath}`,
+					'--wordpress-install-mode=do-not-attempt-installing',
+					'--skip-sqlite-setup',
 					'--verbosity=quiet',
 				]);
 				expect('exitCode' in result).toBe(true);
@@ -2378,7 +2403,7 @@ describe('other run-cli behaviors', () => {
 			} finally {
 				rmSync(tmpDir, { recursive: true });
 			}
-		}, 60_000 /* allow extra time to avoid testing timeouts on Windows */);
+		});
 
 		test('parseOptionsAndRunCLI returns CLIExitResult for php command', async () => {
 			const stdoutSpy = vi
