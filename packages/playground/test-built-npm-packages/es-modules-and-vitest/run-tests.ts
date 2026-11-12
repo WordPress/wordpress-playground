@@ -43,6 +43,7 @@ const testFiles = [
 	'./tests/wp.spec.ts',
 	'./tests/git-directory.spec.ts',
 	'./tests/assets.spec.ts',
+	'./tests/networking.spec.ts',
 ];
 
 for (const phpVersion of SupportedPHPVersions) {

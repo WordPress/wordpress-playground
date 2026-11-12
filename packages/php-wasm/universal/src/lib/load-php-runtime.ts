@@ -172,9 +172,16 @@ export async function loadPHPRuntime(
 	PHPRuntime.originalExit = PHPRuntime._exit;
 
 	PHPRuntime._exit = function (code: number) {
-		if (PHPRuntime.outboundNetworkProxyServer) {
-			PHPRuntime.outboundNetworkProxyServer.close();
-			PHPRuntime.outboundNetworkProxyServer.closeAllConnections();
+		// Exit even if closing the network fails. PHP.exit() swallows errors,
+		// so a throw here would leave the runtime running without notice.
+		try {
+			PHPRuntime.closeNetworkConnections?.();
+			if (PHPRuntime.outboundNetworkProxyServer) {
+				PHPRuntime.outboundNetworkProxyServer.close();
+				PHPRuntime.outboundNetworkProxyServer.closeAllConnections();
+			}
+		} catch (error) {
+			logger.error('Failed to close network connections', error);
 		}
 		loadedRuntimes.delete(id);
 		return PHPRuntime.originalExit(code);
@@ -303,6 +310,22 @@ export type EmscriptenOptions = {
 	onRuntimeInitialized?: (phpRuntime: PHPRuntime) => void;
 	monitorRunDependencies?: (left: number) => void;
 	onMessage?: (listener: EmscriptenMessageListener) => void;
+	/**
+	 * Closes PHP's open TCP connections and listening sockets. The runtime
+	 * calls it on exit.
+	 */
+	closeNetworkConnections?: () => void;
+	/**
+	 * @deprecated php-wasm no longer sets this. Use `closeNetworkConnections`.
+	 *
+	 * Node.js runtimes used to start a WebSocket-to-TCP proxy server on
+	 * 127.0.0.1 for PHP's outbound connections. Any program on the machine
+	 * could connect to it and open TCP connections through the Node.js
+	 * process, including programs blocked from the network themselves.
+	 * Runtimes now open TCP connections in-process, without a listening port.
+	 *
+	 * A server passed here is still closed when the runtime exits.
+	 */
 	outboundNetworkProxyServer?: Server<
 		typeof IncomingMessage,
 		typeof ServerResponse
