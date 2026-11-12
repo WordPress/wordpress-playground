@@ -31,7 +31,9 @@ export const activateTheme: StepHandler<ActivateThemeStep> = async (
 	{ themeFolderName },
 	progress
 ) => {
-	progress?.tracker.setCaption(`Activating ${themeFolderName}`);
+	progress?.tracker.setCaption(
+		progress.initialCaption || `Activating ${themeFolderName}`
+	);
 	const docroot = await playground.documentRoot;
 
 	const themeFolderPath = `${docroot}/wp-content/themes/${themeFolderName}`;

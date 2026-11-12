@@ -116,6 +116,41 @@ Arguably the most powerful property, `steps` allows you to configure the Playgro
 }
 ```
 
+### Customize the name shown during installation
+
+Use `humanReadableName` to choose the plugin or theme name that Playground shows
+in installation progress and in warnings when it skips a failed install. For
+example, the Blueprints below show “Installing the Gutenberg Preview plugin”.
+
+In Blueprint v1, set `options.humanReadableName` on an `installPlugin` or
+`installTheme` step.
+
+```json
+{
+	"steps": [
+		{
+			"step": "installPlugin",
+			"pluginData": { "resource": "wordpress.org/plugins", "slug": "gutenberg" },
+			"options": { "humanReadableName": "Gutenberg Preview" }
+		}
+	]
+}
+```
+
+In Blueprint v2, put `humanReadableName` alongside `source` in a `plugins` or
+`themes` entry, or in the `activeTheme` object.
+
+```json
+{
+	"version": 2,
+	"plugins": [{ "source": "gutenberg", "humanReadableName": "Gutenberg Preview" }]
+}
+```
+
+For WordPress.org resources, Playground uses the published name in the download
+caption when it is available. Installation uses your explicit name first, then
+the published name, and falls back to a name derived from the slug.
+
 ## Common property placement mistakes
 
 Blueprint validation errors often come from putting a valid property in the
