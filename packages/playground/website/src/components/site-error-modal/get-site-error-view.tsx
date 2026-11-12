@@ -122,28 +122,35 @@ function initialOpfsSyncInterruptedView({
 	helpers,
 }: SiteErrorViewContext): SiteErrorViewConfig {
 	return {
-		title: 'Start a new Playground to continue',
+		title: 'This Playground isn’t ready to reopen',
 		isDeveloperError: false,
 		body: (
 			<>
 				<p className={css.errorLead}>
-					This saved Playground is incomplete and can’t be reopened.
-					Start a new Playground to keep working.
+					Its initial copy to browser storage has not finished.
 				</p>
 				<ul className={css.errorList}>
 					<li>
-						What happened: the previous save stopped before all
-						WordPress files were copied.
+						Another tab may still be saving this Playground. If so,
+						wait for it to finish, then click{' '}
+						<strong>Reload</strong>.
 					</li>
 					<li>
-						This can happen if the tab was closed or reloaded, the
-						browser suspended the page, or the browser ran out of
-						space for saved sites.
+						If the creating tab was closed, reloaded, suspended, or
+						ran out of storage, the copy may not finish. Start a new
+						Playground to continue.
 					</li>
 				</ul>
 			</>
 		),
 		actions: [
+			<Button
+				variant="secondary"
+				key="reload-page"
+				onClick={helpers.reloadPage}
+			>
+				Reload
+			</Button>,
 			<Button
 				variant="primary"
 				key="reload-tab"
