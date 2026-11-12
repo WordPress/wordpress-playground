@@ -682,6 +682,60 @@ describe('BlueprintsV2Handler', () => {
 		).rejects.toThrow(/web runtime only/);
 		expect(playground.bootWordPress).not.toHaveBeenCalled();
 	});
+
+	test.each(['../../backups/site', '/var/backups/site', 'C:\\backups\\site'])(
+		'rejects the Blueprint WordPress version %s',
+		async (wordpressVersion) => {
+			const playground = {
+				bootWordPress: vi.fn().mockResolvedValue(undefined),
+			};
+
+			await expect(
+				createWordPressVersionHandler(wordpressVersion).bootWordPress(
+					playground as any,
+					{} as any
+				)
+			).rejects.toThrow();
+			expect(cachedDownload).not.toHaveBeenCalled();
+			expect(playground.bootWordPress).not.toHaveBeenCalled();
+		}
+	);
+
+	test('downloads a custom WordPress URL under a full-hash cache key', async () => {
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+		const url = 'https://example.com/wordpress.zip';
+
+		await createWordPressVersionHandler(url).bootWordPress(
+			playground as any,
+			{} as any
+		);
+
+		expect(cachedDownload).toHaveBeenCalledWith(
+			url,
+			expect.stringMatching(/^custom-[0-9a-f]{64}\.zip$/),
+			expect.anything()
+		);
+	});
+
+	function createWordPressVersionHandler(wordpressVersion: string) {
+		return new BlueprintsV2Handler(
+			{
+				command: 'server',
+				mode: 'create-new-site',
+				skipSqliteSetup: true,
+				blueprint: {
+					version: 2,
+					wordpressVersion,
+				},
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+	}
 });
 
 function createMockBlueprintV1Worker() {
