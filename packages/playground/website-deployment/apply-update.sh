@@ -162,10 +162,17 @@ file_put_contents( "$public/wordpress-bridge.js", 'import ' . json_encode( $brid
 file_put_contents( "$public/wordpress-bridge.html", str_replace( $bridge_script[1], "/releases/$release/wordpress-bridge.js", $bridge ) );
 
 // Keep every platform page inert until its own document origin has been checked.
-// WordPress distribution templates are content, not platform entry points.
+// WordPress distribution templates are content, not platform entry points. They are
+// public on the app hostname too, so none may contain anything a browser would run.
 foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $public, FilesystemIterator::SKIP_DOTS ) ) as $file ) {
     $relative = substr( $file->getPathname(), strlen( $public ) + 1 );
-    if ( ! str_ends_with( $relative, '.html' ) || preg_match( '~^wp-[^/]+/~', $relative ) ) continue;
+    if ( ! str_ends_with( $relative, '.html' ) ) continue;
+    if ( preg_match( '~^wp-[^/]+/~', $relative ) ) {
+        if ( preg_match( '~<script\b|\son[a-z]+\s*=|javascript:~i', file_get_contents( $file->getPathname() ) ) ) {
+            throw new RuntimeException( "WordPress static HTML must not contain scripts: $relative" );
+        }
+        continue;
+    }
     $origin = $relative === 'wordpress-bridge.html' ? $wordpress_origin : $app_origin;
     $payload = json_encode( file_get_contents( $file->getPathname() ), JSON_HEX_TAG | JSON_THROW_ON_ERROR );
     $expected = json_encode( $origin, JSON_HEX_TAG | JSON_THROW_ON_ERROR );

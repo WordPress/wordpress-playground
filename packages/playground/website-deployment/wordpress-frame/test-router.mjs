@@ -126,6 +126,20 @@ process.stdout.write(process.env.PUBLIC_HIDDEN === '1' ? '200' : process.argv.at
 	await symlink(temporary, join(upload, 'leak'));
 	await assert.rejects(install());
 	await rm(join(upload, 'leak'));
+	// WordPress static HTML is public on the app hostname without an origin check.
+	await mkdir(join(upload, 'wp-6.3/wp-includes'), { recursive: true });
+	await writeFile(
+		join(upload, 'wp-6.3/wp-includes/template.html'),
+		'<!-- wp:paragraph --><p>Inert block template</p><!-- /wp:paragraph -->'
+	);
+	for (const html of [
+		'<script>document.write(location.hash)</script>',
+		'<img src=x onerror=alert(1)>',
+	]) {
+		await writeFile(join(upload, 'wp-6.3/wp-includes/empty.html'), html);
+		await assert.rejects(install());
+	}
+	await rm(join(upload, 'wp-6.3/wp-includes/empty.html'));
 	await install();
 	const first = await selector(webRoot);
 	assert.equal(first.appOrigin, appOrigin);
