@@ -1,18 +1,23 @@
 ---
 slug: /developers/limitations
-<!-- description: Learn about the current limitations of WordPress Playground, including browser-specific behaviors, temporary storage by design, iframe quirks, and WP-CLI support. -->
-description: Conheça as limitações atuais do WordPress Playground, incluindo comportamentos específicos do navegador, armazenamento temporário por design, peculiaridades de iframe e suporte ao WP-CLI.
+description: Conheça as limitações atuais do WordPress Playground, incluindo comportamentos específicos do navegador, armazenamento e recuperação de sites no navegador, peculiaridades de iframe e suporte ao WP-CLI.
 ---
 
-<!-- # Limitations -->
+<!--
+description: Learn about the current limitations of WordPress Playground, including browser-specific behaviors, browser persistence and recovery constraints, iframe quirks, and WP-CLI support.
+-->
 
 # Limitações
 
-<!-- WordPress Playground is under active development and has some limitations you should keep in mind when running it and developing with it. -->
+<!--
+# Limitations
+-->
 
-O WordPress Playground está em desenvolvimento ativo e possui algumas limitações que você deve ter em mente ao utilizá-lo e desenvolver com ele.
+O WordPress Playground está em desenvolvimento ativo e tem algumas limitações que você deve considerar ao executá-lo e ao desenvolver com ele.
 
-<!-- You can track the status of these issues on the [Playground Project board](https://github.com/orgs/WordPress/projects/180). -->
+<!--
+WordPress Playground is under active development and has some limitations you should keep in mind when running it and developing with it.
+-->
 
 Você pode acompanhar o status dessas questões no [quadro do projeto Playground](https://github.com/orgs/WordPress/projects/180).
 
@@ -20,103 +25,143 @@ Você pode acompanhar o status dessas questões no [quadro do projeto Playground
 
 ## No navegador
 
-<!-- ### Temporary by design -->
+### Armazenamento e recuperação no navegador
 
-### Temporário por design
+<!--
+### Browser storage and recovery
+-->
 
-<!-- Playground creates fresh WordPress instances on each page load. Refreshing the browser page discards all database changes, uploads, and modifications. -->
+O Playground executa o WordPress no navegador. Quando é possível salvar dados no navegador, os novos sites são salvos automaticamente e aparecem em **Your Playgrounds**. O Playground mantém os cinco sites mais recentes salvos dessa forma. Ao criar o sexto, o mais antigo é excluído. Para manter um site por mais tempo, salve-o de forma permanente ou exporte um arquivo ZIP.
 
-O Playground cria instâncias frescas do WordPress a cada carregamento de página. Atualizar a página do navegador descarta todas as alterações no banco de dados, uploads e modificações.
+<!--
+Playground runs WordPress in the browser. New Playgrounds are autosaved when
+browser storage and saving are available, and they appear in **Your
+Playgrounds**. Playground keeps up to five recent autosaves. After five exist,
+creating another deletes the oldest one. Autosaves are recovery points, not
+long-term backups. Store an autosave permanently or export a ZIP when you want
+to keep it.
+-->
 
-<!-- **Why this happens**: Playground streams WordPress directly to your browser rather than serving it from a traditional server. Each refresh starts a clean slate. -->
+Há três modos de armazenamento:
 
-**Por que isso acontece**: O Playground transmite o WordPress diretamente para o seu navegador em vez de servi-lo de um servidor tradicional. Cada atualização começa do zero.
+<!--
+Use these storage modes deliberately:
+-->
 
-<!-- **To persist your work:** -->
+- **Salvo automaticamente**: o site fica no navegador enquanto estiver entre os cinco sites mais recentes salvos automaticamente.
+- **Salvo de forma permanente**: o site fica no armazenamento do navegador ou em uma pasta local.
+- **Temporário**: o site é criado com `?storage=temp` ou quando não é possível salvar. Ele é descartado ao fechar a aba ou recarregar a página do navegador.
 
-**Para preservar seu trabalho:**
+<!--
+- **Autosaved**: stored in browser storage and retained only while it is one of up to five recent autosaves.
+- **Saved**: stored permanently in browser storage or saved to a local directory.
+- **Temporary**: created with `?storage=temp` or when saving is unavailable. It is discarded when the tab closes or the browser page refreshes.
+-->
 
-<!-- - **Save**: Enable browser storage via the "Save" button (top right, next to address bar), before refreshing the page via the browser bar. -->
-<!-- - **For development**: Use [Playground CLI](/developers/local-development/wp-playground-cli) which supports persistent local storage -->
+O botão **Refresh page** do Playground recarrega a página do WordPress dentro do site atual. Ao pressionar Cmd+R ou F5, o navegador recarrega todo o aplicativo. Depois disso, você pode recuperar os sites salvos de forma automática ou permanente. Os sites temporários são descartados.
 
-- **Salvar**: Ative o armazenamento do navegador através do botão "Salvar" (canto superior direito, ao lado da barra de endereços), antes de atualizar a página pela barra do navegador.
-- **Para desenvolvimento**: Use o [Playground CLI](/developers/local-development/wp-playground-cli) que suporta armazenamento local persistente
+<!--
+The Playground **Refresh page** button reloads the WordPress page inside the current Playground. Browser refresh (Cmd+R or F5) reloads the whole Playground app. A stored or autosaved Playground can recover after that reload, but a temporary Playground cannot.
+-->
 
-<!-- :::tip -->
-<!-- The dedicated refresh button inside Playground only reloads WordPress content—it preserves your PHP/WP state. The browser's refresh button (F5 or Cmd+R) destroys the entire instance. -->
-<!-- ::: -->
+![Controles do Dock para recarregar o WordPress, escolher onde salvar e exportar o site](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/persistence-controls.webp)
 
-<div class="callout callout-tip">
+<!--
+![The Dock controls for refreshing WordPress, opening storage choices, and exporting the Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/persistence-controls.webp)
+-->
 
-O botão de atualização dedicado dentro do Playground apenas recarrega o conteúdo do WordPress—ele preserva seu estado PHP/WP. O botão de atualização do navegador (F5 ou Cmd+R) destrói a instância inteira.
+O navegador gerencia os dados armazenados. Eles podem ser perdidos se faltar espaço, se você usar a navegação privativa, mudar de perfil ou limpar os dados do site. Exporte um arquivo ZIP para ter uma cópia de segurança que você possa levar para outro dispositivo.
 
-</div>
+<!--
+Browser storage still belongs to the browser. Storage pressure, private browsing, profile changes, or clearing site data can remove it. Export a ZIP when you need a portable backup.
+-->
 
-![Refresh Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
+![Painel Your Playgrounds com o site atual](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
-<blockquote>
-<figure>
-<!-- <figcaption><i>1. Exporting Playground:</i></figcaption> -->
-<figcaption><i>1. Exportando o Playground:</i></figcaption>
-
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
-
-</figure>
-
-<figure>
-<!-- <figcaption><i>2. Save button:</i></figcaption> -->
-<figcaption><i>2. Botão Salvar:</i></figcaption>
-
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
-
-</figure>
-</blockquote>
+<!--
+![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
+-->
 
 <!-- ### Browser support -->
 
 ### Suporte a navegadores
 
-<!-- WordPress Playground is designed to work across all major desktop and mobile browsers. This includes: -->
+<!--
+### Browser support
+-->
 
-O WordPress Playground foi projetado para funcionar em todos os principais navegadores de desktop e mobile. Isso inclui:
+O WordPress Playground foi feito para funcionar nos principais navegadores de computadores e dispositivos móveis. Isso inclui:
 
-<!-- - **Desktop browsers**: Chrome, Firefox, Safari, Edge, and other Chromium-based browsers -->
-<!-- - **Mobile browsers**: Safari (iOS), Chrome (Android), and other mobile browser variants -->
+<!--
+WordPress Playground is designed to work across all major desktop and mobile browsers. This includes:
+-->
 
-- **Navegadores desktop**: Chrome, Firefox, Safari, Edge e outros navegadores baseados em Chromium
-- **Navegadores mobile**: Safari (iOS), Chrome (Android) e outras variantes de navegadores mobile
+- **Navegadores para computadores**: Chrome, Firefox, Safari, Edge e outros baseados em Chromium
+- **Navegadores para dispositivos móveis**: Safari (iOS), Chrome (Android) e outras variantes
 
-<!-- Playground leverages modern web technologies and should function consistently across these browser environments. However, some advanced features may have varying levels of support depending on the specific browser and its version. -->
+<!--
+- **Desktop browsers**: Chrome, Firefox, Safari, Edge, and other Chromium-based browsers
+- **Mobile browsers**: Safari (iOS), Chrome (Android), and other mobile browser variants
+-->
 
-O Playground utiliza tecnologias web modernas e deve funcionar consistentemente nesses ambientes de navegador. No entanto, alguns recursos avançados podem ter diferentes níveis de suporte dependendo do navegador específico e sua versão.
+O Playground usa tecnologias web modernas e deve se comportar de forma consistente nesses ambientes. Ainda assim, alguns recursos avançados podem ter níveis de suporte diferentes conforme o navegador e a versão.
 
 <!-- ### Performance expectations -->
 
 ### Expectativas de desempenho
 
-<!-- Loading times vary based on what Playground needs to set up: -->
+<!--
+### Performance expectations
+-->
 
-Os tempos de carregamento variam de acordo com o que o Playground precisa configurar:
+Os tempos de carregamento variam conforme o que o Playground precisa configurar:
 
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
+<!--
+Loading times vary based on what Playground needs to set up:
+-->
 
-<!-- **Factors that affect performance:** -->
+| Cenário                                | Tempo de carregamento típico          |
+| -------------------------------------- | ------------------------------------- |
+| WordPress novo (sem plugins)           | 5–10 segundos                         |
+| Com plugins pequenos                   | 10–20 segundos                        |
+| Com plugins grandes (ex.: WooCommerce) | 30–60 segundos                        |
+| Em dispositivos móveis                 | 1,5–2× mais lento que em computadores |
+
+<!--
+| Scenario                               | Typical Load Time          |
+| -------------------------------------- | -------------------------- |
+| Fresh WordPress (no plugins)           | 5-10 seconds               |
+| With small plugins                     | 10-20 seconds              |
+| With large plugins (e.g., WooCommerce) | 30-60 seconds              |
+| On mobile devices                      | 1.5-2x slower than desktop |
+-->
+
+![Gráfico com os tempos típicos de carregamento do WordPress Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
+
+<!--
+![Graph showing typical WordPress Playground load times](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
+-->
 
 **Fatores que afetam o desempenho:**
 
-<!-- - **Plugin size**: Large plugins take longer to install at runtime -->
-<!-- - **Network speed**: WASM files are 15-30MB -->
-<!-- - **Device memory**: Low-memory devices may experience slowdowns -->
-<!-- - **Browser**: Chrome/Edge perform best; Safari slightly slower -->
+<!--
+**Factors that affect performance:**
+-->
 
-- **Tamanho do plugin**: Plugins grandes demoram mais para instalar em tempo de execução
-- **Velocidade da rede**: Arquivos WASM têm 15-30MB
-- **Memória do dispositivo**: Dispositivos com pouca memória podem apresentar lentidão
-- **Navegador**: Chrome/Edge têm melhor desempenho; Safari é ligeiramente mais lento
+- **Tamanho do plugin**: plugins grandes demoram mais para instalar em tempo de execução
+- **Velocidade da rede**: no primeiro carregamento, o navegador baixa o ambiente de execução do PHP em WebAssembly. O tamanho do download varia conforme a versão e a compilação do PHP
+- **Memória do dispositivo**: a alocação inicial de memória WASM é de 64 MB, crescendo dinamicamente conforme necessário. Dispositivos com pouca memória podem ficar mais lentos
+- **Navegador**: Chrome e Edge costumam ter melhor desempenho; Safari, um pouco mais lento
+
+<!--
+- **Plugin size**: Large plugins take longer to install at runtime
+- **Network speed**: The first load downloads the PHP WebAssembly runtime. Download size varies by PHP version and build
+- **Device memory**: Initial WASM memory allocation is 64MB, growing dynamically as needed. Low-memory devices may experience slowdowns
+- **Browser**: Chrome/Edge perform best; Safari slightly slower
+-->
 
 <blockquote>
-<!-- <strong>Note:</strong> Opera Mini support is not currently confirmed. -->
-<strong>Nota:</strong> O suporte ao Opera Mini não está confirmado atualmente.
+<strong>Nota:</strong> o suporte ao Opera Mini ainda não está confirmado.
 </blockquote>
 
 <!-- ## When developing with Playground -->
@@ -127,21 +172,31 @@ Os tempos de carregamento variam de acordo com o que o Playground precisa config
 
 ### Peculiaridades do iframe
 
-<!-- Playground renders WordPress in an [`iframe`](/developers/architecture/browser-iframe-rendering) so clicking links with `target="_top"` will reload the page you're working on. -->
+<!--
+### Iframe quirks
+-->
 
-O Playground renderiza o WordPress em um [`iframe`](/developers/architecture/browser-iframe-rendering), então clicar em links com `target="_top"` recarregará a página em que você está trabalhando.
+O Playground renderiza o WordPress em um [`iframe`](/developers/architecture/browser-iframe-rendering), então clicar em links com `target="_top"` recarrega a página em que você está trabalhando.
 
-<!-- Also, JavaScript popups originating in the `iframe` may not always display. -->
+<!--
+Playground renders WordPress in an [`iframe`](/developers/architecture/browser-iframe-rendering) so clicking links with `target="_top"` will reload the page you're working on.
+-->
 
-Além disso, pop-ups JavaScript originados no `iframe` podem nem sempre ser exibidos.
+Além disso, pop-ups JavaScript originados no `iframe` podem nem sempre aparecer.
 
 <!-- ### Run WordPress PHP functions -->
 
 ### Executar funções PHP do WordPress
 
-<!-- Playground supports running PHP code in Blueprints using the [`runPHP` step](/blueprints/steps#RunPHPStep). To run WordPress-specific PHP functions, you'd need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php): -->
+<!--
+### Run WordPress PHP functions
+-->
 
-O Playground suporta a execução de código PHP em Blueprints usando o [passo `runPHP`](/blueprints/steps#RunPHPStep). Para executar funções PHP específicas do WordPress, é necessário primeiro importar [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
+O Playground permite executar código PHP em Blueprints com o [passo `runPHP`](/blueprints/steps#RunPHPStep). Para usar funções PHP específicas do WordPress, é preciso antes incluir [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
+
+<!--
+Playground supports running PHP code in Blueprints using the [`runPHP` step](/blueprints/steps#RunPHPStep). To run WordPress-specific PHP functions, you'd need to first require [wp-load.php](https://github.com/WordPress/WordPress/blob/master/wp-load.php):
+-->
 
 ```json
 {
@@ -154,6 +209,34 @@ O Playground suporta a execução de código PHP em Blueprints usando o [passo `
 
 ### Usando WP-CLI
 
-<!-- You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/steps#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible. -->
+Você pode executar comandos `wp-cli` pelo passo [`wp-cli`](/blueprints/steps#WPCLIStep) dos Blueprints. No entanto, como o Playground roda no navegador, ele não oferece suporte à [lista completa](https://developer.wordpress.org/cli/commands/) de comandos disponíveis. Não existe uma lista definitiva de comandos suportados, então experimentar na [demo online](https://playground.wordpress.net/demos/wp-cli.html) ajuda a avaliar o que é possível.
 
-Você pode executar comandos `wp-cli` através do passo [`wp-cli`](/blueprints/steps#WPCLIStep) dos Blueprints. No entanto, como o Playground roda no navegador, ele não suporta a [lista completa](https://developer.wordpress.org/cli/commands/) de comandos disponíveis. Embora não haja uma lista definitiva de comandos suportados, experimentar na [demonstração online](https://playground.wordpress.net/demos/wp-cli.html) ajudará você a avaliar o que é possível.
+<!--
+You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/steps#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible.
+-->
+
+Quando você usa o [Playground CLI](/developers/local-development/wp-playground-cli), o comando `php` pode executar scripts PHP, incluindo um arquivo `wp-cli.phar` montado, diretamente no ambiente de execução PHP em WASM.
+
+<!--
+When using the [Playground CLI](/developers/local-development/wp-playground-cli), the `php` command can run PHP scripts, including a mounted `wp-cli.phar`, directly in the WASM PHP runtime.
+-->
+
+## Melhorias recentes {#recent-improvements}
+
+Várias limitações anteriores foram resolvidas:
+
+- **Arquivos grandes no Playground CLI (>2 GB)**: a CLI agora pode transmitir as respostas diretamente, em vez de armazená-las em buffer na memória. Isso permite exportar sites grandes (por exemplo, backups do All-in-One WP Migration) que antes falhavam.
+- **Envio de arquivos via cURL no PHP**: envios de formulários multipart com `CURLFile` agora funcionam corretamente no navegador. O deadlock de `Expect: 100-continue` e os problemas de encaminhamento multipart no proxy CORS foram resolvidos.
+- **Respostas PHP de longa duração**: o service worker agora transmite o corpo da resposta depois de receber os cabeçalhos, em vez de armazenar a resposta inteira em buffer. Assim, o corpo da resposta fica fora do tempo limite de 25 segundos das mensagens, e as importações de sites e outras operações demoradas podem continuar depois que os cabeçalhos são recebidos.
+- **Tratamento de erros ao baixar arquivos**: quando não é possível baixar um arquivo WASM ou um script necessário devido a um problema de rede, bloqueador de anúncios ou situação semelhante, o Playground exibe um modal de erro útil em vez de uma página em branco.
+
+<!--
+## Recent improvements {#recent-improvements}
+
+Several previous limitations have been addressed:
+
+- **Large file downloads in Playground CLI (>2 GB)**: The CLI can now stream responses directly instead of buffering them in memory, enabling large site exports (e.g., All-in-One WP Migration backups) that previously failed.
+- **PHP cURL file uploads**: Multipart form uploads via `CURLFile` now work correctly in the browser. The `Expect: 100-continue` deadlock and CORS proxy multipart forwarding issues have been resolved.
+- **Long-running PHP responses**: The service worker now streams the response body after receiving the headers instead of buffering the entire response. This keeps the response body outside the 25-second message timeout, so site imports and other long-running operations can continue after the headers are received.
+- **Download error handling**: When a required WASM or script download fails because of a network issue, an ad blocker, or a similar problem, Playground displays a helpful error modal instead of a blank page.
+-->

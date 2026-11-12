@@ -1,6 +1,6 @@
 ---
 slug: /developers/limitations
-description: WordPress Playgroundの現状の制限について学びましょう。ブラウザ固有の動作、一時的なストレージ設計、iframeの特異性、WP-CLIのサポート状況などが含まれます。
+description: WordPress Playgroundの現状の制限について学びましょう。ブラウザ固有の動作、ブラウザ内でのサイトの保存と復元、iframeの特異性、WP-CLIのサポート状況などが含まれます。
 ---
 
 # 制限事項
@@ -27,86 +27,61 @@ You can track the status of these issues on the [Playground Project board](https
 ## In the browser
 -->
 
-### 設計上は一時的なもの
+### ブラウザでの保存と復元
 
 <!--
-### Temporary by design
+### Browser storage and recovery
 -->
 
-Playground は、ページを読み込むたびに新しい WordPress インスタンスを作成します。そのため、ブラウザを更新すると、データベースの変更、アップロード、修正はすべて破棄されます。
+Playground はブラウザ内で WordPress を実行します。ブラウザにデータを保存できる場合、新しいサイトは自動保存され、**Your Playgrounds** に表示されます。自動保存されるのは直近の5件です。6件目を作成すると、最も古いものが削除されます。長く残したいサイトは手動で保存するか、ZIP ファイルとしてエクスポートしてください。
 
 <!--
-Playground creates fresh WordPress instances on each page load. Refreshing the browser page discards all database changes, uploads, and modifications.
+Playground runs WordPress in the browser. New Playgrounds are autosaved when
+browser storage and saving are available, and they appear in **Your
+Playgrounds**. Playground keeps up to five recent autosaves. After five exist,
+creating another deletes the oldest one. Autosaves are recovery points, not
+long-term backups. Store an autosave permanently or export a ZIP when you want
+to keep it.
 -->
 
-**理由**: Playgroundは、WordPressを従来のサーバーから配信するのではなく、ブラウザに直接ストリーミングします。そのため、リフレッシュするたびにクリーンな状態から再開されます。
+保存方法は次の3種類です。
 
 <!--
-**Why this happens**: Playground streams WordPress directly to your browser rather than serving it from a traditional server. Each refresh starts a clean slate.
+Use these storage modes deliberately:
 -->
 
-**作業を保存するには：**
+- **自動保存**: 自動保存されたサイトのうち、直近の5件がブラウザに残ります。
+- **手動で保存**: サイトをブラウザのストレージまたはローカルのディレクトリに継続して保存します。
+- **一時サイト**: `?storage=temp` を指定した場合や保存できない場合に作成されます。タブを閉じるか、ブラウザのページを再読み込みすると破棄されます。
 
 <!--
-**To persist your work:**
+- **Autosaved**: stored in browser storage and retained only while it is one of up to five recent autosaves.
+- **Saved**: stored permanently in browser storage or saved to a local directory.
+- **Temporary**: created with `?storage=temp` or when saving is unavailable. It is discarded when the tab closes or the browser page refreshes.
 -->
 
-- **保存**: 「保存」ボタン（右上のアドレスバーの横）をクリックしてブラウザに保存できます。その後、ブラウザのアドレスバーからページを再読み込みしてください。
-- **開発向け**: 永続的なローカルストレージをサポートしている [Playground CLI](/developers/local-development/wp-playground-cli) をご利用ください。
+Playground の **Refresh page** ボタンを押すと、現在のサイトの WordPress ページが再読み込みされます。Cmd+R または F5 を押すと、ブラウザがアプリ全体を再読み込みします。その後、自動または手動で保存したサイトは復元できますが、一時サイトは失われます。
 
 <!--
-- **Save**: Enable browser storage via the "Save" button (top right, next to address bar), before refreshing the page via the browser bar.
-- **For development**: Use [Playground CLI](/developers/local-development/wp-playground-cli) which supports persistent local storage
+The Playground **Refresh page** button reloads the WordPress page inside the current Playground. Browser refresh (Cmd+R or F5) reloads the whole Playground app. A stored or autosaved Playground can recover after that reload, but a temporary Playground cannot.
 -->
 
-<div class="callout callout-tip">
-
-Playground 内の更新ボタンは WordPress のコンテンツのみを再読み込みし、PHP/WPの状態は維持します。ブラウザの更新ボタン（F5またはCmd+R）はインスタンス全体を破棄します。
-
-</div>
+![WordPress の再読み込み、保存先の選択、サイトのエクスポートに使う Dock の操作ボタン](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/persistence-controls.webp)
 
 <!--
-<div class="callout callout-tip">
-
-The dedicated refresh button inside Playground only reloads WordPress content—it preserves your PHP/WP state. The browser's refresh button (F5 or Cmd+R) destroys the entire instance.
-
-</div>
+![The Dock controls for refreshing WordPress, opening storage choices, and exporting the Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/persistence-controls.webp)
 -->
 
-![Refresh Playground Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/refresh-playground-button.webp)
-
-<blockquote>
-<figure>
-<figcaption><i>1. Playgroundのエクスポート</i></figcaption>
-
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
-
-</figure>
-
-<figure>
-<figcaption><i>2. 保存ボタン:</i></figcaption>
-
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
-
-</figure>
-</blockquote>
+保存したデータはブラウザが管理します。空き容量の不足、プライベートブラウジング、プロファイルの変更、サイトデータの消去などによって失われることがあります。別の環境でも使えるバックアップが必要な場合は、ZIP ファイルをエクスポートしてください。
 
 <!--
-<blockquote>
-<figure>
-<figcaption><i>1. Exporting Playground:</i></figcaption>
+Browser storage still belongs to the browser. Storage pressure, private browsing, profile changes, or clearing site data can remove it. Export a ZIP when you need a portable backup.
+-->
 
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/export-playground.webp)
+![現在のサイトを表示した Your Playgrounds パネル](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
-</figure>
-
-<figure>
-<figcaption><i>2. Save button:</i></figcaption>
-
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/saving-playground.webp)
-
-</figure>
-</blockquote>
+<!--
+![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 -->
 
 ### ブラウザサポート
@@ -163,7 +138,7 @@ Loading times vary based on what Playground needs to set up:
 | On mobile devices                      | 1.5-2x slower than desktop |
 -->
 
-![Save Button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
+![WordPress Playground の一般的な読み込み時間を示すグラフ](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-performance-graph.webp)
 
 **パフォーマンスに影響を与える要因**
 
@@ -172,23 +147,19 @@ Loading times vary based on what Playground needs to set up:
 -->
 
 - **プラグインのサイズ**: プラグインのサイズが大きいと、実行時のインストールに時間がかかります。
-- **ネットワーク速度**: WASMファイルは15～30MBです。
-- **デバイスのメモリ**: メモリの少ないデバイスでは、動作が遅くなることがあります。
+- **ネットワーク速度**: 初回の読み込み時に PHP の WebAssembly ランタイムをダウンロードします。ダウンロードサイズは PHP のバージョンとビルドによって異なります。
+- **デバイスのメモリ**: WASMメモリの初期割り当ては64MBで、必要に応じて動的に増加します。メモリの少ないデバイスでは、動作が遅くなることがあります。
 - **ブラウザ**: Chrome/Edgeが最もパフォーマンスが高く、Safariはやや劣ります。
 
 <!--
 - **Plugin size**: Large plugins take longer to install at runtime
-- **Network speed**: WASM files are 15-30MB
-- **Device memory**: Low-memory devices may experience slowdowns
+- **Network speed**: The first load downloads the PHP WebAssembly runtime. Download size varies by PHP version and build
+- **Device memory**: Initial WASM memory allocation is 64MB, growing dynamically as needed. Low-memory devices may experience slowdowns
 - **Browser**: Chrome/Edge perform best; Safari slightly slower
 -->
 
 <blockquote>
 <strong>注:</strong> 現在、Opera Miniへの対応は未確認です。
-</blockquote>
-
-<blockquote>
-<strong>Note:</strong> Opera Mini support is not currently confirmed.
 </blockquote>
 
 ## Playground で開発する場合
@@ -240,4 +211,30 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](/
 
 <!--
 You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/steps#WPCLIStep) step. However, since Playground runs in the browser, it doesn't support the [full array](https://developer.wordpress.org/cli/commands/) of available commands. While there is no definite list of supported commands, experimenting in [the online demo](https://playground.wordpress.net/demos/wp-cli.html) will help you assess what's possible.
+-->
+
+[Playground CLI](/developers/local-development/wp-playground-cli)を使う場合、`php`コマンドでは、マウントした`wp-cli.phar`を含むPHPスクリプトをWASM PHPランタイムで直接実行できます。
+
+<!--
+When using the [Playground CLI](/developers/local-development/wp-playground-cli), the `php` command can run PHP scripts, including a mounted `wp-cli.phar`, directly in the WASM PHP runtime.
+-->
+
+## 最近の改善 {#recent-improvements}
+
+これまでの制限のいくつかが解消されました。
+
+- **Playground CLIでの大容量ファイルのダウンロード（2GB超）**: CLIがレスポンスをメモリにバッファリングせず直接ストリーミングできるようになり、以前は失敗していた大規模サイトのエクスポート（例: All-in-One WP Migrationのバックアップ）が可能になりました。
+- **PHP cURLでのファイルアップロード**: `CURLFile`によるmultipartフォームアップロードがブラウザで正しく動作するようになりました。`Expect: 100-continue`によるデッドロックと、CORSプロキシのmultipart転送問題が解消されています。
+- **長時間実行されるPHPレスポンス**: service workerはヘッダーを受信した後、レスポンス全体をバッファリングせずにレスポンス本文をストリーミングします。これによりレスポンス本文は25秒のメッセージタイムアウトの対象外となり、サイトのインポートやその他の長時間処理はヘッダーの受信後も続行できます。
+- **ダウンロードエラー時の表示改善**: ネットワーク、広告ブロッカーなどの問題で必要なWASMやスクリプトのダウンロードに失敗した場合、Playgroundは空白ページではなく分かりやすいエラーモーダルを表示します。
+
+<!--
+## Recent improvements {#recent-improvements}
+
+Several previous limitations have been addressed:
+
+- **Large file downloads in Playground CLI (>2 GB)**: The CLI can now stream responses directly instead of buffering them in memory, enabling large site exports (e.g., All-in-One WP Migration backups) that previously failed.
+- **PHP cURL file uploads**: Multipart form uploads via `CURLFile` now work correctly in the browser. The `Expect: 100-continue` deadlock and CORS proxy multipart forwarding issues have been resolved.
+- **Long-running PHP responses**: The service worker now streams the response body after receiving the headers instead of buffering the entire response. This keeps the response body outside the 25-second message timeout, so site imports and other long-running operations can continue after the headers are received.
+- **Download error handling**: When a required WASM or script download fails because of a network issue, an ad blocker, or a similar problem, Playground displays a helpful error modal instead of a blank page.
 -->
