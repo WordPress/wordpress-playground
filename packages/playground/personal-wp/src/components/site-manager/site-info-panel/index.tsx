@@ -55,6 +55,8 @@ import { normalizeVerificationCode } from '@wp-playground/remote-access';
 import { logPersonalWpEvent } from '../../../lib/personalwp/usage-stats';
 import { SupportedPHPVersions } from '@php-wasm/universal';
 import { buildVersion } from '../../../lib/config';
+import { AgentAccessPanel } from '@wp-playground/components';
+import { useAgentSiteAccess } from '../../../lib/agent-site-access';
 import css from './style.module.css';
 
 const SiteFileBrowser = lazy(() =>
@@ -67,6 +69,14 @@ const SiteTerminalPanel = lazy(() =>
 );
 
 const LAST_TAB_STORAGE_KEY = 'playground-site-last-tabs';
+const AGENT_ACCESS_TAB = 'agent-access';
+
+let openAgentAccessNext = false;
+
+/** Makes the next Site Tools opening show the AI agent access tab. */
+export function openAgentAccessTabNext() {
+	openAgentAccessNext = true;
+}
 const DEV_TOOLS_STORAGE_KEY = 'playground-personal-wp-show-dev-tools';
 
 // The developer tools preference belongs to the person, not to a site or a tab:
@@ -737,6 +747,10 @@ export function SiteInfoPanel({
 	// what someone meets when they open Site Tools.
 	const validTabs = ['about', 'advanced'];
 	const [initialTabName] = useState(() => {
+		if (openAgentAccessNext) {
+			openAgentAccessNext = false;
+			return AGENT_ACCESS_TAB;
+		}
 		const lastTab = getSiteLastTab(site.slug);
 		if (lastTab && validTabs.includes(lastTab)) {
 			return lastTab;
@@ -745,6 +759,16 @@ export function SiteInfoPanel({
 	});
 
 	const [showDevTools, setShowDevToolsState] = useState(getShowDevTools);
+	const { access: agentAccess, snapshot: agentSnapshot } =
+		useAgentSiteAccess();
+	// The tab appears once an agent has done anything, so revoking is always
+	// one click away, and stays out of the way otherwise.
+	const showAgentAccess =
+		showDevTools ||
+		initialTabName === AGENT_ACCESS_TAB ||
+		!!agentSnapshot?.grants.length ||
+		!!agentSnapshot?.earlierSites.length ||
+		!!agentSnapshot?.calls.length;
 	const handleShowDevToolsChange = (next: boolean) => {
 		setShowDevToolsState(next);
 		setShowDevTools(next);
@@ -913,6 +937,14 @@ export function SiteInfoPanel({
 										{ name: 'terminal', title: 'Terminal' },
 									]
 								: []),
+							...(showAgentAccess
+								? [
+										{
+											name: AGENT_ACCESS_TAB,
+											title: 'Agent access',
+										},
+									]
+								: []),
 						]}
 					>
 						{(tab) => (
@@ -930,6 +962,25 @@ export function SiteInfoPanel({
 								>
 									<AboutTab siteSlug={site.slug} />
 								</div>
+								{showAgentAccess && (
+									<div
+										className={classNames(
+											css.tabContents,
+											css.padded,
+											{
+												[css.tabHidden]:
+													tab.name !==
+													AGENT_ACCESS_TAB,
+											}
+										)}
+										hidden={tab.name !== AGENT_ACCESS_TAB}
+									>
+										<AgentAccessPanel
+											access={agentAccess}
+											snapshot={agentSnapshot}
+										/>
+									</div>
+								)}
 								<div
 									className={classNames(css.tabContents, {
 										[css.tabHidden]:

@@ -534,8 +534,14 @@ function playground_enable_webmcp_bridge() {
 			var CALL_RESULT = 'playground-webmcp-call-result';
 			var CANCEL_TOOL = 'playground-webmcp-cancel-tool';
 			var DOCUMENT_HIDDEN = 'playground-webmcp-document-hidden';
+			var INTERACTION_REQUEST = 'playground-webmcp-interaction-request';
+			var INTERACTION_RUN = 'playground-webmcp-interaction-run';
+			var INTERACTION_DENIED = 'playground-webmcp-interaction-denied';
+			var INTERACTION_RESULT = 'playground-webmcp-interaction-result';
 			var documentId = crypto.randomUUID();
 			var pendingCalls = new Map();
+			var pendingInteractions = new Map();
+			var nextInteractionId = 0;
 
 			// The runtime supplies its origin when rendered WordPress is cross-origin.
 			var parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
@@ -663,13 +669,114 @@ function playground_enable_webmcp_bridge() {
 				}
 			});
 
-			// A minimal WebMCP client. The agent lives in the top-level page,
-			// so this document cannot prompt the user itself.
-			var toolClient = {
-				requestUserInteraction: function (callback) {
-					return Promise.resolve().then(callback);
+			/**
+			 * A minimal WebMCP client for one tool call. The agent lives in the
+			 * top-level page, so this document cannot hand control to the user
+			 * itself: it asks the parent, which relays the request to the
+			 * browser and replies with whether to run the callback.
+			 */
+			function createToolClient(callId, signal) {
+				return {
+					signal: signal,
+					requestUserInteraction: function (callback) {
+						if (typeof callback !== 'function') {
+							return Promise.reject(
+								new TypeError('requestUserInteraction() needs a callback.')
+							);
+						}
+						return new Promise(function (resolve, reject) {
+							var interactionId = String(++nextInteractionId);
+							var settle = function () {
+								pendingInteractions.delete(interactionId);
+								signal.removeEventListener('abort', onAbort);
+							};
+							var onAbort = function () {
+								settle();
+								reject(signal.reason);
+							};
+							if (signal.aborted) {
+								reject(signal.reason);
+								return;
+							}
+							signal.addEventListener('abort', onAbort);
+							pendingInteractions.set(interactionId, {
+								callback: callback,
+								settle: settle,
+								resolve: resolve,
+								reject: reject
+							});
+							window.parent.postMessage(
+								{
+									type: INTERACTION_REQUEST,
+									documentId: documentId,
+									callId: callId,
+									interactionId: interactionId
+								},
+								parentOrigin
+							);
+						});
+					}
+				};
+			}
+
+			function runInteraction(interactionId) {
+				var pending = pendingInteractions.get(interactionId);
+				if (!pending) {
+					return;
 				}
-			};
+				pending.settle();
+				Promise.resolve()
+					.then(pending.callback)
+					.then(
+						function (result) {
+							var message = {
+								type: INTERACTION_RESULT,
+								documentId: documentId,
+								interactionId: interactionId
+							};
+							try {
+								message.resultJson = JSON.stringify(
+									result === undefined ? null : result
+								);
+							} catch (e) {
+								message.error =
+									'The interaction returned a value that cannot be serialized to JSON.';
+							}
+							window.parent.postMessage(message, parentOrigin);
+							pending.resolve(result);
+						},
+						function (error) {
+							window.parent.postMessage(
+								{
+									type: INTERACTION_RESULT,
+									documentId: documentId,
+									interactionId: interactionId,
+									error:
+										error && error.message
+											? error.message
+											: String(error)
+								},
+								parentOrigin
+							);
+							pending.reject(error);
+						}
+					);
+			}
+
+			function denyInteraction(interactionId, reason) {
+				var pending = pendingInteractions.get(interactionId);
+				if (!pending) {
+					return;
+				}
+				pending.settle();
+				pending.reject(
+					new Error(
+						typeof reason === 'string' && reason
+							? reason
+							: 'User interaction is not available.'
+					)
+				);
+			}
 
 			function respond(callId, result, error) {
 				var message = { type: CALL_RESULT, documentId: documentId, callId: callId };
@@ -709,6 +816,14 @@ function playground_enable_webmcp_bridge() {
 					// A call queued for the previous document must never run here.
 					return;
 				}
+				if (event.data.type === INTERACTION_RUN) {
+					runInteraction(event.data.interactionId);
+					return;
+				}
+				if (event.data.type === INTERACTION_DENIED) {
+					denyInteraction(event.data.interactionId, event.data.error);
+					return;
+				}
 				if (event.data.type === CANCEL_TOOL) {
 					var pending = pendingCalls.get(event.data.callId);
 					if (pending) {
@@ -737,10 +852,7 @@ function playground_enable_webmcp_bridge() {
 						controller.signal.throwIfAborted();
 						return tool.execute(
 							event.data.arguments || {},
-							{
-								signal: controller.signal,
-								requestUserInteraction: toolClient.requestUserInteraction
-							}
+							createToolClient(callId, controller.signal)
 						);
 					})
 					.then(

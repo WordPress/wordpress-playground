@@ -7,6 +7,7 @@ import {
 	list,
 	page,
 	plus,
+	shield,
 	wordpress,
 } from '@wordpress/icons';
 import { DockBlueprintIcon, DockDatabaseIcon, DockTerminalIcon } from './icons';
@@ -21,6 +22,7 @@ import {
 	TransferTool,
 } from '../site-manager/site-info-panel/site-tool-renderers';
 import type { SiteToolPanelProps } from '../site-manager/site-info-panel/site-tool-renderers';
+import { AgentAccessTool } from '../agent-site-access/agent-access-tool';
 import css from '../site-manager/site-info-panel/style.module.css';
 
 type DockToolDefinition = {
@@ -159,6 +161,19 @@ const definitions = [
 		fixedHeight: true,
 		Panel: MailTool,
 		panelClassName: `${css.tabContents} ${css.mailTab}`,
+	},
+	{
+		section: 'agent-access',
+		label: 'Agent access',
+		ariaLabel: 'AI agent access',
+		icon: <Icon icon={shield} size={24} />,
+		group: 'developer',
+		title: 'AI agent access',
+		description:
+			'Review which Playgrounds AI agents can use in this browser, and revoke access.',
+		layout: 'default',
+		Panel: AgentAccessTool,
+		panelClassName: `${css.tabContents} ${css.toolTabContents}`,
 	},
 	{
 		section: 'transfer',

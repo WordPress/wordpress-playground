@@ -6,18 +6,38 @@
  * with the running Playground site.
  */
 
-import type { PlaygroundClient } from '@wp-playground/remote';
 import {
 	toolDefinitions,
 	getSiteToolDefinitions,
+	getWebMCPSiteAccessToolDefinitions,
 	formatStorageLabel,
 	paramsToJsonSchema,
+	siteAccessParams,
 	stringifyError,
 } from './tools/tool-definitions';
 import { toolExecutors, createToolClient } from './tools/tool-executors';
 import type { PlaygroundBridgeConfig } from './bridge-client';
+import type { SiteAccess, SiteAccessOptions } from './webmcp-site-access';
+import { createSiteAccess } from './webmcp-site-access';
+import { createSiteToolGatewayTools } from './webmcp-site-tools';
 
 const siteToolDefinitions = getSiteToolDefinitions();
+const siteAccessToolDefinitions = getWebMCPSiteAccessToolDefinitions();
+
+export interface WebMCPConfig extends PlaygroundBridgeConfig {
+	/**
+	 * Grants agent access to sites. Created from this config when omitted, so
+	 * pass one to show its state in the UI.
+	 */
+	siteAccess?: SiteAccess;
+	/**
+	 * Asks the user to grant access. Without it, access is granted only when
+	 * `list()` returns exactly one site.
+	 */
+	confirmSiteAccess?: SiteAccessOptions['confirm'];
+	/** Makes another site current. Enables `playground_switch_site`. */
+	switchSite?(siteId: string): Promise<void>;
+}
 
 // -- WebMCP type declarations --
 
@@ -38,7 +58,7 @@ export interface ModelContextTool {
 	};
 }
 
-interface ModelContextClient {
+export interface ModelContextClient {
 	signal?: AbortSignal;
 	requestUserInteraction?(callback: () => Promise<unknown>): Promise<unknown>;
 }
@@ -62,6 +82,27 @@ declare global {
 
 let registrationController: AbortController | null = null;
 
+/** Creates the site access controller `registerWebMCPTools()` would create. */
+export function createWebMCPSiteAccess(config: WebMCPConfig): SiteAccess {
+	return createSiteAccess({
+		listSites: () =>
+			config.list().map(({ slug, name, isActive }) => ({
+				slug,
+				name,
+				isActive,
+			})),
+		getActiveClient: () => {
+			try {
+				return config.getClient();
+			} catch {
+				// No site is selected.
+				return undefined;
+			}
+		},
+		confirm: config.confirmSiteAccess,
+	});
+}
+
 function getActiveSite(config: PlaygroundBridgeConfig) {
 	const sites = config.list();
 	const active = sites.find((s) => s.isActive);
@@ -77,9 +118,7 @@ function getActiveSite(config: PlaygroundBridgeConfig) {
  * registered by this attempt and rejects. An aborted registration returns after its
  * pending registration operations settle.
  */
-export async function registerWebMCPTools(
-	config: PlaygroundBridgeConfig
-): Promise<void> {
+export async function registerWebMCPTools(config: WebMCPConfig): Promise<void> {
 	const modelContext = getModelContext();
 	if (!modelContext) {
 		return;
@@ -91,20 +130,17 @@ export async function registerWebMCPTools(
 	const controller = registrationController;
 	const signal = controller.signal;
 
-	function getActiveClient(): PlaygroundClient {
-		const client = config.getClient();
-		if (!client) {
-			throw new Error('No client for active site');
-		}
-		return client;
-	}
+	const siteAccess = config.siteAccess ?? createWebMCPSiteAccess(config);
 
-	// Per-site tools
+	// Per-site tools. Each needs a grant, which decides the site it acts on.
 	const tools: ModelContextTool[] = Object.entries(toolDefinitions).map(
 		([name, def]) => ({
 			name,
 			description: def.description,
-			inputSchema: paramsToJsonSchema(def.params),
+			inputSchema: paramsToJsonSchema([
+				...siteAccessParams,
+				...def.params,
+			]),
 			annotations: def.annotations,
 			execute: async (input, client) => {
 				try {
@@ -115,10 +151,20 @@ export async function registerWebMCPTools(
 							error: `No executor for "${name}"`,
 						};
 					}
-					const adapter = createToolClient(getActiveClient());
+					const { siteId, grant, ...toolInput } = input;
+					const playground = await siteAccess.authorize(
+						String(siteId ?? ''),
+						String(grant ?? '')
+					);
+					siteAccess.recordCall({
+						siteId: String(siteId),
+						tool: name,
+						input: toolInput,
+					});
+					const adapter = createToolClient(playground);
 					const result = await executor(
 						adapter,
-						input,
+						toolInput,
 						client?.signal
 					);
 					client?.signal?.throwIfAborted();
@@ -134,6 +180,8 @@ export async function registerWebMCPTools(
 
 	// Site management tools
 	tools.push(...createSiteManagementTools(config));
+	tools.push(...createSiteAccessTools(config, siteAccess));
+	tools.push(...createSiteToolGatewayTools(siteAccess));
 
 	const results = await Promise.allSettled(
 		tools.map(async (tool) => {
@@ -186,6 +234,70 @@ export function getModelContext(): ModelContext | undefined {
 	return typeof modelContext?.registerTool === 'function'
 		? modelContext
 		: undefined;
+}
+
+function createSiteAccessTools(
+	config: WebMCPConfig,
+	siteAccess: SiteAccess
+): ModelContextTool[] {
+	const requestDef =
+		siteAccessToolDefinitions['playground_request_site_access'];
+	const switchDef = siteAccessToolDefinitions['playground_switch_site'];
+	const tools: ModelContextTool[] = [
+		{
+			name: 'playground_request_site_access',
+			description: requestDef.description,
+			inputSchema: paramsToJsonSchema(requestDef.params),
+			annotations: requestDef.annotations,
+			execute: async (input, client) => {
+				try {
+					client?.signal?.throwIfAborted();
+					const reason =
+						typeof input['reason'] === 'string' &&
+						input['reason'].trim()
+							? input['reason'].trim()
+							: undefined;
+					// Hand control to the user while they decide, so the agent
+					// does not act on the dialog itself where browsers support it.
+					return await siteAccess.request(String(input['siteId']), {
+						reason,
+						interact: client?.requestUserInteraction?.bind(client),
+						signal: client?.signal,
+					});
+				} catch (error) {
+					return {
+						error: `${requestDef.errorPrefix}: ${stringifyError(error)}`,
+					};
+				}
+			},
+		},
+	];
+	const switchSite = config.switchSite?.bind(config);
+	if (switchSite) {
+		tools.push({
+			name: 'playground_switch_site',
+			description: switchDef.description,
+			inputSchema: paramsToJsonSchema(switchDef.params),
+			annotations: switchDef.annotations,
+			execute: async (input, client) => {
+				try {
+					client?.signal?.throwIfAborted();
+					const siteId = String(input['siteId'] ?? '');
+					await siteAccess.authorizeSwitch(
+						siteId,
+						String(input['grant'] ?? '')
+					);
+					await switchSite(siteId);
+					return { success: true, siteId };
+				} catch (error) {
+					return {
+						error: `${switchDef.errorPrefix}: ${stringifyError(error)}`,
+					};
+				}
+			},
+		});
+	}
+	return tools;
 }
 
 function createSiteManagementTools(
