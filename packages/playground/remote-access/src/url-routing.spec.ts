@@ -3,20 +3,11 @@ import {
 	buildConnectUrlFromScopedIframeUrl,
 	buildRemoteAccessScopedIframeUrl,
 	getRemoteAccessPathFromConnectUrl,
-	getRemoteAccessSessionId,
 	stripRemoteAccessSessionId,
 } from './url-routing';
 
 describe('remote access URL routing helpers', () => {
-	it('reads and strips remote access session ids from absolute and relative URLs', () => {
-		expect(
-			getRemoteAccessSessionId(
-				'https://example.com/connect?share=session-1'
-			)
-		).toBe('session-1');
-		expect(getRemoteAccessSessionId('/connect?share=session-2')).toBe(
-			'session-2'
-		);
+	it('strips legacy remote access session ids from URLs', () => {
 		expect(
 			stripRemoteAccessSessionId(
 				'https://example.com/connect/my-apps/?share=session-1&tab=all'

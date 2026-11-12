@@ -35,8 +35,8 @@ package:
    MySQL tables.
 2. A host UI that can access a running Playground client and call
    `RemoteAccessHostController.start(playgroundClient)`.
-3. A `/connect` route for entering a six-digit access code and opening the
-   viewer URL.
+3. A `/connect` route for entering a six-digit access code and passing the
+   resolved session id to the viewer in memory.
 4. A viewer route that registers the Playground service worker, starts
    `DirectTunnelGuest`, and renders a scoped iframe such as
    `/scope:default/?remote-access-view=<session-id>`.
@@ -88,15 +88,12 @@ The relay reads DB configuration from these env/server variables, in order:
 - `PLAYGROUND_RELAY_DB_NAME`, `DB_NAME`
 - `PLAYGROUND_RELAY_DB_PORT`, `DB_PORT`
 
-Set `PLAYGROUND_RELAY_PUBLIC_BASE_URL` when generated share URLs should use a
-specific public origin.
-
 The relay only emits CORS access for same-origin `Origin` hosts. Unexpected
 server failures are logged with `error_log()` and returned to clients as a
 generic relay error.
 
 `POST /relay.php?action=session` returns a `hostToken` alongside the session id.
-It is the only response that carries it, and it never appears in the share URL.
+It is the only response that carries it.
 Host-side calls must send it as `X-Playground-Host-Token`:
 
 - `POST ?action=signal` with `"from": "host"`
@@ -104,9 +101,9 @@ Host-side calls must send it as `X-Playground-Host-Token`:
 - `POST ?action=close`
 
 Requests without the header get a `401`, and requests with the wrong token get a
-`403`. Guest connection attempts stay anonymous: holding the share URL is enough
-to request access, but only the host tab has the token needed to answer as the
-host or close the session.
+`403`. Guest connection attempts stay anonymous: resolving the access code yields
+the session id needed to request access, but only the host tab has the token
+needed to answer as the host or close the session.
 
 ## Host Flow
 
@@ -125,11 +122,11 @@ const controller = new RemoteAccessHostController({
 });
 
 const unsubscribe = controller.subscribe((status) => {
-	// status.shareUrl, status.accessCode, status.pendingVerificationCode,
+	// status.accessCode, status.pendingVerificationCode,
 	// status.metrics, status.status
 });
 
-const shareUrl = await controller.start(playgroundClient);
+await controller.start(playgroundClient);
 controller.approve('42');
 await controller.stop();
 unsubscribe();
@@ -143,32 +140,37 @@ the same client to produce backup zips.
 The six-digit access code only finds a relay session. The host still must
 approve the two-digit verification code shown by the remote viewer before
 WordPress requests are accepted. The host token keeps the two roles separate:
-devices with the share URL can request access, but only the browser tab that
+devices with the session id can request access, but only the browser tab that
 created the session can answer as the host or close the session.
 
 ## Connect Route
 
-The connect route is responsible for code entry and redirecting into the viewer
-state:
+The connect route is responsible for code entry and opening the viewer in the
+same document. Keep the resolved session id in memory; never read it from a URL:
 
 ```ts
-import { buildRemoteAccessUrl, formatAccessCode, normalizeAccessCode, resolveAccessCode } from '@wp-playground/remote-access';
+import { formatAccessCode, normalizeAccessCode, resolveAccessCode } from '@wp-playground/remote-access';
 
 const formatted = formatAccessCode(inputValue);
 const accessCode = normalizeAccessCode(formatted);
 if (accessCode) {
 	const { sessionId } = await resolveAccessCode(window.location.origin, accessCode);
-	window.location.href = buildRemoteAccessUrl(window.location.href, sessionId);
+	// Pass sessionId directly to the viewer, for example with React state.
+	setSessionId(sessionId);
 }
 ```
 
-By default the session id is stored in the `share` query parameter.
+Personal WP does not accept session links. Legacy `?share=...` links display the
+code-entry form. Reloading or reopening the viewer also requires code entry.
+The host UI displays the `/connect/` address and access code, without copy/share
+controls for session links. This removes the one-click entry path; it does not
+isolate remote content from local storage after manual pairing.
 
 ## Viewer And Service Worker Flow
 
 The viewer page owns the remote browser connection. At a high level it should:
 
-1. Read the session id with `getRemoteAccessSessionId(window.location.href)`.
+1. Receive the session id directly from the code-entry form.
 2. Register the Playground service worker with
    `registerRemoteAccessServiceWorker(serviceWorkerUrl, window.location.origin)`.
 3. Map the service-worker relay with `postRemoteAccessRelayMapping(...)`.

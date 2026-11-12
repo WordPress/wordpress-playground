@@ -435,7 +435,6 @@ describe('remote access direct tunnel', () => {
 					return new Response(
 						JSON.stringify({
 							sessionId: 'session-1',
-							shareUrl: 'https://example.test/?share=session-1',
 							accessCode: '123-456',
 							hostToken: 'host-token-1',
 						})
