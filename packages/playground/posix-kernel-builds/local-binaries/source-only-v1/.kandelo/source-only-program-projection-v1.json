@@ -1,0 +1,2008 @@
+{
+  "format": "kandelo-source-only-program-projection-v1",
+  "projection": {
+    "format": "kandelo-program-packages-v2",
+    "identities": {
+      "bash": {
+        "manifestSha256": "2dd728f9834b4dcb62229e032e12d87b1428921d029d7d77b4f68c8debabba0f",
+        "cacheKeys": {
+          "wasm32": "8b0aa99a938689f25fa6da854b20a05fd7cdaad5459d0af0fde1a7430d6ffae9",
+          "wasm64": "a623f2a7e31aa93ff6a8e99e1473a4a6e7898e019d2d9b8b28b4d8eb8ba0898f"
+        }
+      },
+      "bc": {
+        "manifestSha256": "5c44519f861efc263ab401b2ac95a5c20fdc1c4d945d8bff196400cfd93fa22b",
+        "cacheKeys": {
+          "wasm32": "ae0fd12e613b04b2d060f9213d30bbbc2535af46ee2d4d9fa2dc41b20e36dcf2",
+          "wasm64": "094baa1d8a9594bf322a136610431ccf3f4cef8edc4ce4d84c76731f8e99fd13"
+        }
+      },
+      "coreutils": {
+        "manifestSha256": "7de40d1f4c454ead124f49ceb0f8da6a57f536bb367f8d6fec44b4976c3543d9",
+        "cacheKeys": {
+          "wasm32": "781d230750bb4ec9438af1e9006a472a2841d552433872d17e58b58c1fa0399b",
+          "wasm64": "8ba7112beef8ada11dac22e79d153b6cac9fc22adeceb343b50f95c303aea29d"
+        }
+      },
+      "diffutils": {
+        "manifestSha256": "81d1846004b3c669292e3d381b70cc0937c7afc59c139917acfee25a7b85f45f",
+        "cacheKeys": {
+          "wasm32": "3599b67659b2763308aabef3df93f90c090d8e2902f4574cf5c5521e5ca7c849",
+          "wasm64": "d0550076ebd44d2c098366f57b4a84469866a5daf38007c0a8fb42886eb94d9e"
+        }
+      },
+      "file": {
+        "manifestSha256": "af9bdc22a415acdb621b5f5c266540aacb856953acb7d4c19ef7e575b0e83682",
+        "cacheKeys": {
+          "wasm32": "8d8d3a2a102b26741b1944291fc356965be7d112caa6f26a8607707283ff4e96",
+          "wasm64": "4b1fbca7061bf2fc21cef56e7261bb45082db15614f245f905a19ff927c83121"
+        }
+      },
+      "findutils": {
+        "manifestSha256": "89c73153e867738697aaf7c382a766ef6d1b1abdd8c09c29dcde20212596960c",
+        "cacheKeys": {
+          "wasm32": "64de3dc9826aa3ebf548ef703fac2d3e8a6ce4cd1049b8f32f210ced581984cf",
+          "wasm64": "2f6f813a9c9a6d9ecd84801556f00dab1d59e15515a1e991f996f366c0fcb2ce"
+        }
+      },
+      "gawk": {
+        "manifestSha256": "a541a82d7c3049235c12c0bb19edf44e7e4a4954ddb5a5033c20d417d0e7c2a4",
+        "cacheKeys": {
+          "wasm32": "39118fc09fec1a8565136498765623a7f8a948569f9cbd9ed30dda44ebf1a9c2",
+          "wasm64": "1d75d5028092dff8fcdbccb6545ef5447fb1998edc5e91641a83001bb7d3a12f"
+        }
+      },
+      "grep": {
+        "manifestSha256": "82bea07002f3bd2d70b340849f0a8d5f9a479e67a59f5fdc5f5ed02a26ed8745",
+        "cacheKeys": {
+          "wasm32": "a8f1e537da88c01d7444774772c7ffd3eeff5fd52d964b20780e3c5286539afd",
+          "wasm64": "1d9b7f36ee675639ed180789ce5fb2b79e53081efc1bbfed8021af86b8223bf2"
+        }
+      },
+      "icu": {
+        "manifestSha256": "b2ed6ddb6b77095915a55a58c9b1ea6f3424e45ade87f2647a02f86a16e8d532",
+        "cacheKeys": {
+          "wasm32": "46a1f722ac238293e99bfa4125066a0851971d00877623bd58269f1a22f82044",
+          "wasm64": "3450dcf1c3ab5d9bca0a3d4cd54847e453b214e06b8c32e1be63cee2ddd90f99"
+        }
+      },
+      "libcurl": {
+        "manifestSha256": "baa5cf99d897ef61586d43b11b2a43896874e6555747da6e16715243dc37d50c",
+        "cacheKeys": {
+          "wasm32": "617f4084a616aae645eced53bf3e82bf78fae3597f17a8a6e53f351727a24b54",
+          "wasm64": "eb85f11973ca71bea753dfa19d21ec0fcf0e9769e6c54c29de3a4ecb7881b298"
+        }
+      },
+      "libcxx": {
+        "manifestSha256": "a07a15723627b4d3795af64948588287aac80e205e4e94c5d4f5c1266430e114",
+        "cacheKeys": {
+          "wasm32": "be41bf8e28503e98ecbac2012d29b26c0cc7891b719275e9085185c1fdde0948",
+          "wasm64": "ee0b1e206881afda899caef738774fa796dd90bb4acbaa5e17f1cb4757e1c56a"
+        }
+      },
+      "libiconv": {
+        "manifestSha256": "7ae4f68412db04f01e027f94b0d14c1130ac4dfb2041270207994ddab56f0855",
+        "cacheKeys": {
+          "wasm32": "7d8daab2aaa1d2fca45ad521dce6928a769433cead77e308a656e5da7cae17e1",
+          "wasm64": "dd0d0cb65d78c74f9438b27147b169ad6b887f6af32c1c1d03588bab2162faae"
+        }
+      },
+      "libxml2": {
+        "manifestSha256": "8800f132f8e745d1193e85bd4be0b0c399dfbd70242f7d51c50640d08eae0fcf",
+        "cacheKeys": {
+          "wasm32": "093fede3237d5d25cb9dc010909f400428c81e41fa484244358a9b909d74e208",
+          "wasm64": "9080e1f15ff2e0849af159de0526c584cf8629924eabe6d5ee2ec40eb022da8f"
+        }
+      },
+      "libzip": {
+        "manifestSha256": "a13c24b03ef3eb6b48c8e8b7ab4d064d88c996a23f57fab619c972b1c067d6b1",
+        "cacheKeys": {
+          "wasm32": "cf1c263d7559f49c015d1a3e3fc56ab77ca5b96a6e78b5a9c18b2dd60f1b418a",
+          "wasm64": "603d1c3fb3f22771c1088ad788d3d840f446d36aca07ac2d98e11d33c5a1eb55"
+        }
+      },
+      "login": {
+        "manifestSha256": "b324b43ff4dc097d31fb4aebd3ac21c42cbbe65008996a11a98f7ebabe694101",
+        "cacheKeys": {
+          "wasm32": "935ef1189204f30ae0e0542139a965b396dfeff87b47d73fd7a3f1e1f3d22e34",
+          "wasm64": "aba2a5f0041bd0c2b662dda98b04cedcb4ec6a4a47eb58e1e43e8a9d46526c04"
+        }
+      },
+      "m4": {
+        "manifestSha256": "919dd8f79a58c8fa7ff55a13003dd38c3f07d9c8cd150213fb4d855fc7269e9b",
+        "cacheKeys": {
+          "wasm32": "d59baf593807f2a67a0f9536ada356a1bac04b83ba685481297af74158ba3956",
+          "wasm64": "834b819551187a6854ebb563270fdced85c342d0e60b38aab65460d0a9e3275e"
+        }
+      },
+      "make": {
+        "manifestSha256": "c01bf3f64968c041bba5d18950c08a854d5c681ea7fd883856408cd6f1409a63",
+        "cacheKeys": {
+          "wasm32": "76f45165e4bd15f74e768d738a7abc862643a3b8903bc4ff599d19867ba810b8",
+          "wasm64": "05709ebbb771f5384092d53c5ebf196a78e85fd44a960d76c39c9c57d0ffa2cc"
+        }
+      },
+      "ncurses": {
+        "manifestSha256": "721adce1526ad9907b46925b33377e2905465a628a94b98181381e2939d18cf2",
+        "cacheKeys": {
+          "wasm32": "e8d096845f67e9c5c84aab484c6cad56642ade3d615968e67811abb9de5b9b9c",
+          "wasm64": "57142af042fe752c86df275d1a6df0e22d5833455100b0c0473afce85e373189"
+        }
+      },
+      "nginx": {
+        "manifestSha256": "b78552502c63bef2814c8aae76fedfdb4f273e4ee0c42023d6157ddb298ff815",
+        "cacheKeys": {
+          "wasm32": "24a6439eed383b203aa7f6886b436102d7782949359b58e11adb6d2382960f9f",
+          "wasm64": "719a4afa013a24042da017b16255bd7b4e0ded2d3c0c42f74eeb1eedb607ba0b"
+        }
+      },
+      "openssl": {
+        "manifestSha256": "865dc8ce9577ce1cc7af69d85c063336a5b586a28b759aa926b3aa98c0fd6e19",
+        "cacheKeys": {
+          "wasm32": "bbbb0e32d672d53a24620425be57cdfb5a65b2480da85621752ee81939c66cd2",
+          "wasm64": "18cf9e97f7563ac353513fc2b599b76b2d55d42da8e6f362e8b44cfff385822d"
+        }
+      },
+      "php": {
+        "manifestSha256": "14114e280941f1f2f6a4c5abc11698b4b01f909be4cf2aac5b0e68845fed4644",
+        "cacheKeys": {
+          "wasm32": "a43bdd28a05836bdfc5c13975feb9368fe15c23e9314e39183b031a1fc7be45c",
+          "wasm64": "d85b684c88a2aee29df06946591394988f66926e7734dac4ce9ed40ce8df4d28"
+        }
+      },
+      "posix-utils-lite": {
+        "manifestSha256": "40408581fb58dd3282af1c3955eec06bda0bedd9ed87afd8a1e1a8e3ca2e7aa9",
+        "cacheKeys": {
+          "wasm32": "aa04cc67733afd91387c94027ab8076b630b13dbd3f6862f8f40abd29b051fc5",
+          "wasm64": "cff09aaa5d2b63ac9e670a1038ce6273a719aa84c6351987983be180a7757da8"
+        }
+      },
+      "rootfs": {
+        "manifestSha256": "2e68515b3ca0949821435d5341d1e94a3ec094f497d40d4d5d8f6c1d015cfbde",
+        "cacheKeys": {
+          "wasm32": "497fe6a9e348940a825d2aebcd4a34463aa32991f4a6ce53f3dfed227515dca9",
+          "wasm64": "18c3bee0e4313ba3968ed2aced9b82637de1caecc15d81e2ae1d6b3b281e935e"
+        }
+      },
+      "sed": {
+        "manifestSha256": "0ac72c93e26ffe357cb6efe39ff8b20c9093023a839d9e48e25bd90ec64e55b3",
+        "cacheKeys": {
+          "wasm32": "917223ac2159e0ba376f9baf5ffb027490919152b74d392befd630804a92fec7",
+          "wasm64": "a151df51be7f698dc70076296ab0cc64630ca3c7aeccaf933f9749661ed73fd0"
+        }
+      },
+      "sqlite": {
+        "manifestSha256": "77110d20137fe7dfd55d6be0f99c959ec3d4bc23ebbf516e5eb51f3886d8bcee",
+        "cacheKeys": {
+          "wasm32": "2e3e7ab9def93d191237728d13f9ccd121acb66013a8ff801f68c143cdd90948",
+          "wasm64": "27a59a87ea1ddede9f0d1344b9f5bf84092602af482e583bc54557a4cfbb03c2"
+        }
+      },
+      "sudo": {
+        "manifestSha256": "c426c1b4d00d29492bfeaf3c81422d044709a81b5b234af700c3d50531fbe25b",
+        "cacheKeys": {
+          "wasm32": "a8c66830eb87adce41e4580b85648016237c3138638b2e62622f5239df6b7a47",
+          "wasm64": "d6e5ee1bd3e5548cce69f18628ef6496d1a317217593ceabf9ecb8a95620b21d"
+        }
+      },
+      "sudo-lite": {
+        "manifestSha256": "92f12ae0931061c3c4de5ef287bca88597cba432ecbdd35f569ac4c0e5167e59",
+        "cacheKeys": {
+          "wasm32": "4c4000856b959dd4a888c4cfa5d2b053d89a37660c61cd925a5ef2edae1f8167",
+          "wasm64": "f283cf3b391fcff8aadc349d9b598a184670fa76fb780dc3501a638f9fd99d55"
+        }
+      },
+      "zlib": {
+        "manifestSha256": "95773710b08f492b4dc83cb7dd3d9a18fda901ced19b4936be330ba5a6734983",
+        "cacheKeys": {
+          "wasm32": "764e4363f65c39e6fd6f7af94e3c3e903c080e4543772a850f62e3d498d47114",
+          "wasm64": "818635b3f89b9e2ef906d6071f7dbb9bab3a97730ac265776201b95b41d61cbf"
+        }
+      }
+    },
+    "packages": {
+      "bash": {
+        "manifestSha256": "2dd728f9834b4dcb62229e032e12d87b1428921d029d7d77b4f68c8debabba0f",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "8b0aa99a938689f25fa6da854b20a05fd7cdaad5459d0af0fde1a7430d6ffae9"
+        },
+        "dependencyClosures": {
+          "wasm32": [
+            {
+              "packageName": "ncurses",
+              "manifestSha256": "721adce1526ad9907b46925b33377e2905465a628a94b98181381e2939d18cf2",
+              "cacheKey": "e8d096845f67e9c5c84aab484c6cad56642ade3d615968e67811abb9de5b9b9c"
+            }
+          ]
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "bash.wasm",
+            "mirrorPath": "bash.wasm",
+            "outputName": "bash",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "bc": {
+        "manifestSha256": "5c44519f861efc263ab401b2ac95a5c20fdc1c4d945d8bff196400cfd93fa22b",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "ae0fd12e613b04b2d060f9213d30bbbc2535af46ee2d4d9fa2dc41b20e36dcf2"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "bc.wasm",
+            "mirrorPath": "bc.wasm",
+            "outputName": "bc",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "coreutils": {
+        "manifestSha256": "7de40d1f4c454ead124f49ceb0f8da6a57f536bb367f8d6fec44b4976c3543d9",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "781d230750bb4ec9438af1e9006a472a2841d552433872d17e58b58c1fa0399b"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "coreutils.wasm",
+            "mirrorPath": "coreutils.wasm",
+            "outputName": "coreutils",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "diffutils": {
+        "manifestSha256": "81d1846004b3c669292e3d381b70cc0937c7afc59c139917acfee25a7b85f45f",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "3599b67659b2763308aabef3df93f90c090d8e2902f4574cf5c5521e5ca7c849"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "diff.wasm",
+            "mirrorPath": "diffutils/diff.wasm",
+            "outputName": "diff",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "cmp.wasm",
+            "mirrorPath": "diffutils/cmp.wasm",
+            "outputName": "cmp",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "diff3.wasm",
+            "mirrorPath": "diffutils/diff3.wasm",
+            "outputName": "diff3",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "sdiff.wasm",
+            "mirrorPath": "diffutils/sdiff.wasm",
+            "outputName": "sdiff",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "file": {
+        "manifestSha256": "af9bdc22a415acdb621b5f5c266540aacb856953acb7d4c19ef7e575b0e83682",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "8d8d3a2a102b26741b1944291fc356965be7d112caa6f26a8607707283ff4e96"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "file.wasm",
+            "mirrorPath": "file/file.wasm",
+            "outputName": "file",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "magic.lite",
+            "mirrorPath": "file/file-magic.lite",
+            "outputName": "file-magic",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "findutils": {
+        "manifestSha256": "89c73153e867738697aaf7c382a766ef6d1b1abdd8c09c29dcde20212596960c",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "64de3dc9826aa3ebf548ef703fac2d3e8a6ce4cd1049b8f32f210ced581984cf"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "find.wasm",
+            "mirrorPath": "findutils/find.wasm",
+            "outputName": "find",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "xargs.wasm",
+            "mirrorPath": "findutils/xargs.wasm",
+            "outputName": "xargs",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "gawk": {
+        "manifestSha256": "a541a82d7c3049235c12c0bb19edf44e7e4a4954ddb5a5033c20d417d0e7c2a4",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "39118fc09fec1a8565136498765623a7f8a948569f9cbd9ed30dda44ebf1a9c2"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "gawk.wasm",
+            "mirrorPath": "gawk.wasm",
+            "outputName": "gawk",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "grep": {
+        "manifestSha256": "82bea07002f3bd2d70b340849f0a8d5f9a479e67a59f5fdc5f5ed02a26ed8745",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "a8f1e537da88c01d7444774772c7ffd3eeff5fd52d964b20780e3c5286539afd"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "grep.wasm",
+            "mirrorPath": "grep.wasm",
+            "outputName": "grep",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "login": {
+        "manifestSha256": "b324b43ff4dc097d31fb4aebd3ac21c42cbbe65008996a11a98f7ebabe694101",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "935ef1189204f30ae0e0542139a965b396dfeff87b47d73fd7a3f1e1f3d22e34"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "login.wasm",
+            "mirrorPath": "login.wasm",
+            "outputName": "login",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "m4": {
+        "manifestSha256": "919dd8f79a58c8fa7ff55a13003dd38c3f07d9c8cd150213fb4d855fc7269e9b",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "d59baf593807f2a67a0f9536ada356a1bac04b83ba685481297af74158ba3956"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "m4.wasm",
+            "mirrorPath": "m4.wasm",
+            "outputName": "m4",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "make": {
+        "manifestSha256": "c01bf3f64968c041bba5d18950c08a854d5c681ea7fd883856408cd6f1409a63",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "76f45165e4bd15f74e768d738a7abc862643a3b8903bc4ff599d19867ba810b8"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "make.wasm",
+            "mirrorPath": "make.wasm",
+            "outputName": "make",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "ncurses": {
+        "manifestSha256": "721adce1526ad9907b46925b33377e2905465a628a94b98181381e2939d18cf2",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "e8d096845f67e9c5c84aab484c6cad56642ade3d615968e67811abb9de5b9b9c"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "clear.wasm",
+            "mirrorPath": "ncurses/clear.wasm",
+            "outputName": "clear",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "reset.wasm",
+            "mirrorPath": "ncurses/reset.wasm",
+            "outputName": "reset",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "tset.wasm",
+            "mirrorPath": "ncurses/tset.wasm",
+            "outputName": "tset",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "tput.wasm",
+            "mirrorPath": "ncurses/tput.wasm",
+            "outputName": "tput",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "tabs.wasm",
+            "mirrorPath": "ncurses/tabs.wasm",
+            "outputName": "tabs",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "tic.wasm",
+            "mirrorPath": "ncurses/tic.wasm",
+            "outputName": "tic",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "infocmp.wasm",
+            "mirrorPath": "ncurses/infocmp.wasm",
+            "outputName": "infocmp",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "toe.wasm",
+            "mirrorPath": "ncurses/toe.wasm",
+            "outputName": "toe",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "captoinfo.wasm",
+            "mirrorPath": "ncurses/captoinfo.wasm",
+            "outputName": "captoinfo",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "infotocap.wasm",
+            "mirrorPath": "ncurses/infotocap.wasm",
+            "outputName": "infotocap",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "runtime-file",
+            "sourceArtifact": "terminfo.zip",
+            "mirrorPath": "ncurses/terminfo.zip",
+            "guestPath": "/usr/share/terminfo/terminfo.zip",
+            "mode": 420
+          }
+        ]
+      },
+      "nginx": {
+        "manifestSha256": "b78552502c63bef2814c8aae76fedfdb4f273e4ee0c42023d6157ddb298ff815",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "24a6439eed383b203aa7f6886b436102d7782949359b58e11adb6d2382960f9f"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "nginx.wasm",
+            "mirrorPath": "nginx.wasm",
+            "outputName": "nginx",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "php": {
+        "manifestSha256": "14114e280941f1f2f6a4c5abc11698b4b01f909be4cf2aac5b0e68845fed4644",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "a43bdd28a05836bdfc5c13975feb9368fe15c23e9314e39183b031a1fc7be45c"
+        },
+        "dependencyClosures": {
+          "wasm32": [
+            {
+              "packageName": "icu",
+              "manifestSha256": "b2ed6ddb6b77095915a55a58c9b1ea6f3424e45ade87f2647a02f86a16e8d532",
+              "cacheKey": "46a1f722ac238293e99bfa4125066a0851971d00877623bd58269f1a22f82044"
+            },
+            {
+              "packageName": "libcurl",
+              "manifestSha256": "baa5cf99d897ef61586d43b11b2a43896874e6555747da6e16715243dc37d50c",
+              "cacheKey": "617f4084a616aae645eced53bf3e82bf78fae3597f17a8a6e53f351727a24b54"
+            },
+            {
+              "packageName": "libcxx",
+              "manifestSha256": "a07a15723627b4d3795af64948588287aac80e205e4e94c5d4f5c1266430e114",
+              "cacheKey": "be41bf8e28503e98ecbac2012d29b26c0cc7891b719275e9085185c1fdde0948"
+            },
+            {
+              "packageName": "libiconv",
+              "manifestSha256": "7ae4f68412db04f01e027f94b0d14c1130ac4dfb2041270207994ddab56f0855",
+              "cacheKey": "7d8daab2aaa1d2fca45ad521dce6928a769433cead77e308a656e5da7cae17e1"
+            },
+            {
+              "packageName": "libxml2",
+              "manifestSha256": "8800f132f8e745d1193e85bd4be0b0c399dfbd70242f7d51c50640d08eae0fcf",
+              "cacheKey": "093fede3237d5d25cb9dc010909f400428c81e41fa484244358a9b909d74e208"
+            },
+            {
+              "packageName": "libzip",
+              "manifestSha256": "a13c24b03ef3eb6b48c8e8b7ab4d064d88c996a23f57fab619c972b1c067d6b1",
+              "cacheKey": "cf1c263d7559f49c015d1a3e3fc56ab77ca5b96a6e78b5a9c18b2dd60f1b418a"
+            },
+            {
+              "packageName": "openssl",
+              "manifestSha256": "865dc8ce9577ce1cc7af69d85c063336a5b586a28b759aa926b3aa98c0fd6e19",
+              "cacheKey": "bbbb0e32d672d53a24620425be57cdfb5a65b2480da85621752ee81939c66cd2"
+            },
+            {
+              "packageName": "sqlite",
+              "manifestSha256": "77110d20137fe7dfd55d6be0f99c959ec3d4bc23ebbf516e5eb51f3886d8bcee",
+              "cacheKey": "2e3e7ab9def93d191237728d13f9ccd121acb66013a8ff801f68c143cdd90948"
+            },
+            {
+              "packageName": "zlib",
+              "manifestSha256": "95773710b08f492b4dc83cb7dd3d9a18fda901ced19b4936be330ba5a6734983",
+              "cacheKey": "764e4363f65c39e6fd6f7af94e3c3e903c080e4543772a850f62e3d498d47114"
+            }
+          ]
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "php.wasm",
+            "mirrorPath": "php/php.wasm",
+            "outputName": "php",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "php-fpm.wasm",
+            "mirrorPath": "php/php-fpm.wasm",
+            "outputName": "php-fpm",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "opcache.so",
+            "mirrorPath": "php/opcache.so",
+            "outputName": "opcache",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "curl.so",
+            "mirrorPath": "php/curl.so",
+            "outputName": "curl",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "phar.so",
+            "mirrorPath": "php/phar.so",
+            "outputName": "phar",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "zend_test.so",
+            "mirrorPath": "php/zend_test.so",
+            "outputName": "zend_test",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "zip.so",
+            "mirrorPath": "php/zip.so",
+            "outputName": "zip",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "intl.so",
+            "mirrorPath": "php/intl.so",
+            "outputName": "intl",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "runtime-file",
+            "sourceArtifact": "icu.dat",
+            "mirrorPath": "php/icu.dat",
+            "guestPath": "/usr/lib/php/icu.dat",
+            "mode": 420
+          }
+        ]
+      },
+      "posix-utils-lite": {
+        "manifestSha256": "40408581fb58dd3282af1c3955eec06bda0bedd9ed87afd8a1e1a8e3ca2e7aa9",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "aa04cc67733afd91387c94027ab8076b630b13dbd3f6862f8f40abd29b051fc5"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "ar.wasm",
+            "mirrorPath": "posix-utils-lite/ar.wasm",
+            "outputName": "ar",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "asa.wasm",
+            "mirrorPath": "posix-utils-lite/asa.wasm",
+            "outputName": "asa",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "cal.wasm",
+            "mirrorPath": "posix-utils-lite/cal.wasm",
+            "outputName": "cal",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "cflow.wasm",
+            "mirrorPath": "posix-utils-lite/cflow.wasm",
+            "outputName": "cflow",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "compress.wasm",
+            "mirrorPath": "posix-utils-lite/compress.wasm",
+            "outputName": "compress",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "ctags.wasm",
+            "mirrorPath": "posix-utils-lite/ctags.wasm",
+            "outputName": "ctags",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "cxref.wasm",
+            "mirrorPath": "posix-utils-lite/cxref.wasm",
+            "outputName": "cxref",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "ed.wasm",
+            "mirrorPath": "posix-utils-lite/ed.wasm",
+            "outputName": "ed",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "ex.wasm",
+            "mirrorPath": "posix-utils-lite/ex.wasm",
+            "outputName": "ex",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "fuser.wasm",
+            "mirrorPath": "posix-utils-lite/fuser.wasm",
+            "outputName": "fuser",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "gencat.wasm",
+            "mirrorPath": "posix-utils-lite/gencat.wasm",
+            "outputName": "gencat",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "getconf.wasm",
+            "mirrorPath": "posix-utils-lite/getconf.wasm",
+            "outputName": "getconf",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "gettext.wasm",
+            "mirrorPath": "posix-utils-lite/gettext.wasm",
+            "outputName": "gettext",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "iconv.wasm",
+            "mirrorPath": "posix-utils-lite/iconv.wasm",
+            "outputName": "iconv",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "ipcrm.wasm",
+            "mirrorPath": "posix-utils-lite/ipcrm.wasm",
+            "outputName": "ipcrm",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "ipcs.wasm",
+            "mirrorPath": "posix-utils-lite/ipcs.wasm",
+            "outputName": "ipcs",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "lex.wasm",
+            "mirrorPath": "posix-utils-lite/lex.wasm",
+            "outputName": "lex",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "locale.wasm",
+            "mirrorPath": "posix-utils-lite/locale.wasm",
+            "outputName": "locale",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "logger.wasm",
+            "mirrorPath": "posix-utils-lite/logger.wasm",
+            "outputName": "logger",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "man.wasm",
+            "mirrorPath": "posix-utils-lite/man.wasm",
+            "outputName": "man",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "more.wasm",
+            "mirrorPath": "posix-utils-lite/more.wasm",
+            "outputName": "more",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "msgfmt.wasm",
+            "mirrorPath": "posix-utils-lite/msgfmt.wasm",
+            "outputName": "msgfmt",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "ngettext.wasm",
+            "mirrorPath": "posix-utils-lite/ngettext.wasm",
+            "outputName": "ngettext",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "nm.wasm",
+            "mirrorPath": "posix-utils-lite/nm.wasm",
+            "outputName": "nm",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "patch.wasm",
+            "mirrorPath": "posix-utils-lite/patch.wasm",
+            "outputName": "patch",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "pax.wasm",
+            "mirrorPath": "posix-utils-lite/pax.wasm",
+            "outputName": "pax",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "pgrep.wasm",
+            "mirrorPath": "posix-utils-lite/pgrep.wasm",
+            "outputName": "pgrep",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "ps.wasm",
+            "mirrorPath": "posix-utils-lite/ps.wasm",
+            "outputName": "ps",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "renice.wasm",
+            "mirrorPath": "posix-utils-lite/renice.wasm",
+            "outputName": "renice",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "strings.wasm",
+            "mirrorPath": "posix-utils-lite/strings.wasm",
+            "outputName": "strings",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "strip.wasm",
+            "mirrorPath": "posix-utils-lite/strip.wasm",
+            "outputName": "strip",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "uncompress.wasm",
+            "mirrorPath": "posix-utils-lite/uncompress.wasm",
+            "outputName": "uncompress",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "uudecode.wasm",
+            "mirrorPath": "posix-utils-lite/uudecode.wasm",
+            "outputName": "uudecode",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "uuencode.wasm",
+            "mirrorPath": "posix-utils-lite/uuencode.wasm",
+            "outputName": "uuencode",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "what.wasm",
+            "mirrorPath": "posix-utils-lite/what.wasm",
+            "outputName": "what",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "xgettext.wasm",
+            "mirrorPath": "posix-utils-lite/xgettext.wasm",
+            "outputName": "xgettext",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "yacc.wasm",
+            "mirrorPath": "posix-utils-lite/yacc.wasm",
+            "outputName": "yacc",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "rootfs": {
+        "manifestSha256": "2e68515b3ca0949821435d5341d1e94a3ec094f497d40d4d5d8f6c1d015cfbde",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "497fe6a9e348940a825d2aebcd4a34463aa32991f4a6ce53f3dfed227515dca9"
+        },
+        "dependencyClosures": {
+          "wasm32": [
+            {
+              "packageName": "bash",
+              "manifestSha256": "2dd728f9834b4dcb62229e032e12d87b1428921d029d7d77b4f68c8debabba0f",
+              "cacheKey": "8b0aa99a938689f25fa6da854b20a05fd7cdaad5459d0af0fde1a7430d6ffae9"
+            },
+            {
+              "packageName": "bc",
+              "manifestSha256": "5c44519f861efc263ab401b2ac95a5c20fdc1c4d945d8bff196400cfd93fa22b",
+              "cacheKey": "ae0fd12e613b04b2d060f9213d30bbbc2535af46ee2d4d9fa2dc41b20e36dcf2"
+            },
+            {
+              "packageName": "coreutils",
+              "manifestSha256": "7de40d1f4c454ead124f49ceb0f8da6a57f536bb367f8d6fec44b4976c3543d9",
+              "cacheKey": "781d230750bb4ec9438af1e9006a472a2841d552433872d17e58b58c1fa0399b"
+            },
+            {
+              "packageName": "diffutils",
+              "manifestSha256": "81d1846004b3c669292e3d381b70cc0937c7afc59c139917acfee25a7b85f45f",
+              "cacheKey": "3599b67659b2763308aabef3df93f90c090d8e2902f4574cf5c5521e5ca7c849"
+            },
+            {
+              "packageName": "file",
+              "manifestSha256": "af9bdc22a415acdb621b5f5c266540aacb856953acb7d4c19ef7e575b0e83682",
+              "cacheKey": "8d8d3a2a102b26741b1944291fc356965be7d112caa6f26a8607707283ff4e96"
+            },
+            {
+              "packageName": "findutils",
+              "manifestSha256": "89c73153e867738697aaf7c382a766ef6d1b1abdd8c09c29dcde20212596960c",
+              "cacheKey": "64de3dc9826aa3ebf548ef703fac2d3e8a6ce4cd1049b8f32f210ced581984cf"
+            },
+            {
+              "packageName": "gawk",
+              "manifestSha256": "a541a82d7c3049235c12c0bb19edf44e7e4a4954ddb5a5033c20d417d0e7c2a4",
+              "cacheKey": "39118fc09fec1a8565136498765623a7f8a948569f9cbd9ed30dda44ebf1a9c2"
+            },
+            {
+              "packageName": "grep",
+              "manifestSha256": "82bea07002f3bd2d70b340849f0a8d5f9a479e67a59f5fdc5f5ed02a26ed8745",
+              "cacheKey": "a8f1e537da88c01d7444774772c7ffd3eeff5fd52d964b20780e3c5286539afd"
+            },
+            {
+              "packageName": "login",
+              "manifestSha256": "b324b43ff4dc097d31fb4aebd3ac21c42cbbe65008996a11a98f7ebabe694101",
+              "cacheKey": "935ef1189204f30ae0e0542139a965b396dfeff87b47d73fd7a3f1e1f3d22e34"
+            },
+            {
+              "packageName": "m4",
+              "manifestSha256": "919dd8f79a58c8fa7ff55a13003dd38c3f07d9c8cd150213fb4d855fc7269e9b",
+              "cacheKey": "d59baf593807f2a67a0f9536ada356a1bac04b83ba685481297af74158ba3956"
+            },
+            {
+              "packageName": "make",
+              "manifestSha256": "c01bf3f64968c041bba5d18950c08a854d5c681ea7fd883856408cd6f1409a63",
+              "cacheKey": "76f45165e4bd15f74e768d738a7abc862643a3b8903bc4ff599d19867ba810b8"
+            },
+            {
+              "packageName": "ncurses",
+              "manifestSha256": "721adce1526ad9907b46925b33377e2905465a628a94b98181381e2939d18cf2",
+              "cacheKey": "e8d096845f67e9c5c84aab484c6cad56642ade3d615968e67811abb9de5b9b9c"
+            },
+            {
+              "packageName": "posix-utils-lite",
+              "manifestSha256": "40408581fb58dd3282af1c3955eec06bda0bedd9ed87afd8a1e1a8e3ca2e7aa9",
+              "cacheKey": "aa04cc67733afd91387c94027ab8076b630b13dbd3f6862f8f40abd29b051fc5"
+            },
+            {
+              "packageName": "sed",
+              "manifestSha256": "0ac72c93e26ffe357cb6efe39ff8b20c9093023a839d9e48e25bd90ec64e55b3",
+              "cacheKey": "917223ac2159e0ba376f9baf5ffb027490919152b74d392befd630804a92fec7"
+            },
+            {
+              "packageName": "sudo",
+              "manifestSha256": "c426c1b4d00d29492bfeaf3c81422d044709a81b5b234af700c3d50531fbe25b",
+              "cacheKey": "a8c66830eb87adce41e4580b85648016237c3138638b2e62622f5239df6b7a47"
+            },
+            {
+              "packageName": "sudo-lite",
+              "manifestSha256": "92f12ae0931061c3c4de5ef287bca88597cba432ecbdd35f569ac4c0e5167e59",
+              "cacheKey": "4c4000856b959dd4a888c4cfa5d2b053d89a37660c61cd925a5ef2edae1f8167"
+            }
+          ]
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "rootfs.vfs.zst",
+            "mirrorPath": "rootfs.vfs.zst",
+            "outputName": "rootfs",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "sed": {
+        "manifestSha256": "0ac72c93e26ffe357cb6efe39ff8b20c9093023a839d9e48e25bd90ec64e55b3",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "917223ac2159e0ba376f9baf5ffb027490919152b74d392befd630804a92fec7"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "sed.wasm",
+            "mirrorPath": "sed.wasm",
+            "outputName": "sed",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "sudo": {
+        "manifestSha256": "c426c1b4d00d29492bfeaf3c81422d044709a81b5b234af700c3d50531fbe25b",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "a8c66830eb87adce41e4580b85648016237c3138638b2e62622f5239df6b7a47"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "sudo.wasm",
+            "mirrorPath": "sudo/sudo.wasm",
+            "outputName": "sudo",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "visudo.wasm",
+            "mirrorPath": "sudo/visudo.wasm",
+            "outputName": "visudo",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "cvtsudoers.wasm",
+            "mirrorPath": "sudo/cvtsudoers.wasm",
+            "outputName": "cvtsudoers",
+            "forkInstrumentation": "auto"
+          },
+          {
+            "kind": "output",
+            "sourceArtifact": "sudoreplay.wasm",
+            "mirrorPath": "sudo/sudoreplay.wasm",
+            "outputName": "sudoreplay",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      },
+      "sudo-lite": {
+        "manifestSha256": "92f12ae0931061c3c4de5ef287bca88597cba432ecbdd35f569ac4c0e5167e59",
+        "arches": [
+          "wasm32"
+        ],
+        "cacheKeys": {
+          "wasm32": "4c4000856b959dd4a888c4cfa5d2b053d89a37660c61cd925a5ef2edae1f8167"
+        },
+        "dependencyClosures": {
+          "wasm32": []
+        },
+        "members": [
+          {
+            "kind": "output",
+            "sourceArtifact": "sudo-lite.wasm",
+            "mirrorPath": "sudo-lite.wasm",
+            "outputName": "sudo-lite",
+            "forkInstrumentation": "auto"
+          }
+        ]
+      }
+    }
+  },
+  "graphAuthoritySha256": "90a6ba6a5388b9411d091c6b1b90609a365757b5661e6a0d63e9d0ef8470149d",
+  "nodes": [
+    {
+      "node": {
+        "kind": "package",
+        "name": "bash",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "2dd728f9834b4dcb62229e032e12d87b1428921d029d7d77b4f68c8debabba0f",
+      "cacheKeySha256": "8b0aa99a938689f25fa6da854b20a05fd7cdaad5459d0af0fde1a7430d6ffae9",
+      "cacheReceiptSha256": "5364496007e68f7da64170c624b6f3bb9861e37fa1f70d6436b7d0c68579cf28",
+      "members": [
+        {
+          "sourceArtifact": "bash.wasm",
+          "mirrorPath": "programs/wasm32/bash.wasm",
+          "mode": 493,
+          "size": 1884697,
+          "sha256": "340fb56d45a85b80cbffdc6e6671c374613f91f0e21c252afa546d7c76e4bc5d"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "bc",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "5c44519f861efc263ab401b2ac95a5c20fdc1c4d945d8bff196400cfd93fa22b",
+      "cacheKeySha256": "ae0fd12e613b04b2d060f9213d30bbbc2535af46ee2d4d9fa2dc41b20e36dcf2",
+      "cacheReceiptSha256": "7a7ef881db599158b72e825f067da073a266e3bc5503d91ead5ad7ac7adf0a05",
+      "members": [
+        {
+          "sourceArtifact": "bc.wasm",
+          "mirrorPath": "programs/wasm32/bc.wasm",
+          "mode": 493,
+          "size": 153860,
+          "sha256": "b74f720f84b517bcee53cbcfb9c2045d527788f21c93b1d8872cde56ac105f1b"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "coreutils",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "7de40d1f4c454ead124f49ceb0f8da6a57f536bb367f8d6fec44b4976c3543d9",
+      "cacheKeySha256": "781d230750bb4ec9438af1e9006a472a2841d552433872d17e58b58c1fa0399b",
+      "cacheReceiptSha256": "7d534c0a7c7aaeb67099cb645cf638d7f835b35a4ce68f42e0332b38768e2f78",
+      "members": [
+        {
+          "sourceArtifact": "coreutils.wasm",
+          "mirrorPath": "programs/wasm32/coreutils.wasm",
+          "mode": 493,
+          "size": 1773843,
+          "sha256": "45a3347be9f653b4482efe14430e126f0132d14e72a57e18d4dc159a469d0e33"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "diffutils",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "81d1846004b3c669292e3d381b70cc0937c7afc59c139917acfee25a7b85f45f",
+      "cacheKeySha256": "3599b67659b2763308aabef3df93f90c090d8e2902f4574cf5c5521e5ca7c849",
+      "cacheReceiptSha256": "84aa66809e081051c755978a98e3dbd21d4a258ddc62f49a6d37abcd3d14cb5e",
+      "members": [
+        {
+          "sourceArtifact": "cmp.wasm",
+          "mirrorPath": "programs/wasm32/diffutils/cmp.wasm",
+          "mode": 493,
+          "size": 253973,
+          "sha256": "b064d20f6877e6d4744d36cb57fac8f13b7c22d65b5001423be356ff479893cb"
+        },
+        {
+          "sourceArtifact": "diff.wasm",
+          "mirrorPath": "programs/wasm32/diffutils/diff.wasm",
+          "mode": 493,
+          "size": 317300,
+          "sha256": "c50e81e77418e78c116fe89cde8da8096ca2ff0e9ab7aba93b68cfd00ecf05e9"
+        },
+        {
+          "sourceArtifact": "diff3.wasm",
+          "mirrorPath": "programs/wasm32/diffutils/diff3.wasm",
+          "mode": 493,
+          "size": 109554,
+          "sha256": "0bd868ab1ef7d1529357d7e124934689eaeac292923f0b6a1c88a7ea22f435a1"
+        },
+        {
+          "sourceArtifact": "sdiff.wasm",
+          "mirrorPath": "programs/wasm32/diffutils/sdiff.wasm",
+          "mode": 493,
+          "size": 99399,
+          "sha256": "ee09c127898a6c5bbaac2c1249aed3e3482fb30dcdf3c2a7d6ce280a6ceb73b2"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "file",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "af9bdc22a415acdb621b5f5c266540aacb856953acb7d4c19ef7e575b0e83682",
+      "cacheKeySha256": "8d8d3a2a102b26741b1944291fc356965be7d112caa6f26a8607707283ff4e96",
+      "cacheReceiptSha256": "1369b1aa0d13f866a8300c6b819588d16616a88581d347b46634230dce6afcaf",
+      "members": [
+        {
+          "sourceArtifact": "magic.lite",
+          "mirrorPath": "programs/wasm32/file/file-magic.lite",
+          "mode": 420,
+          "size": 511709,
+          "sha256": "be722c08c497438f745096b3d01b2b0b33c485f81b5bdb58b821ea497ee90810"
+        },
+        {
+          "sourceArtifact": "file.wasm",
+          "mirrorPath": "programs/wasm32/file/file.wasm",
+          "mode": 493,
+          "size": 326184,
+          "sha256": "a893c65eda11b266ca6898487ce29ba3ea6429bd14f29ecbc91fadd11aa43f72"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "findutils",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "89c73153e867738697aaf7c382a766ef6d1b1abdd8c09c29dcde20212596960c",
+      "cacheKeySha256": "64de3dc9826aa3ebf548ef703fac2d3e8a6ce4cd1049b8f32f210ced581984cf",
+      "cacheReceiptSha256": "fd3d8d87e2a96c06934d55cc8c06b8c56ed25c1c6645ccf42419fe1367b13afa",
+      "members": [
+        {
+          "sourceArtifact": "find.wasm",
+          "mirrorPath": "programs/wasm32/findutils/find.wasm",
+          "mode": 493,
+          "size": 457455,
+          "sha256": "21a68e4d83fea6fa0d49b34310dcae1c550368d4f986d9124d8f1cfc66dca1a9"
+        },
+        {
+          "sourceArtifact": "xargs.wasm",
+          "mirrorPath": "programs/wasm32/findutils/xargs.wasm",
+          "mode": 493,
+          "size": 139189,
+          "sha256": "eabe12ebc8c6972f4a56bf7f0ac42b632a8c447d0b65fbb09b3e18c234d32446"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "gawk",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "a541a82d7c3049235c12c0bb19edf44e7e4a4954ddb5a5033c20d417d0e7c2a4",
+      "cacheKeySha256": "39118fc09fec1a8565136498765623a7f8a948569f9cbd9ed30dda44ebf1a9c2",
+      "cacheReceiptSha256": "54612f1105f255a66e6c8a7fd6167df2bf0c9fd66a8d23bffeea7bdad66595df",
+      "members": [
+        {
+          "sourceArtifact": "gawk.wasm",
+          "mirrorPath": "programs/wasm32/gawk.wasm",
+          "mode": 493,
+          "size": 1417766,
+          "sha256": "45523c79d8d5d20111e92a39311a0ce0cfdb5a20fb84dd079cb0080ef5683854"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "grep",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "82bea07002f3bd2d70b340849f0a8d5f9a479e67a59f5fdc5f5ed02a26ed8745",
+      "cacheKeySha256": "a8f1e537da88c01d7444774772c7ffd3eeff5fd52d964b20780e3c5286539afd",
+      "cacheReceiptSha256": "4c4b8ae6db927e1c8d3094affa0df44b6bb1832ff722c6ed8363f9f4ffa92c65",
+      "members": [
+        {
+          "sourceArtifact": "grep.wasm",
+          "mirrorPath": "programs/wasm32/grep.wasm",
+          "mode": 493,
+          "size": 386494,
+          "sha256": "257ffb0c581b11d760ac1a961cfb070f8a42be3baf0d2ccb5d49ffdfcf20d182"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "kandelo-image-module",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "b7cf95017c336c45d9739290fb6e9c2a736182ca904e9ad7f81b942c79b540d0",
+      "cacheKeySha256": "d40a240868afa288b51da8fef54acf867357338792940763ef965904196497fc",
+      "cacheReceiptSha256": "3b114293b370dd3104730d0ed7bddce68034a845d22c27e8a58d4e1cc77cdb69",
+      "members": [
+        {
+          "sourceArtifact": "kandelo_image_module32.wasm",
+          "mirrorPath": "kandelo_image_module32.wasm",
+          "mode": 420,
+          "size": 165197,
+          "sha256": "752a60891120c6de97813f9fe278143f1d95ed74f590830995aae8d48346bf3c"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "kernel",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "3cfdfa2130a0917b23ee9ae760901e5caa225654169a51f767413c38025b7b2d",
+      "cacheKeySha256": "0794a0933fecc2f4f7f536223a4a85096c3986f4f400ce2470415b7b16d0af60",
+      "cacheReceiptSha256": "2a80998c9ab5a1eb68651f38848da3d145e79fc961cd01404346f0b589ec3e0c",
+      "members": [
+        {
+          "sourceArtifact": "kandelo-kernel.wasm",
+          "mirrorPath": "kernel.wasm",
+          "mode": 493,
+          "size": 1396810,
+          "sha256": "ff778c38f4c17ed4ba692b2f46dec7557f386f767eb847fb1e1bc2e831abb838"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "login",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "b324b43ff4dc097d31fb4aebd3ac21c42cbbe65008996a11a98f7ebabe694101",
+      "cacheKeySha256": "935ef1189204f30ae0e0542139a965b396dfeff87b47d73fd7a3f1e1f3d22e34",
+      "cacheReceiptSha256": "7f0f4ca63da8e18d76dcdbef0384c4b48d1a9b009fde662242a7b8e18bede6ed",
+      "members": [
+        {
+          "sourceArtifact": "login.wasm",
+          "mirrorPath": "programs/wasm32/login.wasm",
+          "mode": 493,
+          "size": 97184,
+          "sha256": "83a70dddce3e6d5cc75969dcd5549f80f87118de1a88285b6cd0aa639da461a9"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "m4",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "919dd8f79a58c8fa7ff55a13003dd38c3f07d9c8cd150213fb4d855fc7269e9b",
+      "cacheKeySha256": "d59baf593807f2a67a0f9536ada356a1bac04b83ba685481297af74158ba3956",
+      "cacheReceiptSha256": "70040248acee1774000e04fb7f7bc369616ca75e675081b82645102ad1527678",
+      "members": [
+        {
+          "sourceArtifact": "m4.wasm",
+          "mirrorPath": "programs/wasm32/m4.wasm",
+          "mode": 493,
+          "size": 641344,
+          "sha256": "055948e6293d4fed3fed1c11eebe80c524bdc9a36960692518c958beab9262ef"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "make",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "c01bf3f64968c041bba5d18950c08a854d5c681ea7fd883856408cd6f1409a63",
+      "cacheKeySha256": "76f45165e4bd15f74e768d738a7abc862643a3b8903bc4ff599d19867ba810b8",
+      "cacheReceiptSha256": "7b7258c455ae6bae0e83dc5a51c880f9d312796261911caac5fd8ef8e4605e56",
+      "members": [
+        {
+          "sourceArtifact": "make.wasm",
+          "mirrorPath": "programs/wasm32/make.wasm",
+          "mode": 493,
+          "size": 428878,
+          "sha256": "ef25a81dc81bf01e791fe9bef4f30e19c2b96a0865db15745e90153990e9e943"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "ncurses",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "721adce1526ad9907b46925b33377e2905465a628a94b98181381e2939d18cf2",
+      "cacheKeySha256": "e8d096845f67e9c5c84aab484c6cad56642ade3d615968e67811abb9de5b9b9c",
+      "cacheReceiptSha256": "878b505af5b0d90e5c5cf484d55e44115c8b254d829160e15796ece426bb935c",
+      "members": [
+        {
+          "sourceArtifact": "captoinfo.wasm",
+          "mirrorPath": "programs/wasm32/ncurses/captoinfo.wasm",
+          "mode": 493,
+          "size": 264392,
+          "sha256": "d5eda8f033b91d46dd06e0782eaa0841dcd5a12e519283a7608967d98ff43c55"
+        },
+        {
+          "sourceArtifact": "clear.wasm",
+          "mirrorPath": "programs/wasm32/ncurses/clear.wasm",
+          "mode": 493,
+          "size": 107106,
+          "sha256": "634d31cf95d1bf161ab9521e427dd490245e1c7974c91ca4ff7169d7a0ef40d5"
+        },
+        {
+          "sourceArtifact": "infocmp.wasm",
+          "mirrorPath": "programs/wasm32/ncurses/infocmp.wasm",
+          "mode": 493,
+          "size": 233992,
+          "sha256": "aef39110559a1f5650d52fdae6becc7b4619c96db89fda571d63ef6fd4e4759e"
+        },
+        {
+          "sourceArtifact": "infotocap.wasm",
+          "mirrorPath": "programs/wasm32/ncurses/infotocap.wasm",
+          "mode": 493,
+          "size": 264392,
+          "sha256": "d5eda8f033b91d46dd06e0782eaa0841dcd5a12e519283a7608967d98ff43c55"
+        },
+        {
+          "sourceArtifact": "reset.wasm",
+          "mirrorPath": "programs/wasm32/ncurses/reset.wasm",
+          "mode": 493,
+          "size": 128928,
+          "sha256": "660f75559ff1088112638cd3ae3a120e024a2e8b178ab1523a6156a23001da65"
+        },
+        {
+          "sourceArtifact": "tabs.wasm",
+          "mirrorPath": "programs/wasm32/ncurses/tabs.wasm",
+          "mode": 493,
+          "size": 120030,
+          "sha256": "7989a7e0cd5d1c80d60c3c2ba0a726cab98d4755a45e78838736eb2555f59712"
+        },
+        {
+          "sourceArtifact": "terminfo.zip",
+          "mirrorPath": "programs/wasm32/ncurses/terminfo.zip",
+          "mode": 420,
+          "size": 33933,
+          "sha256": "9137b3cef0c494a91648b399650f0f561a02f0ef37c6f56056d6690cac0c58b6"
+        },
+        {
+          "sourceArtifact": "tic.wasm",
+          "mirrorPath": "programs/wasm32/ncurses/tic.wasm",
+          "mode": 493,
+          "size": 264392,
+          "sha256": "d5eda8f033b91d46dd06e0782eaa0841dcd5a12e519283a7608967d98ff43c55"
+        },
+        {
+          "sourceArtifact": "toe.wasm",
+          "mirrorPath": "programs/wasm32/ncurses/toe.wasm",
+          "mode": 493,
+          "size": 133284,
+          "sha256": "c2d3d9c10b09013c7acbea2bc5e232f2a1cff09eaeee1c32a56991f36a7148f6"
+        },
+        {
+          "sourceArtifact": "tput.wasm",
+          "mirrorPath": "programs/wasm32/ncurses/tput.wasm",
+          "mode": 493,
+          "size": 129594,
+          "sha256": "af30227f114d47f2a394205459052ffbd85ea5b27927e88f22c7db5aba370e13"
+        },
+        {
+          "sourceArtifact": "tset.wasm",
+          "mirrorPath": "programs/wasm32/ncurses/tset.wasm",
+          "mode": 493,
+          "size": 128928,
+          "sha256": "660f75559ff1088112638cd3ae3a120e024a2e8b178ab1523a6156a23001da65"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "nginx",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "b78552502c63bef2814c8aae76fedfdb4f273e4ee0c42023d6157ddb298ff815",
+      "cacheKeySha256": "24a6439eed383b203aa7f6886b436102d7782949359b58e11adb6d2382960f9f",
+      "cacheReceiptSha256": "94ae233d6dd4313f1912a588456da3f295146d3264a61d87cbee0ef49c9572f9",
+      "members": [
+        {
+          "sourceArtifact": "nginx.wasm",
+          "mirrorPath": "programs/wasm32/nginx.wasm",
+          "mode": 493,
+          "size": 639083,
+          "sha256": "8fb78d7f15392bc286d85ca61bd00e9ae5489fc05cb701f28422a3a77d348b35"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "php",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "14114e280941f1f2f6a4c5abc11698b4b01f909be4cf2aac5b0e68845fed4644",
+      "cacheKeySha256": "a43bdd28a05836bdfc5c13975feb9368fe15c23e9314e39183b031a1fc7be45c",
+      "cacheReceiptSha256": "4cf27148ac02c7ccb3db96ffcb65073e0a3c98724025039aaa00b9aa4df1aff9",
+      "members": [
+        {
+          "sourceArtifact": "curl.so",
+          "mirrorPath": "programs/wasm32/php/curl.so",
+          "mode": 493,
+          "size": 1023411,
+          "sha256": "9d9412bf4e3e67e73ee0ead46345a984d5bcd94ff1d6c07a4ebd7e022422259b"
+        },
+        {
+          "sourceArtifact": "icu.dat",
+          "mirrorPath": "programs/wasm32/php/icu.dat",
+          "mode": 420,
+          "size": 30782896,
+          "sha256": "dc778b9ffe18ed319ad3fb70754f80e51cf7b6dbfff38fc0c0a5f27bb5463dad"
+        },
+        {
+          "sourceArtifact": "intl.so",
+          "mirrorPath": "programs/wasm32/php/intl.so",
+          "mode": 493,
+          "size": 7404413,
+          "sha256": "ed575156a25ea995bc22b538c0afcb003a22d6f6b286e86e6350200507b3d6dd"
+        },
+        {
+          "sourceArtifact": "opcache.so",
+          "mirrorPath": "programs/wasm32/php/opcache.so",
+          "mode": 493,
+          "size": 278144,
+          "sha256": "ae2a4961621359f46ae59e096d13ed8002b12fd15cc05f53f69b12705ab030b9"
+        },
+        {
+          "sourceArtifact": "phar.so",
+          "mirrorPath": "programs/wasm32/php/phar.so",
+          "mode": 493,
+          "size": 456660,
+          "sha256": "e30a4fd3d6d935f635784271824f8da74ce09616b8afdd913483e4f285972c0b"
+        },
+        {
+          "sourceArtifact": "php-fpm.wasm",
+          "mirrorPath": "programs/wasm32/php/php-fpm.wasm",
+          "mode": 493,
+          "size": 28582010,
+          "sha256": "3a57acd9a83ff30a69ef42fcf804d9951d4d08137035afb4f8aeaa4c2b6aa7e2"
+        },
+        {
+          "sourceArtifact": "php.wasm",
+          "mirrorPath": "programs/wasm32/php/php.wasm",
+          "mode": 493,
+          "size": 28441221,
+          "sha256": "0d1af930148c617113b81d37f9b43792cd6f03c7ebb989e335d2a2aad5f8f327"
+        },
+        {
+          "sourceArtifact": "zend_test.so",
+          "mirrorPath": "programs/wasm32/php/zend_test.so",
+          "mode": 493,
+          "size": 114721,
+          "sha256": "40dd92b731d16f4462dffa3da1b4b36ac9c19cce95e5f2ec86cc73dcb90f3e18"
+        },
+        {
+          "sourceArtifact": "zip.so",
+          "mirrorPath": "programs/wasm32/php/zip.so",
+          "mode": 493,
+          "size": 260446,
+          "sha256": "ddbbeff8f797ff217a8308f0cc2542fb561b96c2aa5bcf06ac4d44a03f072400"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "posix-utils-lite",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "40408581fb58dd3282af1c3955eec06bda0bedd9ed87afd8a1e1a8e3ca2e7aa9",
+      "cacheKeySha256": "aa04cc67733afd91387c94027ab8076b630b13dbd3f6862f8f40abd29b051fc5",
+      "cacheReceiptSha256": "df041a3d4927a36fb929f8ba87140f0a4292ca99038c155e95a9701654262a0f",
+      "members": [
+        {
+          "sourceArtifact": "ar.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/ar.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "asa.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/asa.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "cal.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/cal.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "cflow.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/cflow.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "compress.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/compress.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "ctags.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/ctags.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "cxref.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/cxref.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "ed.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/ed.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "ex.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/ex.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "fuser.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/fuser.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "gencat.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/gencat.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "getconf.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/getconf.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "gettext.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/gettext.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "iconv.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/iconv.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "ipcrm.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/ipcrm.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "ipcs.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/ipcs.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "lex.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/lex.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "locale.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/locale.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "logger.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/logger.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "man.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/man.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "more.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/more.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "msgfmt.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/msgfmt.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "ngettext.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/ngettext.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "nm.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/nm.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "patch.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/patch.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "pax.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/pax.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "pgrep.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/pgrep.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "ps.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/ps.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "renice.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/renice.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "strings.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/strings.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "strip.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/strip.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "uncompress.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/uncompress.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "uudecode.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/uudecode.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "uuencode.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/uuencode.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "what.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/what.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "xgettext.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/xgettext.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        },
+        {
+          "sourceArtifact": "yacc.wasm",
+          "mirrorPath": "programs/wasm32/posix-utils-lite/yacc.wasm",
+          "mode": 493,
+          "size": 153370,
+          "sha256": "a81acb4644096d067066f49750494777db5bf58a667456db50dcd729f63fb75a"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "rootfs",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "2e68515b3ca0949821435d5341d1e94a3ec094f497d40d4d5d8f6c1d015cfbde",
+      "cacheKeySha256": "497fe6a9e348940a825d2aebcd4a34463aa32991f4a6ce53f3dfed227515dca9",
+      "cacheReceiptSha256": "5b2271f59f7c66a475d28cabddbf1709147ea7f3e440d8e482a55569868eff3d",
+      "members": [
+        {
+          "sourceArtifact": "rootfs.vfs.zst",
+          "mirrorPath": "programs/wasm32/rootfs.vfs.zst",
+          "mode": 420,
+          "size": 306031,
+          "sha256": "9ca55cd68f9dc40da5cf73216c3c4561f036210a613f99c06f0162fcb32ddc74"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "sed",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "0ac72c93e26ffe357cb6efe39ff8b20c9093023a839d9e48e25bd90ec64e55b3",
+      "cacheKeySha256": "917223ac2159e0ba376f9baf5ffb027490919152b74d392befd630804a92fec7",
+      "cacheReceiptSha256": "872be8121bd1eabcc9fb5f9cb559d3a60dfb106635ae1764ad4a8dc340209de3",
+      "members": [
+        {
+          "sourceArtifact": "sed.wasm",
+          "mirrorPath": "programs/wasm32/sed.wasm",
+          "mode": 493,
+          "size": 329298,
+          "sha256": "ccc62da3f8fadcd8a785479e99ca0e0818571fdcbef773303b30001179917f6b"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "sudo",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "c426c1b4d00d29492bfeaf3c81422d044709a81b5b234af700c3d50531fbe25b",
+      "cacheKeySha256": "a8c66830eb87adce41e4580b85648016237c3138638b2e62622f5239df6b7a47",
+      "cacheReceiptSha256": "0256d67dd1e159b5e4baac2c17636b210cd644a9df6772b9fe5786885c7ea943",
+      "members": [
+        {
+          "sourceArtifact": "cvtsudoers.wasm",
+          "mirrorPath": "programs/wasm32/sudo/cvtsudoers.wasm",
+          "mode": 493,
+          "size": 523567,
+          "sha256": "1e16db80cba4b54488eca2a121d5ff08f00bf74f46fdd89765b5edad4c205097"
+        },
+        {
+          "sourceArtifact": "sudo.wasm",
+          "mirrorPath": "programs/wasm32/sudo/sudo.wasm",
+          "mode": 493,
+          "size": 782616,
+          "sha256": "07800731219237802cbc32e885709739065401605c5988fb847e0297b28b4205"
+        },
+        {
+          "sourceArtifact": "sudoreplay.wasm",
+          "mirrorPath": "programs/wasm32/sudo/sudoreplay.wasm",
+          "mode": 493,
+          "size": 270074,
+          "sha256": "6d9ca9f0e6038a4ff2e0a199c0bcf6db4a28bcb42196573b542dd574843e9dbb"
+        },
+        {
+          "sourceArtifact": "visudo.wasm",
+          "mirrorPath": "programs/wasm32/sudo/visudo.wasm",
+          "mode": 493,
+          "size": 403892,
+          "sha256": "04bdcdd53c5b8ba7c05f1a770cf858728e0a9b3c67c57c5af738e16c3f4d0434"
+        }
+      ]
+    },
+    {
+      "node": {
+        "kind": "package",
+        "name": "sudo-lite",
+        "targetArch": "wasm32"
+      },
+      "manifestSha256": "92f12ae0931061c3c4de5ef287bca88597cba432ecbdd35f569ac4c0e5167e59",
+      "cacheKeySha256": "4c4000856b959dd4a888c4cfa5d2b053d89a37660c61cd925a5ef2edae1f8167",
+      "cacheReceiptSha256": "8c1ca8e882352cd6568a49909174ae82ac70d87642b09a3965d911929ae6cfe7",
+      "members": [
+        {
+          "sourceArtifact": "sudo-lite.wasm",
+          "mirrorPath": "programs/wasm32/sudo-lite.wasm",
+          "mode": 493,
+          "size": 113958,
+          "sha256": "ad63a4677f6049c6e7a84b28f709f8801c2b158cc1d03aeed7f13306fe14af18"
+        }
+      ]
+    }
+  ]
+}

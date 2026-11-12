@@ -2,7 +2,7 @@
 	"extends": "./tsconfig.json",
 	"compilerOptions": {
 		"outDir": "../../../dist/out-tsc",
-		"types": ["vitest/globals", "vitest/importMeta", "node"]
+		"types": ["vitest/globals", "vitest/importMeta", "node", "vite/client"]
 	},
 	"include": [
 		"../wordpress/src/zstddec-stream.d.ts",
