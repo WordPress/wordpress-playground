@@ -8,7 +8,6 @@ import type { RemoteAccessHostClient } from './types';
 export interface RemoteAccessHostStatus {
 	isActive: boolean;
 	status: TunnelHostStatus;
-	shareUrl: string | null;
 	sessionId: string | null;
 	accessCode: string | null;
 	pendingVerificationCode: string | null;
@@ -23,7 +22,6 @@ export interface RemoteAccessHostControllerOptions {
 export class RemoteAccessHostController {
 	private tunnelHost: DirectTunnelHost | null = null;
 	private currentSessionId: string | null = null;
-	private currentShareUrl: string | null = null;
 	private readonly statusListeners = new Set<
 		(status: RemoteAccessHostStatus) => void
 	>();
@@ -37,7 +35,6 @@ export class RemoteAccessHostController {
 		return {
 			isActive: this.tunnelHost !== null,
 			status: this.tunnelHost?.getStatus() ?? 'disconnected',
-			shareUrl: this.currentShareUrl,
 			sessionId: this.currentSessionId,
 			accessCode: this.tunnelHost?.getAccessCode() ?? null,
 			pendingVerificationCode:
@@ -53,10 +50,10 @@ export class RemoteAccessHostController {
 		};
 	}
 
-	async start(playgroundClient: RemoteAccessHostClient): Promise<string> {
+	async start(playgroundClient: RemoteAccessHostClient): Promise<void> {
 		if (this.tunnelHost) {
-			if (this.currentShareUrl) {
-				return this.currentShareUrl;
+			if (this.currentSessionId) {
+				return;
 			}
 			throw new Error('Remote access is already starting.');
 		}
@@ -73,13 +70,11 @@ export class RemoteAccessHostController {
 		});
 
 		try {
-			this.currentShareUrl = await this.tunnelHost.startSharing();
+			await this.tunnelHost.startSharing();
 			this.currentSessionId = this.tunnelHost.getSessionId();
 			this.notifyListeners();
-			return this.currentShareUrl;
 		} catch (error) {
 			this.tunnelHost = null;
-			this.currentShareUrl = null;
 			this.currentSessionId = null;
 			this.notifyListeners();
 			throw error;
@@ -92,7 +87,6 @@ export class RemoteAccessHostController {
 		}
 		await this.tunnelHost.stopSharing();
 		this.tunnelHost = null;
-		this.currentShareUrl = null;
 		this.currentSessionId = null;
 		this.notifyListeners();
 	}

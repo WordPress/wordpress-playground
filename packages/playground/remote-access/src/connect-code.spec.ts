@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
 	buildRemoteAccessRelayEndpointUrl,
-	buildRemoteAccessUrl,
 	formatAccessCode,
 	normalizeAccessCode,
 } from './connect-code';
@@ -19,24 +18,6 @@ describe('remote access connect code helpers', () => {
 		expect(formatAccessCode('12')).toBe('12');
 		expect(formatAccessCode('1234')).toBe('123-4');
 		expect(formatAccessCode('123456789')).toBe('123-456');
-	});
-
-	it('builds share URLs from absolute and relative URLs', () => {
-		expect(
-			buildRemoteAccessUrl(
-				'https://example.com/connect/my-apps/?tab=all',
-				'session-1'
-			)
-		).toBe('/connect/my-apps/?tab=all&share=session-1');
-		expect(buildRemoteAccessUrl('/connect', 'session-2')).toBe(
-			'/connect?share=session-2'
-		);
-		expect(
-			buildRemoteAccessUrl(
-				'/connect/?tab=all&share=old-session',
-				'session-3'
-			)
-		).toBe('/connect/?tab=all&share=session-3');
 	});
 
 	it('builds direct relay.php endpoint URLs', () => {

@@ -11,7 +11,6 @@ import {
 	fetchRemoteAccessRelayProbe,
 	getRemoteAccessPathFromConnectUrl,
 	getRemoteAccessRelayRequestMessage,
-	getRemoteAccessSessionId as getRemoteAccessSessionIdFromUrl,
 	postRemoteAccessRelayError,
 	postRemoteAccessRelayMapping,
 	postRemoteAccessRelayResponse,
@@ -178,7 +177,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 					return;
 				}
 				if (res.status === 404) {
-					setError('This remote access link has expired.');
+					setError('This remote access session has expired.');
 					setStatus('error');
 					return;
 				}
@@ -748,10 +747,6 @@ function unwrapRemoteAccessFrameMessage(
 		return null;
 	}
 	return event.data as RemoteAccessFrameMessage;
-}
-
-export function getRemoteAccessSessionId(): string | null {
-	return getRemoteAccessSessionIdFromUrl(window.location.href);
 }
 
 function clearRemoteAccessRelay() {

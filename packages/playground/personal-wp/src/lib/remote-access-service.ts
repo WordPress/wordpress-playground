@@ -34,7 +34,7 @@ export function subscribeToRemoteAccessStatus(
 
 export async function startRemoteAccess(
 	playgroundClient: PlaygroundClient
-): Promise<string> {
+): Promise<void> {
 	return hostController.start(playgroundClient);
 }
 

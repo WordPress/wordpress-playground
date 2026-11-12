@@ -182,13 +182,8 @@ function RemoteAccessSection() {
 		}
 		setMessage(null);
 		try {
-			const shareUrl = await startRemoteAccess(playground);
+			await startRemoteAccess(playground);
 			logPersonalWpEvent('remote_access_started');
-			setMessage(
-				(await copyUrl(shareUrl))
-					? 'Remote access link copied.'
-					: 'Remote access link ready.'
-			);
 		} catch (error) {
 			logger.error('Failed to start remote access:', error);
 			setMessage(
@@ -214,37 +209,8 @@ function RemoteAccessSection() {
 		setMessage('Enter the code shown on the remote device.');
 	}
 
-	async function copyCurrentUrl() {
-		if (!remoteAccess.shareUrl) {
-			return;
-		}
-		setMessage(
-			(await copyUrl(remoteAccess.shareUrl))
-				? 'Remote access link copied.'
-				: 'Copy is not available.'
-		);
-	}
-
-	async function shareCurrentUrl() {
-		if (!remoteAccess.shareUrl || !navigator.share) {
-			return;
-		}
-		try {
-			await navigator.share({
-				title: 'My WordPress remote access',
-				url: remoteAccess.shareUrl,
-			});
-		} catch (error) {
-			if ((error as { name?: string })?.name === 'AbortError') {
-				return;
-			}
-			logger.error('Failed to share remote access link:', error);
-			setMessage('Could not share remote access link.');
-		}
-	}
-
 	const isStarting = remoteAccess.status === 'connecting';
-	const isActive = remoteAccess.isActive && remoteAccess.shareUrl;
+	const isActive = remoteAccess.isActive && remoteAccess.accessCode;
 	const isConnected = remoteAccess.status === 'connected';
 	const connectUrl = `${window.location.origin}/connect`;
 
@@ -315,22 +281,6 @@ function RemoteAccessSection() {
 						<div className={css.remoteAccessButtons}>
 							<button
 								type="button"
-								className={css.backupNowButton}
-								onClick={copyCurrentUrl}
-							>
-								Copy link
-							</button>
-							{'share' in navigator && (
-								<button
-									type="button"
-									className={css.backupNowButton}
-									onClick={shareCurrentUrl}
-								>
-									Share
-								</button>
-							)}
-							<button
-								type="button"
 								className={css.textButton}
 								onClick={stopAccess}
 							>
@@ -398,18 +348,6 @@ function RemoteAccessDiagnostics({
 			)}
 		</details>
 	);
-}
-
-async function copyUrl(url: string): Promise<boolean> {
-	try {
-		if (!navigator.clipboard) {
-			return false;
-		}
-		await navigator.clipboard.writeText(url);
-		return true;
-	} catch {
-		return false;
-	}
 }
 
 // ── Backup ────────────────────────────────────────────────────

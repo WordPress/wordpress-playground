@@ -6,16 +6,17 @@ import { personalWPSiteSlug } from 'virtual:website-defaults';
 import { opfsSiteStorage } from '../../lib/state/opfs/opfs-site-storage';
 import { getAppBaseUrl } from '../../lib/state/url/app-base-url';
 import {
-	buildRemoteAccessUrl,
 	formatAccessCode,
 	normalizeAccessCode,
 	resolveAccessCode,
 	ResolveAccessCodeError,
 } from '@wp-playground/remote-access';
+import { RemoteAccessViewer } from '../remote-access-viewer';
 import css from './style.module.css';
 
 export function RemoteAccessConnect() {
 	const [code, setCode] = useState('');
+	const [sessionId, setSessionId] = useState<string | null>(null);
 	const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
 	const [error, setError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
@@ -121,10 +122,9 @@ export function RemoteAccessConnect() {
 				window.location.origin,
 				normalized
 			);
-			window.location.href = buildRemoteAccessUrl(
-				window.location.href,
-				data.sessionId
-			);
+			// Keep the session in this document only. A URL must never start a connection.
+			window.history.replaceState({}, '', '/connect/');
+			setSessionId(data.sessionId);
 		} catch (error) {
 			if (
 				error instanceof ResolveAccessCodeError &&
@@ -139,6 +139,10 @@ export function RemoteAccessConnect() {
 			setStatus('error');
 			setError('Could not connect. Check the code and try again.');
 		}
+	}
+
+	if (sessionId) {
+		return <RemoteAccessViewer sessionId={sessionId} />;
 	}
 
 	return (
@@ -192,9 +196,11 @@ export function RemoteAccessConnect() {
 
 export function isRemoteAccessConnectRoute(): boolean {
 	// The deployment serves index.html for unknown paths.
-	// That SPA fallback is what lets /connect and /connect/... resume here.
+	// That SPA fallback lets /connect and /connect/... display code entry.
 	return (
 		window.location.pathname === '/connect' ||
-		window.location.pathname.startsWith('/connect/')
+		window.location.pathname.startsWith('/connect/') ||
+		// Old share links lead to code entry, never directly to the viewer.
+		new URL(window.location.href).searchParams.has('share')
 	);
 }
