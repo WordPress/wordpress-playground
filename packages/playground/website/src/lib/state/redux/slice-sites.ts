@@ -872,6 +872,8 @@ export type SiteThumbnail = SiteImage;
  * The Site metadata that is persisted.
  */
 export interface SiteMetadata {
+	/** Public destination only. Spacefast credentials stay in document memory. */
+	spacefast?: { spaceId: string; url: string };
 	storage: SiteStorageType;
 	id: string;
 	name: string;

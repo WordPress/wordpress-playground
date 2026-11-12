@@ -26,6 +26,7 @@
 		"builder/**/*.ts",
 		"builder/**/*.tsx",
 		"demos/github.ts",
+		"demos/spacefast.tsx",
 		"demos/time-traveling.tsx",
 		"demos/peer.ts",
 		"demos/terminal.ts",

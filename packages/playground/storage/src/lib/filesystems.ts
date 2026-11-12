@@ -339,6 +339,7 @@ export class OverlayFilesystem implements ReadableFilesystemBackend {
 export interface FetchFilesystemOptions {
 	corsProxy?: string;
 	baseUrl: string;
+	fetch?: typeof fetch;
 }
 
 /**
@@ -394,7 +395,8 @@ export class FetchFilesystem implements ReadableFilesystemBackend {
 			: url;
 
 		// Fetch the file
-		const response = await fetch(finalUrl);
+		const fetchFile = this.options.fetch || fetch;
+		const response = await fetchFile(finalUrl);
 		if (!response.ok) {
 			throw new Error(
 				`Failed to fetch file at ${path}: ${response.statusText}`
