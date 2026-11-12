@@ -31,8 +31,19 @@ try {
 		registration.installing ?? registration.waiting ?? registration.active;
 	if (!worker)
 		throw new Error('The Playground service worker is unavailable.');
+	// A worker claims pages only when it activates. One that was already active
+	// will never claim this document, e.g. after a hard reload, so reload at once.
+	const alreadyActive = worker === registration.active;
 	await waitFor(() => worker.state === 'activated', worker, 'statechange');
 	try {
+		if (
+			alreadyActive &&
+			navigator.serviceWorker.controller?.scriptURL !== workerUrl.href
+		) {
+			throw new Error(
+				'The active Playground service worker cannot claim this page.'
+			);
+		}
 		await waitFor(
 			() =>
 				navigator.serviceWorker.controller?.scriptURL ===
