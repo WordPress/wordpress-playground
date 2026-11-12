@@ -695,9 +695,9 @@ function compileStep<S extends StepDefinition>(
 		gitAdditionalHeadersCallback,
 	}: CompileStepArgsOptions
 ): { run: CompiledV1Step; step: S; resources: Array<Resource<any>> } {
+	// Set the caption in run() so a later step cannot mask the one currently executing.
 	const stepProgress = rootProgressTracker.stage(
-		(step.progress?.weight || 1) / totalProgressWeight,
-		step.progress?.caption
+		(step.progress?.weight || 1) / totalProgressWeight
 	);
 
 	const args: any = {};
@@ -734,7 +734,7 @@ function compileStep<S extends StepDefinition>(
 					...resolvedArgs.options,
 					humanReadableName:
 						resolvedArgs.options?.humanReadableName ||
-						resource.name,
+						resource.humanReadableName,
 				};
 			}
 			return await keyedStepHandlers[step.step](

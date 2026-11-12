@@ -304,6 +304,11 @@ export abstract class Resource<T extends File | Directory> {
 	/** The name of the referenced file */
 	abstract get name(): string;
 
+	/** The name used in progress captions. */
+	get humanReadableName(): string {
+		return this.name;
+	}
+
 	/** Whether this Resource is loaded asynchronously */
 	get isAsync(): boolean {
 		return false;
@@ -440,6 +445,10 @@ export abstract class ResourceDecorator<
 		return this.resource.name;
 	}
 
+	override get humanReadableName() {
+		return this.resource.humanReadableName;
+	}
+
 	/** @inheritDoc */
 	override get isAsync(): boolean {
 		return this.resource.isAsync;
@@ -558,7 +567,7 @@ export abstract class FetchResource extends Resource<File> {
 				);
 			}
 			const filename =
-				this.filename ||
+				this.name ||
 				parseContentDisposition(
 					response.headers.get('content-disposition') || ''
 				) ||
@@ -586,12 +595,7 @@ export abstract class FetchResource extends Resource<File> {
 	 * @returns The caption.
 	 */
 	protected get caption() {
-		return `Downloading ${this.name}`;
-	}
-
-	/** The filename to use for the downloaded file. */
-	protected get filename() {
-		return this.name;
+		return `Downloading ${this.humanReadableName}`;
 	}
 
 	/** @inheritDoc */
@@ -909,10 +913,23 @@ abstract class WordPressOrgResource extends FetchResource {
 	}
 
 	override async resolve() {
+		const [file] = await Promise.all([
+			super.resolve(),
+			this.fetchDisplayName(),
+		]);
+		return file;
+	}
+
+	override get name() {
+		return zipNameToHumanName(this.resource.slug);
+	}
+
+	override get humanReadableName() {
+		return this.displayName || this.name;
+	}
+
+	private async fetchDisplayName() {
 		const isPlugin = this.resource.resource === 'wordpress.org/plugins';
-		this.progress?.setCaption(
-			isPlugin ? 'Preparing plugin' : 'Preparing theme'
-		);
 		const url = new URL(
 			`https://api.wordpress.org/${isPlugin ? 'plugins' : 'themes'}/info/1.2/`
 		);
@@ -936,21 +953,14 @@ abstract class WordPressOrgResource extends FetchResource {
 					metadata.name.trim()
 				) {
 					this.displayName = decodeHTML(metadata.name);
+					if (this.progress && !this.progress.done) {
+						this.progress.setCaption(this.caption);
+					}
 				}
 			}
 		} catch {
 			// Display metadata is optional, including when offline or the API times out.
 		}
-		return super.resolve();
-	}
-
-	override get name() {
-		return this.displayName || zipNameToHumanName(this.resource.slug);
-	}
-
-	protected override get filename() {
-		// Display metadata must not change filenames used by other Blueprint steps.
-		return zipNameToHumanName(this.resource.slug);
 	}
 }
 

@@ -194,9 +194,7 @@ export const installTheme: StepHandler<
 				},
 				progress && {
 					...progress,
-					initialCaption:
-						progress.initialCaption ||
-						`Activating ${progressName()}`,
+					initialCaption: `Activating ${progressName()}`,
 				}
 			);
 		}

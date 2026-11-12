@@ -1,3 +1,4 @@
+import { ProgressTracker } from '@php-wasm/progress';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
 	CorePluginResource,
@@ -58,15 +59,66 @@ describe('WordPress.org resource metadata', () => {
 			// Exercise the cache/decorator path used by the compiler, too.
 			const resource = Resource.create(reference, {});
 			const file = (await resource.resolve()) as File;
-			expect(resource.name).toBe(metadata.name);
+			expect(resource.humanReadableName).toBe(metadata.name);
+			expect(resource.name).toBe(fallbackName);
 			expect(file.name).toBe(fallbackName);
 			expect(await file.text()).toBe('requested archive');
-			expect(requests[1]).toBe(url);
+			expect(requests).toContain(url);
 			expect(reference).toEqual(originalReference);
 			await resource.resolve();
 			expect(requests).toHaveLength(2);
 		}
 	);
+
+	it('keeps the default name of a wrapped archive after resolving metadata', async () => {
+		vi.stubGlobal('fetch', async (request: Request) =>
+			new URL(request.url).hostname === 'api.wordpress.org'
+				? Response.json({ name: 'Yoast SEO' })
+				: new Response('archive')
+		);
+		const resource = Resource.create(
+			{
+				resource: 'zip',
+				inner: {
+					resource: 'wordpress.org/plugins',
+					slug: 'wordpress-seo',
+				},
+			},
+			{}
+		);
+		expect(resource.name).toBe('Wordpress seo.zip');
+		expect((await resource.resolve()).name).toBe('Wordpress seo.zip');
+	});
+
+	it('downloads while metadata is pending and updates the active caption', async () => {
+		let sendMetadata!: (response: Response) => void;
+		let sendArchive!: (response: Response) => void;
+		const fetch = vi.fn(
+			(request: Request) =>
+				new Promise<Response>((resolve) => {
+					if (new URL(request.url).hostname === 'api.wordpress.org') {
+						sendMetadata = resolve;
+					} else {
+						sendArchive = resolve;
+					}
+				})
+		);
+		vi.stubGlobal('fetch', fetch);
+		const progress = new ProgressTracker();
+		const resource = Resource.create(
+			{ resource: 'wordpress.org/plugins', slug: 'wordpress-seo' },
+			{ progress }
+		);
+		const file = resource.resolve();
+		await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2));
+		expect(progress.caption).toBe('Downloading Wordpress seo');
+		sendMetadata(Response.json({ name: 'Yoast SEO' }));
+		await vi.waitFor(() =>
+			expect(progress.caption).toBe('Downloading Yoast SEO')
+		);
+		sendArchive(new Response('archive'));
+		expect((await file).name).toBe('Wordpress seo');
+	});
 
 	it.each([
 		() => Promise.reject(new TypeError('Network unavailable')),
@@ -121,6 +173,8 @@ describe('WordPress.org resource metadata', () => {
 			slug: 'health-check',
 		});
 		await resource.resolve();
-		expect(resource.name).toBe('Health Check & Troubleshooting — 🚀');
+		expect(resource.humanReadableName).toBe(
+			'Health Check & Troubleshooting — 🚀'
+		);
 	});
 });
