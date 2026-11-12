@@ -4,8 +4,6 @@ import { createSlice } from '@reduxjs/toolkit';
 import type { ReprintKeyPair } from '../../reprint/keys';
 import type { ProgressDetails } from '@php-wasm/progress';
 import { BlueprintStepExecutionError } from '@wp-playground/blueprints';
-import { BREAKPOINTS } from '../../constants/breakpoints';
-import { shouldUseFileBrowserQuery } from '../url/filebrowser-query';
 
 export type SiteError =
 	| 'directory-handle-not-found-in-indexeddb'
@@ -151,6 +149,11 @@ function findUrlInCauseChain(error: Error): string | undefined {
 	return undefined;
 }
 
+export type InitialDockState = Pick<
+	UIState,
+	'dockPaneIsOpen' | 'dockPaneSection' | 'cloneRequested'
+>;
+
 export interface UIState {
 	activeSite?: {
 		slug: string;
@@ -196,18 +199,6 @@ export interface UIState {
 }
 
 const query = new URL(document.location.href).searchParams;
-const cloneSiteUrl =
-	query.get('mode') !== 'seamless'
-		? query.get('clone-site')?.trim()
-		: undefined;
-const isEmbeddedInAnIframe = window.self !== window.top;
-
-const shouldOpenDockPaneByDefault = false;
-const useFileBrowserQuery = shouldUseFileBrowserQuery(
-	query,
-	isEmbeddedInAnIframe
-);
-
 const initialState: UIState = {
 	/**
 	 * Don't show certain modals after a page refresh.
@@ -229,40 +220,17 @@ const initialState: UIState = {
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
 	shareExportOpen: false,
-	// NOTE: Please do not eliminate the cases in this dockPaneIsOpen expression,
-	// even if they seem redundant. We may experiment with toggling the Dock
-	// pane to be open by default or closed by default, and we do not want to
-	// lose specific reasons for the Dock pane to be closed.
-	dockPaneIsOpen:
-		// The Dock pane should not be shown at all in seamless mode.
-		query.get('mode') !== 'seamless' &&
-		(useFileBrowserQuery ||
-			!!cloneSiteUrl ||
-			query.get('overlay') !== null ||
-			(shouldOpenDockPaneByDefault &&
-				// We do not expect to render the Playground app UI in an iframe.
-				!isEmbeddedInAnIframe &&
-				// Don't default to the Dock pane on small screens (mobile/tablet),
-				// as that would mean seeing something that's not Playground filling
-				// your entire screen – quite a confusing experience.
-				window.innerWidth >= BREAKPOINTS.tablet)),
-	dockPaneSection: cloneSiteUrl
-		? 'transfer'
-		: useFileBrowserQuery
-			? 'files'
-			: query.get('overlay') === 'blueprints' ||
-				  query.get('overlay') === 'new'
-				? 'new'
-				: query.get('overlay') !== null
-					? 'playgrounds'
-					: 'settings',
-	cloneRequested: cloneSiteUrl ? { url: cloneSiteUrl } : undefined,
+	dockPaneIsOpen: false,
+	dockPaneSection: 'settings',
 };
 
 const uiSlice = createSlice({
 	name: 'ui',
 	initialState,
 	reducers: {
+		initializeDock: (state, action: PayloadAction<InitialDockState>) => {
+			Object.assign(state, action.payload);
+		},
 		/** Select a site and discard the clone form when leaving a site. */
 		setActiveSite: (state, action: PayloadAction<string | undefined>) => {
 			// Startup selects the Playground that hosts a linked clone form.
@@ -437,6 +405,7 @@ export const listenToOnlineOfflineEventsMiddleware: Middleware =
 	};
 
 export const {
+	initializeDock,
 	setActiveModal,
 	setActiveSiteError,
 	clearActiveSiteError,
