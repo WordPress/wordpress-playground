@@ -73,7 +73,6 @@ downloading them:
 | `https://github.com/OWNER/REPO/blob/BRANCH/PATH`            | `https://raw.githubusercontent.com/OWNER/REPO/BRANCH/PATH`             |
 | `https://github.com/OWNER/REPO/raw/BRANCH/PATH`             | `https://raw.githubusercontent.com/OWNER/REPO/BRANCH/PATH`             |
 | `https://gist.github.com/OWNER/GIST_ID`                     | `https://gist.githubusercontent.com/OWNER/GIST_ID/raw`                 |
-| `https://gist.github.com/OWNER/GIST_ID/REVISION`            | `https://gist.githubusercontent.com/OWNER/GIST_ID/raw/REVISION`        |
 | `https://gist.github.com/OWNER/GIST_ID/raw/[REVISION/]FILE` | `https://gist.githubusercontent.com/OWNER/GIST_ID/raw/[REVISION/]FILE` |
 
 For example, this `writeFile` step downloads a plugin file straight from a Gist:
@@ -90,7 +89,8 @@ For example, this `writeFile` step downloads a plugin file straight from a Gist:
 ```
 
 A Gist URL without a file name downloads the first file in the Gist. To download
-another file from a multi-file Gist, use its `/raw/FILE` URL. Steps that rely on the
+another file from a multi-file Gist, use its `/raw/FILE` URL. To pin a revision,
+use `/raw/REVISION/FILE`. Revision page URLs without a file name are not rewritten. Steps that rely on the
 downloaded file name, such as `installPlugin` with a single `.php` file, also need
 the `/raw/FILE` URL, for example
 `https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/block-hooks-demo.php`.

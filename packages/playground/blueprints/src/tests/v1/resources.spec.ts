@@ -56,8 +56,8 @@ describe('UrlResource', () => {
 			'https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw',
 		],
 		[
-			'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/40832fe912dc1187c4e9114e175e328f0e7d147b',
-			'https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw/40832fe912dc1187c4e9114e175e328f0e7d147b',
+			'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee?utm_source=share',
+			'https://gist.githubusercontent.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw?utm_source=share',
 		],
 		[
 			'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/raw',
@@ -84,6 +84,7 @@ describe('UrlResource', () => {
 		'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee#file-block-hooks-demo-php',
 		'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee.js',
 		'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/revisions',
+		'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/40832fe912dc1187c4e9114e175e328f0e7d147b',
 	])('should leave other gist.github.com URLs untouched (%s)', (url) => {
 		const resource = new UrlResource({ resource: 'url', url });
 		expect(resource.getURL()).toBe(url);
