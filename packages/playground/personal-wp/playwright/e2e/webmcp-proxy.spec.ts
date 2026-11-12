@@ -1,3 +1,4 @@
+import type { Page } from '@playwright/test';
 import { test, expect } from '../playground-fixtures';
 
 /**
@@ -85,161 +86,182 @@ add_action('wp_head', function () {
 }, 20);
 `;
 
-test.describe('WebMCP proxy', () => {
+test.describe('WebMCP site tool gateway', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.addInitScript(webmcpMock);
 	});
 
-	test('advertises and runs a tool the site registered', async ({
-		website,
-	}) => {
+	test('offers and runs a tool the site registered', async ({ website }) => {
 		const { page } = website;
 		await website.goto('./');
 
-		// Playground registers its own tools before the site has booted, so
-		// wait until one of them can actually reach the client.
+		// Personal WP lists its site once the site's client exists.
 		await expect
 			.poll(
 				() =>
 					page.evaluate(async () => {
 						const executors = (window as any).__webmcpExecutors;
-						if (!executors?.playground_get_site_info) {
-							return false;
-						}
-						const info = await executors.playground_get_site_info(
+						const result = await executors?.playground_list_sites?.(
 							{}
 						);
-						return typeof info?.wpVersion === 'string';
+						return result?.sites?.[0]?.siteId ?? null;
 					}),
+				{ timeout: 60_000, intervals: [1_000] }
+			)
+			.not.toBeNull();
+		await grantSiteAccess(page);
+
+		const run = (name: string, input: Record<string, unknown> = {}) =>
+			page.evaluate(
+				({ name, input }) =>
+					(window as any).__webmcpExecutors[name](input),
+				{ name, input }
+			);
+		const siteToolNames = async () => {
+			const listed = await run('playground_list_site_tools');
+			return (listed.content?.tools ?? []).map(
+				(tool: { name: string }) => tool.name
+			);
+		};
+
+		// Playground registers its own tools before the site has booted, so
+		// wait until one of them can actually reach the client.
+		await expect
+			.poll(
+				async () =>
+					typeof (await run('playground_get_site_info'))
+						?.wpVersion === 'string',
 				{ timeout: 60_000, intervals: [1_000] }
 			)
 			.toBe(true);
 
-		await page.evaluate(async (plugin) => {
-			const executors = (window as any).__webmcpExecutors;
-			await executors['playground_mkdir']({
-				path: '/wordpress/wp-content/mu-plugins',
-			});
-			await executors['playground_write_file']({
-				path: '/wordpress/wp-content/mu-plugins/webmcp-tool.php',
-				contents: plugin,
-			});
-			await executors['playground_navigate']({ path: '/' });
-		}, TOOL_PLUGIN);
+		await run('playground_mkdir', {
+			path: '/wordpress/wp-content/mu-plugins',
+		});
+		await run('playground_write_file', {
+			path: '/wordpress/wp-content/mu-plugins/webmcp-tool.php',
+			contents: TOOL_PLUGIN,
+		});
+		await run('playground_navigate', { path: '/' });
 
-		// The site's tool is now advertised by the Playground page itself.
+		// The site's tool is offered through the gateway, never as a tool of
+		// the Personal WP page itself.
 		await expect
-			.poll(
-				() =>
-					page.evaluate(() =>
-						(window as any).__webmcpTools.map(
-							(tool: { name: string }) => tool.name
-						)
-					),
-				{ timeout: 60_000, intervals: [1_000] }
-			)
+			.poll(siteToolNames, { timeout: 60_000, intervals: [1_000] })
 			.toContain('site_greeting');
-
-		const proxied = await page.evaluate(() =>
-			(window as any).__webmcpTools.find(
-				(tool: { name: string }) => tool.name === 'site_greeting'
-			)
-		);
-		expect(proxied.description).toBe(
-			'Greets someone using the WordPress site name.'
-		);
-		expect(proxied.inputSchema.required).toEqual(['name']);
-
-		// Calling it from the outside executes inside the WordPress document.
-		const result = await page.evaluate(async () =>
-			(window as any).__webmcpExecutors['site_greeting']({
-				name: 'Playground',
-			})
-		);
-		expect(result.greeting).toContain('Hello Playground from ');
-
-		const toolNames = () =>
-			page.evaluate(() =>
+		expect(
+			await page.evaluate(() =>
 				(window as any).__webmcpTools.map(
 					(tool: { name: string }) => tool.name
 				)
-			);
+			)
+		).not.toContain('site_greeting');
+
+		const listed = await run('playground_list_site_tools');
+		const greeting = listed.content.tools.find(
+			(tool: { name: string }) => tool.name === 'site_greeting'
+		);
+		expect(greeting.description).toBe(
+			'Greets someone using the WordPress site name.'
+		);
+		expect(greeting.inputSchema.required).toEqual(['name']);
+
+		// Calling it executes inside the WordPress document.
+		const result = await run('playground_call_site_tool', {
+			tool: 'site_greeting',
+			arguments: { name: 'Playground' },
+		});
+		expect(result.source).toBe('wordpress-site');
+		expect(result.content.result.greeting).toContain(
+			'Hello Playground from '
+		);
 
 		// A plugin can add and withdraw tools while the page stays put, so
-		// the proxy must follow the registry rather than page loads.
+		// the gateway must follow the registry rather than page loads.
 		const wordpress = website.wordpress().locator('body');
 		await wordpress.evaluate(() => (window as any).__addExtraTool());
 		await expect
-			.poll(toolNames, { timeout: 30_000, intervals: [500] })
+			.poll(siteToolNames, { timeout: 30_000, intervals: [500] })
 			.toContain('site_extra');
 
 		await wordpress.evaluate(() => (window as any).__withdrawExtraTool());
 		await expect
-			.poll(toolNames, { timeout: 30_000, intervals: [500] })
+			.poll(siteToolNames, { timeout: 30_000, intervals: [500] })
 			.not.toContain('site_extra');
 		// Withdrawing one tool leaves the rest alone.
-		expect(await toolNames()).toContain('site_greeting');
+		expect(await siteToolNames()).toContain('site_greeting');
 
 		// A document Playground does not inject the registry into announces
-		// nothing, so the tool must not stay advertised on its predecessor's
+		// nothing, so the tool must not stay listed on its predecessor's
 		// behalf — and must come back on return.
-		await page.evaluate(async () => {
-			await (window as any).__webmcpExecutors['playground_navigate']({
-				path: '/wp-admin/admin-ajax.php?action=nope',
-			});
+		await run('playground_navigate', {
+			path: '/wp-admin/admin-ajax.php?action=nope',
 		});
 		await expect
-			.poll(toolNames, { timeout: 30_000, intervals: [500] })
+			.poll(siteToolNames, { timeout: 30_000, intervals: [500] })
 			.not.toContain('site_greeting');
 
-		await page.evaluate(async () => {
-			await (window as any).__webmcpExecutors['playground_navigate']({
-				path: '/',
-			});
-		});
+		await run('playground_navigate', { path: '/' });
 		await expect
-			.poll(toolNames, { timeout: 30_000, intervals: [500] })
+			.poll(siteToolNames, { timeout: 30_000, intervals: [500] })
 			.toContain('site_greeting');
 
 		// The login screen is deliberately left out: it fires neither
-		// `wp_head` nor `admin_head`, so it carries no registry and proxies
+		// `wp_head` nor `admin_head`, so it carries no registry and offers
 		// nothing. `reauth=1` reaches the form despite the auto-login.
-		await page.evaluate(async () => {
-			await (window as any).__webmcpExecutors['playground_navigate']({
-				path: '/wp-login.php?reauth=1',
-			});
-		});
+		await run('playground_navigate', { path: '/wp-login.php?reauth=1' });
 		await expect
-			.poll(toolNames, { timeout: 30_000, intervals: [500] })
+			.poll(siteToolNames, { timeout: 30_000, intervals: [500] })
 			.not.toContain('site_greeting');
 
-		await page.evaluate(async () => {
-			await (window as any).__webmcpExecutors['playground_navigate']({
-				path: '/',
-			});
-		});
+		await run('playground_navigate', { path: '/' });
 		await expect
-			.poll(toolNames, { timeout: 30_000, intervals: [500] })
+			.poll(siteToolNames, { timeout: 30_000, intervals: [500] })
 			.toContain('site_greeting');
 
 		// Navigating to a page that registers nothing withdraws the tool.
-		await page.evaluate(async () => {
-			const executors = (window as any).__webmcpExecutors;
-			await executors['playground_delete_file']({
-				path: '/wordpress/wp-content/mu-plugins/webmcp-tool.php',
-			});
-			await executors['playground_navigate']({ path: '/' });
+		await run('playground_delete_file', {
+			path: '/wordpress/wp-content/mu-plugins/webmcp-tool.php',
 		});
+		await run('playground_navigate', { path: '/' });
 		await expect
-			.poll(
-				() =>
-					page.evaluate(() =>
-						(window as any).__webmcpTools.map(
-							(tool: { name: string }) => tool.name
-						)
-					),
-				{ timeout: 60_000, intervals: [1_000] }
-			)
+			.poll(siteToolNames, { timeout: 60_000, intervals: [1_000] })
 			.not.toContain('site_greeting');
 	});
 });
+
+/**
+ * Requests access to the site the way an agent would, approves it in Personal
+ * WP's dialog, and makes `window.__webmcpExecutors` pass the site ID and
+ * grant to every tool that needs them.
+ */
+async function grantSiteAccess(page: Page) {
+	const siteId: string = await page.evaluate(async () => {
+		const { sites } = await (
+			window as any
+		).__webmcpExecutors.playground_list_sites({});
+		return sites[0].siteId;
+	});
+	const request = page.evaluate(
+		(siteId) =>
+			(window as any).__webmcpExecutors.playground_request_site_access({
+				siteId,
+			}),
+		siteId
+	);
+	await page.getByRole('button', { name: 'Allow', exact: true }).click();
+	const { grant } = await request;
+	await page.evaluate(
+		({ siteId, grant }) => {
+			const w = window as any;
+			for (const tool of w.__webmcpTools) {
+				if (tool.inputSchema?.required?.includes('grant')) {
+					w.__webmcpExecutors[tool.name] = (
+						input: Record<string, unknown>
+					) => tool.execute({ siteId, grant, ...input });
+				}
+			}
+		},
+		{ siteId, grant }
+	);
+}

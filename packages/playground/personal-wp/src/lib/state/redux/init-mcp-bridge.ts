@@ -6,10 +6,15 @@ import type {
 	WebMCPSiteToolProxy,
 } from '@wp-playground/mcp/client';
 import {
+	createWebMCPSiteAccess,
 	registerWebMCPTools,
 	startMcpBridge,
-	startWebMCPSiteToolProxy,
+	startWebMCPSiteToolGateway,
 } from '@wp-playground/mcp/client';
+import {
+	agentSiteAccessPrompt,
+	setAgentSiteAccess,
+} from '../../agent-site-access';
 import { personalWPSiteSlug } from 'virtual:website-defaults';
 import type { PlaygroundReduxState, PlaygroundDispatch } from './store';
 import {
@@ -121,15 +126,40 @@ startListening({
 			},
 		};
 
-		void registerWebMCPTools(mcpConfig).catch((error) => {
-			logger.warn('WebMCP registration failed:', error);
+		const siteAccess = createWebMCPSiteAccess({
+			...mcpConfig,
+			// Unlike list(), keep reporting the site while it boots, so a
+			// reboot does not look like a deletion and revoke agent grants.
+			list: () => {
+				const site =
+					listenerApi.getState().sites.entities[
+						PERSONAL_WP_MCP_SITE_SLUG
+					];
+				return site
+					? [
+							{
+								slug: PERSONAL_WP_MCP_SITE_SLUG,
+								name: site.metadata.name,
+								storage: site.metadata.storage,
+								isActive: true,
+							},
+						]
+					: [];
+			},
+			confirmSiteAccess: agentSiteAccessPrompt.confirm,
 		});
+		setAgentSiteAccess(siteAccess);
+		void registerWebMCPTools({ ...mcpConfig, siteAccess }).catch(
+			(error) => {
+				logger.warn('WebMCP registration failed:', error);
+			}
+		);
 
 		/**
-		 * Mirrors the WebMCP tools a plugin registers inside the WordPress
-		 * document onto this page, so an agent driving Playground can call
-		 * them. The proxy is tied to one client, so it restarts whenever the
-		 * site is booted or replaced.
+		 * Makes the WebMCP tools a plugin registers inside the WordPress
+		 * document reachable through Playground's site tool gateway. The
+		 * gateway is tied to one client, so it restarts whenever the site is
+		 * booted or replaced.
 		 */
 		let siteToolProxy: WebMCPSiteToolProxy | null = null;
 		let proxiedClient: PlaygroundClient | undefined;
@@ -140,7 +170,7 @@ startListening({
 			}
 			proxiedClient = client;
 			siteToolProxy?.stop();
-			siteToolProxy = client ? startWebMCPSiteToolProxy(client) : null;
+			siteToolProxy = client ? startWebMCPSiteToolGateway(client) : null;
 		};
 		syncSiteToolProxy();
 
