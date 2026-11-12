@@ -482,8 +482,13 @@ export async function bootPlaygroundRemote() {
 		async onWebMCPToolsChanged(fn) {
 			return webMCPBridge.subscribe(fn);
 		},
-		async callWebMCPTool(name, args, callId) {
-			return await webMCPBridge.callTool(name, args, callId);
+		async callWebMCPTool(name, args, callId, onUserInteraction) {
+			return await webMCPBridge.callTool(
+				name,
+				args,
+				callId,
+				onUserInteraction
+			);
 		},
 		async cancelWebMCPTool(callId) {
 			webMCPBridge.cancelTool(callId);

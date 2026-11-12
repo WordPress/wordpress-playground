@@ -13,6 +13,10 @@ const CALL_TOOL = 'playground-webmcp-call-tool';
 const CALL_RESULT = 'playground-webmcp-call-result';
 const CANCEL_TOOL = 'playground-webmcp-cancel-tool';
 const DOCUMENT_HIDDEN = 'playground-webmcp-document-hidden';
+const INTERACTION_REQUEST = 'playground-webmcp-interaction-request';
+const INTERACTION_RUN = 'playground-webmcp-interaction-run';
+const INTERACTION_DENIED = 'playground-webmcp-interaction-denied';
+const INTERACTION_RESULT = 'playground-webmcp-interaction-result';
 
 const CALL_TIMEOUT_MS = 60000;
 
@@ -43,14 +47,30 @@ export interface WebMCPToolDescriptor {
 	};
 }
 
+/**
+ * Handles a site tool's `requestUserInteraction()` for one call.
+ *
+ * `runInSite` runs the site's callback inside the WordPress document and
+ * resolves with its result. The handler decides whether and when to call it,
+ * typically after handing control to the user. A rejection refuses the
+ * interaction.
+ */
+export type WebMCPUserInteractionHandler = (
+	runInSite: () => Promise<unknown>
+) => Promise<unknown>;
+
 export interface WebMCPFrameBridge {
 	subscribe(listener: (tools: WebMCPToolDescriptor[]) => void): () => void;
 	dispose(): void;
-	/** Use a fresh call ID for each invocation; pending duplicates are rejected. */
+	/**
+	 * Use a fresh call ID for each invocation; pending duplicates are rejected.
+	 * Without `onUserInteraction`, the tool's interaction requests are refused.
+	 */
 	callTool(
 		name: string,
 		args: Record<string, unknown>,
-		callId?: string
+		callId?: string,
+		onUserInteraction?: WebMCPUserInteractionHandler
 	): Promise<unknown>;
 	cancelTool(callId: string): void;
 }
@@ -82,6 +102,16 @@ export function createWebMCPFrameBridge(
 			resolve: (value: unknown) => void;
 			reject: (error: Error) => void;
 			timeout: ReturnType<typeof setTimeout>;
+			onUserInteraction?: WebMCPUserInteractionHandler;
+		}
+	>();
+	const pendingInteractions = new Map<
+		string,
+		{
+			callId: string;
+			documentId: string | undefined;
+			resolve: (value: unknown) => void;
+			reject: (error: Error) => void;
 		}
 	>();
 
@@ -131,6 +161,14 @@ export function createWebMCPFrameBridge(
 		}
 		if (data.type === CALL_RESULT) {
 			resolveCall(data);
+			return;
+		}
+		if (data.type === INTERACTION_REQUEST) {
+			handleInteractionRequest(data);
+			return;
+		}
+		if (data.type === INTERACTION_RESULT) {
+			resolveInteraction(data);
 		}
 	}
 	window.addEventListener('message', handleMessage);
@@ -166,6 +204,7 @@ export function createWebMCPFrameBridge(
 			}
 			pendingCalls.delete(callId);
 			clearTimeout(pending.timeout);
+			rejectCallInteractions(callId);
 			pending.reject(
 				new Error(
 					'The WordPress page changed before the WebMCP tool responded. ' +
@@ -210,6 +249,7 @@ export function createWebMCPFrameBridge(
 		}
 		pendingCalls.delete(callId);
 		clearTimeout(pending.timeout);
+		rejectCallInteractions(callId);
 		if (typeof data.error === 'string') {
 			pending.reject(new Error(data.error));
 			return;
@@ -224,6 +264,110 @@ export function createWebMCPFrameBridge(
 			pending.reject(
 				new Error('The WebMCP tool returned an unparsable result.')
 			);
+		}
+	}
+
+	/**
+	 * Relays a site tool's interaction request to the handler its caller supplied.
+	 * Requests that no pending call of this document can claim are refused.
+	 */
+	function handleInteractionRequest(data: {
+		documentId?: unknown;
+		callId?: unknown;
+		interactionId?: unknown;
+	}) {
+		if (typeof data.interactionId !== 'string' || !data.interactionId) {
+			return;
+		}
+		const interactionId = data.interactionId;
+		const requestDocumentId =
+			typeof data.documentId === 'string' ? data.documentId : undefined;
+		const callId = typeof data.callId === 'string' ? data.callId : '';
+		const pending = pendingCalls.get(callId);
+		const deny = (reason: string) =>
+			postMessage({
+				type: INTERACTION_DENIED,
+				documentId: requestDocumentId,
+				interactionId,
+				error: reason,
+			});
+		if (
+			!pending ||
+			pending.documentId !== requestDocumentId ||
+			!pending.onUserInteraction
+		) {
+			deny('User interaction is not available for this tool call.');
+			return;
+		}
+		const runInSite = () =>
+			new Promise<unknown>((resolve, reject) => {
+				if (!pendingCalls.has(callId)) {
+					reject(new Error('The tool call has already ended.'));
+					return;
+				}
+				pendingInteractions.set(interactionId, {
+					callId,
+					documentId: requestDocumentId,
+					resolve,
+					reject,
+				});
+				postMessage({
+					type: INTERACTION_RUN,
+					documentId: requestDocumentId,
+					interactionId,
+				});
+			});
+		Promise.resolve()
+			.then(() => pending.onUserInteraction!(runInSite))
+			.catch((error: unknown) => {
+				// Once the callback runs, the WordPress document settles it.
+				if (!pendingInteractions.has(interactionId)) {
+					deny(
+						error instanceof Error && error.message
+							? error.message
+							: 'The user interaction was refused.'
+					);
+				}
+			});
+	}
+
+	function resolveInteraction(data: {
+		documentId?: unknown;
+		interactionId?: unknown;
+		error?: unknown;
+		resultJson?: unknown;
+	}) {
+		const interactionId =
+			typeof data.interactionId === 'string' ? data.interactionId : '';
+		const pending = pendingInteractions.get(interactionId);
+		if (!pending || data.documentId !== pending.documentId) {
+			return;
+		}
+		pendingInteractions.delete(interactionId);
+		if (typeof data.error === 'string') {
+			pending.reject(new Error(data.error));
+			return;
+		}
+		try {
+			pending.resolve(
+				typeof data.resultJson === 'string'
+					? JSON.parse(data.resultJson)
+					: null
+			);
+		} catch {
+			pending.reject(
+				new Error('The interaction returned an unparsable result.')
+			);
+		}
+	}
+
+	function rejectCallInteractions(callId: string) {
+		for (const [interactionId, pending] of pendingInteractions) {
+			if (pending.callId !== callId) {
+				continue;
+			}
+			pendingInteractions.delete(interactionId);
+			pending.reject(new Error('The tool call has ended.'));
 		}
 	}
 
@@ -263,7 +407,12 @@ export function createWebMCPFrameBridge(
 			};
 		},
 		/** Dispatch a tool call only to the rendered WordPress origin and bound its response time. */
-		async callTool(name, args, callId = crypto.randomUUID()) {
+		async callTool(
+			name,
+			args,
+			callId = crypto.randomUUID(),
+			onUserInteraction
+		) {
 			const contentWindow = wpFrame.contentWindow;
 			if (disposed || !contentWindow) {
 				throw new Error('The WordPress frame is not loaded.');
@@ -277,6 +426,7 @@ export function createWebMCPFrameBridge(
 			return await new Promise<unknown>((resolve, reject) => {
 				const timeout = setTimeout(() => {
 					pendingCalls.delete(callId);
+					rejectCallInteractions(callId);
 					reject(
 						new Error(
 							`The WebMCP tool "${name}" did not respond within ` +
@@ -289,6 +439,7 @@ export function createWebMCPFrameBridge(
 					resolve,
 					reject,
 					timeout,
+					onUserInteraction,
 				});
 				postMessage({
 					type: CALL_TOOL,
@@ -306,6 +457,7 @@ export function createWebMCPFrameBridge(
 			}
 			pendingCalls.delete(callId);
 			clearTimeout(pending.timeout);
+			rejectCallInteractions(callId);
 			postMessage({
 				type: CANCEL_TOOL,
 				callId,

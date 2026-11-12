@@ -79,10 +79,106 @@ describe('WebMCP frame cancellation', () => {
 	});
 });
 
+// Contract: a site interaction runs only through the caller-supplied handler for the
+// call that requested it. Requests for other calls, calls without a handler, and
+// cancelled calls are refused independently of the WordPress document's own state.
+describe('WebMCP frame interaction relay', () => {
+	it("runs the site callback only through the requesting call's handler", async () => {
+		vi.useFakeTimers();
+		let receive!: (event: MessageEvent) => void;
+		const postMessage = vi.fn();
+		const contentWindow = { postMessage };
+		vi.stubGlobal('window', {
+			addEventListener: (type: string, listener: typeof receive) => {
+				if (type === 'message') receive = listener;
+			},
+		});
+		const frame = {
+			contentWindow,
+			addEventListener: vi.fn(),
+		} as unknown as HTMLIFrameElement;
+		const bridge = createWebMCPFrameBridge(frame);
+		const deliver = (data: Record<string, unknown>) =>
+			receive({
+				source: contentWindow,
+				origin: 'https://wordpress.test',
+				data,
+			} as unknown as MessageEvent);
+		deliver({
+			type: 'playground-webmcp-tools-changed',
+			documentId: 'doc',
+			tools: [{ name: 'site_tool', description: '' }],
+		});
+		const request = (callId: string, interactionId: string) =>
+			deliver({
+				type: 'playground-webmcp-interaction-request',
+				documentId: 'doc',
+				callId,
+				interactionId,
+			});
+		const sent = () => postMessage.mock.calls.map(([message]) => message);
+
+		const handled = bridge.callTool(
+			'site_tool',
+			{},
+			'with-handler',
+			async (runInSite) => runInSite()
+		);
+		void bridge
+			.callTool('site_tool', {}, 'without-handler')
+			.catch(() => undefined);
+		request('with-handler', 'i-1');
+		request('without-handler', 'i-2');
+		request('unknown-call', 'i-3');
+		await vi.waitFor(() =>
+			expect(sent()).toContainEqual({
+				type: 'playground-webmcp-interaction-run',
+				documentId: 'doc',
+				interactionId: 'i-1',
+			})
+		);
+		for (const interactionId of ['i-2', 'i-3']) {
+			expect(sent()).toContainEqual({
+				type: 'playground-webmcp-interaction-denied',
+				documentId: 'doc',
+				interactionId,
+				error: expect.any(String),
+			});
+		}
+		deliver({
+			type: 'playground-webmcp-interaction-result',
+			documentId: 'doc',
+			interactionId: 'i-1',
+			resultJson: '"confirmed"',
+		});
+		deliver({
+			type: 'playground-webmcp-call-result',
+			documentId: 'doc',
+			callId: 'with-handler',
+			resultJson: '"done"',
+		});
+		await expect(handled).resolves.toBe('done');
+
+		let siteResult: Promise<unknown> | undefined;
+		void bridge
+			.callTool('site_tool', {}, 'cancelled', async (runInSite) => {
+				siteResult = runInSite();
+				return siteResult;
+			})
+			.catch(() => undefined);
+		request('cancelled', 'i-4');
+		await vi.waitFor(() => expect(siteResult).toBeDefined());
+		bridge.cancelTool('cancelled');
+		await expect(siteResult).rejects.toThrow();
+		bridge.cancelTool('without-handler');
+	});
+});
+
 // Execute the injected JavaScript itself: its per-call controller lives in the
-// WordPress document, independently of the remote bridge's pending-call map.
+// WordPress document, independently of the remote bridge's pending-call map. A site's
+// interaction callback must run only when the parent relays the user's confirmation.
 describe('WordPress WebMCP registry cancellation', () => {
-	it('aborts only the requested tool and preserves user interaction', async () => {
+	it('aborts only the requested tool and relays user interaction', async () => {
 		const source = readFileSync(
 			new URL('./playground-mu-plugin/0-playground.php', import.meta.url),
 			'utf8'
@@ -137,11 +233,17 @@ describe('WordPress WebMCP registry cancellation', () => {
 		});
 		const signals: AbortSignal[] = [];
 		const interaction = vi.fn(async () => 'confirmed');
+		const outcomes: unknown[] = [];
 		await document.modelContext!.registerTool({
 			name: 'site_tool',
 			execute: async (...[, client]) => {
 				signals.push(client.signal);
-				await client.requestUserInteraction(interaction);
+				outcomes.push(
+					await client.requestUserInteraction(interaction).then(
+						(value) => value,
+						(error: Error) => `refused: ${error.message}`
+					)
+				);
 				return new Promise((_resolve, reject) => {
 					client.signal.addEventListener('abort', () =>
 						reject(client.signal.reason)
@@ -170,7 +272,48 @@ describe('WordPress WebMCP registry cancellation', () => {
 				documentId: 'document-1',
 			});
 		}
-		await vi.waitFor(() => expect(interaction).toHaveBeenCalledTimes(2));
+		const requests = () =>
+			parent.postMessage.mock.calls
+				.map(([message]) => message)
+				.filter(
+					(message) =>
+						message.type === 'playground-webmcp-interaction-request'
+				);
+		await vi.waitFor(() => expect(requests()).toHaveLength(2));
+		expect(interaction).not.toHaveBeenCalled();
+		const [first, second] = requests();
+		expect(first).toMatchObject({
+			documentId: 'document-1',
+			callId: 'call-1',
+		});
+		send({
+			type: 'playground-webmcp-interaction-denied',
+			documentId: 'document-1',
+			interactionId: first.interactionId,
+			error: 'No confirmation available.',
+		});
+		for (let i = 0; i < 2; i++) {
+			send({
+				type: 'playground-webmcp-interaction-run',
+				documentId: 'document-1',
+				interactionId: second.interactionId,
+			});
+		}
+		await vi.waitFor(() => expect(outcomes).toHaveLength(2));
+		expect(outcomes).toEqual([
+			'refused: No confirmation available.',
+			'confirmed',
+		]);
+		expect(interaction).toHaveBeenCalledTimes(1);
+		expect(parent.postMessage).toHaveBeenCalledWith(
+			{
+				type: 'playground-webmcp-interaction-result',
+				documentId: 'document-1',
+				interactionId: second.interactionId,
+				resultJson: '"confirmed"',
+			},
+			'https://playground.test'
+		);
 		send({ type: 'playground-webmcp-cancel-tool', callId: 'call-1' });
 		expect(signals[0].aborted).toBe(true);
 		expect(signals[1].aborted).toBe(false);
