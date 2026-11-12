@@ -1,7 +1,9 @@
 <!doctype html>
-<html>
+<html lang="en">
 	<head>
+		<meta charset="utf-8" />
 		<title>WordPress Playground</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<style>
 			* {
 				box-sizing: border-box;
@@ -23,26 +25,118 @@
 			}
 
 			body.has-error {
-				padding: 15px;
-				background: #f1f1f1;
+				padding: 24px;
+				background: #f6f6f6;
+				color: #1a1919;
 				display: flex;
 				flex-direction: column;
 				align-items: center;
-				justify-content: center;
-				font-size: 20px;
-				font-family: Arial, Helvetica, sans-serif;
-				line-height: 1.4;
+				overflow: auto;
+				font:
+					14px/1.6 -apple-system,
+					BlinkMacSystemFont,
+					'Segoe UI',
+					sans-serif;
 			}
+
 			body.has-error .error-message {
-				padding: 20px;
-				max-width: 800px;
+				margin: auto;
+				padding: clamp(24px, 5vw, 40px);
+				width: 100%;
+				max-width: 680px;
+				background: #fff;
+				border: 1px solid rgba(26, 25, 25, 0.08);
+				border-radius: 14px;
+				box-shadow: 0 8px 32px rgba(26, 25, 25, 0.06);
+				overflow-wrap: anywhere;
 			}
+
+			.error-message h1 {
+				margin: 0 0 12px;
+				font-size: clamp(22px, 4vw, 28px);
+				line-height: 1.25;
+				letter-spacing: -0.02em;
+			}
+
+			.error-message p {
+				margin: 0 0 20px;
+			}
+
+			.error-details {
+				margin: 24px 0;
+				padding: 16px;
+				border-radius: 8px;
+				background: #ececec;
+			}
+
+			.error-details-header {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				flex-wrap: wrap;
+				gap: 12px;
+			}
+
+			.error-details h2 {
+				margin: 0;
+				font-size: 14px;
+			}
+
+			.error-details pre {
+				margin: 16px 0 0;
+				max-height: 240px;
+				overflow: auto;
+				white-space: pre-wrap;
+				font:
+					12px/1.6 'SFMono-Regular',
+					Consolas,
+					monospace;
+				user-select: text;
+			}
+
 			body.has-error button {
-				margin-top: 15px;
-				margin-bottom: 15px;
-				font-size: 20px;
-				padding: 5px 10px;
+				border: 1px solid #3858e9;
+				border-radius: 6px;
+				background: #3858e9;
+				color: #fff;
+				font: inherit;
+				font-weight: 500;
+				padding: 8px 16px;
 				cursor: pointer;
+			}
+
+			body.has-error button:hover {
+				background: #213fd4;
+			}
+
+			body.has-error .copy-error {
+				border-color: #656a71;
+				background: transparent;
+				color: inherit;
+				padding: 4px 10px;
+			}
+
+			body.has-error .copy-error:hover {
+				background: rgba(127, 127, 127, 0.12);
+			}
+
+			.error-message a {
+				color: #1d35b4;
+				text-underline-offset: 3px;
+			}
+
+			.error-message :focus-visible {
+				outline: 2px solid #3858e9;
+				outline-offset: 3px;
+			}
+
+			.error-message .copy-status {
+				margin: 8px 0 0;
+				font-size: 13px;
+			}
+
+			.error-message .report-issue {
+				margin: 20px 0 0;
 			}
 
 			@media (prefers-color-scheme: dark) {
@@ -50,6 +144,16 @@
 				body.has-error {
 					background: #1e1e1e;
 					color: #fff;
+				}
+				body.has-error .error-message {
+					background: #262626;
+					border-color: #404040;
+				}
+				body.has-error .error-details {
+					background: #333;
+				}
+				.error-message a {
+					color: #9fb1ff;
 				}
 			}
 		</style>
@@ -103,35 +207,60 @@
 			}
 
 			function renderGenericErrorUI(error) {
-				const fragment = document.createDocumentFragment();
-
-				const div = document.createElement('div');
-				div.className = 'error-message';
-				const userFriendlyMessage =
-					error.userFriendlyMessage ||
-					'See the developer tools for error details.';
-				div.innerHTML =
-					'Ooops! WordPress Playground had a hiccup! <br/><br/> ' +
-					userFriendlyMessage;
-				fragment.append(div);
-
-				const button = document.createElement('button');
-				button.innerText = 'Try again';
-				button.onclick = () => {
-					window.location.reload();
-				};
-				fragment.append(button);
-
-				const reportIssues = document.createElement('p');
-				reportIssues.innerHTML = `
-					If the problem persists, please
-					<a href="https://github.com/WordPress/wordpress-playground/issues/new"
-						target="_blank"
-						>report an issue on GitHub</a>.
+				const panel = document.createElement('main');
+				panel.className = 'error-message';
+				panel.innerHTML = `
+					<h1>Playground couldn’t start</h1>
+					<p class="error-description"></p>
+					<section class="error-details" aria-labelledby="error-details-title">
+						<div class="error-details-header">
+							<h2 id="error-details-title">Error details</h2>
+							<button type="button" class="copy-error">Copy error</button>
+						</div>
+						<pre tabindex="0"></pre>
+						<p class="copy-status" role="status"></p>
+					</section>
+					<p>Try again. If it keeps happening, copy the error details to help us investigate.</p>
+					<button type="button" class="retry">Try again</button>
+					<p class="report-issue">
+						<a href="https://github.com/WordPress/wordpress-playground/issues/new"
+							target="_blank" rel="noopener noreferrer">Report an issue on GitHub</a>
+					</p>
 				`;
-				fragment.append(reportIssues);
-
-				return fragment;
+				panel.querySelector('.error-description').textContent =
+					error?.userFriendlyMessage ||
+					'An unexpected error stopped Playground from starting. The details below may explain why.';
+				const details = panel.querySelector('pre');
+				details.textContent =
+					error?.stack ||
+					error?.message ||
+					String(error ?? 'No error details were provided.');
+				panel.querySelector('.copy-error').onclick = async () => {
+					const status = panel.querySelector('.copy-status');
+					try {
+						await navigator.clipboard.writeText(
+							[
+								panel.querySelector('h1').textContent,
+								panel.querySelector('.error-description')
+									.textContent,
+								details.textContent,
+							].join('\n\n')
+						);
+						status.textContent = 'Error copied.';
+					} catch {
+						status.textContent =
+							'Couldn’t copy automatically. Select the error details and copy them manually.';
+						const selection = window.getSelection();
+						const range = document.createRange();
+						range.selectNodeContents(details);
+						selection?.removeAllRanges();
+						selection?.addRange(range);
+						details.focus();
+					}
+				};
+				panel.querySelector('.retry').onclick = () =>
+					window.location.reload();
+				return panel;
 			}
 
 			async function renderStorageErrorUI() {
