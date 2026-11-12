@@ -187,6 +187,7 @@ export class BlueprintsV1Handler {
 				wordpressInstallMode: resolvedWordPressInstallMode,
 				phpVersion: runtimeConfiguration.phpVersion,
 				wpVersion: runtimeConfiguration.wpVersion,
+				installationLanguage: runtimeConfiguration.installationLanguage,
 				extensions,
 				withNetworking: runtimeConfiguration.networking,
 				corsProxyUrl: corsProxy,

@@ -175,6 +175,31 @@ describe('BlueprintsV1Handler', () => {
 		expect(progressTracker.pipe).not.toHaveBeenCalled();
 	});
 
+	it('passes the preparsed language to WordPress boot before running steps', async () => {
+		mocks.resolveRuntimeConfiguration.mockResolvedValue({
+			phpVersion: '8.4',
+			wpVersion: 'latest',
+			intl: false,
+			networking: false,
+			installationLanguage: 'de_DE',
+		});
+		const iframe = createIframe();
+		const handler = new BlueprintsV1Handler({
+			iframe,
+			remoteUrl: 'http://example.com/remote.html',
+			blueprint: {
+				steps: [{ step: 'setSiteLanguage', language: 'de_DE' }],
+			},
+		});
+		await handler.bootPlayground(iframe, createProgressTracker());
+		expect(mocks.playground.boot).toHaveBeenCalledWith(
+			expect.objectContaining({ installationLanguage: 'de_DE' })
+		);
+		expect(mocks.playground.boot.mock.invocationCallOrder[0]).toBeLessThan(
+			mocks.runBlueprintV1Steps.mock.invocationCallOrder[0]
+		);
+	});
+
 	it('passes query API PHP extension requests to the runtime', async () => {
 		mocks.resolveRuntimeConfiguration.mockResolvedValue({
 			phpVersion: '8.4',
