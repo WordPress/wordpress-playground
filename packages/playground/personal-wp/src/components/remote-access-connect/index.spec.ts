@@ -23,6 +23,13 @@ describe('RemoteAccessConnect route helpers', () => {
 		expect(isRemoteAccessConnectRoute()).toBe(false);
 	});
 
+	it('routes legacy share links to code entry', () => {
+		vi.stubGlobal('window', {
+			location: { pathname: '/', search: '?share=session-1' },
+		});
+		expect(isRemoteAccessConnectRoute()).toBe(true);
+	});
+
 	it('normalizes six digit codes', () => {
 		expect(normalizeAccessCode('123456')).toBe('123-456');
 		expect(normalizeAccessCode('123-456')).toBe('123-456');

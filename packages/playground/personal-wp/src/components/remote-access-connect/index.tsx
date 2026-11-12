@@ -201,6 +201,6 @@ export function isRemoteAccessConnectRoute(): boolean {
 		window.location.pathname === '/connect' ||
 		window.location.pathname.startsWith('/connect/') ||
 		// Old share links lead to code entry, never directly to the viewer.
-		new URL(window.location.href).searchParams.has('share')
+		new URLSearchParams(window.location.search).has('share')
 	);
 }
