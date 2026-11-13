@@ -13,8 +13,10 @@ import { wordPressSiteUrl } from './config';
  * Scoped app routes preserve the path, query, and fragment on the WordPress origin.
  * The explicit popup route supplies its destination in the hash. Accept only scoped URLs so this
  * wrapper cannot be used to load trusted app documents into the iframe.
+ * Loopback delegation is off by default. Personal WP's own entry document opts in;
+ * neither the hosting domain nor URL parameters enable it.
  */
-function bootWordPressPopup() {
+export function bootWordPressPopup({ allowLoopbackNetwork = false } = {}) {
 	const target = getURLScope(new URL(location.href))
 		? new URL(
 				location.pathname + location.search + location.hash,
@@ -25,7 +27,9 @@ function bootWordPressPopup() {
 		throw new Error('The popup URL must name a scoped WordPress page.');
 	}
 	const frame = document.querySelector('#wp') as HTMLIFrameElement;
+	// Only a trusted application entry point opts in; URL parameters cannot enable it.
+	if (allowLoopbackNetwork) {
+		frame.allow = `loopback-network ${wordPressSiteUrl}`;
+	}
 	frame.src = target.href;
 }
-
-bootWordPressPopup();
