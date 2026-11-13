@@ -2,8 +2,9 @@ import { afterEach, expect, it, vi } from 'vitest';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 
 vi.mock('./config', () => ({
-	playgroundOrigin: 'http://playground.localhost:9500',
-	wordPressSiteUrl: 'http://wp.playground.localhost:9500',
+	playgroundOrigin: 'http://playground.wordpress.localhost:9500',
+	assetBaseUrl: new URL('http://playground.wordpress.localhost:9500/'),
+	wordPressSiteUrl: 'http://wpsandbox.wordpress.localhost:9500',
 }));
 vi.mock('@wp-playground/wordpress', async (importOriginal) => ({
 	...(await importOriginal<Record<string, unknown>>()),
@@ -47,7 +48,7 @@ it('recovers a missing asset list from the shared origin for a stored minified s
 
 	expect(fetch).toHaveBeenCalledWith(
 		new URL(
-			'http://playground.localhost:9500/wp-6.9/wordpress-remote-asset-paths'
+			'http://playground.wordpress.localhost:9500/wp-6.9/wordpress-remote-asset-paths'
 		)
 	);
 	expect(writeFile).toHaveBeenCalledWith(

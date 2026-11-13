@@ -428,3 +428,5 @@ export const zipDirectory = async (
 		}
 	}
 };
+
+export { getReleaseRoot, getReleaseId } from './public-release';

@@ -23,6 +23,7 @@ describe('WordPress popup loopback permission', () => {
 			config.playgroundOrigin = origin;
 			const frame = { allow: '', src: '' };
 			vi.stubGlobal('location', {
+				origin,
 				href: origin + '/wordpress-popup.html',
 				hash: '#https://wpsandbox.wordpress.net/scope:popup/wp-admin/',
 			});

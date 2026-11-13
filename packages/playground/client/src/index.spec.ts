@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ProgressTracker } from '@php-wasm/progress';
+import type { StartPlaygroundWebOptions } from './index';
 import type { BlueprintBundle } from '@wp-playground/blueprints';
 
 const mocks = vi.hoisted(() => {
@@ -31,11 +32,93 @@ vi.mock('./blueprints-v2-handler', () => ({
 	BlueprintsV2Handler: mocks.BlueprintsV2Handler,
 }));
 
-import { startPlaygroundAPI, startPlaygroundWeb } from './index';
+import {
+	startPlaygroundAPI,
+	startPlaygroundWeb,
+	startPlaygroundWebForApp,
+} from './index';
 
 describe('startPlaygroundWeb', () => {
 	afterEach(() => {
 		vi.clearAllMocks();
+	});
+
+	it.each([{ mounts: [] }, { workerMode: 'shared', scope: 'known-site' }])(
+		'rejects public storage authority before loading a runtime: %j',
+		async (privateOptions) => {
+			const iframe = createIframe();
+			await expect(
+				startPlaygroundWeb({
+					iframe,
+					remoteUrl: 'http://localhost/remote.html',
+					...privateOptions,
+				} as unknown as StartPlaygroundWebOptions)
+			).rejects.toThrow('startPlaygroundWebForApp');
+			expect(iframe.src).toBe('');
+		}
+	);
+	it('rejects shared-runtime URL flags on the public entry point', async () => {
+		await expect(
+			startPlaygroundWeb({
+				iframe: createIframe(),
+				remoteUrl:
+					'http://localhost/remote.html?shared-worker=1&scope=known-site',
+			})
+		).rejects.toThrow('startPlaygroundWebForApp');
+	});
+	it('refuses an app connection from another origin before iframe navigation', async () => {
+		const iframe = createIframe();
+		await expect(
+			startPlaygroundWebForApp({
+				iframe,
+				remoteUrl: 'https://playground.wordpress.net/remote.html',
+			})
+		).rejects.toThrow('app-origin embedding document');
+		expect(iframe.src).toBe('');
+	});
+	it('uses the private connection only through the explicit app entry point', async () => {
+		mocks.BlueprintsV1Handler.mockImplementation(() => ({
+			bootPlayground: mocks.bootPlaygroundV1,
+		}));
+		const iframe = createIframe();
+		await startPlaygroundWebForApp({
+			iframe,
+			remoteUrl: 'http://localhost/remote.html',
+			progressTracker: createProgressTracker(),
+			mounts: [],
+			workerMode: 'shared',
+			scope: 'assigned',
+		});
+		expect(iframe.src).toContain('/app-runtime.html');
+	});
+
+	it('accepts an immutable release endpoint on a compatible origin', async () => {
+		mocks.BlueprintsV1Handler.mockImplementation(() => ({
+			bootPlayground: mocks.bootPlaygroundV1,
+		}));
+		mocks.bootPlaygroundV1.mockResolvedValue({ connected: true });
+		const iframe = createIframe();
+		await startPlaygroundWeb({
+			iframe,
+			remoteUrl: 'http://localhost/releases/release.A/remote.html',
+			progressTracker: createProgressTracker(),
+			blueprint: { steps: [] },
+		});
+		expect(iframe.src).toContain('/releases/release.A/remote.html');
+	});
+
+	it.each([
+		'http://localhost/releases/release.A/other/remote.html',
+		'https://example.com/releases/release.A/remote.html',
+	])('rejects an incompatible release endpoint: %s', async (remoteUrl) => {
+		await expect(
+			startPlaygroundWeb({
+				iframe: createIframe(),
+				remoteUrl,
+				progressTracker: createProgressTracker(),
+				blueprint: { steps: [] },
+			})
+		).rejects.toThrow('Invalid remote URL');
 	});
 
 	it('routes Blueprint v1 declarations through the v1 handler', async () => {
@@ -122,6 +205,25 @@ describe('startPlaygroundWeb', () => {
 });
 
 describe('startPlaygroundAPI', () => {
+	it('rejects a different caller origin before navigating the API frame', async () => {
+		const iframe = Object.assign(createIframe(), {
+			ownerDocument: {
+				defaultView: {
+					location: { origin: 'https://wpsandbox.wordpress.net' },
+				},
+			},
+		}) as unknown as HTMLIFrameElement;
+		await expect(
+			startPlaygroundAPI({
+				iframe,
+				apiUrl: 'https://playground.wordpress.net/api.html',
+			})
+		).rejects.toThrow(
+			'The saved-site API must be embedded by its app origin.'
+		);
+		expect(iframe.src).toBe('');
+	});
+
 	it.each([
 		['a different endpoint', 'http://localhost/remote.html'],
 		['an untrusted origin', 'https://example.com/api.html'],
@@ -137,6 +239,9 @@ describe('startPlaygroundAPI', () => {
 
 function createIframe() {
 	return {
+		ownerDocument: {
+			defaultView: { location: { origin: 'http://localhost' } },
+		},
 		src: '',
 		addEventListener: vi.fn((_event, callback: () => void) => {
 			callback();

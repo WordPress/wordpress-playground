@@ -12,7 +12,6 @@ import {
 	websiteDevServerPort,
 } from '../build-config';
 import { wordPressFrameDevPlugin } from './vite.wordpress-frame';
-import { wordPressSandboxPlugin } from './vite.wordpress-sandbox';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { copyFileSync, existsSync } from 'fs';
@@ -72,6 +71,11 @@ export default defineConfig(({ mode }) => {
 	);
 
 	return {
+		define: {
+			'import.meta.env.VITE_PLAYGROUND_APP_ORIGIN': JSON.stringify(
+				process.env['PLAYGROUND_APP_ORIGIN'] || ''
+			),
+		},
 		root: __dirname,
 		assetsInclude: [
 			'**/*.wasm',
@@ -81,6 +85,17 @@ export default defineConfig(({ mode }) => {
 			'**/*.tar.zst',
 		],
 		cacheDir: '../../../node_modules/.vite/playground',
+		// Vite does not crawl ?worker&url imports from HTML. Scan the worker graphs
+		// up front so discovery cannot replace optimized chunks during PHP startup.
+		optimizeDeps: {
+			entries: [
+				'*.html',
+				'*service-worker.ts',
+				'src/lib/**/*worker*.ts',
+				'src/lib/capture-site-thumbnail.ts',
+				'!src/**/*.spec.ts',
+			],
+		},
 		resolve: {
 			alias: [isomorphicGitBrowserAlias()],
 		},
@@ -135,9 +150,6 @@ export default defineConfig(({ mode }) => {
 
 		plugins: [
 			...plugins,
-			process.env['PLAYGROUND_APP_ORIGIN']
-				? wordPressSandboxPlugin(process.env['PLAYGROUND_APP_ORIGIN'])
-				: null,
 			mode === 'wordpress-frame'
 				? wordPressFrameDevPlugin(
 						`http://${websiteDevServerHost}:${websiteDevServerPort}`,
@@ -205,6 +217,10 @@ export default defineConfig(({ mode }) => {
 						if (chunkInfo.name === 'service-worker') {
 							return 'sw.js';
 						}
+						if (chunkInfo.name === 'app-service-worker')
+							return 'app-sw.js';
+						if (chunkInfo.name === 'sandbox-service-worker')
+							return 'sandbox-sw.js';
 						return '[name]-[hash].js';
 					},
 				},
@@ -221,9 +237,10 @@ export default defineConfig(({ mode }) => {
 			sourcemap: true,
 			rollupOptions: {
 				input: {
-					wordpress: path('/remote.html'),
-					'wordpress-bridge': path('/wordpress-bridge.html'),
-					'wordpress-popup': path('/wordpress-popup.html'),
+					wordpress: path('./remote.html'),
+					'app-runtime': path('./app-runtime.html'),
+					'wordpress-bridge': path('./wordpress-bridge.html'),
+					'wordpress-popup': path('./wordpress-popup.html'),
 				},
 				output: {
 					assetFileNames: (chunkInfo) => {

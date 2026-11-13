@@ -1,14 +1,16 @@
 import { test, expect } from '@playwright/test';
+import type { APIRequestContext } from '@playwright/test';
 
 test('should show inline fallback when the main module fails to load', async ({
 	page,
+	request,
 }) => {
 	// Block all requests for the main app module (initial + cache-busted retry).
 	// In dev mode Vite serves `/src/main.tsx`; in production builds
 	// it becomes `/assets/main-[hash].js`.
 	await page.route(/\/(src|assets)\/main/, (route) => route.abort('failed'));
 
-	await page.goto('./');
+	await page.goto(await getAppDocumentUrl(request));
 
 	const heading = page.locator('h1', {
 		hasText: 'Could not load WordPress Playground',
@@ -126,3 +128,18 @@ test('should recover when the Blueprint file could not be downloaded', async ({
 		)
 	).toBe(documentMarker);
 });
+
+/**
+ * Static releases start at a bootstrap whose service worker answers the main
+ * module request, and page.route() cannot intercept service worker responses.
+ * Open the release's app document directly, before any worker is registered.
+ */
+async function getAppDocumentUrl(request: APIRequestContext) {
+	const selector = await (await request.get('./')).text();
+	const release =
+		/<script id="playground-release" type="application\/json">(.*?)<\/script>/s.exec(
+			selector
+		);
+	if (!release) return './';
+	return `./releases/${JSON.parse(release[1]).release}/index.html`;
+}

@@ -84,49 +84,98 @@ worker loaders. Standalone remote, Personal WP, sync, and forwarded hosts retain
 their previous routing. Do not replace either server with an auto-selected port.
 A single Chromium CI smoke test covers the live Vite module graph; the full
 browser suite still runs once against the built cross-origin preview.
+Vite scans real HTML paths and worker sources before PHP startup so cold-start
+dependency optimization cannot invalidate imports in running workers.
 
-The WordPress-only origin prototype has `build:wordpress-frame`,
-`preview:wordpress-frame`, and `e2e:wordpress-frame` website targets. It runs on
-port 9500, separately from normal development. CI runs all website E2E tests once
-against the separate WordPress origin, with shared storage/import grouping.
-Deployment tests use the same boundary on port 7999. See
-`packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
-WordPress always uses the configured sandbox origin. PHP, OPFS, and directory
-handles stay on the app origin. Tabs share one app service worker and asset cache.
-Standalone and self-hosted builds without a sandbox retain one origin.
-External embeds do not need a referrer or new URL parameters. This mode does not
-block WordPress from embedding fresh app/API documents.
-The normal WP Cloud deployment sets `VITE_WORDPRESS_SITE_URL` to
-`https://wpsandbox.wordpress.net` and `PLAYGROUND_APP_ORIGIN` to
-`https://playground.wordpress.net` in one workflow environment. Pass those same
-values to the single `apply-update.sh` deployment script; it writes the sandbox
-origin into the release's PHP entry. The remote Vite build uses `PLAYGROUND_APP_ORIGIN` to
-create a `wordpress-sandbox/` subdirectory containing only the HTTP helper and
-worker loaders, all importing shared app-origin scripts. The PHP host gate
-serves that directory as-is, without constructing response bodies or falling
-back to app files. The built preview uses the same directory and generators.
-Do not add a second installer script. Host checks live in
-`website-deployment/custom-redirects-lib.php`, reached
-through its existing `playground_handle_request()` entry point. Only the sandbox host takes an early
-bootstrap-only path, with scoped top-level GET navigations redirected to the configured
-app origin. Scoped app navigations serve the trusted WordPress iframe wrapper;
-iframe and subresource requests never redirect. App requests keep the existing redirects, headers, and PHP
-setup. The deployment script selects a complete
-private release and checks both hosts and Nginx's hidden-path deny rule before
-activation. Personal WP keeps its no-argument public-file layout and separate script.
-The HTTP/install contract tests run with
-`playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
-WordPress request-helper URLs include the app build version. Servers map them to
-the deployed release's sandbox helper file; workers generate helper HTML only for
-their own buildVersion and the unversioned /wordpress-bridge.html URL. Requests
-naming any other buildVersion reach the server, so a worker installed during a
-previous visit cannot supply a script URL removed by deployment. The deployed
-helper waits for the worker it registers to activate before completing PHP startup.
+The two-origin built preview has `build:wordpress-frame`, `preview:wordpress-frame`,
+`e2e:wordpress-frame`, and `e2e:wordpress-frame:fresh` website targets on port 9500, using sibling hostnames
+`playground.wordpress.localhost` and `wpsandbox.wordpress.localhost`. CI uses the same boundary on its
+normal HTTP port; deployment upgrade tests use port 7999. The preview uses
+the production installer in loopback-only mode, so Node 24 and PHP are required.
+See `packages/playground/website/bin/wordpress-frame/README.md`.
 
-WP Cloud's PHP-served static files support single bounded and open-ended byte
-ranges for runtime download retries. Other range forms get the full response;
-HEAD ignores Range. Run `playground-website:test:static-file-ranges` for the real
-PHP HTTP contract tests (Node 24 and PHP required); CI runs them with lint checks.
+The WP Cloud build configures `PLAYGROUND_APP_ORIGIN` and `VITE_WORDPRESS_SITE_URL`
+and passes those same origins to the single `website-deployment/apply-update.sh`.
+Nginx serves public immutable `releases/release.<id>/` files on both hostnames.
+The small root `index.html` bootstrap is the authoritative release selector;
+replacing it last atomically selects app assets and native PHP endpoint code.
+Root-level immutable app/sandbox worker loaders retain root scope without special
+headers. Startup verifies document origin and worker role, protocol, release,
+activation, and control before loading app code. Existing app documents retain
+release selections across worker updates and restarts. Do not route ordinary
+static downloads through PHP or add a second installer.
+Shared PHP runtimes use that same fixed app worker URL in immutable releases;
+only the legacy single-origin worker needs a shared-transport query flag.
+If an activated worker cannot claim the initial document, the bootstrap reloads
+once using a history-state marker, preserves the URL, and repeats verification.
+It must fail closed if the replacement document still has no matching controller.
+
+The dedicated app worker owns static routing/caching and rejects scoped WordPress
+execution on the app origin. Scoped top-level GET navigations on the app origin get
+the trusted `wordpress-popup.html` wrapper instead; the sandbox server redirects
+them to the app origin when no sandbox worker handles them. The sandbox worker owns WordPress HTTP transport and
+response transforms. Shared code remains in imported modules; single-origin builds
+compose both handlers through the compatibility `sw.js` entry. Internal sandbox
+assets use sandbox URLs and need no CORS. External SDK/download contracts remain.
+Sandbox CacheStorage is writable by WordPress and must not supply trusted platform
+code. Generate helper HTML from worker code using the retained release's stable
+bridge module. Worker identity comes from the immutable module URL and compiled
+origins, never query strings or a metadata fetch. The installer keeps platform HTML
+inert until its own document origin passes, including builder and demo pages.
+Keep canonical app/sandbox identities explicit in production builds.
+
+App asset caches use immutable release URLs. Activation and document pinning collect
+dead client records and releases no live document or PHP worker needs. Unrecognized
+legacy clients conservatively prevent cache eviction.
+
+App-storage window APIs must pass the configured app origin to `exposeAPI`'s
+`allowedOrigin` argument. The parent-window source and browser-supplied origin
+are checked before executing RPC calls or granting a private MessagePort.
+Window APIs default to same-origin callers; the public runtime explicitly opts
+into external callers. RPC functions are callable capabilities with no traversable
+properties; paths cannot reach inherited Object methods, constructors, or prototypes.
+`api.html` and `startPlaygroundAPI` require an app-origin embedding document.
+Public `remote.html` runtime embeds remain separate from privileged APIs.
+`startPlaygroundWeb()` returns a public `PlaygroundClient`; its explicit facade
+cannot mount storage, forward internal worker methods, or join shared runtimes.
+Public boot rejects mounts and copies only reviewed public options.
+The app uses `startPlaygroundWebForApp()` and `AppPlaygroundClient` through the
+separate `app-runtime.html`. Its actual app-origin parent is checked before PHP
+startup/shared discovery; RPC checks source and browser origin before granting
+its private port. Never pipe a worker/class instance into a window API.
+OPFS paths travel only over that private connection and are resolved inside the
+PHP worker, so native OPFS handles never need to be cloned between contexts.
+A scope or slug is not runtime/storage authorization. Keep these boundaries
+structural: no public fallback or caller-supplied flag may promote a connection.
+Neither referrers nor caller-provided origin strings authorize saved-site access.
+
+The split-origin Playwright suite also installs a checksum-pinned release of the
+real `interactive-code-block` plugin in a separate Node-hosted WordPress server.
+It retargets only production Playground origin literals in the installed plugin's
+JavaScript, then exercises its own UI and the built SDK/runtime over real HTTP.
+Keep this downstream integration separate from the bundled full-page block copy.
+The fixture uses the CLI source loader on Node 24 and disposes its server/workers.
+The full-page block uses website-extras' shared `getRemoteUrl()` helper so its
+runtime stays on the app origin and selected release, including in local builds.
+
+Native PHP endpoints and support files remain under Nginx-protected
+`.playground-releases/`. The installer checks the hidden-path deny rule, host
+mapping, and complete uploads before activation, restores public entries on failure
+before the switch, and purges the edge after activation. Previous releases, worker
+loaders, and rollback backups are retained. Personal WP keeps its no-argument PHP
+handler and separate existing deployment script and schema updates.
+
+Run `playground-website:test:wordpress-frame-router` for real installation/HTTP
+contracts, including zero PHP invocations for ordinary static requests on either
+host. Verify live Nginx MIME types, ranges, archive compression, framing, and edge
+behavior before rollout. `playground-website:test:static-file-ranges` still covers
+the legacy PHP range handler used by Personal WP and exceptional fallback URLs.
+
+WordPress always uses its configured sandbox origin. PHP, OPFS, and directory
+handles stay on the app origin; no saved-site migration is needed. Existing
+external embeds need no referrer or new URL parameters. The origin split does not
+block WordPress from embedding a fresh app/API document and does not provide
+HTTP authorization between running WordPress sites.
 
 ### Package Naming Convention
 
@@ -157,7 +206,7 @@ The core architecture uses an iframe-based isolation model:
 - `@php-wasm/node`: Node.js-based PHP runtime
 - `@php-wasm/universal`: Abstract interface shared by web and node implementations
 
-Personal WP explicitly opts into SharedWorkers via `startPlaygroundWeb`.
+Personal WP explicitly opts into SharedWorkers via `startPlaygroundWebForApp`.
 Its ServiceWorker sends HTTP requests directly to the shared PHP runtime through MessagePorts.
 The main website retains dedicated workers and the existing window relay by default.
 Personal WP owns loopback-network delegation: its startup load listener configures
@@ -271,6 +320,24 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 CI removes the slow Azure Ubuntu mirror from the runner's apt mirror list before
 installing browser dependencies. The public Ubuntu archive and security mirrors
 remain available.
+The WebKit storage lane runs on macOS because the pinned Linux WebKit disables
+the Storage, File System, and AccessHandle APIs. Its regular lanes stay on Linux.
+The macOS lane builds with a 4 GB Node heap and one Nx task at a time to fit the
+remote Vite build within runner memory.
+Set Node options through workflow `env`, never `GITHUB_ENV`, which rejects them.
+Playwright 1.65 includes the Cocoa popup null-dereference fix (WebKit 317666)
+and the Firefox service-worker iframe execution-context fix (Playwright 43124).
+Do not downgrade to affected browser builds or work around missing automation contexts
+in application code. Verify native popup
+creation before long builds. Keep WebKit as the runner user; only the
+Playwright-managed preview server is elevated to bind CI's normal HTTP port.
+Keep the fresh npm-package test fixtures on the root Playwright version so they
+use the installed browsers. Load the native ESM installer with dynamic import
+so CommonJS test transpilation preserves its import.meta semantics.
+Use graceful SIGTERM shutdown so sudo can relay it to the privileged listener;
+force-killing sudo leaves root-owned children and output pipes alive.
+Keep the real OPFS security regression enabled; a persistent context alone cannot
+enable APIs that the browser port disables.
 
 - **Test files**: Co-located with implementation as `*.spec.ts`
 - **Test runner**: Vitest (via `@nx/vite:test`) for most packages; some packages use Jest (via `@nx/jest`)

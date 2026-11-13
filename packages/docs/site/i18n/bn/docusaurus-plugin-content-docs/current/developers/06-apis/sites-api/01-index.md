@@ -76,13 +76,13 @@ Every site has a storage backend. Stored sites also have a persistence lifecycle
 
 প্রতিটি সাইটের একটি স্টোরেজ ব্যাকএন্ড থাকে। সংরক্ষিত সাইটগুলোর একটি পারসিস্টেন্স লাইফসাইকেলও থাকে।
 
-| ক্ষেত্র (Field) | মান (Value) | অর্থ (Meaning) |
-| --- | --- | --- |
-| `storage` | `temporary` | শুধুমাত্র মেমরিতে সংরক্ষিত (In-memory only)। ব্রাউজার রিফ্রেশ বা ট্যাব বন্ধ করলে এটি অপসারিত হয়। |
-| `storage` | `opfs` | ব্রাউজারের Origin Private File System-এ সংরক্ষিত। |
-| `storage` | `local-fs` | File System Access API-এর মাধ্যমে একটি লোকাল ডিরেক্টরিতে সংরক্ষিত। |
-| `persistence` | `autosave` | একটি সংরক্ষিত রিকভারি পয়েন্ট। প্লেগ্রাউন্ড সাম্প্রতিক পাঁচটি অটোসেভ সংরক্ষণ করে রাখে। |
-| `persistence` | `explicit` | একটি স্থায়ীভাবে সংরক্ষিত প্লেগ্রাউন্ড যা ব্যবহারকারী বা API মুছে না ফেলা পর্যন্ত থাকে। |
+| ক্ষেত্র (Field) | মান (Value) | অর্থ (Meaning)                                                                                    |
+| --------------- | ----------- | ------------------------------------------------------------------------------------------------- |
+| `storage`       | `temporary` | শুধুমাত্র মেমরিতে সংরক্ষিত (In-memory only)। ব্রাউজার রিফ্রেশ বা ট্যাব বন্ধ করলে এটি অপসারিত হয়। |
+| `storage`       | `opfs`      | ব্রাউজারের Origin Private File System-এ সংরক্ষিত।                                                 |
+| `storage`       | `local-fs`  | File System Access API-এর মাধ্যমে একটি লোকাল ডিরেক্টরিতে সংরক্ষিত।                                |
+| `persistence`   | `autosave`  | একটি সংরক্ষিত রিকভারি পয়েন্ট। প্লেগ্রাউন্ড সাম্প্রতিক পাঁচটি অটোসেভ সংরক্ষণ করে রাখে।            |
+| `persistence`   | `explicit`  | একটি স্থায়ীভাবে সংরক্ষিত প্লেগ্রাউন্ড যা ব্যবহারকারী বা API মুছে না ফেলা পর্যন্ত থাকে।           |
 
 <!--
 Temporary Playgrounds do not report `persistence` because there is no stored lifecycle to preserve.

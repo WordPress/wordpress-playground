@@ -67,13 +67,21 @@ try {
     } else {
         jsonResponse(['error' => 'Not found'], 404);
     }
-
-    if (random_int(1, 100) === 1) {
-        cleanupSessions();
-    }
 } catch (Throwable $e) {
     error_log('Remote access relay error: ' . $e->getMessage());
     jsonResponse(['error' => 'Remote access relay error'], 500);
+}
+
+// Rejected requests must not acquire database access through housekeeping.
+// A cleanup failure must not replace or append to an already written response.
+if (http_response_code() < 400) {
+    try {
+        if (random_int(1, 100) === 1) {
+            cleanupSessions();
+        }
+    } catch (Throwable $e) {
+        error_log('Remote access relay cleanup error: ' . $e->getMessage());
+    }
 }
 
 function handleDirectRelayRequest(string $action): bool {

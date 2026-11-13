@@ -20,9 +20,9 @@ description: ওয়ার্ডপ্রেস প্লেগ্রাউন
 
 [playground.wordpress.net](https://playground.wordpress.net/) দুটি পৃথক HTML ফাইলের মাধ্যমে দুটি স্বতন্ত্র API প্রকাশ (expose) করে: `remote.html` এবং `index.html`। নিচে এদের কার্যাবলী এবং পার্থক্যের একটি সংক্ষিপ্ত বিবরণ দেওয়া হলো:
 
--   `index.html` "এন্ডপয়েন্ট" হিসেবে থাকা `remote.html`-কে নিয়ন্ত্রণ করার জন্য ওয়ার্ডপ্রেস প্লেগ্রাউন্ড API ক্লায়েন্ট ব্যবহার করে।
--   [কোয়েরি API (Query API)](../query-api/) শুধুমাত্র `index.html` দ্বারা সরবরাহ করা হয়, যা ওয়ার্ডপ্রেস প্লেগ্রাউন্ড জাভাস্ক্রিপ্ট API থেকে সম্পূর্ণ স্বাধীন।
--   [জাভাস্ক্রিপ্ট API (JavaScript API)](../javascript-api/) শুধুমাত্র `remote.html` দ্বারা সরবরাহ করা হয়। শুধুমাত্র সেই ফাইলটিকেই `PlaygroundClient` ক্লাসের জন্য একটি "এন্ডপয়েন্ট" হিসেবে ব্যবহার করা যেতে পারে।
+- `index.html` "এন্ডপয়েন্ট" হিসেবে থাকা `remote.html`-কে নিয়ন্ত্রণ করার জন্য ওয়ার্ডপ্রেস প্লেগ্রাউন্ড API ক্লায়েন্ট ব্যবহার করে।
+- [কোয়েরি API (Query API)](../query-api/) শুধুমাত্র `index.html` দ্বারা সরবরাহ করা হয়, যা ওয়ার্ডপ্রেস প্লেগ্রাউন্ড জাভাস্ক্রিপ্ট API থেকে সম্পূর্ণ স্বাধীন।
+- [জাভাস্ক্রিপ্ট API (JavaScript API)](../javascript-api/) শুধুমাত্র `remote.html` দ্বারা সরবরাহ করা হয়। শুধুমাত্র সেই ফাইলটিকেই `PlaygroundClient` ক্লাসের জন্য একটি "এন্ডপয়েন্ট" হিসেবে ব্যবহার করা যেতে পারে।
 
 <!--
 Here's a bit more about each of these files:
@@ -47,10 +47,10 @@ Here's a bit more about each of these files:
 
 `remote.html` ওয়ার্ডপ্রেস রান ও রেন্ডার করে এবং ডেভেলপারদের এটি নিয়ন্ত্রণ করার জন্য একটি API-ও প্রদান করে। বিশেষভাবে লক্ষণীয় যে, `remote.html` ব্রাউজার UI বা সংস্করণ নির্বাচকের (version switchers) মতো কোনো UI উপাদান (UI elements) রেন্ডার করে না। এটি কেবল ওয়ার্ডপ্রেস। `remote.html`-এর প্রাথমিক কাজগুলো হলো:
 
--   PHP-এর WebAssembly বিল্ড, php.wasm-এর উপযুক্ত সংস্করণটি লোড করা।
--   ব্যবহারকারীর ইন্টারঅ্যাকশনের জন্য ওয়ার্ডপ্রেসের সঠিক সংস্করণটি লোড করা।
--   একটি WebWorker-এ PHP চালু করা এবং HTTP রিকোয়েস্টের জন্য একটি ServiceWorker রেজিস্টার করা।
--   প্যারেন্ট উইন্ডো থেকে পাঠানো `message` ইভেন্ট পর্যবেক্ষণ (listen) করা এবং উপযুক্ত কোড কমান্ড এক্সিকিউট করা।
+- PHP-এর WebAssembly বিল্ড, php.wasm-এর উপযুক্ত সংস্করণটি লোড করা।
+- ব্যবহারকারীর ইন্টারঅ্যাকশনের জন্য ওয়ার্ডপ্রেসের সঠিক সংস্করণটি লোড করা।
+- একটি WebWorker-এ PHP চালু করা এবং HTTP রিকোয়েস্টের জন্য একটি ServiceWorker রেজিস্টার করা।
+- প্যারেন্ট উইন্ডো থেকে পাঠানো `message` ইভেন্ট পর্যবেক্ষণ (listen) করা এবং উপযুক্ত কোড কমান্ড এক্সিকিউট করা।
 
 <!--
 That last part is how the public API works. The parent window (`index.html`) sends a message to the `iframe` (`remote.html`) with a command and arguments, and the `iframe` then executes that command and sends the result back with another message.

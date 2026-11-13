@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+	<head>
+		<title>WordPress Playground</title>
+		<link rel="stylesheet" href="./remote.css" />
+		<!-- TODO: Support inserting other origin-trial codes on build, so self-hosted Playground can opt into the trials. -->
+		<!--
+		Enable the JSPI origin trial.
+		Refresh periodically at https://developer.chrome.com/origintrials/#/trials/active
+		The current registration ands on Feb 19th 2025.
+		-->
+		<!-- https://playground.wordpress.net -->
+		<meta
+			http-equiv="origin-trial"
+			content="Ao+kSl7oykDGDxe74ym6/PXY71Xh0V4F0JoU9Sxrge9U8PfuTx7kZsNi2c24angA3UUtyl1DtMj/KkNfTWz7+wgAAABxeyJvcmlnaW4iOiJodHRwczovL3BsYXlncm91bmQud29yZHByZXNzLm5ldDo0NDMiLCJmZWF0dXJlIjoiV2ViQXNzZW1ibHlKU1Byb21pc2VJbnRlZ3JhdGlvbiIsImV4cGlyeSI6MTczOTkyMzE5OX0="
+		/>
+		<!-- https://wasm.wordpress.net -->
+		<meta
+			http-equiv="origin-trial"
+			content="AqzvSQwvBB08ydkKZEZrihGqL0Y/IGa6lzA90n6uKssfAtCWc22FoMr/EbwWQY8swkPNnxH+ubiWa8KduRp0qQ0AAABreyJvcmlnaW4iOiJodHRwczovL3dhc20ud29yZHByZXNzLm5ldDo0NDMiLCJmZWF0dXJlIjoiV2ViQXNzZW1ibHlKU1Byb21pc2VJbnRlZ3JhdGlvbiIsImV4cGlyeSI6MTczOTkyMzE5OX0="
+		/>
+		<!-- http://127.0.0.1:5400 -->
+		<meta
+			http-equiv="origin-trial"
+			content="Ahmn8GVmGU9NRHarIHfjO3xPt/PI3V/XfXD0fLMco+6cFTYUcF7v63+y+PZDtJHge2HXNWuoZajUMHYydAVuTw8AAABieyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0OjU0MDAiLCJmZWF0dXJlIjoiV2ViQXNzZW1ibHlKU1Byb21pc2VJbnRlZ3JhdGlvbiIsImV4cGlyeSI6MTczOTkyMzE5OX0="
+		/>
+	</head>
+	<body class="is-loading">
+		<iframe
+			id="wp"
+			title="The WordPress site"
+			sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-downloads allow-modals"
+		></iframe>
+		<script type="module" src="./src/app-runtime.ts"></script>
+	</body>
+</html>

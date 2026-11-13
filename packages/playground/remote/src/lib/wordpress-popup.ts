@@ -1,5 +1,6 @@
 import { getURLScope } from '@php-wasm/scopes';
 import { wordPressSiteUrl } from './config';
+import { assertDocumentOrigin } from './deployment';
 
 /**
  * Opens a WordPress tool in a popup with the same frame layout as the main app:
@@ -17,6 +18,7 @@ import { wordPressSiteUrl } from './config';
  * neither the hosting domain nor URL parameters enable it.
  */
 export function bootWordPressPopup({ allowLoopbackNetwork = false } = {}) {
+	assertDocumentOrigin('app');
 	const target = getURLScope(new URL(location.href))
 		? new URL(
 				location.pathname + location.search + location.hash,

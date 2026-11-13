@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { startPlaygroundWeb } from '@wp-playground/client';
+import { startPlaygroundWebForApp } from '@wp-playground/client';
 import { loadDirectoryHandle } from '../opfs/opfs-directory-handle-storage';
 import {
 	legacyOpfsPathSymbol,
@@ -16,7 +16,7 @@ import { registerSiteFirstBootInitializer } from './site-first-boot-initializer'
 import clientsReducer from './slice-clients';
 
 vi.mock('@wp-playground/client', () => ({
-	startPlaygroundWeb: vi.fn(),
+	startPlaygroundWebForApp: vi.fn(),
 }));
 
 vi.mock('../opfs/opfs-directory-handle-storage', () => ({
@@ -73,8 +73,8 @@ describe('bootSiteClient', () => {
 	beforeEach(() => {
 		vi.mocked(loadDirectoryHandle).mockReset();
 		vi.mocked(loadDirectoryHandle).mockResolvedValue({} as any);
-		vi.mocked(startPlaygroundWeb).mockReset();
-		vi.mocked(startPlaygroundWeb).mockImplementation(
+		vi.mocked(startPlaygroundWebForApp).mockReset();
+		vi.mocked(startPlaygroundWebForApp).mockImplementation(
 			async (options: any) => {
 				const playground = createPlaygroundClient();
 				options.onClientConnected(playground);
@@ -151,14 +151,14 @@ describe('bootSiteClient', () => {
 			vi.mocked(opfsSiteStorage!.removeWordPressFilesKeepMetadata).mock
 				.invocationCallOrder[0]
 		).toBeLessThan(
-			vi.mocked(startPlaygroundWeb).mock.invocationCallOrder[0]
+			vi.mocked(startPlaygroundWebForApp).mock.invocationCallOrder[0]
 		);
 		expect(opfsSiteStorage!.update).toHaveBeenCalledWith('autosaved', {
 			metadata: expect.objectContaining({
 				opfsSiteRemovalPending: undefined,
 			}),
 		});
-		expect(startPlaygroundWeb).toHaveBeenCalled();
+		expect(startPlaygroundWebForApp).toHaveBeenCalled();
 	});
 
 	it('retries pending OPFS reset cleanup before booting', async () => {
@@ -190,7 +190,7 @@ describe('bootSiteClient', () => {
 		expect(
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
 		).toHaveBeenCalledTimes(2);
-		expect(startPlaygroundWeb).toHaveBeenCalled();
+		expect(startPlaygroundWebForApp).toHaveBeenCalled();
 		expect(
 			dispatch.mock.calls.some((call: unknown[]) => {
 				const action = call[0] as { type?: string };
@@ -226,7 +226,7 @@ describe('bootSiteClient', () => {
 		expect(
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
 		).toHaveBeenCalledWith('autosaved');
-		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+		expect(startPlaygroundWebForApp).not.toHaveBeenCalled();
 		expect(dispatch).toHaveBeenCalledWith(
 			expect.objectContaining({
 				type: 'ui/setActiveSiteError',
@@ -266,7 +266,7 @@ describe('bootSiteClient', () => {
 		expect(
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
 		).toHaveBeenCalledTimes(3);
-		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+		expect(startPlaygroundWebForApp).not.toHaveBeenCalled();
 		expect(dispatch).toHaveBeenCalledWith(
 			expect.objectContaining({
 				type: 'ui/setActiveSiteError',
@@ -293,7 +293,7 @@ describe('bootSiteClient', () => {
 			}
 		)(dispatch, () => state);
 
-		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+		expect(startPlaygroundWebForApp).not.toHaveBeenCalled();
 		expect(dispatch).toHaveBeenCalledWith(
 			expect.objectContaining({
 				type: 'ui/setActiveSiteError',
@@ -321,7 +321,7 @@ describe('bootSiteClient', () => {
 			{ signal: new AbortController().signal }
 		)(dispatch, () => state);
 
-		expect(startPlaygroundWeb).not.toHaveBeenCalled();
+		expect(startPlaygroundWebForApp).not.toHaveBeenCalled();
 		expect(
 			opfsSiteStorage!.removeWordPressFilesKeepMetadata
 		).not.toHaveBeenCalled();
@@ -348,7 +348,7 @@ describe('bootSiteClient', () => {
 			signal: new AbortController().signal,
 		})(dispatch, () => state);
 
-		expect(startPlaygroundWeb).toHaveBeenCalledWith(
+		expect(startPlaygroundWebForApp).toHaveBeenCalledWith(
 			expect.objectContaining({
 				onBlueprintValidated: logBlueprintEvents,
 				wordpressInstallMode: 'install-from-existing-files-if-needed',
@@ -365,7 +365,7 @@ describe('bootSiteClient', () => {
 		const playground = createPlaygroundClient({
 			goTo: vi.fn(async () => undefined),
 		});
-		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+		vi.mocked(startPlaygroundWebForApp).mockImplementationOnce(
 			async (options: any) => {
 				options.onClientConnected(playground);
 				return playground;
@@ -400,7 +400,7 @@ describe('bootSiteClient', () => {
 		const playground = createPlaygroundClient({
 			goTo: vi.fn(async () => undefined),
 		});
-		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+		vi.mocked(startPlaygroundWebForApp).mockImplementationOnce(
 			async (options: any) => {
 				options.onClientConnected(playground);
 				return playground;
@@ -438,7 +438,7 @@ describe('bootSiteClient', () => {
 			signal: new AbortController().signal,
 		})(dispatch, () => state);
 
-		expect(startPlaygroundWeb).toHaveBeenCalledWith(
+		expect(startPlaygroundWebForApp).toHaveBeenCalledWith(
 			expect.objectContaining({
 				mounts: [
 					expect.objectContaining({
@@ -463,7 +463,7 @@ describe('bootSiteClient', () => {
 		})(dispatch, () => state);
 
 		expect(loadDirectoryHandle).toHaveBeenCalledWith('local-save');
-		expect(startPlaygroundWeb).toHaveBeenCalledWith(
+		expect(startPlaygroundWebForApp).toHaveBeenCalledWith(
 			expect.objectContaining({
 				wordpressInstallMode: 'install-from-existing-files-if-needed',
 			})
@@ -479,7 +479,7 @@ describe('bootSiteClient', () => {
 				})
 			),
 		});
-		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+		vi.mocked(startPlaygroundWebForApp).mockImplementationOnce(
 			async (options: any) => {
 				options.onClientConnected(firstPlayground);
 				return firstPlayground;
@@ -520,7 +520,7 @@ describe('bootSiteClient', () => {
 			signal: new AbortController().signal,
 		})(createDispatch(reloadedState), () => reloadedState);
 
-		expect(startPlaygroundWeb).toHaveBeenLastCalledWith(
+		expect(startPlaygroundWebForApp).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				blueprint: expect.objectContaining({
 					constants: expect.objectContaining({
@@ -539,7 +539,7 @@ describe('bootSiteClient', () => {
 				throw constantsError;
 			}),
 		});
-		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+		vi.mocked(startPlaygroundWebForApp).mockImplementationOnce(
 			async (options: any) => {
 				options.onClientConnected(playground);
 				return playground;
@@ -600,7 +600,7 @@ describe('bootSiteClient', () => {
 			mountOpfs: vi.fn(() => mountFinished),
 			flushOpfs: vi.fn(() => flushFinished),
 		});
-		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+		vi.mocked(startPlaygroundWebForApp).mockImplementationOnce(
 			async (options: any) => {
 				options.onClientConnected(playground);
 				return playground;
@@ -664,7 +664,7 @@ describe('bootSiteClient', () => {
 				repoUrl: 'https://github.com/example/private-repository',
 			}
 		);
-		vi.mocked(startPlaygroundWeb).mockRejectedValueOnce(
+		vi.mocked(startPlaygroundWebForApp).mockRejectedValueOnce(
 			authenticationError
 		);
 		vi.mocked(shouldShowGitHubAuthModal).mockReturnValueOnce(true);
@@ -713,7 +713,9 @@ describe('bootSiteClient', () => {
 			new Error('WordPress 6.8 is not available for download.'),
 			{ originalErrorClassName: 'ResourceUnavailableError' }
 		);
-		vi.mocked(startPlaygroundWeb).mockRejectedValueOnce(unavailableError);
+		vi.mocked(startPlaygroundWebForApp).mockRejectedValueOnce(
+			unavailableError
+		);
 		const site = createSite('unavailable-version');
 		const state = createState(site);
 		const dispatch = createDispatch(state);
@@ -739,7 +741,7 @@ describe('bootSiteClient', () => {
 		const startFinished = new Promise<void>((resolve) => {
 			resolveStart = resolve;
 		});
-		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+		vi.mocked(startPlaygroundWebForApp).mockImplementationOnce(
 			async (options: any) => {
 				await startFinished;
 				options.onClientConnected(createPlaygroundClient());
@@ -760,7 +762,7 @@ describe('bootSiteClient', () => {
 		)(dispatch, () => state);
 		await Promise.resolve();
 		await Promise.resolve();
-		expect(startPlaygroundWeb).toHaveBeenCalled();
+		expect(startPlaygroundWebForApp).toHaveBeenCalled();
 
 		abortController.abort();
 		resolveStart();
@@ -786,7 +788,7 @@ describe('bootSiteClient', () => {
 				await mountFinished;
 			}),
 		});
-		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+		vi.mocked(startPlaygroundWebForApp).mockImplementationOnce(
 			async (options: any) => {
 				options.onClientConnected(playground);
 				return playground;
@@ -823,7 +825,7 @@ describe('bootSiteClient', () => {
 
 	it('stores captured emails newest first', async () => {
 		const { client, emitSendmail } = createSendmailPlaygroundClient();
-		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+		vi.mocked(startPlaygroundWebForApp).mockImplementationOnce(
 			async (options: any) => {
 				options.onClientConnected(client);
 				return client;
@@ -863,7 +865,7 @@ describe('bootSiteClient', () => {
 
 	it('continues capturing emails after a parse failure', async () => {
 		const { client, emitSendmail } = createSendmailPlaygroundClient();
-		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+		vi.mocked(startPlaygroundWebForApp).mockImplementationOnce(
 			async (options: any) => {
 				options.onClientConnected(client);
 				return client;
@@ -899,7 +901,7 @@ describe('bootSiteClient', () => {
 
 	it('does not store an email parsed after abort', async () => {
 		const { client, emitSendmail } = createSendmailPlaygroundClient();
-		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+		vi.mocked(startPlaygroundWebForApp).mockImplementationOnce(
 			async (options: any) => {
 				options.onClientConnected(client);
 				return client;
@@ -942,7 +944,7 @@ describe('bootSiteClient', () => {
 			mountOpfs: vi.fn(() => mountFinished),
 			captureSiteThumbnail: vi.fn(),
 		});
-		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+		vi.mocked(startPlaygroundWebForApp).mockImplementationOnce(
 			async (options: any) => {
 				options.onClientConnected(playground);
 				return playground;
@@ -997,7 +999,7 @@ describe('bootSiteClient', () => {
 				calls.push('copy to OPFS');
 			}),
 		});
-		vi.mocked(startPlaygroundWeb).mockImplementationOnce(
+		vi.mocked(startPlaygroundWebForApp).mockImplementationOnce(
 			async (options: any) => {
 				options.onClientConnected(playground);
 				return playground;

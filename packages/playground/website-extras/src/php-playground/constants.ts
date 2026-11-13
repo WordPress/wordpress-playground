@@ -1,5 +1,11 @@
 // @ts-expect-error
 import { buildVersion } from 'virtual:website-config';
+import { getReleaseRoot } from '@wp-playground/common';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import {
+	websiteDevServerHost,
+	websiteDevServerPort,
+} from '../../../build-config';
 
 // @TODO: Get rid of the hardcoded initial path, always source cwd from the client.
 export const DEFAULT_WORKSPACE_DIR = '/wordpress/workspace';
@@ -20,8 +26,14 @@ var_dump($html_processor->get_tag());
 ?>`;
 
 export function getRemoteUrl() {
-	const remoteUrl = new URL(window.location.origin);
-	remoteUrl.pathname = '/remote.html';
+	const releaseRoot = getReleaseRoot(new URL((import.meta || {}).url));
+	const appOrigin = import.meta.env.DEV
+		? `http://${websiteDevServerHost}:${websiteDevServerPort}`
+		: window.location.origin;
+	const remoteUrl = new URL(
+		'remote.html',
+		releaseRoot ?? new URL('/', appOrigin)
+	);
 	remoteUrl.searchParams.set('v', buildVersion);
 	return remoteUrl;
 }

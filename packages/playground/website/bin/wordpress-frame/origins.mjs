@@ -5,8 +5,7 @@
  * a test cannot silently fall back to the ordinary single-origin preview.
  */
 // Multisite rejects custom ports. CI uses HTTP's default port; local work stays on 9500.
-export const appOrigin = `http://playground.localhost${process.env.CI ? '' : ':9500'}`;
-export const wordPressOrigin = appOrigin.replace(
-	'://playground.',
-	'://wp.playground.'
-);
+export const appOrigin = `http://playground.wordpress.localhost${process.env.CI ? '' : ':9500'}`;
+const wordPressUrl = new URL(appOrigin);
+wordPressUrl.hostname = 'wpsandbox.wordpress.localhost';
+export const wordPressOrigin = wordPressUrl.origin;

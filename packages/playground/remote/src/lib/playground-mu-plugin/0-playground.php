@@ -445,16 +445,19 @@ function playground_enable_site_thumbnail_capture() {
 						throw new Error('Missing site thumbnail module URL.');
 					}
 					// Dynamic import executes inside the WordPress document. Accept only
-					// the renderer asset from the trusted parent's origin, with its marker.
+					// the renderer asset selected by the trusted parent, with its marker.
+					// Static releases use this origin; development keeps the app's Vite module URL.
 					const moduleUrl = new URL(request.moduleUrl);
 					const isRendererModule =
 						moduleUrl.pathname ===
 							'/src/lib/capture-site-thumbnail.ts' ||
-						/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(
+						/^(?:\/releases\/release\.[a-zA-Z0-9]+)?\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(
 							moduleUrl.pathname
 						);
+					const expectedModuleOrigin = moduleUrl.pathname.startsWith('/releases/')
+						? window.location.origin : event.origin;
 					if (
-						moduleUrl.origin !== event.origin ||
+						moduleUrl.origin !== expectedModuleOrigin ||
 						!isRendererModule ||
 						moduleUrl.searchParams.get(
 							'playground-site-thumbnail-module'

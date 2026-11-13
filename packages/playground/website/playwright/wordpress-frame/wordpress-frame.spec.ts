@@ -39,11 +39,9 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			const target = ${JSON.stringify(target)};
 			const mode = ${JSON.stringify(url.searchParams.get('sdk'))};
 			if (mode) {
-				const { startPlaygroundWeb, startPlaygroundAPI } = await import(${JSON.stringify(root + '/client/index.js')});
-				window.client = await (mode === 'api'
-					? startPlaygroundAPI({ iframe, apiUrl: target })
-					: startPlaygroundWeb({ iframe, remoteUrl: target,
-						blueprint: { preferredVersions: { wp: '6.9', php: '8.3' } } }));
+				const { startPlaygroundWeb } = await import(${JSON.stringify(root + '/client/index.js')});
+				window.client = await startPlaygroundWeb({ iframe, remoteUrl: target,
+					blueprint: { preferredVersions: { wp: '6.9', php: '8.3' } } });
 				window.clientReady = true;
 			} else {
 				iframe.src = target;
@@ -113,43 +111,31 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		await ready(app);
 	});
 
-	test('referrer-free SDK embeds keep the WordPress and API clients working', async ({
+	test('referrer-free SDK embeds keep the public WordPress client working', async ({
 		page,
 	}) => {
-		for (const sdk of ['web', 'api']) {
-			const url = new URL('/', external);
-			url.searchParams.set(
-				'target',
-				root + (sdk === 'web' ? '/remote.html' : '/api.html')
-			);
-			url.searchParams.set('no-referrer', '1');
-			url.searchParams.set('sdk', sdk);
-			await page.goto(url.href);
-			await page.waitForFunction(() => (window as any).clientReady);
-			if (sdk === 'web') {
-				await expect(
-					page
-						.frameLocator('#embed')
-						.frameLocator('#wp')
-						.locator('body')
-				).not.toBeEmpty();
-				const element = await page
-					.frameLocator('#embed')
-					.locator('#wp')
-					.elementHandle();
-				const wp = (await element!.contentFrame())!;
-				await expect
-					.poll(() => wp.evaluate(() => window.location.origin))
-					.toBe(wpOrigin);
-				expect(
-					await page.evaluate(() =>
-						(window as any).client.fileExists(
-							'/wordpress/wp-load.php'
-						)
-					)
-				).toBe(true);
-			}
-		}
+		const url = new URL('/', external);
+		url.searchParams.set('target', root + '/remote.html');
+		url.searchParams.set('no-referrer', '1');
+		url.searchParams.set('sdk', 'web');
+		await page.goto(url.href);
+		await page.waitForFunction(() => (window as any).clientReady);
+		await expect(
+			page.frameLocator('#embed').frameLocator('#wp').locator('body')
+		).not.toBeEmpty();
+		const element = await page
+			.frameLocator('#embed')
+			.locator('#wp')
+			.elementHandle();
+		const wp = (await element!.contentFrame())!;
+		await expect
+			.poll(() => wp.evaluate(() => window.location.origin))
+			.toBe(wpOrigin);
+		expect(
+			await page.evaluate(() =>
+				(window as any).client.fileExists('/wordpress/wp-load.php')
+			)
+		).toBe(true);
 	});
 
 	test('cached app HTML uses the sandbox in a referrer-free embed', async ({
@@ -163,7 +149,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			.elementHandle())!.contentFrame();
 		await ready(app!);
 		const api = new URL('/api.html', root);
-		expect(await probeFramedAPI(page, api.href, 10000)).toBe(true);
+		expect(await probeFramedAPI(app!, api.href, 10000)).toBe(true);
 		await expect
 			.poll(() =>
 				app!.evaluate(async () => {
@@ -195,7 +181,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			throw new Error('The real API document was not cached');
 		}, api.href);
 		// The cached API document must work with the same unchanged no-referrer URL.
-		expect(await probeFramedAPI(page, api.href, 10000)).toBe(true);
+		expect(await probeFramedAPI(app!, api.href, 10000)).toBe(true);
 	});
 
 	test('WordPress cannot read existing parent documents, OPFS or API connections', async ({

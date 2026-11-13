@@ -20,11 +20,11 @@ import {
 } from '@wp-playground/blueprints';
 import { logger } from '@php-wasm/logger';
 import { setupPostMessageRelay } from '@php-wasm/web';
-import { startPlaygroundWeb } from '@wp-playground/client';
+import { startPlaygroundWebForApp } from '@wp-playground/client';
 import { PHPMYADMIN_PATH_ALIAS } from '@wp-playground/tools';
 import { ProgressTracker } from '@php-wasm/progress';
 import type { ProgressDetails, ProgressTrackerEvent } from '@php-wasm/progress';
-import type { PlaygroundClient } from '@wp-playground/remote';
+import type { AppPlaygroundClient } from '@wp-playground/remote';
 import { getRemoteUrl } from '../../config';
 import { wordPressSiteUrl } from '@wp-playground/remote/config';
 import { setActiveSiteError } from './slice-ui';
@@ -250,7 +250,7 @@ export function bootSiteClient(
 			getWordPressInstallModeCaption(wordpressInstallMode)
 		);
 
-		let playground: PlaygroundClient | undefined = undefined;
+		let playground: AppPlaygroundClient | undefined = undefined;
 		const gitDirectorySources: Record<string, GitDirectoryReference> = {};
 		const onBlueprintStepCompleted: OnStepCompleted = (result, step) => {
 			const extracted = extractGitDirectorySource(step, result);
@@ -303,7 +303,7 @@ export function bootSiteClient(
 		);
 		try {
 			reportBootProgress(20, 'Starting Playground runtime');
-			await startPlaygroundWeb({
+			await startPlaygroundWebForApp({
 				iframe: iframe!,
 				remoteUrl: getRemoteUrl().toString(),
 				workerMode: 'shared',
@@ -421,7 +421,7 @@ export function bootSiteClient(
 			})
 		);
 
-		(playground as PlaygroundClient).onNavigation((url) => {
+		(playground as AppPlaygroundClient).onNavigation((url) => {
 			dispatch(
 				updateClientInfo({
 					siteSlug: site.slug,

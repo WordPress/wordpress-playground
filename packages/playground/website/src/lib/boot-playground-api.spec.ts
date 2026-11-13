@@ -26,7 +26,7 @@ describe('bootPlaygroundAPI', () => {
 	});
 
 	it('reports when OPFS site storage is unavailable', async () => {
-		const api = bootPlaygroundAPI();
+		const api = bootPlaygroundAPI('https://playground.wordpress.net');
 
 		await expect(api.exportSavedSiteAsZip('my-site')).rejects.toThrow(
 			'OPFS site storage is unavailable in this context.'

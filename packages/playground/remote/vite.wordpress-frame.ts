@@ -88,8 +88,11 @@ export function wordPressFrameDevPlugin(
 						);
 						return;
 					}
-					if (url.pathname === '/sw.js') {
-						target.pathname = '/service-worker.ts';
+					if (
+						url.pathname === '/sw.js' ||
+						url.pathname === '/sandbox-sw.js'
+					) {
+						target.pathname = '/sandbox-service-worker.ts';
 						target.search = '?worker_file&type=module';
 						res.setHeader('Content-Type', 'text/javascript');
 						res.end(`import ${JSON.stringify(target.href)};`);

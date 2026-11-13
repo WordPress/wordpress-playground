@@ -1,5 +1,20 @@
 import { connectWordPressOrigin } from './connect-wordpress-origin';
-import { wordPressSiteUrl } from './config';
+import { createAppRuntimeAPI, createPublicRuntimeAPI } from './runtime-api';
+import {
+	playgroundOrigin,
+	wordPressSiteUrl,
+	resolveAssetUrl,
+	assetBaseUrl,
+} from './config';
+import { getReleaseRoot } from '@wp-playground/common';
+import {
+	assertDocumentOrigin,
+	assertAppParent,
+	getDeployment,
+	getReleaseWorkerUrl,
+	verifyWorker,
+	pinDocumentRelease,
+} from './deployment';
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
@@ -32,6 +47,10 @@ type PHPRemoteApi = WebClientMixin & Pick<PlaygroundWorkerEndpoint, 'cli'>;
 
 // @ts-ignore
 import serviceWorkerPath from '../../service-worker.ts?worker&url';
+// @ts-ignore -- Vite emits a dedicated app-origin worker.
+import appServiceWorkerPath from '../../app-service-worker.ts?worker&url';
+// Emit the sandbox entry independently, without a recursive bridge import.
+import '../../sandbox-service-worker.ts?worker&url';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { logger } from '@php-wasm/logger';
 import { phpEventStdinTransfer, PhpWasmError } from '@php-wasm/util';
@@ -48,14 +67,19 @@ const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 
 function getWorkerUrl(): string {
 	const query = new URL(document.location.href).searchParams;
-	const workerUrl = new URL(workerEntryPointUrl, origin);
+	const workerUrl = resolveAssetUrl(workerEntryPointUrl);
 	if (query.has(WITH_ADMIN_TRANSITIONS_PARAM)) {
 		workerUrl.searchParams.set(WITH_ADMIN_TRANSITIONS_PARAM, '1');
 	}
 	return workerUrl + '';
 }
 
-export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
+export const serviceWorkerUrl = new URL(
+	wordPressSiteUrl === playgroundOrigin
+		? serviceWorkerPath
+		: appServiceWorkerPath,
+	origin
+);
 
 // Prevent Vite from hot-reloading this file – it would
 // cause bootPlaygroundRemote() to register another web worker
@@ -89,9 +113,19 @@ const query = new URL(document.location.href).searchParams;
  * The WordPress request connection is separate from the full client API exposed
  * to the embedding window: rendered WordPress does not receive that API here.
  */
-export async function bootPlaygroundRemote() {
+export async function bootPlaygroundRemote(
+	access: 'public' | 'app' = 'public'
+) {
+	assertDocumentOrigin('app');
+	if (access === 'app') assertAppParent();
 	assertNotInfiniteLoadingLoop();
 	const sharedMode = query.get('shared-worker') === '1';
+	if (sharedMode && access !== 'app') {
+		throw new Error(
+			'Shared runtimes require the app-only runtime document.'
+		);
+	}
+
 	const reportStartupProgress = (caption: string) => {
 		if (sharedMode)
 			window.parent.postMessage(
@@ -124,8 +158,15 @@ export async function bootPlaygroundRemote() {
 	}
 
 	reportStartupProgress('Starting WordPress runtime');
-	const registrationUrl = new URL(serviceWorkerUrl);
-	if (sharedMode) registrationUrl.searchParams.set('shared-worker', '1');
+	const deployment = getDeployment();
+	const registrationUrl = deployment
+		? getReleaseWorkerUrl(deployment, 'app', location.origin)
+		: new URL(serviceWorkerUrl);
+	// Immutable split-origin releases have one app worker per release. Changing
+	// its URL here starts another activation while the shared runtime owns OPFS.
+	// Only the legacy single-origin worker needs the shared HTTP transport flag.
+	if (sharedMode && !deployment)
+		registrationUrl.searchParams.set('shared-worker', '1');
 	const registration = await sw.register(registrationUrl + '', {
 		type: 'module',
 		// Always bypass HTTP cache when fetching the new Service Worker script:
@@ -165,6 +206,8 @@ export async function bootPlaygroundRemote() {
 			})
 		);
 	}
+	await verifyWorker(serviceWorker, 'app', deployment?.release);
+	await pinDocumentRelease(serviceWorker);
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
 
@@ -717,16 +760,23 @@ export async function bootPlaygroundRemote() {
 	// https://github.com/GoogleChromeLabs/comlink/issues/426#issuecomment-578401454
 	// @TODO: Handle the callback conversion automatically and don't explicitly re-expose
 	//        the onDownloadProgress method
-	const [setAPIReady, setAPIError, playground] = exposeAPI(
-		phpRemoteApi,
-		phpWorkerApi
+	const playground = createAppRuntimeAPI(phpWorkerApi, phpRemoteApi);
+	const exposedMethods =
+		access === 'app'
+			? playground
+			: createPublicRuntimeAPI(phpWorkerApi, phpRemoteApi);
+	const [setAPIReady, setAPIError, exposedAPI] = exposeAPI<
+		typeof exposedMethods,
+		unknown
+	>(
+		exposedMethods,
+		undefined,
+		undefined,
+		// The document chooses one fixed API. The app-only document never grants a public port.
+		access === 'app' ? playgroundOrigin : '*'
 	);
 
-	/*
-	 * An assertion to make sure Playground Client is compatible
-	 * with Remote<PlaygroundClient>
-	 */
-	return playground;
+	return exposedAPI;
 }
 
 /** Includes the editor's nested frames, whose fetches have their own ServiceWorker client IDs. */
@@ -849,10 +899,10 @@ async function captureSiteThumbnailFromWordPress({
 		const onLoad = () => {
 			clearTimeout(timeout);
 			timeout = setTimeout(onTimeout, SITE_THUMBNAIL_RENDER_TIMEOUT_MS);
-			const moduleUrl = new URL(
-				siteThumbnailModuleUrl,
-				document.location.href
-			);
+			const assetUrl = resolveAssetUrl(siteThumbnailModuleUrl);
+			const moduleUrl = getReleaseRoot(assetBaseUrl)
+				? new URL(assetUrl.pathname + assetUrl.search, frontPageOrigin)
+				: assetUrl;
 			// The marker lets the service worker distinguish this app asset
 			// from a path inside the scoped WordPress site.
 			moduleUrl.searchParams.set('playground-site-thumbnail-module', '1');

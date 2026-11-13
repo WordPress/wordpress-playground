@@ -1319,6 +1319,10 @@ error_log = ${errorLogPath}
 			});
 			const promisedPhp2Result = php2.run({
 				code: `<?php
+					while (file_get_contents('${vfsPhpCoordinationFile}') !== '${stages.php1Locked}') {
+						usleep(100 * 1000);
+					}
+
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_EX | LOCK_NB);
 					$attempt_while_locked = $lockResult;
@@ -1386,6 +1390,10 @@ error_log = ${errorLogPath}
 			});
 			const promisedPhp2Result = php2.run({
 				code: `<?php
+					while (file_get_contents('${vfsPhpCoordinationFile}') !== '${stages.php1Locked}') {
+						usleep(100 * 1000);
+					}
+
 					$fp = fopen('${testFilePath}', 'r+');
 					$lockResult = flock($fp, LOCK_SH | LOCK_NB);
 					$attempt_while_locked = $lockResult;

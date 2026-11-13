@@ -162,9 +162,9 @@ async function simulateOpfsCleanupBlockedByAnotherTab(context: BrowserContext) {
 			(window as any).simulateOpfsCleanupLockForThisTab = () => {
 				localStorage.setItem(lockHolderKey, tabId);
 				localStorage.removeItem(failureCountKey);
+				window.addEventListener('beforeunload', releaseLockForThisTab);
+				window.addEventListener('pagehide', releaseLockForThisTab);
 			};
-			window.addEventListener('beforeunload', releaseLockForThisTab);
-			window.addEventListener('pagehide', releaseLockForThisTab);
 
 			const originalRemoveEntry =
 				FileSystemDirectoryHandle.prototype.removeEntry;
@@ -684,6 +684,7 @@ test.describe('OPFS', { tag: '@storage' }, () => {
 
 		const lockPage = await context.newPage();
 		await lockPage.goto(getTemporaryPlaygroundUrl());
+		await lockPage.locator('#root').waitFor({ state: 'attached' });
 		await lockPage.evaluate(() => {
 			(window as any).simulateOpfsCleanupLockForThisTab();
 		});
