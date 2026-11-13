@@ -81,6 +81,27 @@ done
 RELEASE="$(mktemp -d "$WEB_ROOT/.playground-releases/release.XXXXXXXX")"
 chmod 755 "$RELEASE"
 mv "$BUILD" "$RELEASE/files"
+
+# Keep earlier php-wasm releases at their URLs (/php-wasm/<version>/), so
+# pages that load a pinned version keep working after this deploy. They come
+# from the active release as hard links, so a kept release costs no extra
+# disk. A version that's already live keeps its files: they're the same npm
+# release, and its URLs must never change. The newest PHP_WASM_KEEP are kept.
+PHP_WASM_KEEP="${PHP_WASM_KEEP:-26}"
+ACTIVE_RELEASE="$(grep -oE '/\.playground-releases/release\.[A-Za-z0-9]+' "$WEB_ROOT/custom-redirects.php" 2>/dev/null | head -n 1 || true)"
+if [ -n "$ACTIVE_RELEASE" ] && [ -d "$WEB_ROOT$ACTIVE_RELEASE/files/php-wasm" ]; then
+    mkdir -p "$RELEASE/files/php-wasm"
+    for previous in "$WEB_ROOT$ACTIVE_RELEASE/files/php-wasm"/*/; do
+        version="$(basename "$previous")"
+        rm -rf "${RELEASE:?}/files/php-wasm/$version"
+        cp -lR "$previous" "$RELEASE/files/php-wasm/$version"
+    done
+    find "$RELEASE/files/php-wasm" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' |
+        sort -rV | tail -n +"$((PHP_WASM_KEEP + 1))" |
+        while read -r version; do
+            rm -rf "${RELEASE:?}/files/php-wasm/$version"
+        done
+fi
 cp "$DEPLOYMENT/custom-redirects-lib.php" "$RELEASE/"
 # Retain the existing PHP MIME map so opcache can cache it. Both website layouts
 # use the same response-header code in custom-redirects-lib.php.
