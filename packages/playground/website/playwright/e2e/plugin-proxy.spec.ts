@@ -118,6 +118,67 @@ test('uses a default header only when the matching upstream header is filtered',
 	expect(await allowedResponse.text()).toBe('body');
 });
 
+/**
+ * Stable contract: The GitHub artifact lookup finds a workflow by name wherever
+ * it sits in the repository's workflow list.
+ *
+ * Plausible regression: The lookup reads only the first page of workflows.
+ * GitHub serves 30 per page by default, so a workflow listed after those is
+ * reported as workflow_not_found although it exists.
+ *
+ * Independent code path: The PHP fixture runs the production lookup against a
+ * fake GitHub API that pages the way GitHub does, and reports the workflow
+ * list requests it received.
+ */
+test("finds a workflow listed after GitHub's default first page", async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForWorkflowLookup({ workflowCount: 95, workflowPosition: 34 })
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		workflowListRequests: [{ per_page: '100', page: '1' }],
+	});
+});
+
+test('keeps requesting workflow pages until the workflow is found', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForWorkflowLookup({ workflowCount: 250, workflowPosition: 150 })
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		workflowListRequests: [
+			{ per_page: '100', page: '1' },
+			{ per_page: '100', page: '2' },
+		],
+	});
+});
+
+test('reports a missing workflow after the last workflow page', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForWorkflowLookup({ workflowCount: 250, workflowPosition: 0 })
+	);
+
+	expect(response.status()).toBe(400);
+	expect(await response.json()).toEqual({
+		error: 'workflow_not_found',
+		workflowListRequests: [
+			{ per_page: '100', page: '1' },
+			{ per_page: '100', page: '2' },
+			{ per_page: '100', page: '3' },
+		],
+	});
+});
+
 test('follows absolute and relative redirects within the allowlist', async ({
 	request,
 }) => {
@@ -243,6 +304,19 @@ function urlForDefaultResponseHeaders({
 	if (allowContentType) {
 		url.searchParams.set('allow-content-type', '1');
 	}
+	return url.href;
+}
+
+function urlForWorkflowLookup({
+	workflowCount,
+	workflowPosition,
+}: {
+	workflowCount: number;
+	workflowPosition: number;
+}) {
+	const url = new URL('/__test-workflow-lookup', pluginProxyUrl);
+	url.searchParams.set('workflow-count', String(workflowCount));
+	url.searchParams.set('workflow-position', String(workflowPosition));
 	return url.href;
 }
 

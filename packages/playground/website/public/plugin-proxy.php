@@ -100,21 +100,7 @@ class PluginDownloader
 	{
 		$branchName = urlencode($branchName);
 
-		$workflows = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/workflows")['body'];
-		if (!$workflows || !$workflows->workflows) {
-			throw new ApiException('no_workflows_found');
-		}
-
-		$workflow_id = null;
-		foreach ($workflows->workflows as $workflow) {
-			if ($workflow->name === $workflow_name) {
-				$workflow_id = $workflow->id;
-				break;
-			}
-		}
-		if (!$workflow_id) {
-			throw new ApiException('workflow_not_found');
-		}
+		$workflow_id = $this->findWorkflowId($organization, $repo, $workflow_name);
 
 		$ciRuns = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/workflows/$workflow_id/runs?branch=$branchName")['body'];
 		if (!$ciRuns || !$ciRuns->workflow_runs) {
@@ -215,6 +201,50 @@ class PluginDownloader
 		if (!$zip_url) {
 			throw new ApiException('artifact_not_available');
 		}
+	}
+
+	/**
+	 * Finds the ID of the workflow with the given name.
+	 *
+	 * GitHub lists 30 workflows per page unless asked for more, and a
+	 * repository can have more workflows than fit on one page. Reading only
+	 * the first page reports workflow_not_found for a workflow that exists.
+	 *
+	 * @param string $organization  GitHub organization that owns the repository.
+	 * @param string $repo          Repository name.
+	 * @param string $workflow_name Workflow name, as set by `name:` in its file.
+	 * @return int Workflow ID.
+	 * @throws ApiException When the repository lists no workflows, or none has that name.
+	 */
+	private function findWorkflowId($organization, $repo, $workflow_name)
+	{
+		// 100 is the largest page GitHub serves.
+		$per_page = 100;
+		// Bounds the number of API requests spent on a single lookup.
+		$max_pages = 10;
+
+		for ($page = 1; $page <= $max_pages; $page++) {
+			$workflows = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/workflows?per_page=$per_page&page=$page")['body'];
+			if (!$workflows || !$workflows->workflows) {
+				if ($page === 1) {
+					throw new ApiException('no_workflows_found');
+				}
+				break;
+			}
+
+			foreach ($workflows->workflows as $workflow) {
+				if ($workflow->name === $workflow_name) {
+					return $workflow->id;
+				}
+			}
+
+			// A short page is the last one.
+			if (count($workflows->workflows) < $per_page) {
+				break;
+			}
+		}
+
+		throw new ApiException('workflow_not_found');
 	}
 
 	public function streamFromGithubBranch($organization, $repo, $branch, $workflow_name, $artifact_name)
