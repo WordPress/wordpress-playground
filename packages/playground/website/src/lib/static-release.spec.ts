@@ -111,6 +111,18 @@ describe('static release documents', () => {
 		['feed.xml', '<?xml-stylesheet href="evil.xsl"?><feed/>'],
 		[
 			'image.svg',
+			'<!DOCTYPE svg [<!ENTITY example "<script>alert(1)</script>">]><svg xmlns="http://www.w3.org/2000/svg">&example;</svg>',
+		],
+		[
+			'image.svg',
+			'<!DOCTYPE svg SYSTEM "https://attacker.test/active.dtd"><svg xmlns="http://www.w3.org/2000/svg"/>',
+		],
+		[
+			'image.svg',
+			'<!DOCTYPE svg [<!ATTLIST svg onload CDATA "alert(1)">]><svg xmlns="http://www.w3.org/2000/svg"/>',
+		],
+		[
+			'image.svg',
 			'<parsererror xmlns="http://www.mozilla.org/newlayout/xml/parsererror.xml"><script xmlns="http://www.w3.org/1999/xhtml">alert(1)</script></parsererror>',
 		],
 		[

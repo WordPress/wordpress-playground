@@ -53,6 +53,8 @@ URLs, embedded documents, SVG animation, and XML stylesheet instructions. It
 checks the parsed tree without rewriting the original template or image bytes.
 XML documents must use UTF-8; unsupported encodings fail the build rather than
 bypass inspection. Malformed UTF-8 XML remains an inert browser error document.
+Internal DTD subsets and arbitrary external DTDs are rejected; only WordPress's
+fixed legacy SVG font declaration is allowed.
 
 The workflow builds the self-hosting download separately, without a release base
 or production origins, before building the WP Cloud release.

@@ -2,6 +2,7 @@ import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { JSDOM } from 'jsdom';
 import createDOMPurify from 'dompurify';
 import { gunzipSync } from 'node:zlib';
+import { SaxesParser } from 'saxes';
 import { joinPaths } from '../php-wasm/util/src/lib/paths.ts';
 
 /**
@@ -43,6 +44,21 @@ export async function validateWordPressStaticDocuments(directory) {
 					{ cause: error }
 				);
 			}
+			// jsdom expands entity replacement markup as text; browsers can parse
+			// it as executable elements. Its XML tokenizer exposes the DTD that the
+			// DOM does not, so reject internal subsets before comparing DOM trees.
+			let internalSubset = false;
+			const parser = new SaxesParser();
+			parser.on('doctype', (doctype) => {
+				internalSubset ||= doctype.includes('[');
+			});
+			// The DOM parse below handles XML syntax; this pass only inspects DTDs.
+			parser.on('error', () => {});
+			parser.write(source).close();
+			if (internalSubset)
+				throw new Error(
+					`Active WordPress static document: ${file} (XML declarations)`
+				);
 		}
 		let dom;
 		try {
@@ -57,6 +73,21 @@ export async function validateWordPressStaticDocuments(directory) {
 		}
 		try {
 			const { document, NodeFilter } = dom.window;
+			const doctype = document.doctype;
+			// Keep the fixed, passive SVG 1.1 font declaration shipped by WordPress;
+			// arbitrary external DTDs could define markup outside the scanned file.
+			if (
+				doctype &&
+				(doctype.publicId || doctype.systemId) &&
+				!(
+					doctype.name === 'svg' &&
+					doctype.publicId === '-//W3C//DTD SVG 1.1//EN' &&
+					doctype.systemId ===
+						'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd'
+				)
+			) {
+				throw new Error('External XML declarations are not permitted.');
+			}
 			const instructions = document.createTreeWalker(
 				document,
 				NodeFilter.SHOW_PROCESSING_INSTRUCTION
