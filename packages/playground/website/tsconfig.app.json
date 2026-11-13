@@ -30,7 +30,6 @@
 		"demos/peer.ts",
 		"demos/terminal.ts",
 		"demos/terminal-component.tsx",
-		"demos/php-blueprints.ts",
 		"../components/src/icons.tsx"
 	]
 }
