@@ -1,6 +1,7 @@
-import { joinPaths, phpVars } from '@php-wasm/util';
+import { joinPaths, phpVars, randomFilename } from '@php-wasm/util';
 import type { UniversalPHP } from '@php-wasm/universal';
 import { getLegacyPlaygroundRuntimeWpContentPaths } from '../utils/legacy-playground-runtime-wp-content-paths';
+import { zipExportAdminPhp } from './zip-export-admin';
 
 /**
  * Creates a Playground site archive containing user-owned wp-content,
@@ -8,23 +9,21 @@ import { getLegacyPlaygroundRuntimeWpContentPaths } from '../utils/legacy-playgr
  * Playground that imports the archive.
  *
  * @param playground Playground client.
+ * @param newAdminUsername Rename the existing admin account only in this ZIP.
  */
-export const zipWpContent = async (playground: UniversalPHP) => {
-	const zipPath = '/tmp/wordpress-playground.zip';
-	const manifestPath = '/tmp/playground-export.json';
-
+export const zipWpContent = async (
+	playground: UniversalPHP,
+	newAdminUsername?: string
+) => {
+	const directory = `/tmp/playground-export-${randomFilename()}`;
+	const zipPath = joinPaths(directory, 'wordpress-playground.zip');
+	const manifestPath = joinPaths(directory, 'playground-export.json');
+	const snapshotPath = joinPaths(directory, 'database.sqlite');
 	const documentRoot = await playground.documentRoot;
 	const wpContentPath = joinPaths(documentRoot, 'wp-content');
 
-	// Create a manifest file containing metadata about this export,
-	// including the site URL (with scope). This will be used during import
-	// to update URLs in the database when the scope changes.
+	// Record the site URL so import can migrate URLs when the scope changes.
 	const siteUrl = await playground.absoluteUrl;
-	await playground.writeFile(
-		manifestPath,
-		new TextEncoder().encode(JSON.stringify({ formatVersion: 2, siteUrl }))
-	);
-
 	const additionalPaths: Record<string, string> = {
 		[manifestPath]: 'playground-export.json',
 		[joinPaths(documentRoot, 'wp-config.php')]: 'wp-config.php',
@@ -36,27 +35,77 @@ export const zipWpContent = async (playground: UniversalPHP) => {
 		)
 	).map((path) => joinPaths(wpContentPath, path));
 
-	const js = phpVars({
-		zipPath,
-		wpContentPath,
-		documentRoot,
-		excludedPaths,
-		additionalPaths,
-	});
-	await runPhpWithZipFunctions(
-		playground,
-		`zipDir(${js.wpContentPath}, ${js.zipPath}, array(
-			'exclude_paths' => ${js.excludedPaths},
-			'zip_root'      => ${js.documentRoot},
-			'additional_paths' => ${js.additionalPaths}
-		));`
-	);
-
-	const fileBuffer = await playground.readFileAsBuffer(zipPath);
-	playground.unlink(zipPath);
-	playground.unlink(manifestPath);
-
-	return fileBuffer;
+	await playground.mkdir(directory);
+	try {
+		await playground.writeFile(
+			manifestPath,
+			new TextEncoder().encode(
+				JSON.stringify({ formatVersion: 2, siteUrl })
+			)
+		);
+		const js = phpVars({
+			zipPath,
+			wpContentPath,
+			documentRoot,
+			excludedPaths,
+			additionalPaths,
+			snapshotPath,
+			newAdminUsername: newAdminUsername?.trim() ?? null,
+		});
+		const url = new URL(siteUrl);
+		const response = await playground.run({
+			usePrimaryPhp: true,
+			...(newAdminUsername !== undefined && {
+				// Multisite needs the host and path to load the right network.
+				// Suppress the browser's first-visit auto-login during this run.
+				relativeUri: url.pathname,
+				protocol: url.protocol.slice(0, -1),
+				headers: {
+					host: url.host,
+					cookie: 'playground_auto_login_already_happened=1',
+				},
+			}),
+			code:
+				zipFunctions +
+				(newAdminUsername === undefined ? '' : zipExportAdminPhp) +
+				`
+			$excluded = ${js.excludedPaths};
+			$additional = ${js.additionalPaths};
+			if (null !== ${js.newAdminUsername}) {
+				if (!method_exists('SQLite3', 'backup')) {
+					echo json_encode('Changing the ZIP username requires PHP 7.4 or newer.');
+					return;
+				}
+				require_once ${js.documentRoot} . '/wp-load.php';
+				try {
+					$database = playground_prepare_export_database(${js.documentRoot}, ${js.snapshotPath}, ${js.newAdminUsername});
+				} catch (InvalidArgumentException $error) {
+					echo json_encode($error->getMessage());
+					return;
+				}
+				// Never include the live database or its journals beside the snapshot.
+				$excluded = array_merge($excluded, array($database, $database . '-wal', $database . '-shm', $database . '-journal'));
+				$additional[${js.snapshotPath}] = substr($database, strlen(${js.documentRoot}) + 1);
+			}
+			zipDir(${js.wpContentPath}, ${js.zipPath}, array(
+				'exclude_paths' => $excluded,
+				'zip_root'      => ${js.documentRoot},
+				'additional_paths' => $additional
+			));`,
+		});
+		if (
+			newAdminUsername !== undefined &&
+			response.text.trim() &&
+			!(await playground.fileExists(zipPath))
+		) {
+			const error = new Error(response.json as string);
+			error.name = 'ZipExportUsernameError';
+			throw error;
+		}
+		return await playground.readFileAsBuffer(zipPath);
+	} finally {
+		await playground.rmdir(directory, { recursive: true });
+	}
 };
 
 const zipFunctions = `<?php
@@ -99,10 +148,16 @@ function zipDir($root, $output, $options = array())
             }
         }
         foreach ($additionalPaths as $disk_path => $zip_path) {
-            $zip->addFile($disk_path, $zip_path);
+            if (!$zip->addFile($disk_path, $zip_path)) {
+                throw new RuntimeException('Could not add ' . $zip_path . ' to the ZIP.');
+            }
         }
-        $zip->close();
+        if (!$zip->close()) {
+            throw new RuntimeException('Could not write the ZIP.');
+        }
         chmod($output, 0777);
+    } else {
+        throw new RuntimeException('Could not open the ZIP for writing.');
     }
 }
 
@@ -119,9 +174,3 @@ function join_paths()
     return preg_replace('#/+#', '/', join('/', $paths));
 }
 `;
-
-async function runPhpWithZipFunctions(playground: UniversalPHP, code: string) {
-	return await playground.run({
-		code: zipFunctions + code,
-	});
-}
