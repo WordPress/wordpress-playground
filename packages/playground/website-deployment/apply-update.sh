@@ -245,17 +245,6 @@ if ( $rollback !== '' ) {
     }
     echo "Activated release $release; root snapshot: $backup\n";
 }
-// Cleanup follows activation. Protect the active release and its rollback target.
-if ( ! is_file( "$root/release.json" ) ) exit( 0 );
-$active = json_decode( file_get_contents( "$root/release.json" ), true, 512, JSON_THROW_ON_ERROR );
-$protected = [ $active['release'], $active['previousRelease'] ?? null ];
-foreach ( glob( "$root/.playground-releases/*/release.json" ) as $metadata ) {
-    $candidate = json_decode( file_get_contents( $metadata ), true, 512, JSON_THROW_ON_ERROR );
-    $id = $candidate['release'];
-    if ( in_array( $id, $protected, true ) || $candidate['installedAt'] >= time() - (int) $retention * 86400 ) continue;
-    foreach ( [ "$root/releases/$id", "$root/.playground-releases/$id", "$backups/$id" ] as $directory ) remove_tree( $directory );
-    echo "Expired release $id\n";
-}
 
 function restore_snapshot( $root, $backup, $inventory, $current ) {
     foreach ( array_unique( array_merge( $inventory['absent'], array_diff( $current, $inventory['files'] ) ) ) as $path ) remove_root_file( $root, $path );
@@ -288,6 +277,32 @@ function remove_root_file( $root, $path ) {
     }
 }
 
+PHP
+
+if [ "$LOCAL" != 1 ]; then
+    # Do not report a complete deployment when the old edge responses remain cached.
+    curl --fail --silent --show-error --max-time 60 -X POST \
+        -H "Auth: $ATOMIC_SITE_API_KEY" "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge" > /dev/null
+    echo 'Edge cache purged'
+fi
+
+# Prune only after the activation's edge purge. A cleanup failure must not leave
+# stale entry responses cached, and must still be reported as a deployment error.
+"$SITE_PHP" /dev/stdin "$WEB_ROOT" "$BACKUPS" "$RETENTION_DAYS" <<'PHP'
+<?php
+[ , $root, $backups, $retention ] = $argv;
+// Cleanup follows activation. Protect the active release and its rollback target.
+if ( ! is_file( "$root/release.json" ) ) exit( 0 );
+$active = json_decode( file_get_contents( "$root/release.json" ), true, 512, JSON_THROW_ON_ERROR );
+$protected = [ $active['release'], $active['previousRelease'] ?? null ];
+foreach ( glob( "$root/.playground-releases/*/release.json" ) as $metadata ) {
+    $candidate = json_decode( file_get_contents( $metadata ), true, 512, JSON_THROW_ON_ERROR );
+    $id = $candidate['release'];
+    if ( in_array( $id, $protected, true ) || $candidate['installedAt'] >= time() - (int) $retention * 86400 ) continue;
+    foreach ( [ "$root/releases/$id", "$root/.playground-releases/$id", "$backups/$id" ] as $directory ) remove_tree( $directory );
+    echo "Expired release $id\n";
+}
+
 function remove_tree( $directory ) {
     if ( ! is_dir( $directory ) ) return;
     foreach ( new FilesystemIterator( $directory ) as $file ) {
@@ -297,10 +312,3 @@ function remove_tree( $directory ) {
     rmdir( $directory );
 }
 PHP
-
-if [ "$LOCAL" != 1 ]; then
-    # Do not report a complete deployment when the old edge responses remain cached.
-    curl --fail --silent --show-error --max-time 60 -X POST \
-        -H "Auth: $ATOMIC_SITE_API_KEY" "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge" > /dev/null
-    echo 'Edge cache purged'
-fi

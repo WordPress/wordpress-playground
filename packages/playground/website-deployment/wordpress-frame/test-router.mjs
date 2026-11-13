@@ -41,6 +41,7 @@ const deployment = join(temporary, 'website-deployment');
 const backups = join(temporary, 'backups');
 const fakeBin = join(temporary, 'bin');
 const phpCalls = join(temporary, 'php-calls.txt');
+const purges = join(temporary, 'purges.txt');
 const run = promisify(execFile);
 let server;
 let port;
@@ -56,7 +57,10 @@ try {
 	await writeFile(
 		join(fakeBin, 'curl'),
 		`#!/usr/bin/env node
-if (process.argv.includes('-X')) process.exit(0);
+if (process.argv.includes('-X')) {
+    require('node:fs').appendFileSync(${JSON.stringify(purges)}, 'purged\\n');
+    process.exit(0);
+}
 process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 `
 	);
@@ -350,6 +354,8 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		await readFile(join(webRoot, 'obsolete/page.html'), 'utf8'),
 		'obsolete'
 	);
+	// Retain an independent snapshot to exercise the original layout rollback too.
+	await cp(join(backups, 'A'), join(backups, 'initial'), { recursive: true });
 	// Retention removes expired inactive assets and private PHP, preserving rollback.
 	for (const id of ['A', 'B', 'C']) {
 		const path = join(webRoot, '.playground-releases', id, 'release.json');
@@ -365,6 +371,49 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		await assert.rejects(stat(join(webRoot, '.playground-releases', id)));
 		await assert.rejects(stat(join(backups, id)));
 	}
+
+	// Cleanup is fallible after a consistent activation: edge purge must precede it.
+	const purgeCount = (await readFile(purges, 'utf8')).split('\n').length;
+	await mkdir(join(webRoot, '.playground-releases/corrupt'));
+	await writeFile(
+		join(webRoot, '.playground-releases/corrupt/release.json'),
+		'{bad json'
+	);
+	await assert.rejects(
+		install('E', await makeBuild('E')),
+		failure('Syntax error')
+	);
+	assert.equal(
+		JSON.parse(await readFile(join(webRoot, 'release.json'), 'utf8'))
+			.release,
+		'E'
+	);
+	assert.equal(
+		(await readFile(purges, 'utf8')).split('\n').length,
+		purgeCount + 1
+	);
+	// Rolling back the first transition also removes all newly introduced roots.
+	await run(
+		'bash',
+		[
+			join(deployment, 'apply-update.sh'),
+			app,
+			wordpress,
+			'',
+			webRoot,
+			backups,
+		],
+		{
+			env: {
+				...env,
+				PLAYGROUND_RELEASE_ID: 'A',
+				PLAYGROUND_ROLLBACK_BACKUP: 'initial',
+			},
+		}
+	);
+	await assert.rejects(stat(join(webRoot, 'release.json')));
+	await assert.rejects(stat(join(webRoot, 'remote.html')));
+	await assert.rejects(stat(join(webRoot, 'new-page.html')));
 
 	console.log(
 		'Static release contracts passed: validation, layout, zero PHP static requests, ' +

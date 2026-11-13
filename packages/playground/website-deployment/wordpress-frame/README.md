@@ -97,7 +97,8 @@ PLAYGROUND_RELEASE_ID=<id> ~/website-deployment/apply-update.sh \
 
 Inactive releases expire after 30 days by default (`PLAYGROUND_RELEASE_RETENTION_DAYS`),
 with the active release and its previous rollback release always protected. Cleanup removes
-public assets, private PHP and corresponding backups together after successful activation.
+public assets, private PHP and corresponding backups together after successful activation and its edge purge. Cleanup failures are reported after
+the purge so they cannot leave stale entry responses cached.
 Older tabs may need to reload after expiry. Legacy releases without installation metadata
 need a one-time operator audit; the installer does not guess their ages.
 
