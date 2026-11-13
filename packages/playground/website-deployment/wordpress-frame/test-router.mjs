@@ -58,6 +58,10 @@ try {
 		join(fakeBin, 'curl'),
 		`#!/usr/bin/env node
 if (process.argv.includes('-X')) {
+    if (process.env.PLAYGROUND_TEST_PURGE_FAILURE === '1') {
+        process.stderr.write('Fixture edge purge failed\\n');
+        process.exit(22);
+    }
     require('node:fs').appendFileSync(${JSON.stringify(purges)}, 'purged\\n');
     process.exit(0);
 }
@@ -304,6 +308,60 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		'new page'
 	);
 	// Manual rollback uses the same inventory and removes pages introduced by B.
+	const retiredMetadata = join(
+		webRoot,
+		'.playground-releases/A/release.json'
+	);
+	const retired = JSON.parse(await readFile(retiredMetadata, 'utf8'));
+	retired.inactiveSince = 1;
+	await writeFile(retiredMetadata, JSON.stringify(retired));
+	await assert.rejects(
+		run(
+			'bash',
+			[
+				join(deployment, 'apply-update.sh'),
+				app,
+				wordpress,
+				'',
+				webRoot,
+				backups,
+			],
+			{
+				env: {
+					...env,
+					PLAYGROUND_RELEASE_ID: 'A',
+					PLAYGROUND_ROLLBACK_BACKUP: 'B',
+					PLAYGROUND_TEST_PURGE_FAILURE: '1',
+				},
+			}
+		),
+		failure('Fixture edge purge failed')
+	);
+	assert.equal(
+		JSON.parse(await readFile(join(webRoot, 'release.json'), 'utf8'))
+			.release,
+		'A'
+	);
+	await assert.rejects(stat(join(webRoot, 'new-page.html')));
+	assert.equal(
+		await readFile(join(webRoot, 'obsolete/page.html'), 'utf8'),
+		'obsolete'
+	);
+	// Activation resets lifecycle metadata even when the subsequent purge fails.
+	assert.equal(
+		JSON.parse(await readFile(retiredMetadata, 'utf8')).inactiveSince,
+		undefined
+	);
+	await install('post-rollback', await makeBuild('post-rollback'));
+	await install(
+		'after-post-rollback',
+		await makeBuild('after-post-rollback')
+	);
+	await stat(join(webRoot, 'releases/A'));
+	assert.ok(
+		JSON.parse(await readFile(retiredMetadata, 'utf8')).inactiveSince > 1
+	);
+	// Restore A so the remaining failure/cleanup contracts exercise their original layout.
 	await run(
 		'bash',
 		[
@@ -318,20 +376,11 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 			env: {
 				...env,
 				PLAYGROUND_RELEASE_ID: 'A',
-				PLAYGROUND_ROLLBACK_BACKUP: 'B',
+				PLAYGROUND_ROLLBACK_BACKUP: 'post-rollback',
 			},
 		}
 	);
-	assert.equal(
-		JSON.parse(await readFile(join(webRoot, 'release.json'), 'utf8'))
-			.release,
-		'A'
-	);
-	await assert.rejects(stat(join(webRoot, 'new-page.html')));
-	assert.equal(
-		await readFile(join(webRoot, 'obsolete/page.html'), 'utf8'),
-		'obsolete'
-	);
+
 	// A directory blocks one rename after other root entries have been replaced.
 	const broken = await makeBuild('C');
 	await writeFile(join(broken, 'zz-blocked.html'), 'blocked');

@@ -208,6 +208,7 @@ if ( $rollback !== '' ) {
     $inventory = json_decode( file_get_contents( "$backup/inventory.json" ), true, 512, JSON_THROW_ON_ERROR );
     $target = is_file( "$backup/release.json" ) ? json_decode( file_get_contents( "$backup/release.json" ), true, 512, JSON_THROW_ON_ERROR ) : null;
     if ( $target && ( ! is_dir( "$root/releases/{$target['release']}" ) || ! is_dir( "$root/.playground-releases/{$target['release']}" ) ) ) throw new RuntimeException( 'Rollback release has expired.' );
+    record_activation( $root, $manifest['release'] ?? null, $target['release'] ?? null );
     restore_snapshot( $root, $backup, $inventory, $owned );
     echo "Restored root snapshot $rollback\n";
 } else {
@@ -236,6 +237,7 @@ if ( $rollback !== '' ) {
         }
     }
     write_file( "$backup/inventory.json", json_encode( $inventory, JSON_THROW_ON_ERROR ) );
+    record_activation( $root, $manifest['release'] ?? null, $release );
     try {
         foreach ( array_diff( $owned, array_keys( $sources ) ) as $path ) remove_root_file( $root, $path );
         foreach ( $sources as $path => $source ) install_file( "$root/$path", $source );
@@ -244,6 +246,20 @@ if ( $rollback !== '' ) {
         throw new RuntimeException( 'Activation failed; previous root files restored.', 0, $error );
     }
     echo "Activated release $release; root snapshot: $backup\n";
+}
+
+// Record transitions before touching roots, independently of edge purge/cleanup.
+// A failed activation may extend retention; the next transition resets it again.
+function record_activation( $root, $previous, $active ) {
+    foreach ( array_unique( array_filter( [ $active, $previous ] ) ) as $id ) {
+        $metadata = "$root/.playground-releases/$id/release.json";
+        // Earlier deployments without lifecycle metadata require the legacy audit.
+        if ( ! is_file( $metadata ) ) continue;
+        $candidate = json_decode( file_get_contents( $metadata ), true, 512, JSON_THROW_ON_ERROR );
+        if ( $id === $active ) unset( $candidate['inactiveSince'] );
+        else $candidate['inactiveSince'] = time();
+        write_file( $metadata, json_encode( $candidate, JSON_THROW_ON_ERROR ) . "\n" );
+    }
 }
 
 function restore_snapshot( $root, $backup, $inventory, $current ) {
@@ -265,7 +281,13 @@ function install_file( $target, $source ) {
 }
 
 function write_file( $path, $contents ) {
-    if ( file_put_contents( $path, $contents ) !== strlen( $contents ) ) throw new RuntimeException( "Cannot write $path" );
+    $temporary = tempnam( dirname( $path ), '.playground-new-' );
+    if ( false === $temporary ) throw new RuntimeException( "Cannot stage $path" );
+    try {
+        if ( file_put_contents( $temporary, $contents ) !== strlen( $contents ) || ! chmod( $temporary, 0644 ) || ! rename( $temporary, $path ) ) throw new RuntimeException( "Cannot write $path" );
+    } finally {
+        if ( is_file( $temporary ) ) unlink( $temporary );
+    }
 }
 
 function remove_root_file( $root, $path ) {
@@ -298,12 +320,14 @@ $protected = [ $active['release'], $active['previousRelease'] ?? null ];
 foreach ( glob( "$root/.playground-releases/*/release.json" ) as $metadata ) {
     $candidate = json_decode( file_get_contents( $metadata ), true, 512, JSON_THROW_ON_ERROR );
     $id = $candidate['release'];
-    // Measure retention from inactivity, not the original upload. A release may
-    // have served for months before today's deployment or be activated again.
-    if ( $id === $active['release'] ) unset( $candidate['inactiveSince'] );
-    else $candidate['inactiveSince'] ??= time();
-    $json = json_encode( $candidate, JSON_THROW_ON_ERROR ) . "\n";
-    if ( file_put_contents( $metadata, $json, LOCK_EX ) !== strlen( $json ) ) throw new RuntimeException( "Cannot update lifecycle metadata: $id" );
+    if ( $id === $active['release'] ) continue;
+    // Failed uploads may never have been activated. Start their inactivity window
+    // on first observation; real activation/rollback transitions were recorded above.
+    if ( ! isset( $candidate['inactiveSince'] ) ) {
+        $candidate['inactiveSince'] = time();
+        $json = json_encode( $candidate, JSON_THROW_ON_ERROR ) . "\n";
+        if ( file_put_contents( $metadata, $json, LOCK_EX ) !== strlen( $json ) ) throw new RuntimeException( "Cannot update lifecycle metadata: $id" );
+    }
     if ( in_array( $id, $protected, true ) || $candidate['inactiveSince'] >= time() - (int) $retention * 86400 ) continue;
     foreach ( [ "$root/releases/$id", "$root/.playground-releases/$id", "$backups/$id" ] as $directory ) remove_tree( $directory );
     echo "Expired release $id\n";

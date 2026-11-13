@@ -5,6 +5,12 @@ export function runtimeStaticAssetsDirectory(details: {
 	staticAssetsDirectory?: string;
 	releaseBase?: string;
 }): string | undefined {
+	// Iframe replies can already carry a qualified path. Do not prefix it twice.
+	if (
+		details.staticAssetsDirectory &&
+		isParentOf('/releases', joinPaths('/', details.staticAssetsDirectory))
+	)
+		return details.staticAssetsDirectory;
 	return details.staticAssetsDirectory
 		? joinPaths(
 				'.',

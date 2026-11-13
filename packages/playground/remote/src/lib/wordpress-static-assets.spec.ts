@@ -8,6 +8,19 @@ import {
 it.each([
 	[{ staticAssetsDirectory: 'wp-6.8' }, 'wp-6.8', 'https://app.example'],
 	[
+		{ staticAssetsDirectory: 'releases/old/wp-6.8' },
+		'releases/old/wp-6.8',
+		'https://sandbox.example',
+	],
+	[
+		{
+			staticAssetsDirectory: 'releases/old/wp-6.8',
+			releaseBase: '/releases/old/',
+		},
+		'releases/old/wp-6.8',
+		'https://sandbox.example',
+	],
+	[
 		{ staticAssetsDirectory: 'wp-6.8', releaseBase: '/releases/old/' },
 		'releases/old/wp-6.8',
 		'https://sandbox.example',

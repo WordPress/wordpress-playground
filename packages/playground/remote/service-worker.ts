@@ -947,7 +947,11 @@ async function getScopedWpDetails(
 			},
 			scope
 		);
-		scopeToWpModule[scope] = await awaitReply(self, requestId);
+		const result: WPModuleDetails = await awaitReply(self, requestId);
+		scopeToWpModule[scope] = {
+			...result,
+			staticAssetsDirectory: runtimeStaticAssetsDirectory(result),
+		};
 	}
 	return scopeToWpModule[scope];
 }
