@@ -26,7 +26,8 @@ const wpCliOverridesPath = '/tmp/playground-wp-cli-overrides.php';
  *
  * The step has no way to provide STDIN, so it closes it. A command that
  * reads it then fails before it treats the missing input as an empty value.
- * PHP 7.4 only warns on a closed stream, so the command still reads ''.
+ * PHP 7.4 only warns on a closed stream, so convert warnings about STDIN
+ * into exceptions before a command can treat missing input as an empty value.
  *
  * `wp db query` normally shells out to the `mysql` binary, which does not
  * exist in Playground and whose spawn traps the WASM runtime. Re-register it
@@ -38,6 +39,37 @@ if ( ! class_exists( 'WP_CLI' ) ) {
 }
 
 fclose( STDIN );
+
+if ( PHP_VERSION_ID < 80000 ) {
+	$playground_previous_error_handler = null;
+	$playground_previous_error_handler = set_error_handler(
+		function ( $severity, $message ) use ( &$playground_previous_error_handler ) {
+			// PHP 7.4.33 emits this literal warning with "stream" as the resource type.
+			// https://github.com/php/php-src/blob/dca8d5565b947270a29f232bc54efd9df3b92b94/Zend/zend_list.c#L118
+			// https://github.com/php/php-src/blob/dca8d5565b947270a29f232bc54efd9df3b92b94/main/php_streams.h#L266-L269
+			$is_invalid_stream_warning = E_WARNING === $severity
+				&& false !== strpos( $message, 'supplied resource is not a valid stream resource' );
+			if ( $is_invalid_stream_warning ) {
+				// In PHP 7.4, frame 0 is this handler and frame 1 is the failing stream function.
+				// Keep its arguments: the first is the stream, which retains its identity after close.
+				$failed_call = debug_backtrace( 0, 2 )[1] ?? array();
+				$stream = $failed_call['args'][0] ?? null;
+				if ( STDIN === $stream ) {
+					throw new RuntimeException(
+						'This WP-CLI command tried to read from STDIN, but the wp-cli ' .
+						'Blueprint step does not support interactive input. ' .
+						'Provide all required arguments.'
+					);
+				}
+			}
+
+			// Relay errors we haven't handled.
+			return $playground_previous_error_handler
+				? call_user_func_array( $playground_previous_error_handler, func_get_args() )
+				: false;
+		}
+	);
+}
 
 WP_CLI::add_command(
 	'db query',
