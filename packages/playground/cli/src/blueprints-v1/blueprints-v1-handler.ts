@@ -6,13 +6,16 @@ import {
 	type Pooled,
 	type UniversalPHP,
 } from '@php-wasm/universal';
-import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
+import type { BlueprintV1 } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
+	getBlueprintDeclaration,
 	isBlueprintBundle,
+	mergeBlueprintVersions,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
-import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
+import { zipDirectory } from '@wp-playground/common';
+import { InMemoryFilesystem, OverlayFilesystem } from '@wp-playground/storage';
 import fs from 'fs';
 import path from 'path';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
@@ -66,7 +69,7 @@ export class BlueprintsV1Handler {
 		workerPostInstallMountsPort: NodeMessagePort
 	) {
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			this.getEffectiveBlueprint()
+			await this.getEffectiveBlueprint()
 		);
 		let wpDetails: any = undefined;
 		let wordPressZip: any = undefined;
@@ -188,7 +191,7 @@ export class BlueprintsV1Handler {
 
 		await playground.isConnected();
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			this.getEffectiveBlueprint()
+			await this.getEffectiveBlueprint()
 		);
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootRequestHandler({
@@ -209,7 +212,7 @@ export class BlueprintsV1Handler {
 	}
 
 	async compileInputBlueprint(additionalBlueprintSteps: any[]) {
-		const blueprint = this.getEffectiveBlueprint();
+		const blueprint = await this.getEffectiveBlueprint();
 
 		const tracker = new ProgressTracker();
 		let lastCaption = '';
@@ -227,37 +230,41 @@ export class BlueprintsV1Handler {
 			this.cliOutput.updateProgress(lastCaption.trim(), progressInteger);
 		});
 
-		return await compileBlueprintV1(blueprint as BlueprintV1Declaration, {
+		return await compileBlueprintV1(blueprint, {
 			progress: tracker,
 			additionalSteps: additionalBlueprintSteps,
 		});
 	}
 
-	private getEffectiveBlueprint() {
-		const resolvedBlueprint = this.args.blueprint as BlueprintV1Declaration;
-		/**
-		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
-		 * 	     https://github.com/WordPress/wordpress-playground/blob/ce586059e5885d185376184fdd2f52335cca32b0/packages/playground/website/src/main.tsx#L41
-		 *
-		 * 		 Also the Blueprint Builder tool does something similar.
-		 *       Perhaps all these cases could be handled by the same function?
-		 */
-		return isBlueprintBundle(resolvedBlueprint)
-			? resolvedBlueprint
-			: {
-					login: this.args.login,
-					...(resolvedBlueprint || {}),
-					preferredVersions: {
-						php:
-							this.args.php ??
-							resolvedBlueprint?.preferredVersions?.php ??
-							RecommendedPHPVersion,
-						wp:
-							this.args.wp ??
-							resolvedBlueprint?.preferredVersions?.wp ??
-							'latest',
-						...(resolvedBlueprint?.preferredVersions || {}),
-					},
-				};
+	/**
+	 * Applies CLI version overrides and a default login setting to the input Blueprint.
+	 * Bundles retain their resource filesystem and access restrictions beneath an overlaid
+	 * declaration. PHP-only Blueprints bypass these overrides, matching the website.
+	 */
+	private async getEffectiveBlueprint(): Promise<BlueprintV1> {
+		const resolvedBlueprint = (this.args.blueprint || {}) as BlueprintV1;
+		const declaration = await getBlueprintDeclaration(resolvedBlueprint);
+		if (declaration.preferredVersions?.wp === false) {
+			return resolvedBlueprint;
+		}
+		const blueprint = mergeBlueprintVersions(
+			{
+				login: this.args.login,
+				...declaration,
+			},
+			{
+				php: this.args.php,
+				wp: this.args.wp,
+			}
+		);
+		if (isBlueprintBundle(resolvedBlueprint)) {
+			return new OverlayFilesystem([
+				new InMemoryFilesystem({
+					'blueprint.json': JSON.stringify(blueprint),
+				}),
+				resolvedBlueprint,
+			]);
+		}
+		return blueprint;
 	}
 }
