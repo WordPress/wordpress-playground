@@ -361,16 +361,24 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		const path = join(webRoot, '.playground-releases', id, 'release.json');
 		const metadata = JSON.parse(await readFile(path, 'utf8'));
 		metadata.installedAt = 1;
+		metadata.inactiveSince = id === 'B' ? Math.floor(Date.now() / 1000) : 1;
 		await writeFile(path, JSON.stringify(metadata));
 	}
 	await install('D', await makeBuild('D'));
 	await stat(join(webRoot, 'releases/A'));
 	await stat(join(webRoot, 'releases/D'));
-	for (const id of ['B', 'C']) {
+	// An old upload that only just became inactive receives the full window.
+	await stat(join(webRoot, 'releases/B'));
+	for (const id of ['C']) {
 		await assert.rejects(stat(join(webRoot, 'releases', id)));
 		await assert.rejects(stat(join(webRoot, '.playground-releases', id)));
 		await assert.rejects(stat(join(backups, id)));
 	}
+
+	const expired = join(webRoot, '.playground-releases/B/release.json');
+	const inactive = JSON.parse(await readFile(expired, 'utf8'));
+	inactive.inactiveSince = 1;
+	await writeFile(expired, JSON.stringify(inactive));
 
 	// Cleanup is fallible after a consistent activation: edge purge must precede it.
 	const purgeCount = (await readFile(purges, 'utf8')).split('\n').length;
@@ -392,6 +400,8 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		(await readFile(purges, 'utf8')).split('\n').length,
 		purgeCount + 1
 	);
+	await assert.rejects(stat(join(webRoot, 'releases/B')));
+
 	// Rolling back the first transition also removes all newly introduced roots.
 	await run(
 		'bash',

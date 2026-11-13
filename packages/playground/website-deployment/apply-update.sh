@@ -298,7 +298,13 @@ $protected = [ $active['release'], $active['previousRelease'] ?? null ];
 foreach ( glob( "$root/.playground-releases/*/release.json" ) as $metadata ) {
     $candidate = json_decode( file_get_contents( $metadata ), true, 512, JSON_THROW_ON_ERROR );
     $id = $candidate['release'];
-    if ( in_array( $id, $protected, true ) || $candidate['installedAt'] >= time() - (int) $retention * 86400 ) continue;
+    // Measure retention from inactivity, not the original upload. A release may
+    // have served for months before today's deployment or be activated again.
+    if ( $id === $active['release'] ) unset( $candidate['inactiveSince'] );
+    else $candidate['inactiveSince'] ??= time();
+    $json = json_encode( $candidate, JSON_THROW_ON_ERROR ) . "\n";
+    if ( file_put_contents( $metadata, $json, LOCK_EX ) !== strlen( $json ) ) throw new RuntimeException( "Cannot update lifecycle metadata: $id" );
+    if ( in_array( $id, $protected, true ) || $candidate['inactiveSince'] >= time() - (int) $retention * 86400 ) continue;
     foreach ( [ "$root/releases/$id", "$root/.playground-releases/$id", "$backups/$id" ] as $directory ) remove_tree( $directory );
     echo "Expired release $id\n";
 }
