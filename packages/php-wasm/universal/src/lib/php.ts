@@ -49,7 +49,18 @@ export class PHPExecutionFailureError extends Error {
 	}
 }
 
-export type UnmountFunction = (() => Promise<any>) | (() => any);
+export type UnmountFunction =
+	| ((context?: UnmountContext) => Promise<any>)
+	| ((context?: UnmountContext) => any);
+
+export interface UnmountContext {
+	/**
+	 * True when the caller already holds `php.semaphore`, as `run()` and
+	 * `cli()` do during runtime rotation. A handler that takes the semaphore
+	 * to flush its data must not wait for it in that case.
+	 */
+	semaphoreHeld?: boolean;
+}
 
 /**
  * Signals that an unmount failed before the mount was detached.
@@ -81,7 +92,7 @@ const OPCACHE_FILE_FOLDER = '/internal/shared/opcache';
 
 type MountObject = {
 	mountHandler: MountHandler;
-	unmount: () => Promise<any>;
+	unmount: (context?: UnmountContext) => Promise<any>;
 };
 
 /**
@@ -1512,7 +1523,8 @@ export class PHP implements Disposable {
 			);
 		}
 		await this.hotSwapPHPRuntime(
-			await this.#rotationOptions.recreateRuntime()
+			await this.#rotationOptions.recreateRuntime(),
+			{ semaphoreHeld: true }
 		);
 		this.#rotationOptions.requestsMade = 0;
 		this.#rotationOptions.needsRotating = false;
@@ -1523,8 +1535,9 @@ export class PHP implements Disposable {
 	 * interrupting the operations of this PHP instance.
 	 *
 	 * @param runtime
+	 * @param context - Passed to the unmount function of each mount.
 	 */
-	async hotSwapPHPRuntime(runtime: number) {
+	async hotSwapPHPRuntime(runtime: number, context: UnmountContext = {}) {
 		// Once we secure the lock and have the new runtime ready,
 		// the rest of the swap handler is synchronous to make sure
 		// no other operations acts on the old runtime or FS.
@@ -1572,7 +1585,7 @@ export class PHP implements Disposable {
 			this.#mounts
 		).reverse();
 		for (const mount of mountsToUnmountInReverseOrder) {
-			await mount.unmount();
+			await mount.unmount(context);
 		}
 
 		// Kill the current runtime
@@ -1668,9 +1681,9 @@ export class PHP implements Disposable {
 		);
 		const mountObject = {
 			mountHandler,
-			unmount: async () => {
+			unmount: async (unmountContext?: UnmountContext) => {
 				try {
-					await unmountCallback();
+					await unmountCallback(unmountContext);
 				} catch (error) {
 					if (error instanceof MountStillActiveError) {
 						throw error;
@@ -1685,7 +1698,7 @@ export class PHP implements Disposable {
 			},
 		};
 		this.#mounts[virtualFSPath] = mountObject;
-		return async () => {
+		return async (unmountContext?: UnmountContext) => {
 			// After rotation, the old mount is already unmounted. Don't call its
 			// cleanup twice when the caller invokes this saved function again.
 			// Look up the current mount instead; it has a new cleanup callback.
@@ -1693,7 +1706,7 @@ export class PHP implements Disposable {
 			// at the same path alone.
 			const currentMount = this.#mounts[virtualFSPath];
 			if (currentMount?.mountHandler === mountHandler) {
-				await currentMount.unmount();
+				await currentMount.unmount(unmountContext);
 			}
 		};
 	}
