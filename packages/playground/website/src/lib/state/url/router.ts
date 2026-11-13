@@ -1,3 +1,4 @@
+import type { DockToolSection } from '../../../components/dock/tool-registry';
 import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
 import { decodeBase64ToString } from '@php-wasm/util';
@@ -28,6 +29,7 @@ export interface QueryAPIParams {
 	'blueprint-url'?: string;
 	'page-title'?: string;
 	filebrowser?: string;
+	overlay?: DockToolSection | 'blueprints';
 }
 
 /**

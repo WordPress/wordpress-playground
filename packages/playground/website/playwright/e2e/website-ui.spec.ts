@@ -577,6 +577,29 @@ test('should open and clear Blueprint gallery deep links at every viewport size'
 	}
 });
 
+test('switching Dock panes clears the overlay link before refresh', async ({
+	page,
+}) => {
+	await page.goto('./?storage=temp&overlay=new');
+	await expect(
+		page.getByRole('dialog', { name: 'New Playground pane' })
+	).toBeVisible();
+	await page
+		.getByRole('button', { name: 'Your Playgrounds', exact: true })
+		.click();
+	await expect(
+		page.getByRole('dialog', { name: 'Your Playgrounds pane' })
+	).toBeVisible();
+	await expect(page).toHaveURL(/\?storage=temp$/);
+	await page.reload();
+	await expect(
+		page.getByRole('navigation', { name: 'Playground tools' })
+	).toBeVisible();
+	await expect(
+		page.getByRole('dialog', { name: 'New Playground pane' })
+	).toBeHidden();
+});
+
 test('should switch the desktop Dock between full width and collapsed states', async ({
 	website,
 	browserName,

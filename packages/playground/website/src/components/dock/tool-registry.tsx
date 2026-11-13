@@ -197,6 +197,16 @@ export const SITE_TOOLS = definitions.filter(
 	(tool): tool is SiteToolDefinition => 'Panel' in tool
 );
 
+export function getOverlaySection(overlay: string): DockToolSection {
+	if (overlay === 'blueprints') {
+		return 'new';
+	}
+	return (
+		DOCK_TOOLS.find((tool) => tool.section === overlay)?.section ??
+		'playgrounds'
+	);
+}
+
 export function getDockTool(section: DockToolSection) {
 	return DOCK_TOOLS.find((tool) => tool.section === section)!;
 }
