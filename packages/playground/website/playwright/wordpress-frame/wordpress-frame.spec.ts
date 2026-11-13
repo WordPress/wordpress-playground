@@ -18,6 +18,15 @@ import {
 	wordPressOrigin as wpOrigin,
 } from '../../bin/wordpress-frame/origins.mjs';
 
+/** Match the request helper at its static release path or a versioned alias. */
+function isHelperFrame(url: string) {
+	const { pathname } = new URL(url);
+	return (
+		isWordPressBridgePath(pathname) ||
+		/^\/releases\/[^/]+\/wordpress-bridge\.html$/.test(pathname)
+	);
+}
+
 // These checks create saved sites and inspect shared download counters.
 test.describe.configure({ mode: 'default' });
 test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
@@ -266,9 +275,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 
 		const helper = remote
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
+			.find((frame) => isHelperFrame(frame.url()))!;
 		await helper.evaluate(async (appOrigin) => {
 			const scope = new URL(window.location.href).searchParams.get(
 				'scope'
@@ -307,9 +314,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		const helper = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
+			.find((frame) => isHelperFrame(frame.url()))!;
 		expect(
 			await helper.evaluate(() =>
 				Boolean((window as any).cachedHelperExecuted)
@@ -339,9 +344,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		const helper = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
+			.find((frame) => isHelperFrame(frame.url()))!;
 		expect(
 			await helper.evaluate(() =>
 				Boolean((window as any).cachedHelperExecuted)
@@ -1406,9 +1409,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		const helper = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
+			.find((frame) => isHelperFrame(frame.url()))!;
 		const helperPath = new URL(helper.url()).pathname;
 		await wp.evaluate(async (helperPath) => {
 			const url = new URL(helperPath, window.location.origin).href;

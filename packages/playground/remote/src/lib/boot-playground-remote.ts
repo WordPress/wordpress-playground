@@ -1,5 +1,5 @@
 import { connectWordPressOrigin } from './connect-wordpress-origin';
-import { wordPressSiteUrl } from './config';
+import { wordPressSiteUrl, releaseBase } from './config';
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
@@ -55,7 +55,12 @@ function getWorkerUrl(): string {
 	return workerUrl + '';
 }
 
-export const serviceWorkerUrl = new URL(serviceWorkerPath, origin);
+// A worker controls only paths below its own URL, so static releases register the
+// root /sw.js loader, which imports this release's worker.
+export const serviceWorkerUrl = new URL(
+	releaseBase === '/' ? serviceWorkerPath : '/sw.js',
+	origin
+);
 
 // Prevent Vite from hot-reloading this file – it would
 // cause bootPlaygroundRemote() to register another web worker
@@ -849,9 +854,11 @@ async function captureSiteThumbnailFromWordPress({
 		const onLoad = () => {
 			clearTimeout(timeout);
 			timeout = setTimeout(onTimeout, SITE_THUMBNAIL_RENDER_TIMEOUT_MS);
+			// Static releases serve the same files on the WordPress host. Load the
+			// renderer from there: module scripts and workers need same-origin URLs.
 			const moduleUrl = new URL(
 				siteThumbnailModuleUrl,
-				document.location.href
+				releaseBase === '/' ? document.location.href : frontPageOrigin
 			);
 			// The marker lets the service worker distinguish this app asset
 			// from a path inside the scoped WordPress site.

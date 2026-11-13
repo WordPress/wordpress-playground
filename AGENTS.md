@@ -97,23 +97,25 @@ Standalone and self-hosted builds without a sandbox retain one origin.
 External embeds do not need a referrer or new URL parameters. This mode does not
 block WordPress from embedding fresh app/API documents.
 The normal WP Cloud deployment sets `VITE_WORDPRESS_SITE_URL` to
-`https://wpsandbox.wordpress.net` and `PLAYGROUND_APP_ORIGIN` to
-`https://playground.wordpress.net` in one workflow environment. Pass those same
-values to the single `apply-update.sh` deployment script; it writes the sandbox
-origin into the release's PHP entry. The remote Vite build uses `PLAYGROUND_APP_ORIGIN` to
-create a `wordpress-sandbox/` subdirectory containing only the HTTP helper and
-worker loaders, all importing shared app-origin scripts. The PHP host gate
-serves that directory as-is, without constructing response bodies or falling
-back to app files. The built preview uses the same directory and generators.
+`https://wpsandbox.wordpress.net`, `VITE_PLAYGROUND_APP_ORIGIN` to
+`https://playground.wordpress.net`, and a unique `PLAYGROUND_RELEASE_ID` in one
+workflow. Vite builds with base `/releases/<id>/`, so every asset URL names its
+release, and adds an inline origin check to each page: the request helper requires
+the sandbox origin, all other pages the app origin. The single `apply-update.sh`
+installs the build as the public `releases/<id>/` directory, moves its PHP endpoints
+to the Nginx-denied `.playground-releases/<id>/`, and copies entry pages plus a root
+`/sw.js` loader to the web root. Pages needing custom headers stay PHP-served.
+Nginx serves existing files on both hostnames; `custom-redirects.php` handles only
+missing paths. Previous releases are retained so open tabs keep their own files.
 Do not add a second installer script. Host checks live in
-`website-deployment/custom-redirects-lib.php`, reached
-through its existing `playground_handle_request()` entry point. Only the sandbox host takes an early
-bootstrap-only path, with scoped top-level GET navigations redirected to the configured
-app origin. Scoped app navigations serve the trusted WordPress iframe wrapper;
-iframe and subresource requests never redirect. App requests keep the existing redirects, headers, and PHP
-setup. The deployment script selects a complete
-private release and checks both hosts and Nginx's hidden-path deny rule before
-activation. Personal WP keeps its no-argument public-file layout and separate script.
+`website-deployment/custom-redirects-lib.php`, reached through its existing
+`playground_handle_request()` entry point. The sandbox host serves only helper
+aliases for older clients and returns 404 otherwise, with scoped top-level GET
+navigations redirected to the configured app origin. Scoped app navigations serve
+the trusted WordPress iframe wrapper; iframe and subresource requests never
+redirect. App requests keep the existing redirects, headers, and PHP setup.
+One `/sw.js` serves both hostnames and chooses its role by origin. Personal WP keeps
+its no-argument public-file layout and separate script.
 The HTTP/install contract tests run with
 `playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
 WordPress request-helper URLs include the app build version. Servers map them to

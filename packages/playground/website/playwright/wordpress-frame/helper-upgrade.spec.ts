@@ -8,14 +8,12 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path';
 
+// Both hostnames serve the installed web root, including the root /sw.js loader.
 const sandbox = resolve(
 	__dirname,
-	'../../../../../dist/packages/playground/remote/wordpress-sandbox'
+	'../../../../../dist/packages/playground/wordpress-frame-public'
 );
-const appDirectory = resolve(
-	__dirname,
-	'../../../../../dist/packages/playground/website'
-);
+const appDirectory = sandbox;
 const workerPath = resolve(sandbox, 'sw.js');
 const seedDocument = '__previous-wordpress-worker.html';
 const appSeedDocument = '__previous-wordpress-app.html';

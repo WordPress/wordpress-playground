@@ -3,7 +3,8 @@ import { streamToPort } from '@php-wasm/universal';
 import { responseTo } from '@php-wasm/web-service-worker';
 import type { RemoteAPI } from '@php-wasm/universal';
 import type { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
-import { wordPressSiteUrl } from './config';
+import { wordPressSiteUrl, releaseBase } from './config';
+import { joinPaths } from '@php-wasm/util';
 import { getWordPressBridgePath } from './wordpress-bridge-path';
 // @ts-ignore -- Provided by Vite.
 import { buildVersion } from 'virtual:remote-config';
@@ -62,7 +63,13 @@ export async function connectWordPressOrigin(
 	// Put the app's buildVersion in the path, not just a query parameter:
 	// a worker installed during a previous visit can answer /wordpress-bridge.html
 	// itself, without fetching the deployed helper or its script URLs from the server.
-	const url = new URL(getWordPressBridgePath(buildVersion), wordPressSiteUrl);
+	// A static release names its own retained helper, which workers pass through.
+	const url = new URL(
+		releaseBase === '/'
+			? getWordPressBridgePath(buildVersion)
+			: joinPaths(releaseBase, 'wordpress-bridge.html'),
+		wordPressSiteUrl
+	);
 	url.searchParams.set('scope', scope);
 	bridge.src = url.href;
 	await new Promise<void>((resolve, reject) => {
@@ -122,7 +129,15 @@ export async function connectWordPressOrigin(
 				} else if (method === 'getWordPressModuleDetails') {
 					const { staticAssetsDirectory } =
 						await client.getWordPressModuleDetails();
-					response = { staticAssetsDirectory };
+					// The worker prefixes "/". Name this release's copy of the files.
+					response = {
+						staticAssetsDirectory: staticAssetsDirectory
+							? joinPaths(
+									releaseBase,
+									staticAssetsDirectory
+								).substring(1)
+							: staticAssetsDirectory,
+					};
 				} else {
 					return;
 				}

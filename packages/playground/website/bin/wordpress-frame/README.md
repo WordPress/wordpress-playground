@@ -34,14 +34,15 @@ split through the existing loopback Vite ports: app on 5400, WordPress on 4400. 
 [website development guide](../../README.md#development).
 This work is separate from PR #4357.
 
-The normal WP Cloud deployment builds with
-`VITE_WORDPRESS_SITE_URL=https://wpsandbox.wordpress.net` and
-`PLAYGROUND_APP_ORIGIN=https://playground.wordpress.net`. The latter produces a
-small `wordpress-sandbox/` document root whose loaders import shared app bundles.
-The built preview and upgrade-test server serve the same directory layout,
-generated with their respective app addresses.
-Host checks live in `custom-redirects-lib.php`; the single `apply-update.sh`
-script installs the private build and its public entry. See the [deployment guide](../../../website-deployment/wordpress-frame/README.md).
+`build:wordpress-frame` builds one static release (base `/releases/<id>/`) and
+installs it with the production `apply-update.sh` in loopback-only mode, once for
+the preview web root and once for the upgrade tests on port 7999. Node 24 and PHP
+are required. The preview serves existing files directly on both hostnames, as
+Nginx does, and sends missing paths to a local PHP server running the installed
+`custom-redirects.php`. The normal WP Cloud deployment also sets
+`VITE_PLAYGROUND_APP_ORIGIN` and `VITE_WORDPRESS_SITE_URL`, which add each page's
+origin check; previews derive the origins at runtime instead. See the
+[deployment guide](../../../website-deployment/wordpress-frame/README.md).
 
 ## Boundaries
 
@@ -57,19 +58,21 @@ script installs the private build and its public entry. See the [deployment guid
   to activate before reporting ready.
   Requests travel through that helper to the assigned PHP worker. Responses keep
   the existing streamed-body transport.
-- The WordPress service worker generates the helper HTML and thumbnail-worker
-  loader itself. It never loads platform code from WordPress-origin CacheStorage,
-  which every WordPress page can modify. The initial helper document comes from
-  the server; both paths load the same app-origin script bundle. Shared asset URLs
-  and HTTP-cache reuse are unchanged, including during a warm offline startup.
+- Each app build loads its helper from its own release directory on the WordPress
+  host, which the WordPress service worker passes to the server. The worker
+  generates helper HTML for older clients' versioned URLs itself. It never loads
+  platform code from WordPress-origin CacheStorage, which every WordPress page can
+  modify. Release files are served on both hosts, so the helper, the thumbnail
+  renderer, and static WordPress files load from the WordPress host without CORS.
 - The helper can request HTTP responses for its assigned URL scope and read the
   public static-asset directory name. It cannot invoke arbitrary PHP client
   methods, mount a directory, or choose a different runtime.
 - Window-backed client APIs accept messages only from their connected window.
   A child WordPress frame cannot use an existing parent API connection. The root
   HTTP server never serves scoped WordPress responses.
-- Public scripts, PHP WASM, and WordPress downloads use identical root-origin
-  URLs. The WordPress service worker imports its public code from that origin.
+- Public scripts, PHP WASM, and WordPress downloads use release URLs, which both
+  hosts serve. The app and WordPress hosts each register the root `/sw.js` loader,
+  which imports that release's worker; it chooses its role by origin.
   The root keeps its existing on-demand asset cache, shared by every PHP worker.
   Eager offline prefetch is disabled. Root-origin scoped subresource requests return 404
   for sandbox sites. Each runtime explicitly rejects its app-origin HTTP route,

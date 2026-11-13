@@ -1,63 +1,88 @@
 /**
- * Build one shared set of app assets for the two-host preview and upgrade tests.
+ * Build one static release and install it with the production deployment script.
  *
- * Keep root-relative asset URLs: the app host serves the bundles, and host routing
- * serves a built sandbox directory whose loaders use that host. Do not build
- * another asset tree for each WordPress iframe. Copy the same output into the "new" release
- * directory so deployment tests upgrade to this setup, not a single-origin build.
+ * The preview and the deployment upgrade tests serve the installed web roots, so
+ * they exercise the same public release directories, root copies, and PHP entry
+ * as WP Cloud. Both roots start empty, as on a fresh host. The upgrade tests use
+ * another port, so that root gets its own install of the same build.
  */
 import { build } from 'vite';
-import { cp, mkdir } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
-import { appOrigin } from './origins.mjs';
-import { writeWordPressSandbox } from '../../../remote/vite.wordpress-sandbox.ts';
+import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { appOrigin, wordPressOrigin } from './origins.mjs';
 
-const remoteSource = new URL('../../../remote/', import.meta.url);
-let remoteBundle;
-
-// One public asset origin for app, PHP, and WordPress; no per-site copies.
+const release = `preview-${Date.now()}`;
+process.env.PLAYGROUND_RELEASE_ID = release;
 for (const name of ['client', 'remote', 'website', 'website-extras']) {
-	const result = await build({
+	await build({
 		configFile: `packages/playground/${name}/vite.config.ts`,
 		mode: 'production',
-		base: '/',
 		build: { outDir: `../../../dist/packages/playground/${name}` },
 	});
-	if (name === 'remote') {
-		const output = Array.isArray(result) ? result[0].output : result.output;
-		remoteBundle = Object.fromEntries(
-			output.map((file) => [file.fileName, file])
-		);
-		await writeWordPressSandbox(
-			fileURLToPath(
-				new URL(
-					'../../../../../dist/packages/playground/remote/',
-					import.meta.url
-				)
-			),
-			appOrigin,
-			remoteBundle,
-			remoteSource
-		);
-	}
 }
 
-// The deployment tests must upgrade to the split-origin build, not the normal build.
-const release = 'dist/packages/playground/wasm-wordpress-net-new';
-await mkdir(release, { recursive: true });
+// Assemble the upload as the website build target does.
+const upload = 'dist/packages/playground/wordpress-frame-upload';
+await rm(upload, { recursive: true, force: true });
+await mkdir(upload, { recursive: true });
 for (const name of ['remote', 'website', 'website-extras']) {
-	await cp(`dist/packages/playground/${name}`, release, { recursive: true });
+	await cp(`dist/packages/playground/${name}`, upload, { recursive: true });
 }
-await cp('dist/packages/playground/client', `${release}/client`, {
+await cp('dist/packages/playground/client', `${upload}/client`, {
 	recursive: true,
 });
-
-// Only the tiny bootstrap files need another address for the release-switching server.
-const upgradeOrigin = new URL(appOrigin);
-upgradeOrigin.port = '7999';
-await writeWordPressSandbox(
-	release,
-	upgradeOrigin.origin,
-	remoteBundle,
-	remoteSource
+await cp(
+	'packages/playground/blueprints/public/blueprint-schema.json',
+	`${upload}/blueprint-schema.json`
 );
+// The normal CI assembly downloads WP-CLI; reuse it when present.
+if (existsSync('dist/packages/playground/wasm-wordpress-net/wp-cli.phar')) {
+	await cp(
+		'dist/packages/playground/wasm-wordpress-net/wp-cli.phar',
+		`${upload}/wp-cli.phar`
+	);
+}
+
+const upgradeApp = new URL(appOrigin);
+const upgradeWordPress = new URL(wordPressOrigin);
+upgradeApp.port = upgradeWordPress.port = '7999';
+for (const [webRoot, origins] of [
+	[
+		'dist/packages/playground/wordpress-frame-public',
+		[appOrigin, wordPressOrigin],
+	],
+	[
+		'dist/packages/playground/wasm-wordpress-net-new',
+		[upgradeApp.origin, upgradeWordPress.origin],
+	],
+]) {
+	for (const directory of [webRoot, `${webRoot}-backups`]) {
+		await rm(directory, { recursive: true, force: true });
+	}
+	// The installer moves its upload into place.
+	const copy = await mkdtemp(
+		'dist/packages/playground/wordpress-frame-install-'
+	);
+	await cp(upload, copy, { recursive: true });
+	execFileSync(
+		'bash',
+		[
+			'packages/playground/website-deployment/apply-update.sh',
+			...origins,
+			copy,
+			webRoot,
+			`${webRoot}-backups`,
+		],
+		{
+			stdio: 'inherit',
+			env: {
+				...process.env,
+				PLAYGROUND_LOCAL_RELEASES: '1',
+				PLAYGROUND_MIME_TYPES:
+					'packages/php-wasm/universal/src/lib/mime-types.json',
+				SITE_PHP: 'php',
+			},
+		}
+	);
+}

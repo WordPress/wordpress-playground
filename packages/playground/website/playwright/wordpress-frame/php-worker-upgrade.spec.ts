@@ -6,9 +6,10 @@ import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { joinPaths } from '@php-wasm/util';
 
+// The installed preview web root: root entry copies and the release directory.
 const remoteDirectory = joinPaths(
 	__dirname,
-	'../../../../../dist/packages/playground/remote'
+	'../../../../../dist/packages/playground/wordpress-frame-public'
 );
 let server: Server;
 let appOrigin: string;
@@ -50,7 +51,7 @@ self.addEventListener('fetch', event => {
 });`);
 	});
 	app.get(
-		'/playground-worker-endpoint-blueprints-:hash.js',
+		'/releases/:release/playground-worker-endpoint-blueprints-:hash.js',
 		async (request, response) => {
 			phpWorkerRequests.push(
 				request.get('X-Test-Worker-Release') ?? 'uncontrolled'
