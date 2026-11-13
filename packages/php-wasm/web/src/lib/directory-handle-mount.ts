@@ -1,4 +1,9 @@
-import type { Emscripten, MountHandler, PHP } from '@php-wasm/universal';
+import type {
+	Emscripten,
+	MountHandler,
+	PHP,
+	UnmountContext,
+} from '@php-wasm/universal';
 import {
 	FSHelpers,
 	MountStillActiveError,
@@ -61,8 +66,11 @@ export interface DirectoryHandleMount {
 	 *
 	 * If draining fails, rejects with `MountStillActiveError` without
 	 * detaching, so callers can retry the same mount.
+	 *
+	 * A caller that holds `php.semaphore` must say so in `context`. The drain
+	 * then replays the journal without waiting for the semaphore.
 	 */
-	unmount(): Promise<void>;
+	unmount(context?: UnmountContext): Promise<void>;
 }
 export type SyncProgress = {
 	/** The number of files that have been synced. */
@@ -106,7 +114,14 @@ export function createDirectoryHandleMountHandler(
 		},
 	};
 
-	return async function (php, FS, vfsMountPoint) {
+	return async function (php, FS, vfsMountPoint, context) {
+		if (context?.isRemount && FSHelpers.fileExists(FS, vfsMountPoint)) {
+			// Runtime rotation flushed the journal and copied the MEMFS nodes,
+			// so MEMFS and OPFS already hold the same files.
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			options.onMount?.(mount);
+			return mount.unmount;
+		}
 		if (options.initialSync.direction === 'opfs-to-memfs') {
 			if (FSHelpers.fileExists(FS, vfsMountPoint)) {
 				FSHelpers.rmdir(FS, vfsMountPoint);
@@ -754,14 +769,18 @@ export function journalFSEventsToOpfs(
 	 * A failed drain leaves the journal attached and throws
 	 * `MountStillActiveError`, allowing the same mount to be retried.
 	 */
-	async function unmount() {
+	async function unmount(context?: UnmountContext) {
 		try {
 			while (true) {
-				await flush();
+				// A background flush waits for php.semaphore. A caller that holds
+				// the semaphore must drain the journal itself instead of joining it.
+				await (context?.semaphoreHeld
+					? flushJournal(context)
+					: flush());
 				if (journal.length === 0) {
 					// discard() removes the listeners synchronously before its first
 					// await, so nothing can be captured after this empty check.
-					await discard();
+					await discard(context);
 					return;
 				}
 			}
@@ -778,8 +797,10 @@ export function journalFSEventsToOpfs(
 	 * setup. It waits for that flush, but logs its failure so the setup error
 	 * remains the one returned to the caller.
 	 */
-	async function discard() {
-		const inFlightFlush = flushPromise;
+	async function discard(context?: UnmountContext) {
+		// A flush that waits for a semaphore the caller holds cannot finish
+		// here. It finds an empty journal once the caller releases the semaphore.
+		const inFlightFlush = context?.semaphoreHeld ? undefined : flushPromise;
 		unbindJournal();
 		php.removeEventListener('request.end', flushInBackground);
 		php.removeEventListener('proxyfs.request.end', flushInBackground);
@@ -803,7 +824,7 @@ export function journalFSEventsToOpfs(
 	 * Waits for initial sync, then drains queued changes within the batch limit.
 	 * Also retries a dirty symlink index when no filesystem operations remain.
 	 */
-	async function flushJournal() {
+	async function flushJournal(context?: UnmountContext) {
 		// Initial copying and replay both write the symlink index. Capture
 		// changes during setup, but replay them only after that copy finishes.
 		await options.initialSync;
@@ -825,7 +846,7 @@ export function journalFSEventsToOpfs(
 					`OPFS flush for "${memfsRoot}" did not settle after ${maxFlushPasses} journal batches; ${remainingPhrase}. This can happen when filesystem writes are continuously enqueued while flushing.`
 				);
 			}
-			await flushJournalOnce();
+			await flushJournalOnce(context);
 		}
 	}
 
@@ -838,12 +859,14 @@ export function journalFSEventsToOpfs(
 	 * Saves the symlink index once after replay; a failed index write stays
 	 * pending without putting completed filesystem operations back in the journal.
 	 */
-	async function flushJournalOnce() {
+	async function flushJournalOnce(context?: UnmountContext) {
 		if (journal.length === 0) {
 			return;
 		}
 
-		const release = await php.semaphore.acquire();
+		const release = context?.semaphoreHeld
+			? () => {}
+			: await php.semaphore.acquire();
 
 		// Remove exactly this snapshot. Filesystem hooks may append entries while
 		// this batch awaits OPFS, and those newer entries must remain in the journal.

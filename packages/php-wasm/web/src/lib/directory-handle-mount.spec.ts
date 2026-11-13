@@ -1251,6 +1251,87 @@ describe('journalFSEventsToOpfs', () => {
 });
 
 describe('createDirectoryHandleMountHandler', () => {
+	it('keeps unsaved changes and skips the OPFS read when PHP rotates its runtime', async () => {
+		const php = new PHP(await loadNodeRuntime('8.4'));
+		php.enableRuntimeRotation({
+			recreateRuntime: () => loadNodeRuntime('8.4'),
+			maxRequests: 1,
+		});
+		const root = new MemoryDirectoryHandle('root');
+		const saved = new MemoryFileHandle('saved.txt');
+		saved.bytes = encode('saved');
+		root.files.set('saved.txt', saved);
+		const readDirectory = vi.spyOn(root, 'values');
+		let mount: { flush(): Promise<void> } | undefined;
+		try {
+			await php.mount(
+				'/site',
+				createDirectoryHandleMountHandler(
+					root as unknown as FileSystemDirectoryHandle,
+					{
+						initialSync: {},
+						onMount: (newMount) => {
+							mount = newMount;
+						},
+					}
+				)
+			);
+			const directoryReadsAfterMount = readDirectory.mock.calls.length;
+			await php.run({ code: '<?php' });
+
+			// A direct FS write dispatches no event, so the change is still in
+			// the journal when the next run() rotates the runtime.
+			php[__private__dont__use].FS.writeFile(
+				'/site/unsaved.txt',
+				'unsaved'
+			);
+			const response = await php.run({
+				code: `<?php echo file_get_contents('/site/saved.txt'), file_get_contents('/site/unsaved.txt');`,
+			});
+
+			expect(response.text).toBe('savedunsaved');
+			expect(decode(root.files.get('unsaved.txt')!.bytes)).toBe(
+				'unsaved'
+			);
+			expect(readDirectory).toHaveBeenCalledTimes(
+				directoryReadsAfterMount
+			);
+
+			php.writeFile('/site/later.txt', 'later');
+			await mount!.flush();
+			expect(decode(root.files.get('later.txt')!.bytes)).toBe('later');
+		} finally {
+			php.exit();
+		}
+	});
+
+	it('unmounts past a flush that waits for a semaphore the caller holds', async () => {
+		const php = new PHP(await loadNodeRuntime('8.4'));
+		const root = new MemoryDirectoryHandle('root');
+		try {
+			const unmount = await php.mount(
+				'/site',
+				createDirectoryHandleMountHandler(
+					root as unknown as FileSystemDirectoryHandle,
+					{ initialSync: {} }
+				)
+			);
+			const release = await php.semaphore.acquire();
+			try {
+				php.writeFile('/site/queued.txt', 'queued');
+				// Let the background flush reach its wait for the semaphore.
+				await new Promise((resolve) => setTimeout(resolve));
+				await unmount({ semaphoreHeld: true });
+			} finally {
+				release();
+			}
+
+			expect(decode(root.files.get('queued.txt')!.bytes)).toBe('queued');
+		} finally {
+			php.exit();
+		}
+	});
+
 	it('fails loud when a single OPFS write rejects instead of reporting a complete copy', async () => {
 		// Regression guard: a transient per-file OPFS write failure (e.g.
 		// Safari's "Invalid platform file handle" near the sync-access-handle

@@ -43,6 +43,7 @@ import type {
 	PathAlias,
 	PHP,
 	PHPRequestHandler,
+	PHPRunOptions,
 } from '@php-wasm/universal';
 import {
 	isLegacyPHPVersion,
@@ -84,6 +85,10 @@ export type WorkerBootOptions = {
 	wordPressZip?: File;
 	sqliteDriverVersion?: string;
 	phpVersion?: AllPHPVersion;
+	/**
+	 * @deprecated PHP reports `php-wasm` for requests and `cli` for
+	 * `php.cli()`.
+	 */
 	sapiName?: string;
 	scope: string;
 	extensions?: PHPWebExtension[];
@@ -141,6 +146,8 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 
 	private networkTransport: WordPressFetchNetworkTransport | undefined;
 	private requestHandler: PHPRequestHandler | undefined;
+	private createPhpRuntime: (() => Promise<number>) | undefined;
+	private sapiName: string | undefined;
 	private emails: Email[] = [];
 	private emailParsingQueue: Promise<void> = Promise.resolve();
 
@@ -199,7 +206,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		onProgress,
 	}: {
 		siteUrl: string;
-		sapiName: string;
+		sapiName?: string;
 		corsProxyUrl?: string;
 		knownRemoteAssetPaths: Set<string>;
 		extensions?: PHPWebExtension[];
@@ -253,10 +260,11 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		const parsedSiteUrl = new URL(siteUrl);
 		const isLegacyPhp = isLegacyPHPVersion(phpVersion);
 		onProgress?.('Creating PHP request handler');
+		this.sapiName = sapiName;
 		const requestHandler = await bootRequestHandler({
 			siteUrl,
 			phpVersion,
-			createPhpRuntime: async () => {
+			createPhpRuntime: (this.createPhpRuntime = async () => {
 				let wasmUrl = '';
 				let wasmTotalSize = 0;
 				onProgress?.('Loading PHP runtime module');
@@ -308,7 +316,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 						},
 					},
 				});
-			},
+			}),
 			onPHPInstanceCreated: async (php: PHP, { isPrimary }) => {
 				if (new URL(siteUrl).origin !== playgroundOrigin) {
 					php.defineConstant(
@@ -529,6 +537,53 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	}
 
 	// NOTE: Version-specific boot methods are implemented in the concrete worker entrypoints
+
+	/**
+	 * Keeps the `wp-cli` step of older `@wp-playground/client` versions working.
+	 *
+	 * That step writes `run-cli.php` to the document root and calls `run()` with it.
+	 * WP-CLI refuses to start unless PHP reports the `cli` SAPI, and requests now
+	 * report `php-wasm`. The script therefore runs on a PHP runtime restarted with
+	 * the `cli` SAPI name, and the runtime is restarted again afterwards.
+	 * Current clients call `cli()` and never reach this path.
+	 *
+	 * @deprecated Update `@wp-playground/client`. Delete this path together with
+	 * the deprecated `setSapiName()`, which it depends on.
+	 *
+	 * @see https://github.com/WordPress/wordpress-playground/pull/4597
+	 */
+	override async run(request: PHPRunOptions): Promise<PHPResponse> {
+		const legacyWpCliScriptPath = joinPaths(
+			this.documentRoot,
+			'run-cli.php'
+		);
+		if (
+			request.scriptPath !== legacyWpCliScriptPath ||
+			this.sapiName === 'cli'
+		) {
+			return await super.run(request);
+		}
+
+		logger.warn(
+			'This @wp-playground/client version runs WP-CLI through a deprecated path. ' +
+				'Update @wp-playground/client to keep the wp-cli and enableMultisite ' +
+				'steps working.'
+		);
+		const { php, reap } =
+			await this.getRequestHandler().instanceManager.acquirePHPInstance();
+		try {
+			await php.hotSwapPHPRuntime(await this.createPhpRuntime!());
+			await php.setSapiName('cli');
+			return await php.run(request);
+		} finally {
+			try {
+				await php.hotSwapPHPRuntime(await this.createPhpRuntime!());
+				await php.setSapiName(this.sapiName ?? 'php-wasm');
+			} finally {
+				reap();
+			}
+		}
+	}
 
 	/**
 	 * @returns WordPress module details, including the static assets directory and default theme.
