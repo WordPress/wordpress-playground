@@ -41,7 +41,8 @@ are required. The preview serves existing files directly on both hostnames, as
 Nginx does, and sends missing paths to a local PHP server running the installed
 `custom-redirects.php`. The normal WP Cloud deployment also sets
 `VITE_PLAYGROUND_APP_ORIGIN` and `VITE_WORDPRESS_SITE_URL`, which add each page's
-origin check; previews derive the origins at runtime instead. See the
+origin check. Previews apply the same checks to each installed copy for its
+configured origins while deriving module origins at runtime. See the
 [deployment guide](../../../website-deployment/wordpress-frame/README.md).
 
 ## Boundaries

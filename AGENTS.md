@@ -100,11 +100,16 @@ The normal WP Cloud deployment sets `VITE_WORDPRESS_SITE_URL` to
 `https://wpsandbox.wordpress.net`, `VITE_PLAYGROUND_APP_ORIGIN` to
 `https://playground.wordpress.net`, and a unique `PLAYGROUND_RELEASE_ID` in one
 workflow. Vite builds with base `/releases/<id>/`, so every asset URL names its
-release, and adds an inline origin check to each page: the request helper requires
-the sandbox origin, all other pages the app origin. The single `apply-update.sh`
+release, and adds an inline origin check to every app HTML page, including copied
+public files: the request helper requires the sandbox origin, all other pages the
+app origin. The single `apply-update.sh`
 installs the build as the public `releases/<id>/` directory, moves its PHP endpoints
 to the Nginx-denied `.playground-releases/<id>/`, and copies entry pages plus a root
 `/sw.js` loader to the web root. Pages needing custom headers stay PHP-served.
+The build validates WordPress HTML, SVG, XHTML, and XML with a parsed-document
+DOMPurify check; it rejects active content without rewriting WordPress bytes.
+The self-hosting download is built separately without release paths or production
+origins.
 Nginx serves existing files on both hostnames; `custom-redirects.php` handles only
 missing paths. Previous releases are retained so open tabs keep their own files.
 Do not add a second installer script. Host checks live in

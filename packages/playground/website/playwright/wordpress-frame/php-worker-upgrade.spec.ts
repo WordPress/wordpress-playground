@@ -5,6 +5,7 @@ import { createServer } from 'node:http';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { joinPaths } from '@php-wasm/util';
+import { appOrigin as previewAppOrigin } from '../../bin/wordpress-frame/origins.mjs';
 
 // The installed preview web root: root entry copies and the release directory.
 const remoteDirectory = joinPaths(
@@ -32,6 +33,22 @@ test.beforeAll(async () => {
 	});
 	app.get('/seed.html', (_request, response) => {
 		response.type('html').send('<!doctype html><title>Worker seed</title>');
+	});
+	app.get('/remote.html', async (_request, response) => {
+		// This fixture uses an ephemeral origin. Keep the real page's guard,
+		// configured for the fixture rather than the regular preview listener.
+		const html = await readFile(
+			joinPaths(remoteDirectory, 'remote.html'),
+			'utf8'
+		);
+		response
+			.type('html')
+			.send(
+				html.replaceAll(
+					JSON.stringify(previewAppOrigin),
+					JSON.stringify(appOrigin)
+				)
+			);
 	});
 	app.get('/sw.js', (_request, response) => {
 		// Model an installed release A and a deployed release B. Both forward

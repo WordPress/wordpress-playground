@@ -41,10 +41,21 @@ VITE_WORDPRESS_SITE_URL: https://wpsandbox.wordpress.net
 
 With `PLAYGROUND_RELEASE_ID` set, Vite builds with base `/releases/<id>/`, so
 every asset URL names its release. It also adds an inline check to the top of
-every page, which stops the page before any script loads unless it runs on its
-intended origin: the WordPress request helper on the sandbox, everything else on
+every app HTML page, including copied public pages, which stops the page before
+any script loads unless it runs on its intended origin: the WordPress request
+helper on the sandbox, everything else on
 the app origin. Both hostnames serve every file, so this check is what keeps app
 pages off the sandbox host and the helper off the app host.
+
+The build also parses WordPress HTML, XHTML, SVG (including SVGZ), and XML documents and rejects
+active content using DOMPurify. This includes event attributes, encoded script
+URLs, embedded documents, SVG animation, and XML stylesheet instructions. It
+checks the parsed tree without rewriting the original template or image bytes.
+XML documents must use UTF-8; unsupported encodings fail the build rather than
+bypass inspection. Malformed UTF-8 XML remains an inert browser error document.
+
+The workflow builds the self-hosting download separately, without a release base
+or production origins, before building the WP Cloud release.
 
 The SSH step passes the same release ID and origins to `apply-update.sh`. A
 manual deployment must pass the values used for its build:
@@ -62,8 +73,6 @@ PLAYGROUND_RELEASE_ID=<id> ~/website-deployment/apply-update.sh \
 2. Moves the build into a hidden staging directory, then:
     - moves its PHP endpoints to `/srv/htdocs/.playground-releases/<id>/files/`,
       because Nginx would run them on both hosts if they stayed public;
-    - refuses WordPress static HTML containing scripts, which would run on the
-      app host without the page origin check;
     - writes the release's `custom-redirects-lib.php`, MIME map, and PHP entry.
 3. Renames the staging directory to `/srv/htdocs/releases/<id>/`.
 4. Backs up each root file it is about to replace under `~/website-backups/<id>/`.

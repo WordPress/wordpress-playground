@@ -11,6 +11,7 @@ import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { appOrigin, wordPressOrigin } from './origins.mjs';
+import { protectStaticReleasePages } from '../../../../vite-extensions/static-release-documents.mjs';
 
 const release = `preview-${Date.now()}`;
 process.env.PLAYGROUND_RELEASE_ID = release;
@@ -65,6 +66,7 @@ for (const [webRoot, origins] of [
 		'dist/packages/playground/wordpress-frame-install-'
 	);
 	await cp(upload, copy, { recursive: true });
+	await protectStaticReleasePages(copy, ...origins);
 	execFileSync(
 		'bash',
 		[

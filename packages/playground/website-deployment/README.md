@@ -38,9 +38,9 @@ The main deployment workflow sets `VITE_PLAYGROUND_APP_ORIGIN` to
 `https://wpsandbox.wordpress.net`, and a unique `PLAYGROUND_RELEASE_ID`. It uses
 those values for the browser build and passes them to the single `apply-update.sh`
 script. `apply-update.sh` checks both hosts and the build, installs the public and
-private release directories, backs up the root files it replaces, copies the entry
-pages and a root `/sw.js` loader to the web root, and replaces the PHP entry last
-before purging the edge. See the [two-host deployment guide](wordpress-frame/README.md)
+private release directories, backs up the root files it replaces, replaces the PHP
+entry, copies the entry pages, and installs the root `/sw.js` loader before purging
+the edge. See the [two-host deployment guide](wordpress-frame/README.md)
 for required WP Cloud settings, the Nginx preflight checks, and rollback.
 
 Personal WP retains the previous file placement: its deployment consults

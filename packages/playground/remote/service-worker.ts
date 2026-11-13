@@ -149,6 +149,7 @@ import {
 	broadcastMessageExpectReply,
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
+import { joinPaths } from '@php-wasm/util';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
 import {
@@ -358,7 +359,10 @@ self.addEventListener('fetch', (event) => {
 		url.origin === self.location.origin &&
 		url.pathname.startsWith('/releases/')
 	) {
-		return;
+		// Explicitly forward the request so Firefox keeps workers controlled.
+		// An unhandled worker script can lose its controller, sending its scoped
+		// resource fetches to the server instead of the running WordPress site.
+		return event.respondWith(fetch(event.request));
 	}
 
 	// Vite's /@fs/ modules remain app assets when a scoped WordPress document
@@ -651,7 +655,11 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 			!resolvedUrl.pathname.startsWith('/@fs') &&
 			!resolvedUrl.pathname.startsWith('/assets')
 		) {
-			resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
+			resolvedUrl.pathname = joinPaths(
+				'/',
+				staticAssetsDirectory,
+				resolvedUrl.pathname
+			);
 		}
 		// Static releases serve the same files on both hosts; fetch them here.
 		const assetOrigin =
@@ -918,7 +926,12 @@ async function getScopedWpDetails(
 				),
 			});
 		}
-		return result;
+		return {
+			...result,
+			staticAssetsDirectory: result.staticAssetsDirectory
+				? joinPaths('.', releaseBase, result.staticAssetsDirectory)
+				: result.staticAssetsDirectory,
+		};
 	}
 	if (!scopeToWpModule[scope]) {
 		const requestId = await broadcastMessageExpectReply(

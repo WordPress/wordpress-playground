@@ -1,4 +1,8 @@
 import type { Plugin } from 'vite';
+import {
+	protectStaticReleasePages,
+	validateWordPressStaticDocuments,
+} from './static-release-documents.mjs';
 
 /**
  * WP Cloud deployments serve each build from its own public directory,
@@ -26,34 +30,32 @@ export function getStaticReleaseBase(): string | undefined {
  * Writing an unclosed <plaintext> element turns the rest of the document into
  * inert text, so later module scripts never start.
  */
-export function staticReleaseOriginCheckPlugin(): Plugin | null {
-	// Local previews serve one build on several ports and derive the origins at
-	// runtime. The deployment script refuses production builds without the check.
-	if (!getStaticReleaseBase() || !process.env['VITE_PLAYGROUND_APP_ORIGIN']) {
-		return null;
-	}
-	const appOrigin = requireOrigin('VITE_PLAYGROUND_APP_ORIGIN');
-	const wordPressOrigin = requireOrigin('VITE_WORDPRESS_SITE_URL');
+export function staticReleaseOriginCheckPlugin(): Plugin {
+	const releaseBase = getStaticReleaseBase();
+	// The preview applies the same guards when installing each port's copy.
+	const appOrigin =
+		releaseBase && process.env['VITE_PLAYGROUND_APP_ORIGIN']
+			? requireOrigin('VITE_PLAYGROUND_APP_ORIGIN')
+			: undefined;
+	const wordPressOrigin = appOrigin
+		? requireOrigin('VITE_WORDPRESS_SITE_URL')
+		: undefined;
 	return {
 		name: 'static-release-origin-check',
 		apply: 'build',
-		transformIndexHtml: {
-			order: 'pre',
-			handler(_html, context) {
-				const expected = context.path.endsWith('/wordpress-bridge.html')
-					? wordPressOrigin
-					: appOrigin;
-				return [
-					{
-						tag: 'script',
-						injectTo: 'head-prepend',
-						children:
-							`if(location.origin!==${JSON.stringify(expected)}){` +
-							`document.write('<p>This Playground page cannot run on this host.</p><plaintext hidden>');` +
-							`throw new Error('Playground page loaded on '+location.origin)}`,
-					},
-				];
-			},
+		async writeBundle({ dir }) {
+			if (!dir)
+				throw new Error(
+					'Static release builds need an output directory.'
+				);
+			await validateWordPressStaticDocuments(dir);
+			if (appOrigin && wordPressOrigin) {
+				await protectStaticReleasePages(
+					dir,
+					appOrigin,
+					wordPressOrigin
+				);
+			}
 		},
 	};
 }

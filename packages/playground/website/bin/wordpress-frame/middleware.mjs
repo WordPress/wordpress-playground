@@ -35,12 +35,13 @@ export function wordPressFrameMiddleware(getWebRoot, hostnames) {
 			redirect: false,
 			setHeaders(response, file) {
 				// Root copies change with each release; release files never do.
-				response.setHeader(
-					'Cache-Control',
-					file.includes('/releases/')
-						? 'public, max-age=31536000, immutable'
-						: 'no-store'
-				);
+				if (!response.hasHeader('Cache-Control'))
+					response.setHeader(
+						'Cache-Control',
+						file.includes('/releases/')
+							? 'public, max-age=31536000, immutable'
+							: 'no-store'
+					);
 			},
 		})(req, res, async () => {
 			if (!existsSync(join(webRoot, 'custom-redirects.php'))) {

@@ -140,9 +140,7 @@ cp "$DEPLOYMENT/custom-redirects-lib.php" "$PRIVATE/"
 ' "${PLAYGROUND_MIME_TYPES:-$DEPLOYMENT/mime-types.json}" > "$PRIVATE/mime-types.php"
 
 # Move PHP endpoints out of the public release: Nginx would run them on both
-# hostnames. WordPress static HTML stays public on the app host without the
-# origin check that the build adds to Playground pages, so it must not contain
-# anything a browser would run.
+# hostnames. The build validates WordPress static documents before upload.
 "$SITE_PHP" -r '
     [ , $staging, $private ] = $argv;
     $files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $staging, FilesystemIterator::SKIP_DOTS ) );
@@ -152,9 +150,6 @@ cp "$DEPLOYMENT/custom-redirects-lib.php" "$PRIVATE/"
             $target = "$private/files/$relative";
             if ( ! is_dir( dirname( $target ) ) ) mkdir( dirname( $target ), 0755, true );
             if ( ! rename( $file->getPathname(), $target ) ) throw new RuntimeException( "Cannot move $relative" );
-        } elseif ( preg_match( "~^wp-[^/]+/.*\\.html\\z~", $relative ) &&
-            preg_match( "~<script\\b|\\son[a-z]+\\s*=|javascript:~i", file_get_contents( $file->getPathname() ) ) ) {
-            throw new RuntimeException( "WordPress static HTML must not contain scripts: $relative" );
         }
     }
 ' "$STAGING" "$PRIVATE"

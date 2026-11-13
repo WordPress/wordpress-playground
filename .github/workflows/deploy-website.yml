@@ -82,6 +82,15 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - name: Sync PHP next build assets
               run: npm run sync:php-next
+            # The download is portable: root-relative assets and no production origins.
+            # Archive it before building the WP Cloud release into the same output.
+            - name: Build the self-hosting download
+              run: env -u PLAYGROUND_RELEASE_ID -u VITE_PLAYGROUND_APP_ORIGIN -u VITE_WORDPRESS_SITE_URL npx nx build playground-website --skip-nx-cache
+            - run: tar -czf wasm-wordpress-net.tar.gz dist/packages/playground/wasm-wordpress-net
+            - uses: actions/upload-artifact@v4
+              with:
+                  name: playground-website
+                  path: wasm-wordpress-net.tar.gz
             # Each deployment gets its own public /releases/<id>/ directory. The build
             # writes that path into every asset URL, so open tabs keep their own files.
             - name: Choose the release ID
@@ -91,15 +100,6 @@ jobs:
               env:
                   CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}
                   VITE_GOOGLE_ANALYTICS_ID: G-SVTNFCP8T7
-            - run: tar -czf wasm-wordpress-net.tar.gz dist/packages/playground/wasm-wordpress-net
-            # Store dist/packages/artifacts/wasm-wordpress-net as a build artifact
-            - uses: actions/upload-artifact@v4
-              with:
-                  name: playground-website
-                  path: wasm-wordpress-net.tar.gz
-            # The artifact only becomes available after this workflow wraps up, so let's wrap.
-            # This artifact enables the download of a pre-built package and hosting of one's own playground instance.
-
             - name: Deploy Playground website build
               shell: bash
               run: |

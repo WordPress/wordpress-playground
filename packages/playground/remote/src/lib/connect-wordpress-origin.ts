@@ -129,13 +129,12 @@ export async function connectWordPressOrigin(
 				} else if (method === 'getWordPressModuleDetails') {
 					const { staticAssetsDirectory } =
 						await client.getWordPressModuleDetails();
-					// The worker prefixes "/". Name this release's copy of the files.
+					// An older app may be using a newer service worker. Keep this
+					// app's retained release in its module details rather than
+					// having the current worker select its own release's files.
 					response = {
 						staticAssetsDirectory: staticAssetsDirectory
-							? joinPaths(
-									releaseBase,
-									staticAssetsDirectory
-								).substring(1)
+							? joinPaths('.', releaseBase, staticAssetsDirectory)
 							: staticAssetsDirectory,
 					};
 				} else {

@@ -97,12 +97,6 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 	const unchecked = await makeBuild('A');
 	await writeFile(join(unchecked, 'remote.html'), 'remote without a check');
 	await assert.rejects(install('A', unchecked), failure('do not check'));
-	const unsafe = await makeBuild('A');
-	await writeFile(
-		join(unsafe, 'wp-6.8/wp-includes/empty.html'),
-		'<script>document.write(location.hash)</script>'
-	);
-	await assert.rejects(install('A', unsafe), failure('must not contain'));
 	await rm(webRoot, { recursive: true });
 	await mkdir(webRoot);
 

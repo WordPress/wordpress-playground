@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import type http from 'http';
 import express from 'express';
+import type { RequestHandler } from 'express';
 import path from 'path';
 import process from 'process';
 import { wordPressFrameMiddleware } from '../bin/wordpress-frame/middleware.mjs';
@@ -28,6 +29,11 @@ export async function startVersionSwitchingServer({
 	oldVersionDirectory,
 	newVersionDirectory,
 	midVersionDirectory,
+}: {
+	port?: number;
+	oldVersionDirectory: string;
+	newVersionDirectory: string;
+	midVersionDirectory: string;
 }) {
 	const app = express();
 
@@ -45,7 +51,7 @@ export async function startVersionSwitchingServer({
 	 * Let upgrade tests opt out of storing these responses in the HTTP cache.
 	 * This affects later responses only, not entries already stored by a browser.
 	 */
-	const noCacheMiddleware = (req, res, next) => {
+	const noCacheMiddleware: RequestHandler = (req, res, next) => {
 		if (!httpCacheEnabled) {
 			res.setHeader(
 				'Cache-Control',
@@ -57,17 +63,16 @@ export async function startVersionSwitchingServer({
 		next();
 	};
 
-	if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
-		app.use(
-			wordPressFrameMiddleware(
-				() => staticDirectory,
-				['playground.localhost', 'wp.playground.localhost']
-			)
-		);
-	}
 	app.use(noCacheMiddleware);
 	app.use((req, res, next) => {
 		if (req.method === 'GET' && req.path.startsWith('/switch-versions/')) {
+			if (
+				process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1' &&
+				!['playground.localhost', 'wp.playground.localhost'].includes(
+					req.hostname
+				)
+			)
+				return res.sendStatus(404);
 			const version = req.path.split('/').pop();
 			staticDirectory = path.resolve(
 				version === 'old'
@@ -77,11 +82,21 @@ export async function startVersionSwitchingServer({
 						: newVersionDirectory
 			);
 			res.send('Version switched');
-			next();
 			return;
 		}
-		express.static(staticDirectory)(req, res, next);
+		next();
 	});
+	if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
+		app.use(
+			wordPressFrameMiddleware(
+				() => staticDirectory,
+				['playground.localhost', 'wp.playground.localhost']
+			)
+		);
+	}
+	app.use((req, res, next) =>
+		express.static(staticDirectory)(req, res, next)
+	);
 
 	const server = await new Promise<http.Server>((resolve, reject) => {
 		const _server = app.listen(port, () => {
