@@ -81,8 +81,17 @@ export class MountStillActiveError extends Error {
 export type MountHandler = (
 	php: PHP,
 	FS: Emscripten.RootFS,
-	vfsMountPoint: string
+	vfsMountPoint: string,
+	context?: MountContext
 ) => UnmountFunction | Promise<UnmountFunction>;
+
+export interface MountContext {
+	/**
+	 * True when runtime rotation applies the handler again. Rotation copies
+	 * the MEMFS nodes of the previous runtime before it calls the handler.
+	 */
+	isRemount?: boolean;
+}
 
 export const PHP_INI_PATH = '/internal/shared/php.ini';
 const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
@@ -1627,7 +1636,7 @@ export class PHP implements Disposable {
 			vfsPath,
 		} of mountHandlersToReapplyInOrder) {
 			try {
-				await this.mount(vfsPath, mountHandler);
+				await this.mount(vfsPath, mountHandler, { isRemount: true });
 			} catch (e) {
 				if (isMissingMountSourceError(e)) {
 					// Initial mounts still reject missing sources. During rotation,
@@ -1668,16 +1677,19 @@ export class PHP implements Disposable {
 	 *
 	 * @param  virtualFSPath - Where to mount it in the PHP virtual filesystem.
 	 * @param  mountHandler - The mount handler to use.
+	 * @param  context - Tells the handler that runtime rotation calls it.
 	 * @return Unmount function to unmount the filesystem.
 	 */
 	async mount(
 		virtualFSPath: string,
-		mountHandler: MountHandler
+		mountHandler: MountHandler,
+		context?: MountContext
 	): Promise<UnmountFunction> {
 		const unmountCallback = await mountHandler(
 			this,
 			this[__private__dont__use].FS,
-			virtualFSPath
+			virtualFSPath,
+			context
 		);
 		const mountObject = {
 			mountHandler,

@@ -72,7 +72,12 @@ export {
 	__private__dont__use,
 	PHPExecutionFailureError,
 } from './php';
-export type { MountHandler, UnmountContext, UnmountFunction } from './php';
+export type {
+	MountContext,
+	MountHandler,
+	UnmountContext,
+	UnmountFunction,
+} from './php';
 export { loadPHPRuntime, popLoadedRuntime } from './load-php-runtime';
 export { phpEventStdinTransfer } from '@php-wasm/util';
 export type {

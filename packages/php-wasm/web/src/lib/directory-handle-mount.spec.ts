@@ -1251,7 +1251,7 @@ describe('journalFSEventsToOpfs', () => {
 });
 
 describe('createDirectoryHandleMountHandler', () => {
-	it('keeps unsaved changes when PHP rotates its runtime', async () => {
+	it('keeps unsaved changes and skips the OPFS read when PHP rotates its runtime', async () => {
 		const php = new PHP(await loadNodeRuntime('8.4'));
 		php.enableRuntimeRotation({
 			recreateRuntime: () => loadNodeRuntime('8.4'),
@@ -1261,6 +1261,7 @@ describe('createDirectoryHandleMountHandler', () => {
 		const saved = new MemoryFileHandle('saved.txt');
 		saved.bytes = encode('saved');
 		root.files.set('saved.txt', saved);
+		const readDirectory = vi.spyOn(root, 'values');
 		let mount: { flush(): Promise<void> } | undefined;
 		try {
 			await php.mount(
@@ -1275,6 +1276,7 @@ describe('createDirectoryHandleMountHandler', () => {
 					}
 				)
 			);
+			const directoryReadsAfterMount = readDirectory.mock.calls.length;
 			await php.run({ code: '<?php' });
 
 			// A direct FS write dispatches no event, so the change is still in
@@ -1290,6 +1292,9 @@ describe('createDirectoryHandleMountHandler', () => {
 			expect(response.text).toBe('savedunsaved');
 			expect(decode(root.files.get('unsaved.txt')!.bytes)).toBe(
 				'unsaved'
+			);
+			expect(readDirectory).toHaveBeenCalledTimes(
+				directoryReadsAfterMount
 			);
 
 			php.writeFile('/site/later.txt', 'later');

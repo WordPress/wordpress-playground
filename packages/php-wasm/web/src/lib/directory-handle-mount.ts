@@ -114,7 +114,14 @@ export function createDirectoryHandleMountHandler(
 		},
 	};
 
-	return async function (php, FS, vfsMountPoint) {
+	return async function (php, FS, vfsMountPoint, context) {
+		if (context?.isRemount && FSHelpers.fileExists(FS, vfsMountPoint)) {
+			// Runtime rotation flushed the journal and copied the MEMFS nodes,
+			// so MEMFS and OPFS already hold the same files.
+			const mount = journalFSEventsToOpfs(php, handle, vfsMountPoint);
+			options.onMount?.(mount);
+			return mount.unmount;
+		}
 		if (options.initialSync.direction === 'opfs-to-memfs') {
 			if (FSHelpers.fileExists(FS, vfsMountPoint)) {
 				FSHelpers.rmdir(FS, vfsMountPoint);
