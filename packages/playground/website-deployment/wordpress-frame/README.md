@@ -52,7 +52,14 @@ active content using DOMPurify. This includes event attributes, encoded script
 URLs, embedded documents, SVG animation, and XML stylesheet instructions. It
 checks the parsed tree without rewriting the original template or image bytes.
 XML documents must use UTF-8; unsupported encodings fail the build rather than
-bypass inspection. Malformed UTF-8 XML remains an inert browser error document.
+bypass inspection. Malformed XML fails closed because browsers can execute a valid prefix before a later parse error.
+The exact path and SHA-256 exceptions in `../../wordpress-builds/build/static-document-exceptions.json`
+cover only reviewed upstream SVG defects: duplicate `fill` attributes in dashboard backgrounds
+and JSX-style opacity attributes in six sides icons. Changed bytes require another review.
+Passive XML/editor namespaces are ignored while their HTML/SVG/MathML descendants are inspected.
+`playground-wordpress-builds:validate-static-documents` caches this scan through Nx by assets,
+policy, reviewed exceptions and dependency lockfile. Asset refreshes and publication depend on it;
+Vite outputs do not repeat it.
 Internal DTD subsets and arbitrary external DTDs are rejected; only WordPress's
 fixed legacy SVG font declaration is allowed.
 
@@ -77,18 +84,26 @@ PLAYGROUND_RELEASE_ID=<id> ~/website-deployment/apply-update.sh \
       because Nginx would run them on both hosts if they stayed public;
     - writes the release's `custom-redirects-lib.php`, MIME map, and PHP entry.
 3. Renames the staging directory to `/srv/htdocs/releases/<id>/`.
-4. Backs up each root file it is about to replace under `~/website-backups/<id>/`.
+4. Records the complete root inventory and backs up every affected existing file under
+   `~/website-backups/<id>/`, including files being removed. Records newly added files as absent.
 5. Replaces the root `custom-redirects.php`, copies the release's entry pages to
    the web root, writes a root `/sw.js` that imports `/releases/<id>/sw.js`, and
-   writes `release.json` naming the release. Each file is replaced through a
+   writes `release.json` naming the release, previous release, installation time and owned root files.
+   Removes root files dropped by the new release and their empty parent directories.
+   Any activation error restores the snapshot and removes newly introduced files. Each file is replaced through a
    same-directory rename. Pages needing custom headers, such as the no-store
    `index.html` and `api.html`, are not copied; PHP serves them from the release.
 6. Purges the WP Cloud edge cache.
 
-Previous releases, their private PHP directories, and backups stay in place, so
-open tabs keep loading the files their release names. Nothing removes old
-releases yet; clean up obsolete ones manually after checking which root files
-and backups still refer to them.
+Inactive releases expire after 30 days by default (`PLAYGROUND_RELEASE_RETENTION_DAYS`),
+with the active release and its previous rollback release always protected. Cleanup removes
+public assets, private PHP and corresponding backups together after successful activation.
+Older tabs may need to reload after expiry. Legacy releases without installation metadata
+need a one-time operator audit; the installer does not guess their ages.
+
+`/builder/builder.html` remains PHP-served with no-store, leaving no root builder directory
+that would capture `/builder/` ahead of its existing canonical redirect. The release's large
+assets still use direct static serving.
 
 ## Requests that reach PHP
 
@@ -134,12 +149,33 @@ After deployment, verify on both HTTPS hosts: Nginx MIME types (including
 Confirm the dock stays on the app host and WordPress uses the sandbox host, and
 that app pages loaded on the sandbox host stop with an error.
 
-To roll back a later deployment, copy the root files from that deployment's
-backup back into place through same-directory renames, then purge the edge
-cache. Keep the releases they name. To undo the first deployment of this layout,
-restore the previous `custom-redirects.php` and also remove the root copies,
-root `/sw.js`, `release.json`, and `releases/` directory, because Nginx serves
-existing files before PHP runs.
+Roll back with the same installer, naming the deployment whose pre-activation snapshot to restore:
+
+```sh
+PLAYGROUND_RELEASE_ID=<current-id> PLAYGROUND_ROLLBACK_BACKUP=<current-id> \
+  ~/website-deployment/apply-update.sh \
+  https://playground.wordpress.net https://wpsandbox.wordpress.net
+```
+
+The inventory restores replaced and deleted files and removes files introduced since the
+snapshot, including the first transition from the PHP-only layout. It purges edge responses
+after restoration. Rollback requires the target release to remain on disk.
+
+For urgent revocation, first activate or restore a known-safe release, then remove the vulnerable
+ID from both `releases/` and `.playground-releases/` and its backup, and purge the edge cache.
+Do not wait for retention when a retained bundle is vulnerable. Already loaded documents and
+browser caches cannot be recalled; a security fix may also need a worker-driven forced reload.
+Retention bounds availability of old code; it is not a security revocation mechanism.
+
+The preview models the observed WP Cloud static responses without adding Cache-Control.
+The live Nginx and CDN policy remains a rollout check: test root HTML/worker revalidation,
+release-file MIME types, ranges and actual cache lifetime on a staging host before enabling
+production. Retained URLs are immutable on disk, without assuming a one-year edge lifetime.
+
+Helpers and workers can overlap during retention. The v1 request/response envelope (`scope`,
+`requestId`, `bodyPort`) stays compatible; new runtime release metadata is optional, with absent
+metadata using legacy app-host asset aliases. A frozen v1 helper fixture tests the newer worker.
+Version the handshake before making an incompatible protocol change.
 
 This split does not stop WordPress from embedding a fresh app/API document, and
 running Playgrounds still share one WordPress origin, without per-site HTTP

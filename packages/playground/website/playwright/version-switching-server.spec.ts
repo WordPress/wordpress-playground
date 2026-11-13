@@ -4,7 +4,7 @@ import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { tmpdir } from 'node:os';
 import { joinPaths } from '@php-wasm/util';
-import { startVersionSwitchingServer } from '../../playwright/version-switching-server';
+import { startVersionSwitchingServer } from './version-switching-server';
 
 // Contract: upgrade-test controls and cache settings must reach installed releases.
 // The independent static/PHP middleware can otherwise consume these requests first.

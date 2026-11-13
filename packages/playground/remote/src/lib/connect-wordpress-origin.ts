@@ -5,6 +5,7 @@ import type { RemoteAPI } from '@php-wasm/universal';
 import type { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
 import { wordPressSiteUrl, releaseBase } from './config';
 import { joinPaths } from '@php-wasm/util';
+import { runtimeStaticAssetsDirectory } from './wordpress-static-assets';
 import { getWordPressBridgePath } from './wordpress-bridge-path';
 // @ts-ignore -- Provided by Vite.
 import { buildVersion } from 'virtual:remote-config';
@@ -127,15 +128,10 @@ export async function connectWordPressOrigin(
 					transfer.push(bodyPort);
 					response = { httpStatusCode, headers, bodyPort };
 				} else if (method === 'getWordPressModuleDetails') {
-					const { staticAssetsDirectory } =
-						await client.getWordPressModuleDetails();
-					// An older app may be using a newer service worker. Keep this
-					// app's retained release in its module details rather than
-					// having the current worker select its own release's files.
 					response = {
-						staticAssetsDirectory: staticAssetsDirectory
-							? joinPaths('.', releaseBase, staticAssetsDirectory)
-							: staticAssetsDirectory,
+						staticAssetsDirectory: runtimeStaticAssetsDirectory(
+							await client.getWordPressModuleDetails()
+						),
 					};
 				} else {
 					return;

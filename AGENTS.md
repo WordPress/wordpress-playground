@@ -106,12 +106,16 @@ app origin. The single `apply-update.sh`
 installs the build as the public `releases/<id>/` directory, moves its PHP endpoints
 to the Nginx-denied `.playground-releases/<id>/`, and copies entry pages plus a root
 `/sw.js` loader to the web root. Pages needing custom headers stay PHP-served.
-The build validates WordPress HTML, SVG, XHTML, and XML with a parsed-document
-DOMPurify check; it rejects active content without rewriting WordPress bytes.
+The cacheable `playground-wordpress-builds:validate-static-documents` target validates
+WordPress HTML, SVG, XHTML, and XML with a parsed-document DOMPurify check. Asset refresh
+and publication depend on it. It rejects active and unreviewed malformed content without
+rewriting bytes; reviewed upstream defects require exact path/hash exceptions.
 The self-hosting download is built separately without release paths or production
 origins.
 Nginx serves existing files on both hostnames; `custom-redirects.php` handles only
-missing paths. Previous releases are retained so open tabs keep their own files.
+missing paths. Inactive releases expire after 30 days (configurable), protecting active and previous releases.
+`release.json` inventories owned root files; activation failures and manual rollback restore
+replaced/deleted files and remove newly introduced ones with the same installer.
 Do not add a second installer script. Host checks live in
 `website-deployment/custom-redirects-lib.php`, reached through its existing
 `playground_handle_request()` entry point. The sandbox host serves only helper

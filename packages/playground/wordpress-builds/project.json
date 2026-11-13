@@ -54,8 +54,11 @@
 		"bundle-wordpress": {
 			"executor": "nx:run-commands",
 			"options": {
-				"command": "node packages/playground/wordpress-builds/build/build.js --wp-version={args.wp-version} --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public",
-				"parallel": false
+				"parallel": false,
+				"commands": [
+					"node packages/playground/wordpress-builds/build/build.js --wp-version={args.wp-version} --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public",
+					"npm exec -- nx run playground-wordpress-builds:validate-static-documents"
+				]
 			}
 		},
 		"bundle-wordpress:all": {
@@ -73,7 +76,8 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"node packages/playground/wordpress-builds/build/build.js --wp-version=nightly --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}"
+					"node packages/playground/wordpress-builds/build/build.js --wp-version=nightly --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}",
+					"npm exec -- nx run playground-wordpress-builds:validate-static-documents"
 				],
 				"parallel": false,
 				"force": false
@@ -87,7 +91,8 @@
 					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-2 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}",
 					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/build.js --wp-version=latest-minus-1 --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}",
 					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/build.js --wp-version=latest --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}",
-					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/build.js --wp-version=beta --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}"
+					"node --loader=./packages/meta/src/node-es-module-loader/loader.mts packages/playground/wordpress-builds/build/build.js --wp-version=beta --output-js=packages/playground/wordpress-builds/src/wordpress --output-assets=packages/playground/wordpress-builds/public --force={args.force}",
+					"npm exec -- nx run playground-wordpress-builds:validate-static-documents"
 				],
 				"parallel": false,
 				"force": false
@@ -129,6 +134,21 @@
 					"packages/playground/wordpress-builds/package.json"
 				],
 				"maxWarnings": 0
+			}
+		},
+		"validate-static-documents": {
+			"executor": "nx:run-commands",
+			"cache": true,
+			"inputs": [
+				"{projectRoot}/public/**/*",
+				"{projectRoot}/build/static-document-exceptions.json",
+				"{projectRoot}/build/validate-static-documents.mjs",
+				"{workspaceRoot}/packages/vite-extensions/static-release-documents.mjs",
+				"{workspaceRoot}/packages/php-wasm/util/src/lib/paths.ts",
+				"{workspaceRoot}/package-lock.json"
+			],
+			"options": {
+				"command": "node packages/playground/wordpress-builds/build/validate-static-documents.mjs"
 			}
 		}
 	}

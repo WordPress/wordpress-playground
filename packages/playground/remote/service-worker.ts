@@ -122,6 +122,10 @@
 declare const self: ServiceWorkerGlobalScope;
 
 import {
+	runtimeStaticAssetsDirectory,
+	wordPressStaticAssetOrigin,
+} from './src/lib/wordpress-static-assets';
+import {
 	playgroundOrigin,
 	wordPressSiteUrl,
 	releaseBase,
@@ -308,7 +312,7 @@ self.addEventListener('fetch', (event) => {
 	// A static release's app names the helper in its own release directory.
 	const isOwnReleaseHelper =
 		releaseBase !== '/' &&
-		url.pathname === `${releaseBase}wordpress-bridge.html`;
+		url.pathname === joinPaths(releaseBase, 'wordpress-bridge.html');
 	if (
 		self.location.origin !== playgroundOrigin &&
 		url.origin === self.location.origin &&
@@ -578,13 +582,13 @@ self.addEventListener('fetch', (event) => {
  *
  * Only a 404 marked x-backfill-from: remote-host permits a public asset fetch.
  * For a minified build's omitted CSS file, remove /scope:site-a/, apply WordPress
- * rewrites, and fetch from that version's static directory on the shared app
- * origin. Do not turn arbitrary PHP 404s into network requests. Use the browser
- * HTTP cache for these public files, not WordPress-writable CacheStorage.
+ * rewrites, and fetch from the runtime's release-qualified static directory on
+ * this origin. Legacy unprefixed aliases use the app origin. Do not turn arbitrary
+ * PHP 404s into network requests. Use the browser HTTP cache for these public files,
+ * not WordPress-writable CacheStorage.
  *
- * A navigation or same-origin fetch cannot accept the CORS response returned by
- * that cross-origin asset fetch. Wrap its body and headers in a new Response for
- * the original request without reading the whole body into memory.
+ * Wrap asset bodies and headers in a new Response without buffering. This also
+ * permits a navigation or same-origin fetch to consume a legacy cross-origin asset.
  */
 async function handleScopedRequest(event: FetchEvent, scope: string) {
 	const fullUrl = new URL(event.request.url);
@@ -643,7 +647,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		}
 
 		// If we get a 404 for a static file, try to fetch it from
-		// the from the static assets directory at the remote server.
+		// the runtime’s static assets directory.
 		const requestedUrl = new URL(event.request.url);
 		const resolvedUrl = removeURLScope(requestedUrl);
 		resolvedUrl.pathname = applyRewriteRules(
@@ -661,9 +665,13 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 				resolvedUrl.pathname
 			);
 		}
-		// Static releases serve the same files on both hosts; fetch them here.
-		const assetOrigin =
-			releaseBase === '/' ? playgroundOrigin : self.location.origin;
+		// Release-qualified directories belong to the runtime's retained release.
+		// Legacy runtimes report wp-<version>; those aliases still live on the app.
+		const assetOrigin = wordPressStaticAssetOrigin(
+			staticAssetsDirectory,
+			self.location.origin,
+			playgroundOrigin
+		);
 		const crossOrigin = assetOrigin !== self.location.origin;
 		const assetUrl = new URL(
 			resolvedUrl.pathname + resolvedUrl.search,
@@ -671,7 +679,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		);
 		const request = await cloneRequest(event.request, {
 			url: assetUrl,
-			// Navigation clones default to same-origin, but these assets live on the app origin.
+			// Legacy asset aliases may require a cross-origin request.
 			...(crossOrigin && { mode: 'cors' }),
 			// Omit credentials to avoid causing cache aborts due to presence of
 			// cookies
@@ -902,6 +910,7 @@ function emptyHtml(crossOriginIsolated: boolean) {
 
 type WPModuleDetails = {
 	staticAssetsDirectory?: string;
+	releaseBase?: string;
 };
 
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
@@ -928,9 +937,7 @@ async function getScopedWpDetails(
 		}
 		return {
 			...result,
-			staticAssetsDirectory: result.staticAssetsDirectory
-				? joinPaths('.', releaseBase, result.staticAssetsDirectory)
-				: result.staticAssetsDirectory,
+			staticAssetsDirectory: runtimeStaticAssetsDirectory(result),
 		};
 	}
 	if (!scopeToWpModule[scope]) {

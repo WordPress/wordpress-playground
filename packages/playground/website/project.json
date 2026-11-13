@@ -238,7 +238,10 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"command": "node packages/playground/website/bin/wordpress-frame/build.mjs"
-			}
+			},
+			"dependsOn": [
+				"playground-wordpress-builds:validate-static-documents"
+			]
 		},
 		"test:wordpress-frame-router": {
 			"executor": "nx:run-commands",

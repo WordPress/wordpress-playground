@@ -19,6 +19,7 @@ import {
 	realpath,
 	rm,
 	stat,
+	symlink,
 	writeFile,
 } from 'node:fs/promises';
 import { createServer } from 'node:net';
@@ -108,19 +109,21 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 		await readFile(join(webRoot, 'sw.js'), 'utf8'),
 		'import "/releases/A/sw.js";\n'
 	);
-	assert.deepEqual(
-		JSON.parse(await readFile(join(webRoot, 'release.json'), 'utf8')),
-		{ release: 'A' }
+	assert.equal(
+		JSON.parse(await readFile(join(webRoot, 'release.json'), 'utf8'))
+			.release,
+		'A'
 	);
 	// Entry pages are copied to the root and kept in the release. Pages needing
 	// custom headers, such as no-store index.html, stay PHP-served.
-	for (const page of ['remote.html', 'builder/builder.html']) {
+	for (const page of ['remote.html']) {
 		assert.equal(
 			await readFile(join(webRoot, page), 'utf8'),
 			await readFile(join(webRoot, 'releases/A', page), 'utf8')
 		);
 	}
 	await assert.rejects(stat(join(webRoot, 'index.html')));
+	await assert.rejects(stat(join(webRoot, 'builder')));
 	await assert.rejects(stat(join(webRoot, 'wp-6.8/templates/index.html')));
 
 	port = await freePort();
@@ -139,7 +142,7 @@ if ( is_file( ${JSON.stringify(webRoot)} . $path ) && ! str_ends_with( $path, '.
 }
 file_put_contents( ${JSON.stringify(phpCalls)}, $path . "\\n", FILE_APPEND );
 function __atomic_env_define( $name ) {}
-class Atomic_Persistent_Data {}
+class Atomic_Persistent_Data { public $GITHUB_TOKEN = 'fixture-token'; }
 require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 `
 	);
@@ -188,6 +191,53 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	]) {
 		assert.equal((await request(path, app)).status, 403, path);
 	}
+
+	// Existing app-handler contracts remain independent of Nginx-owned files.
+	for (const [path, location] of [
+		['/wordpress', 'wordpress.html'],
+		['/builder/', 'builder.html'],
+		['/builder/index.php', 'builder.html'],
+	]) {
+		const response = await request(path, app);
+		assert.equal(response.status, 301, path);
+		assert.equal(response.headers.get('location'), location, path);
+	}
+	const conditional = await request('/wordpress.html', app, {
+		Referer: 'https://wordpress.org/example/',
+	});
+	assert.equal(conditional.status, 302);
+	assert.equal(conditional.headers.get('location'), '/index.html');
+	assert.equal(
+		await (
+			await request('/wordpress.html', app, {
+				Referer: 'https://external.example/',
+			})
+		).text(),
+		'wordpress A'
+	);
+	const proxy = await request('/plugin-proxy', app);
+	assert.equal(proxy.status, 200);
+	assert.equal(await proxy.text(), 'fixture-token');
+	await symlink(
+		join(temporary, 'outside.txt'),
+		join(webRoot, 'releases/A/outside.txt')
+	);
+	await writeFile(join(temporary, 'outside.txt'), 'private');
+	// Exercise the PHP boundary directly; the static/Nginx boundary has its own checks.
+	for (const [path, status] of [
+		['/outside.txt', 403],
+		['/missing.js', 404],
+		['/error.php?status=400', 400],
+		['/error.php?status=500', 500],
+	]) {
+		const response = await request(path, app);
+		assert.equal(response.status, status, path);
+		assert.equal(response.headers.get('cache-control'), 'no-store', path);
+		assert.equal(response.headers.get('a8c-edge-cache'), 'no-cache', path);
+	}
+
+	for (const path of ['/../outside.txt', '/%2e%2e/outside.txt'])
+		assert.equal((await request(path, app)).status, 403, path);
 
 	// The WordPress host runs no app handler or endpoint. Old clients' versioned
 	// helper URLs receive the active release's helper.
@@ -244,6 +294,78 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		install('B', await makeBuild('B')),
 		failure('already exists')
 	);
+	await assert.rejects(stat(join(webRoot, 'obsolete')));
+	assert.equal(
+		await readFile(join(webRoot, 'new-page.html'), 'utf8'),
+		'new page'
+	);
+	// Manual rollback uses the same inventory and removes pages introduced by B.
+	await run(
+		'bash',
+		[
+			join(deployment, 'apply-update.sh'),
+			app,
+			wordpress,
+			'',
+			webRoot,
+			backups,
+		],
+		{
+			env: {
+				...env,
+				PLAYGROUND_RELEASE_ID: 'A',
+				PLAYGROUND_ROLLBACK_BACKUP: 'B',
+			},
+		}
+	);
+	assert.equal(
+		JSON.parse(await readFile(join(webRoot, 'release.json'), 'utf8'))
+			.release,
+		'A'
+	);
+	await assert.rejects(stat(join(webRoot, 'new-page.html')));
+	assert.equal(
+		await readFile(join(webRoot, 'obsolete/page.html'), 'utf8'),
+		'obsolete'
+	);
+	// A directory blocks one rename after other root entries have been replaced.
+	const broken = await makeBuild('C');
+	await writeFile(join(broken, 'zz-blocked.html'), 'blocked');
+	await mkdir(join(webRoot, 'zz-blocked.html'));
+	await assert.rejects(
+		install('C', broken),
+		failure('previous root files restored')
+	);
+	assert.equal(
+		JSON.parse(await readFile(join(webRoot, 'release.json'), 'utf8'))
+			.release,
+		'A'
+	);
+	assert.match(
+		await readFile(join(webRoot, 'remote.html'), 'utf8'),
+		/remote A$/
+	);
+	await assert.rejects(stat(join(webRoot, 'new-page.html')));
+	assert.equal(
+		await readFile(join(webRoot, 'obsolete/page.html'), 'utf8'),
+		'obsolete'
+	);
+	// Retention removes expired inactive assets and private PHP, preserving rollback.
+	for (const id of ['A', 'B', 'C']) {
+		const path = join(webRoot, '.playground-releases', id, 'release.json');
+		const metadata = JSON.parse(await readFile(path, 'utf8'));
+		metadata.installedAt = 1;
+		await writeFile(path, JSON.stringify(metadata));
+	}
+	await install('D', await makeBuild('D'));
+	await stat(join(webRoot, 'releases/A'));
+	await stat(join(webRoot, 'releases/D'));
+	for (const id of ['B', 'C']) {
+		await assert.rejects(stat(join(webRoot, 'releases', id)));
+		await assert.rejects(stat(join(webRoot, '.playground-releases', id)));
+		await assert.rejects(stat(join(backups, id)));
+	}
+
 	console.log(
 		'Static release contracts passed: validation, layout, zero PHP static requests, ' +
 			'host routing, native endpoints, scoped fallbacks, retained releases and backups.'
@@ -263,6 +385,13 @@ async function makeBuild(release) {
 		'wordpress-popup.html': `wrapper ${release}`,
 		'wordpress-bridge.html': `helper ${release}`,
 		'builder/builder.html': `builder ${release}`,
+		'wordpress.html': `wordpress ${release}`,
+		'plugin-proxy.php': '<?php echo getenv("GITHUB_TOKEN");',
+		'error.php':
+			'<?php http_response_code((int)($_GET["status"] ?? 200)); echo "endpoint";',
+		...(release === 'A'
+			? { 'obsolete/page.html': 'obsolete' }
+			: { 'new-page.html': 'new page' }),
 		'sw.js': `// worker ${release}`,
 		'assets/main.js': `main ${release}`,
 		'assets/runtime.wasm': 'runtime',

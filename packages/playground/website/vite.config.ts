@@ -538,7 +538,11 @@ export default defineConfig(({ command, mode }) => {
 				dir: '../../../node_modules/.vitest',
 			},
 			environment: 'node',
-			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+			include: [
+				'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+				'../../vite-extensions/*.spec.ts',
+				'playwright/*.spec.ts',
+			],
 			reporters: ['default'],
 		},
 	};

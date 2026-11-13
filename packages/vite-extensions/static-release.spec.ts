@@ -10,11 +10,12 @@ import { tmpdir } from 'node:os';
 import { gzipSync } from 'node:zlib';
 import { build } from 'vite';
 import { JSDOM, VirtualConsole } from 'jsdom';
-import { joinPaths } from '@php-wasm/util';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import { staticReleaseOriginCheckPlugin } from '../../../../vite-extensions/vite-static-release';
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import { validateWordPressStaticDocuments } from '../../../../vite-extensions/static-release-documents.mjs';
+import { joinPaths } from '../php-wasm/util/src/lib/paths';
+import { staticReleaseOriginCheckPlugin } from './vite-static-release';
+import {
+	protectStaticReleasePages,
+	validateWordPressStaticDocuments,
+} from './static-release-documents.mjs';
 
 // Contract: published documents must not start app code on the WordPress origin.
 // Vite's separate public-file copy path can otherwise silently omit the guard.
@@ -95,6 +96,14 @@ describe('static release documents', () => {
 	// independent parser paths that a script-text regex does not cover.
 	it.each([
 		['page.HTML', '<ScRiPt>alert(1)</ScRiPt>'],
+		[
+			'image.svg',
+			'<svg xmlns="http://www.w3.org/2000/svg"><metadata onload="alert(1)"/></svg>',
+		],
+		[
+			'metadata.xml',
+			'<feed><script xmlns="http://www.w3.org/1999/xhtml">alert(1)</script></feed>',
+		],
 		['page.htm', '<a href="java&#x73;cript:alert(1)">link</a>'],
 		[
 			'image.svg',
@@ -189,4 +198,73 @@ describe('static release documents', () => {
 			validateWordPressStaticDocuments(directory)
 		).rejects.toThrow('Unsupported encoding');
 	});
+});
+
+// A comment must not capture the guard that must precede executable app scripts.
+it('inserts guards into the parsed head rather than a comment', async () => {
+	const directory = await mkdtemp(joinPaths(tmpdir(), 'playground-head-'));
+	try {
+		await writeFile(
+			joinPaths(directory, 'index.html'),
+			'<!-- Example <head> --><html><head><script>window.executed=true</script></head></html>'
+		);
+		await protectStaticReleasePages(
+			directory,
+			'https://app.example',
+			'https://wp.example'
+		);
+		const dom = new JSDOM(
+			await readFile(joinPaths(directory, 'index.html'), 'utf8'),
+			{
+				url: 'https://wp.example',
+				runScripts: 'outside-only',
+				virtualConsole: new VirtualConsole(),
+			}
+		);
+		const guard = dom.window.document.head.firstElementChild!;
+		expect(guard.textContent).toContain('location.origin');
+		expect(() => dom.window.eval(guard.textContent!)).toThrow(
+			'Playground page loaded on'
+		);
+		dom.window.close();
+	} finally {
+		await rm(directory, { recursive: true, force: true });
+	}
+});
+
+// XML parsers may execute a valid prefix before discovering a malformed suffix.
+it('rejects unreviewed malformed XML even after an executable prefix', async () => {
+	const directory = await mkdtemp(joinPaths(tmpdir(), 'playground-xml-'));
+	try {
+		await mkdir(joinPaths(directory, 'wp-test'));
+		await writeFile(
+			joinPaths(directory, 'wp-test/image.svg'),
+			'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><unclosed>'
+		);
+		await expect(
+			validateWordPressStaticDocuments(directory)
+		).rejects.toThrow('Malformed WordPress');
+	} finally {
+		await rm(directory, { recursive: true, force: true });
+	}
+});
+
+it('accepts passive XML and editor metadata without hiding executable descendants', async () => {
+	const directory = await mkdtemp(
+		joinPaths(tmpdir(), 'playground-metadata-')
+	);
+	try {
+		await mkdir(joinPaths(directory, 'wp-test'));
+		await writeFile(
+			joinPaths(directory, 'wp-test/feed.xml'),
+			'<feed xmlns="urn:example"><entry>text</entry></feed>'
+		);
+		await writeFile(
+			joinPaths(directory, 'wp-test/image.svg'),
+			'<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" inkscape:version="1.0"><metadata><inkscape:document>text</inkscape:document></metadata><path d="M0 0"/></svg>'
+		);
+		await validateWordPressStaticDocuments(directory);
+	} finally {
+		await rm(directory, { recursive: true, force: true });
+	}
 });

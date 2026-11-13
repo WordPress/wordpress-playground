@@ -26,7 +26,10 @@
 				"main": "packages/playground/remote/remote.html",
 				"tsConfig": "packages/playground/remote/tsconfig.lib.json"
 			},
-			"dependsOn": ["playground-blueprints:build:blueprint-schema"]
+			"dependsOn": [
+				"playground-blueprints:build:blueprint-schema",
+				"playground-wordpress-builds:validate-static-documents"
+			]
 		},
 		"dev": {
 			"executor": "@nx/vite:dev-server",

@@ -3,6 +3,8 @@ import { JSDOM } from 'jsdom';
 import createDOMPurify from 'dompurify';
 import { gunzipSync } from 'node:zlib';
 import { SaxesParser } from 'saxes';
+import { createHash } from 'node:crypto';
+import exceptions from '../playground/wordpress-builds/build/static-document-exceptions.json' with { type: 'json' };
 import { joinPaths } from '../php-wasm/util/src/lib/paths.ts';
 
 /**
@@ -66,9 +68,19 @@ export async function validateWordPressStaticDocuments(directory) {
 				contentType: isHtml ? 'text/html' : 'application/xhtml+xml',
 			});
 		} catch (error) {
-			// The XML parser throws for malformed upstream SVGs. Browsers display
-			// these as inert errors too. HTML always uses the tolerant HTML parser.
-			if (!isHtml && error.name === 'SyntaxError') continue;
+			// Browsers can execute XML scripts before encountering a later parse error.
+			// Only reviewed, byte-identical upstream defects may bypass parsing.
+			if (!isHtml && error.name === 'SyntaxError') {
+				if (
+					exceptions[file] ===
+					createHash('sha256').update(bytes).digest('hex')
+				)
+					continue;
+				throw new Error(
+					`Malformed WordPress static document: ${file}`,
+					{ cause: error }
+				);
+			}
 			throw error;
 		}
 		try {
@@ -96,12 +108,18 @@ export async function validateWordPressStaticDocuments(directory) {
 				throw new Error(
 					'XML processing instructions are not permitted.'
 				);
-			const root = document.documentElement;
-			removeComments(root);
+			removeComments(document.documentElement);
+			const root = isHtml
+				? document.documentElement
+				: document.createElementNS(
+						'http://www.w3.org/1999/xhtml',
+						'div'
+					);
+			if (!isHtml) appendBrowserMarkup(root, document.documentElement);
 			const original = root.cloneNode(true);
 			createDOMPurify(dom.window).sanitize(root, {
 				IN_PLACE: true,
-				WHOLE_DOCUMENT: true,
+				WHOLE_DOCUMENT: isHtml,
 				// No trusted app code runs in these documents. Preserve legitimate
 				// IDs and passive legacy SVG font metadata rather than clobber-proofing.
 				SANITIZE_DOM: false,
@@ -141,6 +159,46 @@ export async function validateWordPressStaticDocuments(directory) {
 	}
 }
 
+/** Inspect all browser markup, including descendants of passive XML/editor metadata. */
+function appendBrowserMarkup(parent, node) {
+	const known = [
+		'http://www.w3.org/1999/xhtml',
+		'http://www.w3.org/2000/svg',
+		'http://www.w3.org/1998/Math/MathML',
+	];
+	let target = parent;
+	if (node.nodeType === 1 && known.includes(node.namespaceURI)) {
+		// DOMPurify omits passive SVG metadata wrappers; inspect their attributes
+		// on a neutral SVG group so handlers cannot hide on the wrapper itself.
+		if (node.namespaceURI === known[1] && node.localName === 'metadata') {
+			target = node.ownerDocument.createElementNS(known[1], 'g');
+			for (const attribute of node.attributes)
+				target.setAttributeNS(
+					attribute.namespaceURI,
+					attribute.name,
+					attribute.value
+				);
+		} else target = node.cloneNode(false);
+		for (const attribute of Array.from(target.attributes)) {
+			if (
+				attribute.namespaceURI &&
+				![
+					'http://www.w3.org/1999/xlink',
+					'http://www.w3.org/XML/1998/namespace',
+				].includes(attribute.namespaceURI)
+			)
+				target.removeAttributeNode(attribute);
+		}
+		parent.appendChild(target);
+	} else if (node.nodeType === 3) {
+		parent.appendChild(node.cloneNode());
+	}
+	for (const child of node.childNodes) appendBrowserMarkup(target, child);
+	if ('content' in node && node.content?.nodeType === 11)
+		for (const child of node.content.childNodes)
+			appendBrowserMarkup(target.content, child);
+}
+
 function trimAttributeValues(node) {
 	if (node.nodeType === 1) {
 		for (const attribute of node.attributes)
@@ -176,11 +234,20 @@ export async function protectStaticReleasePages(
 			`<script>if(location.origin!==${JSON.stringify(expected)}){` +
 			`document.write('<p>This Playground page cannot run on this host.</p><plaintext hidden>');` +
 			`throw new Error('Playground page loaded on '+location.origin)}</script>`;
-		if (!/<head(?:\s[^>]*)?>/i.test(html))
-			throw new Error(`Missing head in Playground page: ${file}`);
-		await writeFile(
-			path,
-			html.replace(/<head(?:\s[^>]*)?>/i, (head) => head + script)
-		);
+		const dom = new JSDOM(html, { includeNodeLocations: true });
+		try {
+			const offset = dom.nodeLocation(dom.window.document.head)?.startTag
+				?.endOffset;
+			if (offset === undefined)
+				throw new Error(
+					`Missing explicit head in Playground page: ${file}`
+				);
+			await writeFile(
+				path,
+				html.slice(0, offset) + script + html.slice(offset)
+			);
+		} finally {
+			dom.window.close();
+		}
 	}
 }

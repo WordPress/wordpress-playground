@@ -33,16 +33,9 @@ export function wordPressFrameMiddleware(getWebRoot, hostnames) {
 			dotfiles: 'deny',
 			index: false,
 			redirect: false,
-			setHeaders(response, file) {
-				// Root copies change with each release; release files never do.
-				if (!response.hasHeader('Cache-Control'))
-					response.setHeader(
-						'Cache-Control',
-						file.includes('/releases/')
-							? 'public, max-age=31536000, immutable'
-							: 'no-store'
-					);
-			},
+			// WP Cloud's direct static responses currently have no Cache-Control.
+			// Preserve explicit test overrides instead of inventing immutable caching.
+			cacheControl: false,
 		})(req, res, async () => {
 			if (!existsSync(join(webRoot, 'custom-redirects.php'))) {
 				return next();

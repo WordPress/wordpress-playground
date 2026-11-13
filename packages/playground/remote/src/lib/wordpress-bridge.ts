@@ -13,14 +13,14 @@
  * that scope. The parent performs the HTTP URL and method checks before calling
  * PHP. No directory handles or general PHP API connection cross this iframe.
  *
- * The document uses the WordPress origin, but this module loads from the app
- * origin. config.ts derives playgroundOrigin from that module URL. On the first
- * load the sandbox build has already pointed the HTML's script URLs at the app
- * (development servers rewrite them on demand). Once installed, the WordPress
- * worker can generate HTML naming its own release's app-origin script, but only
- * for its matching buildVersion or the unversioned /wordpress-bridge.html URL.
- * Helper URLs naming a different buildVersion go to the server, so a worker
- * installed before deployment cannot supply a script URL that deployment removed.
+ * The document and its release-qualified module URL are served on the WordPress
+ * origin. The build supplies playgroundOrigin explicitly. Workers generate helper
+ * HTML only for their own buildVersion; other versions reach the server.
+ *
+ * Retained helpers can talk to a newer worker. Keep the request/response envelope,
+ * scope, requestId and transferable bodyPort compatible throughout retention.
+ * Runtime releaseBase metadata is optional: absent means the legacy app aliases.
+ * An incompatible protocol change needs a versioned handshake before deployment.
  */
 import { playgroundOrigin } from './config';
 import { portToStream, streamToPort } from '@php-wasm/universal';

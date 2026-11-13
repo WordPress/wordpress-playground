@@ -2,10 +2,6 @@
 import { getWordPressDevelopmentOrigin } from './dev-server';
 
 const playgroundUrl = new URL('/', (import.meta || {}).url);
-// The local two-host preview serves the same files on its WordPress hostname.
-if (playgroundUrl.hostname === 'wp.playground.localhost') {
-	playgroundUrl.hostname = 'playground.localhost';
-}
 /**
  * App origin. Builds deployed to WP Cloud configure it explicitly because both
  * hostnames serve the same release files, so the WordPress-origin helper and

@@ -8,6 +8,9 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path';
 
+// These tests replace the same root worker loader while exercising upgrades.
+test.describe.configure({ mode: 'serial' });
+
 // Both hostnames serve the installed web root, including the root /sw.js loader.
 const sandbox = resolve(
 	__dirname,
@@ -164,3 +167,59 @@ self.addEventListener('fetch', event => {
 		expect((await response).fromServiceWorker()).toBe(false);
 	});
 });
+
+// The independently frozen helper preserves the previous wire envelope while
+// the newly built worker serves PHP responses and resolves release asset paths.
+test(
+	'a retained v1 helper interoperates with the current worker',
+	{ tag: '@storage' },
+	async ({ page }) => {
+		const fixture = (
+			await readFile(
+				resolve(__dirname, 'fixtures/helper-v1.html'),
+				'utf8'
+			)
+		).replace('__APP_ORIGIN__', appOrigin);
+		let helperRequests = 0;
+		await page.route('**/wordpress-bridge*.html?scope=*', (route) => {
+			helperRequests++;
+			return route.fulfill({ contentType: 'text/html', body: fixture });
+		});
+		await page.goto(appOrigin + '/?wp=6.9&php=8.3&storage=temp');
+		await page.waitForFunction(() =>
+			Boolean((window as any).playgroundSites)
+		);
+		await page.evaluate(() => (window as any).playgroundSites.isReady());
+		await page.evaluate(() =>
+			(window as any).playgroundSites
+				.getClient()
+				.writeFile('/wordpress/v1-helper.txt', 'v1 PHP response')
+		);
+		const wordpress = page
+			.frameLocator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+			.frameLocator('#wp');
+		await expect(wordpress.locator('body')).not.toBeEmpty();
+		const element = await page
+			.frameLocator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+			.locator('#wp')
+			.elementHandle();
+		const frame = (await element!.contentFrame())!;
+		await element!.dispose();
+		expect(
+			await frame.evaluate(async () =>
+				(await fetch('v1-helper.txt')).text()
+			)
+		).toBe('v1 PHP response');
+		const response = await frame.evaluate(async () => {
+			const response = await fetch('wp-includes/css/dashicons.min.css');
+			return { status: response.status, body: await response.text() };
+		});
+		expect(response.status).toBe(200);
+		expect(response.body).toContain('@font-face');
+		expect(helperRequests).toBeGreaterThan(0);
+	}
+);

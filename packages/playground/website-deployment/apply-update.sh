@@ -17,6 +17,9 @@ BUILD="${3:-$HOME/updated-playground-files}"
 WEB_ROOT="${4:-/srv/htdocs}"
 BACKUPS="${5:-$HOME/website-backups}"
 RELEASE_ID="${PLAYGROUND_RELEASE_ID:?Expected PLAYGROUND_RELEASE_ID}"
+# Roll back the root snapshot taken immediately before this deployment.
+ROLLBACK="${PLAYGROUND_ROLLBACK_BACKUP:-}"
+RETENTION_DAYS="${PLAYGROUND_RELEASE_RETENTION_DAYS:-30}"
 # Local preview and test installs skip the WP Cloud probes and edge purge.
 LOCAL="${PLAYGROUND_LOCAL_RELEASES:-0}"
 DEPLOYMENT="$(cd "$(dirname "$0")" && pwd)"
@@ -58,11 +61,12 @@ fi
     }
 ' "$APP_ORIGIN" "$WORDPRESS_ORIGIN" "$RELEASE_ID" "$LOCAL"
 
+if [ -z "$ROLLBACK" ]; then
 # A partial upload, or a build made for another release path, must not go live.
 for file in index.html api.html remote.html wordpress-popup.html wordpress-bridge.html sw.js; do
     test -s "$BUILD/$file"
 done
-if ! grep -q "/releases/$RELEASE_ID/" "$BUILD/index.html"; then
+if ! grep -qF "/releases/$RELEASE_ID/" "$BUILD/index.html"; then
     echo "Refusing deployment: the build does not use /releases/$RELEASE_ID/." >&2
     exit 1
 fi
@@ -70,6 +74,8 @@ fi
 if [ "$LOCAL" != 1 ] && ! grep -qF "location.origin!==\"$APP_ORIGIN\"" "$BUILD/remote.html"; then
     echo "Refusing deployment: the build's pages do not check for $APP_ORIGIN." >&2
     exit 1
+fi
+
 fi
 
 PROBE=''
@@ -117,6 +123,7 @@ if [ "$LOCAL" != 1 ]; then
     done
 fi
 
+if [ -z "$ROLLBACK" ]; then
 # Stage under a hidden name, which Nginx denies, until the release is complete.
 mkdir -p "$WEB_ROOT/releases" "$WEB_ROOT/.playground-releases" "$BACKUPS"
 PUBLIC="$WEB_ROOT/releases/$RELEASE_ID"
@@ -172,56 +179,124 @@ for file in "$PRIVATE/"*.php; do
 done
 mv "$STAGING" "$PUBLIC"
 
-# Root copies let Nginx serve the entry pages and worker without PHP. Pages that
-# need custom headers, such as the no-store index.html, stay PHP-served from the
-# release. Back up each root file this deployment replaces.
-ROOT_FILES="$("$SITE_PHP" -r '
-    require $argv[2];
-    $files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $argv[1], FilesystemIterator::SKIP_DOTS ) );
-    foreach ( $files as $file ) {
-        $relative = substr( $file->getPathname(), strlen( $argv[1] ) );
-        if ( str_ends_with( $relative, ".html" ) && ! preg_match( "~^/wp-[^/]+/~", $relative ) &&
-            ! playground_is_static_file_needing_special_treatment( $relative ) ) {
-            echo substr( $relative, 1 ), "\n";
+fi
+
+# One inventory owns root activation, failure recovery, manual rollback and pruning.
+# Release files remain immutable; only these small entry files are replaced.
+"$SITE_PHP" /dev/stdin "$WEB_ROOT" "$BACKUPS" "$RELEASE_ID" "$ROLLBACK" "$RETENTION_DAYS" "$DEPLOYMENT" <<'PHP'
+<?php
+[ , $root, $backups, $release, $rollback, $retention, $deployment ] = $argv;
+if ( ! ctype_digit( $retention ) || (int) $retention < 1 ) throw new RuntimeException( 'Retention must be a positive number of days.' );
+require "$deployment/custom-redirects-lib.php";
+$manifest = is_file( "$root/release.json" ) ? json_decode( file_get_contents( "$root/release.json" ), true, 512, JSON_THROW_ON_ERROR ) : [];
+$owned = $manifest['rootFiles'] ?? [];
+// Migrate the inventory of deployments made before rootFiles was recorded.
+if ( ! isset( $manifest['rootFiles'] ) && isset( $manifest['release'] ) ) {
+    $previous = "$root/releases/{$manifest['release']}";
+    if ( is_dir( $previous ) ) {
+        foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $previous, FilesystemIterator::SKIP_DOTS ) ) as $file ) {
+            $path = substr( $file->getPathname(), strlen( $previous ) + 1 );
+            if ( str_ends_with( $path, '.html' ) && ! preg_match( '~^wp-[^/]+/~', $path ) && is_file( "$root/$path" ) ) $owned[] = $path;
         }
     }
-' "$PUBLIC" "$DEPLOYMENT/custom-redirects-lib.php")"
-BACKUP="$BACKUPS/$RELEASE_ID"
-mkdir -p "$BACKUP"
-while IFS= read -r file; do
-    if [ -n "$file" ] && [ -f "$WEB_ROOT/$file" ]; then
-        mkdir -p "$BACKUP/$(dirname "$file")"
-        cp "$WEB_ROOT/$file" "$BACKUP/$file"
-    fi
-done <<< "$ROOT_FILES"
-for file in custom-redirects.php sw.js release.json; do
-    if [ -f "$WEB_ROOT/$file" ]; then
-        cp "$WEB_ROOT/$file" "$BACKUP/$file"
-    fi
-done
-
-# Replace each root file through a same-directory rename. The worker loader goes
-# last: it imports the new release's worker, which pages from this release expect.
-install_root_file() {
-    mkdir -p "$(dirname "$WEB_ROOT/$1")"
-    cp "$2" "$WEB_ROOT/$1.playground-new"
-    mv -f "$WEB_ROOT/$1.playground-new" "$WEB_ROOT/$1"
 }
-mkdir -p "$WEB_ROOT/__wp__"
-cp "$DEPLOYMENT/__wp__/index.php" "$WEB_ROOT/__wp__/index.php"
-install_root_file custom-redirects.php "$PRIVATE/public-entry.php"
-while IFS= read -r file; do
-    if [ -n "$file" ]; then
-        install_root_file "$file" "$PUBLIC/$file"
-    fi
-done <<< "$ROOT_FILES"
-GENERATED="$(mktemp)"
-printf 'import "/releases/%s/sw.js";\n' "$RELEASE_ID" > "$GENERATED"
-install_root_file sw.js "$GENERATED"
-printf '{"release":"%s"}\n' "$RELEASE_ID" > "$GENERATED"
-install_root_file release.json "$GENERATED"
-rm -f "$GENERATED"
-printf 'Activated release %s; previous root files: %s\n' "$RELEASE_ID" "$BACKUP"
+$fixed = [ 'custom-redirects.php', 'sw.js', 'release.json', '__wp__/index.php' ];
+$owned = array_unique( array_merge( $owned, $fixed ) );
+if ( $rollback !== '' ) {
+    if ( ! preg_match( '/\A[A-Za-z0-9][A-Za-z0-9._-]*\z/', $rollback ) ) throw new RuntimeException( 'Invalid rollback backup.' );
+    $backup = "$backups/$rollback";
+    $inventory = json_decode( file_get_contents( "$backup/inventory.json" ), true, 512, JSON_THROW_ON_ERROR );
+    $target = is_file( "$backup/release.json" ) ? json_decode( file_get_contents( "$backup/release.json" ), true, 512, JSON_THROW_ON_ERROR ) : null;
+    if ( $target && ( ! is_dir( "$root/releases/{$target['release']}" ) || ! is_dir( "$root/.playground-releases/{$target['release']}" ) ) ) throw new RuntimeException( 'Rollback release has expired.' );
+    restore_snapshot( $root, $backup, $inventory, $owned );
+    echo "Restored root snapshot $rollback\n";
+} else {
+    $public = "$root/releases/$release";
+    $private = "$root/.playground-releases/$release";
+    $sources = [ 'custom-redirects.php' => "$private/public-entry.php", '__wp__/index.php' => "$deployment/__wp__/index.php" ];
+    foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $public, FilesystemIterator::SKIP_DOTS ) ) as $file ) {
+        $path = substr( $file->getPathname(), strlen( $public ) + 1 );
+        if ( str_ends_with( $path, '.html' ) && ! preg_match( '~^wp-[^/]+/~', $path ) && ! playground_is_static_file_needing_special_treatment( "/$path" ) ) $sources[$path] = $file->getPathname();
+    }
+    write_file( "$private/root-sw.js", 'import "/releases/' . $release . '/sw.js";' . "\n" );
+    $sources['sw.js'] = "$private/root-sw.js";
+    $next = [ 'release' => $release, 'previousRelease' => $manifest['release'] ?? null, 'installedAt' => time(), 'rootFiles' => array_merge( array_keys( $sources ), [ 'release.json' ] ) ];
+    write_file( "$private/release.json", json_encode( $next, JSON_THROW_ON_ERROR ) . "\n" );
+    $sources['release.json'] = "$private/release.json";
+    $backup = "$backups/$release";
+    if ( is_dir( $backup ) ) throw new RuntimeException( 'Backup already exists.' );
+    mkdir( $backup, 0755, true );
+    $inventory = [ 'files' => [], 'absent' => [] ];
+    foreach ( array_unique( array_merge( $owned, array_keys( $sources ) ) ) as $path ) {
+        if ( is_file( "$root/$path" ) ) {
+            install_file( "$backup/$path", "$root/$path" );
+            $inventory['files'][] = $path;
+        } else {
+            $inventory['absent'][] = $path;
+        }
+    }
+    write_file( "$backup/inventory.json", json_encode( $inventory, JSON_THROW_ON_ERROR ) );
+    try {
+        foreach ( array_diff( $owned, array_keys( $sources ) ) as $path ) remove_root_file( $root, $path );
+        foreach ( $sources as $path => $source ) install_file( "$root/$path", $source );
+    } catch ( Throwable $error ) {
+        restore_snapshot( $root, $backup, $inventory, array_keys( $sources ) );
+        throw new RuntimeException( 'Activation failed; previous root files restored.', 0, $error );
+    }
+    echo "Activated release $release; root snapshot: $backup\n";
+}
+// Cleanup follows activation. Protect the active release and its rollback target.
+if ( ! is_file( "$root/release.json" ) ) exit( 0 );
+$active = json_decode( file_get_contents( "$root/release.json" ), true, 512, JSON_THROW_ON_ERROR );
+$protected = [ $active['release'], $active['previousRelease'] ?? null ];
+foreach ( glob( "$root/.playground-releases/*/release.json" ) as $metadata ) {
+    $candidate = json_decode( file_get_contents( $metadata ), true, 512, JSON_THROW_ON_ERROR );
+    $id = $candidate['release'];
+    if ( in_array( $id, $protected, true ) || $candidate['installedAt'] >= time() - (int) $retention * 86400 ) continue;
+    foreach ( [ "$root/releases/$id", "$root/.playground-releases/$id", "$backups/$id" ] as $directory ) remove_tree( $directory );
+    echo "Expired release $id\n";
+}
+
+function restore_snapshot( $root, $backup, $inventory, $current ) {
+    foreach ( array_unique( array_merge( $inventory['absent'], array_diff( $current, $inventory['files'] ) ) ) as $path ) remove_root_file( $root, $path );
+    // release.json is committed last, just as during activation.
+    foreach ( array_diff( $inventory['files'], [ 'release.json' ] ) as $path ) install_file( "$root/$path", "$backup/$path" );
+    if ( in_array( 'release.json', $inventory['files'], true ) ) install_file( "$root/release.json", "$backup/release.json" );
+}
+
+function install_file( $target, $source ) {
+    if ( ! is_dir( dirname( $target ) ) && ! mkdir( dirname( $target ), 0755, true ) ) throw new RuntimeException( "Cannot create parent of $target" );
+    $temporary = tempnam( dirname( $target ), '.playground-new-' );
+    if ( false === $temporary ) throw new RuntimeException( "Cannot stage $target" );
+    try {
+        if ( ! copy( $source, $temporary ) || ! chmod( $temporary, 0644 ) || ! rename( $temporary, $target ) ) throw new RuntimeException( "Cannot install $target" );
+    } finally {
+        if ( is_file( $temporary ) ) unlink( $temporary );
+    }
+}
+
+function write_file( $path, $contents ) {
+    if ( file_put_contents( $path, $contents ) !== strlen( $contents ) ) throw new RuntimeException( "Cannot write $path" );
+}
+
+function remove_root_file( $root, $path ) {
+    if ( is_file( "$root/$path" ) && ! unlink( "$root/$path" ) ) throw new RuntimeException( "Cannot remove $path" );
+    $parent = dirname( "$root/$path" );
+    while ( $parent !== $root && is_dir( $parent ) && count( scandir( $parent ) ) === 2 ) {
+        rmdir( $parent );
+        $parent = dirname( $parent );
+    }
+}
+
+function remove_tree( $directory ) {
+    if ( ! is_dir( $directory ) ) return;
+    foreach ( new FilesystemIterator( $directory ) as $file ) {
+        if ( $file->isDir() && ! $file->isLink() ) remove_tree( $file->getPathname() );
+        else unlink( $file->getPathname() );
+    }
+    rmdir( $directory );
+}
+PHP
 
 if [ "$LOCAL" != 1 ]; then
     # Do not report a complete deployment when the old edge responses remain cached.

@@ -27,7 +27,7 @@ import {
 	LatestMinifiedWordPressVersion,
 	MinifiedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { playgroundOrigin, wordPressSiteUrl } from './config';
+import { playgroundOrigin, wordPressSiteUrl, releaseBase } from './config';
 import {
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
@@ -484,13 +484,17 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			!primaryPhp.fileExists(remoteAssetListPath)
 		) {
 			const listUrl = new URL(
-				joinPaths(wpStaticAssetsDir, 'wordpress-remote-asset-paths'),
+				joinPaths(
+					releaseBase,
+					wpStaticAssetsDir,
+					'wordpress-remote-asset-paths'
+				),
 				playgroundOrigin
 			);
 			try {
-				const remoteAssetPaths = await fetch(listUrl).then((res) =>
-					res.text()
-				);
+				const response = await fetch(listUrl);
+				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+				const remoteAssetPaths = await response.text();
 				primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
 			} catch {
 				logger.warn(
@@ -535,6 +539,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	 */
 	async getWordPressModuleDetails() {
 		return {
+			releaseBase,
 			majorVersion:
 				this.loadedWordPressVersion || this.requestedWordPressVersion,
 			staticAssetsDirectory: this.loadedWordPressVersion
