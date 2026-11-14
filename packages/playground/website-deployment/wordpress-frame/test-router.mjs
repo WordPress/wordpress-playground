@@ -128,10 +128,28 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 		install('A', helperOnApp),
 		failure('does not check for https://wordpress.example')
 	);
+	// Nginx follows links, so they may name only build files, relative to themselves.
+	await writeFile(join(temporary, 'outside.txt'), 'private');
+	for (const [name, target] of [
+		['assets/escape.js', '../../outside.txt'],
+		['assets/absolute.js', null],
+	]) {
+		const linked = await makeBuild('A');
+		await symlink(
+			target ?? join(linked, 'assets/main.js'),
+			join(linked, name)
+		);
+		await assert.rejects(
+			install('A', linked),
+			failure(`${name} links outside the build`)
+		);
+	}
 	await rm(webRoot, { recursive: true });
 	await mkdir(webRoot);
 
-	await install('A', await makeBuild('A'));
+	const first = await makeBuild('A');
+	await symlink('main.js', join(first, 'assets/alias.js'));
+	await install('A', first);
 	// PHP endpoints never enter the public tree, where Nginx would run them.
 	await assert.rejects(stat(join(webRoot, 'releases/A/status.php')));
 	await stat(join(webRoot, '.playground-releases/A/files/status.php'));
@@ -191,6 +209,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	for (const host of [app, wordpress]) {
 		for (const path of [
 			'/releases/A/assets/main.js',
+			'/releases/A/assets/alias.js',
 			'/releases/A/wp-6.8/wp-includes/js/script.js',
 			'/remote.html',
 			'/sw.js',

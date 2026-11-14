@@ -73,10 +73,20 @@ fi
 # Both hostnames serve every page, so each must stop itself on the wrong origin.
 # Check every page, as the build guards them: a page added outside the guarded
 # Vite builds would otherwise run app code on the WordPress host.
+# Nginx follows symlinks, so a link could publish any server file. Allow only
+# relative links to files in the build; they still resolve after it is moved.
 "$SITE_PHP" -r '
     [ , $build, $app_origin, $wordpress_origin ] = $argv;
+    $root = realpath( $build );
     foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $build, FilesystemIterator::SKIP_DOTS ) ) as $file ) {
         $page = substr( $file->getPathname(), strlen( $build ) + 1 );
+        if ( $file->isLink() ) {
+            $target = realpath( $file->getPathname() );
+            if ( str_starts_with( readlink( $file->getPathname() ), "/" ) || false === $target || ! str_starts_with( $target, "$root/" ) ) {
+                fwrite( STDERR, "Refusing deployment: $page links outside the build.\n" );
+                exit( 1 );
+            }
+        }
         if ( ! preg_match( "/\\.html?\\z/i", $page ) || preg_match( "~\\Awp-[^/]+/~", $page ) ) continue;
         $origin = "wordpress-bridge.html" === $page ? $wordpress_origin : $app_origin;
         if ( ! str_contains( file_get_contents( $file->getPathname() ), "location.origin!==\"$origin\"" ) ) {
