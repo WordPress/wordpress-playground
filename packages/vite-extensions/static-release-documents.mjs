@@ -5,7 +5,7 @@ import { gunzipSync } from 'node:zlib';
 import { SaxesParser } from 'saxes';
 import { createHash } from 'node:crypto';
 import exceptions from '../playground/wordpress-builds/build/static-document-exceptions.json' with { type: 'json' };
-import { joinPaths } from '../php-wasm/util/src/lib/paths.ts';
+import { basename, joinPaths } from '../php-wasm/util/src/lib/paths.ts';
 
 /**
  * Check WordPress documents before publishing them on the app origin. Use the
@@ -218,7 +218,15 @@ function removeComments(node) {
 		removeComments(node.content);
 }
 
-/** Guard every app HTML file, including public files Vite copies without transforming. */
+/**
+ * Guard every app HTML file, including public files Vite copies without transforming.
+ *
+ * App pages also require their web-root URL. Every retained release stays public
+ * under /releases/<id>/ for open tabs, which need its assets, not its pages; the
+ * app always loads pages from the root. A fixed page in an old release therefore
+ * cannot start. Old tabs load the request helper from their release, so it keeps
+ * only the origin requirement.
+ */
 export async function protectStaticReleasePages(
 	directory,
 	appOrigin,
@@ -228,12 +236,20 @@ export async function protectStaticReleasePages(
 		if (!/\.html?$/i.test(file) || /^wp-[^/]+\//.test(file)) continue;
 		const path = joinPaths(directory, file);
 		const html = await readFile(path, 'utf8');
-		const expected =
-			file === 'wordpress-bridge.html' ? wordPressOrigin : appOrigin;
+		const isHelper = file === 'wordpress-bridge.html';
+		const expected = isHelper ? wordPressOrigin : appOrigin;
+		const pathCheck = isHelper
+			? ''
+			: `||!(${JSON.stringify(rootPathnames(file))}.includes(location.pathname)` +
+				// Scoped app navigations receive the WordPress wrapper page.
+				(file === 'wordpress-popup.html'
+					? `||location.pathname.startsWith('/scope:')`
+					: '') +
+				')';
 		const script =
-			`<script>if(location.origin!==${JSON.stringify(expected)}){` +
-			`document.write('<p>This Playground page cannot run on this host.</p><plaintext hidden>');` +
-			`throw new Error('Playground page loaded on '+location.origin)}</script>`;
+			`<script>if(location.origin!==${JSON.stringify(expected)}${pathCheck}){` +
+			`document.write('<p>This Playground page cannot run at this address.</p><plaintext hidden>');` +
+			`throw new Error('Playground page loaded at '+location.origin+location.pathname)}</script>`;
 		const dom = new JSDOM(html, { includeNodeLocations: true });
 		try {
 			const offset = dom.nodeLocation(dom.window.document.head)?.startTag
@@ -250,4 +266,12 @@ export async function protectStaticReleasePages(
 			dom.window.close();
 		}
 	}
+}
+
+/** URL paths that serve a page from the web root: its own, and its directory's for an index. */
+function rootPathnames(file) {
+	const page = new URL(joinPaths('/', file), 'https://example.test');
+	return /^index\.html?$/i.test(basename(file))
+		? [page.pathname, new URL('./', page).pathname]
+		: [page.pathname];
 }

@@ -31,6 +31,8 @@ describe('static release documents', () => {
 		await rm(directory, { recursive: true, force: true });
 	});
 
+	// Retained releases stay public for open tabs' assets. Their pages must not start
+	// outside the web root, or a fixed page would remain usable until expiry.
 	it('guards built entries and copied public pages before their scripts execute', async () => {
 		vi.stubEnv('PLAYGROUND_RELEASE_ID', 'test');
 		vi.stubEnv('VITE_PLAYGROUND_APP_ORIGIN', 'https://app.example');
@@ -42,6 +44,7 @@ describe('static release documents', () => {
 			'index.html',
 			'wordpress-bridge.html',
 			'public/copied.html',
+			'public/wordpress-popup.html',
 		]) {
 			await writeFile(joinPaths(directory, file), html);
 		}
@@ -59,34 +62,49 @@ describe('static release documents', () => {
 				},
 			},
 		});
-		for (const file of [
-			'index.html',
-			'wordpress-bridge.html',
-			'copied.html',
-		]) {
+		// Each page's web-root addresses; the root index also answers /.
+		const rootPaths: Record<string, string[]> = {
+			'index.html': ['/index.html', '/'],
+			'wordpress-bridge.html': ['/wordpress-bridge.html'],
+			'copied.html': ['/copied.html'],
+			'wordpress-popup.html': [
+				'/wordpress-popup.html',
+				'/scope:site/wp-admin/',
+			],
+		};
+		for (const [file, paths] of Object.entries(rootPaths)) {
 			const output = await readFile(
 				joinPaths(directory, 'dist', file),
 				'utf8'
 			);
+			const isHelper = file === 'wordpress-bridge.html';
+			const expected = isHelper
+				? 'https://wordpress.example'
+				: 'https://app.example';
 			for (const origin of [
 				'https://app.example',
 				'https://wordpress.example',
 			]) {
-				const dom = new JSDOM(output, {
-					url: origin + '/releases/test/' + file,
-					runScripts: 'outside-only',
-					virtualConsole: new VirtualConsole(),
-				});
-				const expected =
-					file === 'wordpress-bridge.html'
-						? 'https://wordpress.example'
-						: 'https://app.example';
-				const guard = dom.window.document.head.firstElementChild!;
-				expect(guard.tagName).toBe('SCRIPT');
-				const execute = () => dom.window.eval(guard.textContent!);
-				if (origin === expected) expect(execute).not.toThrow();
-				else expect(execute).toThrow('Playground page loaded on');
-				dom.window.close();
+				for (const path of [...paths, '/releases/test/' + file]) {
+					const dom = new JSDOM(output, {
+						url: origin + path,
+						runScripts: 'outside-only',
+						virtualConsole: new VirtualConsole(),
+					});
+					const guard = dom.window.document.head.firstElementChild!;
+					expect(guard.tagName).toBe('SCRIPT');
+					const execute = () => dom.window.eval(guard.textContent!);
+					// Old tabs load their own release's helper by its release path.
+					const runs =
+						origin === expected &&
+						(isHelper || !path.startsWith('/releases/'));
+					if (runs) expect(execute, origin + path).not.toThrow();
+					else
+						expect(execute, origin + path).toThrow(
+							'Playground page loaded at'
+						);
+					dom.window.close();
+				}
 			}
 		}
 	});
@@ -224,7 +242,7 @@ it('inserts guards into the parsed head rather than a comment', async () => {
 		const guard = dom.window.document.head.firstElementChild!;
 		expect(guard.textContent).toContain('location.origin');
 		expect(() => dom.window.eval(guard.textContent!)).toThrow(
-			'Playground page loaded on'
+			'Playground page loaded at'
 		);
 		dom.window.close();
 	} finally {

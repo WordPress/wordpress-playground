@@ -102,7 +102,9 @@ The normal WP Cloud deployment sets `VITE_WORDPRESS_SITE_URL` to
 workflow. Vite builds with base `/releases/<id>/`, so every asset URL names its
 release, and adds an inline origin check to every app HTML page, including copied
 public files: the request helper requires the sandbox origin, all other pages the
-app origin. The single `apply-update.sh`
+app origin and their web-root URL, so retained releases' pages cannot start. The
+target and the `build:wordpress-frame` preview assemble the upload with the same
+`bin/assemble-website.mjs`, so preview checks cover every published page. The single `apply-update.sh`
 installs the build as the public `releases/<id>/` directory, moves its PHP endpoints
 to the Nginx-denied `.playground-releases/<id>/`, and copies entry pages plus a root
 `/sw.js` loader to the web root. Pages needing custom headers stay PHP-served.

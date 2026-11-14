@@ -5,7 +5,8 @@ import { protectStaticReleasePages } from './static-release-documents.mjs';
  * Both WP Cloud hostnames serve the same files, so every page is reachable on
  * both. Stop each static release page before any of its scripts load unless it
  * runs on its intended origin: the WordPress request helper on the sandbox,
- * everything else on the app origin, where PHP and saved sites live.
+ * everything else on the app origin, where PHP and saved sites live. App pages
+ * must also be at their web-root URL, so retained releases' pages cannot start.
  *
  * Writing an unclosed <plaintext> element turns the rest of the document into
  * inert text, so later module scripts never start.

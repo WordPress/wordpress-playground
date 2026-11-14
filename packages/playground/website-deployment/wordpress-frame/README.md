@@ -170,7 +170,10 @@ The inventory restores replaced and deleted files and removes files introduced s
 snapshot, including the first transition from the PHP-only layout. It purges edge responses
 after restoration. Rollback requires the target release to remain on disk.
 
-For urgent revocation, first activate or restore a known-safe release, then remove the vulnerable
+App pages run only at their web-root URL, which serves the active release, so a fixed page in a
+retained release cannot start at its `/releases/<id>/` path. Retained assets, WordPress static
+documents and request helpers remain reachable. For urgent revocation of those, first activate
+or restore a known-safe release, then remove the vulnerable
 ID from both `releases/` and `.playground-releases/` and its backup, and purge the edge cache.
 Do not wait for retention when a retained bundle is vulnerable. Already loaded documents and
 browser caches cannot be recalled; a security fix may also need a worker-driven forced reload.

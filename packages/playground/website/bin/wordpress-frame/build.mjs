@@ -7,10 +7,11 @@
  * another port, so it is built with that pair of origins as production is.
  */
 import { build } from 'vite';
-import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdtemp, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { appOrigin, wordPressOrigin } from './origins.mjs';
+import { assembleWebsite } from '../assemble-website.mjs';
 
 const release = `preview-${Date.now()}`;
 process.env.PLAYGROUND_RELEASE_ID = release;
@@ -37,21 +38,13 @@ for (const [webRoot, origins] of [
 		});
 	}
 
-	// Assemble the upload as the website build target does.
+	// Assemble the upload with the website build target's own code, so the install
+	// and browser checks cover every page production publishes.
 	const upload = 'dist/packages/playground/wordpress-frame-upload';
-	await rm(upload, { recursive: true, force: true });
-	await mkdir(upload, { recursive: true });
-	for (const name of ['remote', 'website', 'website-extras']) {
-		await cp(`dist/packages/playground/${name}`, upload, {
-			recursive: true,
-		});
-	}
-	await cp('dist/packages/playground/client', `${upload}/client`, {
-		recursive: true,
-	});
-	await cp(
-		'packages/playground/blueprints/public/blueprint-schema.json',
-		`${upload}/blueprint-schema.json`
+	await assembleWebsite(
+		'dist/packages/playground',
+		upload,
+		'packages/playground/blueprints/public/blueprint-schema.json'
 	);
 	// The normal CI assembly downloads WP-CLI; reuse it when present.
 	if (existsSync('dist/packages/playground/wasm-wordpress-net/wp-cli.phar')) {
