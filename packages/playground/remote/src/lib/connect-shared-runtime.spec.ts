@@ -1,6 +1,6 @@
 vi.mock('@php-wasm/web', () => ({ consumeAPI: () => ({}) }));
 vi.mock('./shared-playground-worker.ts?worker&url', () => ({
-	default: '/worker.js',
+	default: '/releases/new/worker.js',
 }));
 
 import { connectSharedRuntime } from './connect-shared-runtime';
@@ -14,7 +14,7 @@ describe('shared runtime discovery across deployments', () => {
 	let storage: Map<string, string>;
 	const key = 'playground:shared-worker:default';
 	const identity = (version: string) => ({
-		url: `https://example.test/worker.js?build=${version}`,
+		url: `https://example.test/releases/new/worker.js?build=${version}`,
 		name: `playground:default:${version}`,
 		version,
 	});
@@ -111,10 +111,51 @@ describe('shared runtime discovery across deployments', () => {
 		expect(workers).toHaveLength(1);
 	});
 
+	it.each(['/worker.js', '/releases/old/worker.js'])(
+		'retires the previous entry at %s before connecting the new release',
+		async (path) => {
+			const previous = {
+				...identity('old'),
+				url: `https://example.test${path}?build=old`,
+			};
+			storage.set(key, JSON.stringify(previous));
+			const connection = connectSharedRuntime('default', 'new', 'new');
+			expect(workers[0].url).toBe(previous.url);
+			workers[0].send({ type: RELOAD_REQUIRED, ready: false });
+			await vi.advanceTimersByTimeAsync(0);
+			expect(workers).toHaveLength(1);
+			workers[0].send({ type: RUNTIME_CLOSED });
+			await vi.advanceTimersByTimeAsync(0);
+			workers[1].send({
+				type: 'shared-runtime-connected',
+				runtimeId: 'new',
+			});
+			await connection;
+		}
+	);
+
+	it.each([
+		'https://attacker.test/releases/old/worker.js',
+		'https://example.test/scope:site/worker.js',
+		'https://example.test/releases/old/other.js',
+	])('rejects an unrelated stored worker URL: %s', async (url) => {
+		storage.set(key, JSON.stringify({ ...identity('old'), url }));
+		const connection = connectSharedRuntime('default', 'new', 'new');
+		expect(workers[0].url).toBe(
+			'https://example.test/releases/new/worker.js'
+		);
+		workers[0].send({ type: RELOAD_REQUIRED, ready: true });
+		await vi.advanceTimersByTimeAsync(0);
+		workers[1].send({ type: 'shared-runtime-connected', runtimeId: 'new' });
+		await connection;
+	});
+
 	it('probes the unversioned worker when no identity is recorded', async () => {
 		const connection = connectSharedRuntime('default', 'new', 'new');
 		expect(workers[0].name).toBe('playground:default');
-		expect(workers[0].url).toBe('https://example.test/worker.js');
+		expect(workers[0].url).toBe(
+			'https://example.test/releases/new/worker.js'
+		);
 		workers[0].send({ type: RELOAD_REQUIRED, ready: true });
 		await vi.advanceTimersByTimeAsync(0);
 		workers[1].send({ type: 'shared-runtime-connected', runtimeId: 'new' });

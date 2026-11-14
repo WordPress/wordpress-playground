@@ -17,12 +17,13 @@ In order to customize these aspects for static files on WP Cloud, we did the fol
 - Configured the WP Cloud site to delegate requests for non-existent files to WordPress.
 - Provided a `__wp__/index.php` file as a default target for Nginx. - Even though this is not a WordPress site, we can provide a `__wp__/index.php` file that Nginx will run as a fallback for non-existent files. The `__wp__/index.php` file is empty and simply exists so Nginx will invoke PHP.
 - Added a `custom-redirects.php` file to implement special request handling. - WP Cloud invokes `<web-root>/custom-redirects.php` (if it exists) at the beginning of every PHP run in order to provide custom request handling. We added this file to implement the rewrites, redirects, and custom headers that we used to get via htaccess.
-- Keep the main website's complete build behind a server-level deny rule under
-  `<web-root>/.playground-releases/`. Nginx must not find a public copy of app
-  HTML or assets on the WordPress sandbox host. Otherwise it would serve those
-  files before PHP can check the hostname. The deployed `custom-redirects.php`
-  selects a private build and calls `playground_handle_request()` in
-  `custom-redirects-lib.php`. That library contains all host and path rules.
+- Serve the main website's static files directly from public, immutable
+  `<web-root>/releases/<id>/` directories on both hostnames. Each build's asset
+  URLs name its release, so open tabs keep loading their own files after a later
+  deployment. Native PHP endpoints stay under the Nginx-denied
+  `<web-root>/.playground-releases/<id>/`. The deployed `custom-redirects.php`
+  selects the active release and calls `playground_handle_request()` in
+  `custom-redirects-lib.php`, which contains all host and path rules for missing files.
 
 ## Deployment notes
 
@@ -32,17 +33,15 @@ The main Playground site uses `apply-update.sh`. The My WordPress site uses
 `my-wordpress-net/apply-update.sh` so its endpoint deployment and schema
 updates do not affect the main Playground deployment path.
 
-The main deployment workflow sets `PLAYGROUND_APP_ORIGIN` to
-`https://playground.wordpress.net` and `VITE_WORDPRESS_SITE_URL` to
-`https://wpsandbox.wordpress.net`. It uses those values for the browser build and
-passes them to the single `apply-update.sh` script. The build produces a small
-`wordpress-sandbox/` document root; PHP serves its existing files and versioned
-WordPress static files on the sandbox host without generating their contents.
-The PHP library has no hardcoded host choice.
-`apply-update.sh` checks both hosts, installs a private
-release, moves old public files to a rollback backup, and replaces the public
-entry file. See the [two-host deployment guide](wordpress-frame/README.md) for
-required WP Cloud settings, the Nginx preflight checks, and rollback.
+The main deployment workflow sets `VITE_PLAYGROUND_APP_ORIGIN` to
+`https://playground.wordpress.net`, `VITE_WORDPRESS_SITE_URL` to
+`https://wpsandbox.wordpress.net`, and a unique `PLAYGROUND_RELEASE_ID`. It uses
+those values for the browser build and passes them to the single `apply-update.sh`
+script. `apply-update.sh` checks both hosts and the build, installs the public and
+private release directories, backs up the root files it replaces, replaces the PHP
+entry, copies the entry pages, and installs the root `/sw.js` loader before purging
+the edge. See the [two-host deployment guide](wordpress-frame/README.md)
+for required WP Cloud settings, the Nginx preflight checks, and rollback.
 
 Personal WP retains the previous file placement: its deployment consults
 `custom-redirects-lib.php` about each file and moves files needing custom headers

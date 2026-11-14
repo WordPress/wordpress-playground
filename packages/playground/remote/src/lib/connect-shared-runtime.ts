@@ -5,6 +5,7 @@ import type {
 	WorkerBootOptions,
 } from './playground-worker-endpoint';
 import { RELOAD_REQUIRED, RUNTIME_CLOSED } from './shared-runtime';
+import { basename, dirname } from '@php-wasm/util';
 // @ts-ignore -- Resolved by Vite.
 import sharedWorkerUrl from './shared-playground-worker.ts?worker&url';
 
@@ -226,9 +227,18 @@ function readSharedWorkerIdentity(
 			return;
 		const url = new URL(value.url);
 		const entrypoint = new URL(sharedWorkerUrl, location.href);
+		// Release directories change, but the worker entry name stays fixed.
+		// Accept the retained prior release or the root layout used before it.
+		const previousDirectory = dirname(url.pathname);
+		const isPreviousRelease =
+			basename(url.pathname) === basename(entrypoint.pathname) &&
+			(previousDirectory === '/' ||
+				/^\/releases\/[A-Za-z0-9][A-Za-z0-9._-]*$/.test(
+					previousDirectory
+				));
 		if (
 			url.origin !== entrypoint.origin ||
-			url.pathname !== entrypoint.pathname
+			(url.pathname !== entrypoint.pathname && !isPreviousRelease)
 		)
 			return;
 		return value;

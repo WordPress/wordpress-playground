@@ -12,12 +12,16 @@ import {
 	websiteDevServerPort,
 } from '../build-config';
 import { wordPressFrameDevPlugin } from './vite.wordpress-frame';
-import { wordPressSandboxPlugin } from './vite.wordpress-sandbox';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { viteTsConfigPaths } from '../../vite-extensions/vite-ts-config-paths';
 import { copyFileSync, existsSync } from 'fs';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import {
+	getStaticReleaseBase,
+	staticReleaseOriginCheckPlugin,
+} from '../../vite-extensions/vite-static-release';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
@@ -55,7 +59,7 @@ const plugins = [
 	buildVersionPlugin('remote-config'),
 ];
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env
 			? process.env['CORS_PROXY_URL']
@@ -73,6 +77,7 @@ export default defineConfig(({ mode }) => {
 
 	return {
 		root: __dirname,
+		base: (command === 'build' && getStaticReleaseBase()) || '/',
 		assetsInclude: [
 			'**/*.wasm',
 			'**/*.so',
@@ -135,9 +140,7 @@ export default defineConfig(({ mode }) => {
 
 		plugins: [
 			...plugins,
-			process.env['PLAYGROUND_APP_ORIGIN']
-				? wordPressSandboxPlugin(process.env['PLAYGROUND_APP_ORIGIN'])
-				: null,
+			staticReleaseOriginCheckPlugin(),
 			mode === 'wordpress-frame'
 				? wordPressFrameDevPlugin(
 						`http://${websiteDevServerHost}:${websiteDevServerPort}`,

@@ -21,23 +21,26 @@ function playground_is_static_file_needing_special_treatment( $path ) {
 /**
  * Apply the deployed website's rewrites, redirects, headers, and PHP setup.
  *
- * The configured sandbox host serves the wordpress-sandbox/ subdirectory and
- * versioned WordPress static files, never app documents or PHP endpoints.
- * Other hosts continue through the existing request handling below.
+ * Nginx serves files that exist in the web root, including every public
+ * releases/<id>/ directory, on both hostnames. Only requests for missing files
+ * reach this handler. On the configured sandbox host it serves the request
+ * helper for versioned helper URLs, sends scoped navigations to the app, and
+ * returns 404 for everything else: never app files, redirects, or PHP endpoints.
  *
- * The deployment script passes its private build directory. Personal WP passes no
- * argument and keeps its existing public/static-files-to-serve-via-php layout.
- * A missing private build must fail rather than fall back to public files.
+ * The deployment script passes the active public release directory and its
+ * private PHP directory. Personal WP passes no argument and keeps its existing
+ * public/static-files-to-serve-via-php layout. A missing release must fail
+ * rather than fall back to other files.
  *
- * Deployment writes the configured sandbox origin into the release entry. Request
- * headers and query parameters must not change that configuration. The build
- * has already pointed the sandbox's script URLs at the shared app origin.
+ * Deployment writes the configured origins into the release entry. Request
+ * headers and query parameters must not change that configuration.
  *
- * @param string|null $build_directory Private main-website build, or null for the public layout.
+ * @param string|null $build_directory Public release directory, or null for the public layout.
  * @param string|null $wordpress_origin Configured sandbox origin; null for the legacy layout.
  * @param string|null $app_origin Configured app origin; null for the legacy layout.
+ * @param string|null $php_directory Private directory holding the release's PHP endpoints.
  */
-function playground_handle_request( $build_directory = null, $wordpress_origin = null, $app_origin = null ) {
+function playground_handle_request( $build_directory = null, $wordpress_origin = null, $app_origin = null, $php_directory = null ) {
 	// Endpoints and range handling can fail after setting cacheable headers.
 	// Check the final status before output. PHP has only one header callback;
 	// native endpoints must not replace this callback.
@@ -79,8 +82,7 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		'document' === ( $_SERVER['HTTP_SEC_FETCH_DEST'] ?? '' );
 
 	// Do not let this host reach the normal app handler, including its redirects
-	// and PHP endpoints. Shared app bundles keep their app-host URLs. WordPress's
-	// static-file redirects also need the /wp-<version>/ files on this origin.
+	// and PHP endpoints.
 	$request_host = parse_url( 'https://' . ( $_SERVER['HTTP_HOST'] ?? '' ), PHP_URL_HOST );
 	if ( null !== $wordpress_origin && is_string( $request_host ) &&
 		0 === strcasecmp( $request_host, parse_url( $wordpress_origin, PHP_URL_HOST ) )
@@ -91,43 +93,23 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 			header( 'Location: ' . $app_origin . $_SERVER['REQUEST_URI'], true, 302 );
 			exit;
 		}
-		// Serve built helper/loader files or one WordPress static-asset directory.
-		// Never fall back to app files, redirects, directory indexes, or native PHP.
-		// Scoped WordPress pages come from the browser service worker, not this directory.
-		$wordpress_asset_path = array();
-		$is_wordpress_asset = 1 === preg_match( '~^/(wp-(?:[0-9]+\.[0-9]+|beta|nightly))/~', $original_requested_path, $wordpress_asset_path );
-		$asset_directory = realpath( $directory . ( $is_wordpress_asset
-			? '/' . $wordpress_asset_path[1] : '/wordpress-sandbox' ) );
-		// A helper URL containing the app's buildVersion can bypass a browser worker
-		// installed by a different release. Every alias serves the deployed release's
-		// one helper document; the version never selects another file or release.
-		$sandbox_path = preg_match( '~^/wordpress-bridge-[a-f0-9]+\.html$~D', $original_requested_path )
-			? '/wordpress-bridge.html' : $original_requested_path;
-		$file = $asset_directory ? realpath( ( $is_wordpress_asset ? $directory : $asset_directory ) . $sandbox_path ) : false;
-		if ( ! $file || ! is_file( $file ) ||
-			! str_starts_with( $asset_directory, $directory . '/' ) ||
-			! str_starts_with( $file, $asset_directory . '/' ) ||
-			'php' === strtolower( pathinfo( $file, PATHINFO_EXTENSION ) )
+		// Nginx already served every release file. Old clients name the helper with
+		// their buildVersion; serve the active release's helper for any of them.
+		if ( '/wordpress-bridge.html' === $original_requested_path ||
+			preg_match( '~^/wordpress-bridge-[a-f0-9]+\.html$~D', $original_requested_path )
 		) {
-			http_response_code( 404 );
-			if ( str_starts_with( $original_requested_path, '/scope:' ) ) {
-				header( 'Content-Type: text/plain; charset=utf-8' );
-				echo 'This browser could not connect to the Playground site. Open it in Playground and try again.';
-			}
+			header( 'Content-Type: text/html' );
+			header( 'Cache-Control: private, no-store' );
+			header( 'X-Content-Type-Options: nosniff' );
+			header_remove( 'X-Frame-Options' );
+			playground_serve_static_file( $directory . '/wordpress-bridge.html' );
 			exit;
 		}
-		require_once __DIR__ . '/mime-types.php';
-		$extension = strtolower( pathinfo( $file, PATHINFO_EXTENSION ) );
-		header( 'Content-Type: ' . ( $mime_types[ $extension ] ?? $mime_types['_default'] ) );
-		if ( $is_wordpress_asset ) {
-			header( 'A8C-Edge-Cache: cache' );
-			header( 'Cache-Control: public, max-age=3600' );
-		} else {
-			header( 'Cache-Control: private, no-store' );
+		http_response_code( 404 );
+		if ( str_starts_with( $original_requested_path, '/scope:' ) ) {
+			header( 'Content-Type: text/plain; charset=utf-8' );
+			echo 'This browser could not connect to the Playground site. Open it in Playground and try again.';
 		}
-		header( 'X-Content-Type-Options: nosniff' );
-		header_remove( 'X-Frame-Options' );
-		playground_serve_static_file( $file );
 		exit;
 	}
 
@@ -189,6 +171,15 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 	// PATH RESOLUTION
 	//
 	$served_path = $requested_path;
+	// PHP endpoints stay out of the public release, where Nginx would run them on
+	// both hostnames. Resolve them, and only them, in the private directory.
+	if ( null !== $php_directory && str_ends_with( $served_path, '.php' ) ) {
+		$directory = realpath( $php_directory );
+		if ( false === $directory ) {
+			http_response_code( 503 );
+			exit;
+		}
+	}
 	$resolved_path = realpath( $directory . $served_path );
 	if ( is_dir( $resolved_path ) ) {
 		if ( null !== $build_directory &&
@@ -617,6 +608,7 @@ function playground_get_custom_response_headers( $requested_path ) {
 	} elseif (
 		'/' === $requested_path ||
 		'/index.html' === $requested_path ||
+		'/builder/builder.html' === $requested_path ||
 		'/api.html' === $requested_path
 	) {
 		return array( 'Cache-Control: max-age=0, no-cache, no-store, must-revalidate' );

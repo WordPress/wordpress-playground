@@ -6,18 +6,13 @@ The normal website deployment serves:
 - Rendered WordPress: `https://wpsandbox.wordpress.net`
 
 Every WordPress frame uses the sandbox. The SPA, PHP, OPFS, and picked
-directory handles stay on the app origin. Existing saved
-sites use the same app-origin files when reopened; no storage migration is needed.
-Shared scripts, PHP WASM, and WordPress downloads keep their app-host asset URLs.
-Versioned WordPress static files are also served on the sandbox host because
-WordPress's static-file redirects retain that hostname.
-The server's host rules do not depend on the query.
+directory handles stay on the app origin. Existing saved sites use the same
+app-origin files when reopened; no storage migration is needed.
 
-All request handling lives in `../custom-redirects-lib.php`. There is no separate
-router to install. `apply-update.sh` installs the build and writes the small
-public `custom-redirects.php` entry that calls `playground_handle_request()` with
-the selected private build directory and configured sandbox origin. Personal WP
-keeps its existing entry and separate deployment script.
+Both hostnames map to one web root, and Nginx serves its existing files directly
+on both. Only requests for missing files run PHP. All request handling for those
+lives in `../custom-redirects-lib.php`; there is no separate router to install.
+Personal WP keeps its existing entry and separate deployment script.
 
 ## Before the first deployment
 
@@ -29,150 +24,171 @@ or returns an unexpected status.
 Nginx must deny direct HTTP access to hidden files and
 `/srv/htdocs/.playground-releases/`, including encoded paths. The deployment
 script creates harmless, readable text probes in both locations and requires
-HTTP 403 through both hosts before moving the build. It verifies TLS and never
-follows redirects. A failed check leaves the active entry and public build
-untouched. PHP cannot create this Nginx rule.
+HTTP 403 through both hosts before installing anything. PHP cannot create this
+Nginx rule.
 
-Do not run this deployment script on an unrelated WordPress installation. The
-first deployment moves existing public files out of the web root.
+Do not run this deployment script on an unrelated WordPress installation.
 
 ## What the deployment does
 
-The website deployment workflow configures both origins in its job environment:
+The website deployment workflow configures both origins in its job environment
+and chooses a unique release ID for each build:
 
 ```yaml
-PLAYGROUND_APP_ORIGIN: https://playground.wordpress.net
+VITE_PLAYGROUND_APP_ORIGIN: https://playground.wordpress.net
 VITE_WORDPRESS_SITE_URL: https://wpsandbox.wordpress.net
 ```
 
-Vite reads `VITE_WORDPRESS_SITE_URL` for the browser build. The SSH step passes
-those same two values to `apply-update.sh`. This one script performs the complete
-deployment; there is no separate installer. It rejects invalid HTTPS origins or
-matching hostnames before moving files. It writes the sandbox origin into that
-release's PHP entry; the build has already written the app origin into the
-sandbox files. Neither depends on request input or server environment.
-The PHP library and deployment script contain no production-domain defaults.
+With `PLAYGROUND_RELEASE_ID` set, Vite builds with base `/releases/<id>/`, so
+every asset URL names its release. It also adds an inline check to the top of
+every app HTML page, including copied public pages, which stops the page before
+any script loads unless it runs on its intended origin: the WordPress request
+helper on the sandbox, everything else on
+the app origin. Both hostnames serve every file, so this check is what keeps app
+pages off the sandbox host and the helper off the app host.
 
-The workflow rebuilds rather than reusing an Nx result made with a different
-origin. The existing upload steps send the build, deployment scripts, and MIME
-map to the server. A manual deployment must pass the same origins used for its
-build:
+The build also parses WordPress HTML, XHTML, SVG (including SVGZ), and XML documents and rejects
+active content using DOMPurify. This includes event attributes, encoded script
+URLs, embedded documents, SVG animation, and XML stylesheet instructions. It
+checks the parsed tree without rewriting the original template or image bytes.
+XML documents must use UTF-8; unsupported encodings fail the build rather than
+bypass inspection. Malformed XML fails closed because browsers can execute a valid prefix before a later parse error.
+The exact path and SHA-256 exceptions in `../../wordpress-builds/build/static-document-exceptions.json`
+cover only reviewed upstream SVG defects: duplicate `fill` attributes in dashboard backgrounds
+and JSX-style opacity attributes in six sides icons. Changed bytes require another review.
+Passive XML/editor namespaces are ignored while their HTML/SVG/MathML descendants are inspected.
+`playground-wordpress-builds:validate-static-documents` caches this scan through Nx by assets,
+policy, reviewed exceptions and dependency lockfile. Asset refreshes and publication depend on it;
+Vite outputs do not repeat it.
+Internal DTD subsets and arbitrary external DTDs are rejected; only WordPress's
+fixed legacy SVG font declaration is allowed.
+
+The workflow builds the self-hosting download separately, without a release base
+or production origins, before building the WP Cloud release.
+
+The SSH step passes the same release ID and origins to `apply-update.sh`. A
+manual deployment must pass the values used for its build:
 
 ```sh
-~/website-deployment/apply-update.sh \
+PLAYGROUND_RELEASE_ID=<id> ~/website-deployment/apply-update.sh \
   https://playground.wordpress.net https://wpsandbox.wordpress.net
 ```
 
 `apply-update.sh`:
 
-1. Checks the required entry documents and service worker are present. Checks
-   both public hosts and Nginx's private-path deny rule.
-2. Installs the complete build under
-   `/srv/htdocs/.playground-releases/release.<random>/files/`. The same release
-   contains `custom-redirects-lib.php` and the generated `mime-types.php` map.
-3. Saves the previous public entry and any old public build files under
-   `~/website-backups/release.<random>/`. Keeps the platform's `__wp__` fallback.
-   Hidden server files and directories stay in place. They are blocked by Nginx,
-   and some, such as editor swap files, cannot be removed by the SSH account.
-   If a move or the entry rename fails, restores the old public files so the
-   unchanged entry can still run. The restore leaves existing permissions and
-   directory timestamps alone; WP Cloud does not allow changing those on htdocs.
-4. Replaces the public `custom-redirects.php` in one rename. Its paths select
-   that exact release, so an in-flight PHP request continues using the previous
-   release while later requests use the new one.
-5. Purges the WP Cloud edge cache. A purge failure reports an error but leaves
-   the new release active. Restoring public files at that point would bypass
-   the sandbox host rule.
+1. Rejects non-canonical origins, matching hostnames, a missing entry document,
+   a build made for another release path, and any app page without its origin
+   check (the sandbox origin for `wordpress-bridge.html`, the app origin otherwise).
+   Checks both public hosts and Nginx's hidden-path deny rule.
+2. Records the release in its private lifecycle metadata, so retention also removes
+   an upload that fails before activation. Moves the build into
+   `/srv/htdocs/.playground-releases/.staging-<id>/`, which the probes verified, then:
+    - moves its PHP endpoints to `/srv/htdocs/.playground-releases/<id>/files/`,
+      because Nginx would run them on both hosts if they stayed public;
+    - writes the release's `custom-redirects-lib.php`, MIME map, and PHP entry.
+3. Renames the staging directory to `/srv/htdocs/releases/<id>/`.
+4. Records the complete root inventory and backs up every affected existing file under
+   `~/website-backups/<id>/`, including files being removed. Records newly added files as absent.
+5. Replaces the root `custom-redirects.php`, copies the release's entry pages to
+   the web root, writes a root `/sw.js` that imports `/releases/<id>/sw.js`, and
+   writes `release.json` naming the release, previous release, installation time and owned root files.
+   Removes root files dropped by the new release and their empty parent directories.
+   Any activation error restores the snapshot and removes newly introduced files. Each file is replaced through a
+   same-directory rename. Pages needing custom headers, such as the no-store
+   `index.html` and `api.html`, are not copied; PHP serves them from the release.
+6. Purges the WP Cloud edge cache.
 
-The first move from public files to a private build can briefly interrupt
-requests. Later deployments keep previous private releases in place. Neither
-old releases nor rollback backups are deleted automatically; remove obsolete
-ones only after checking which entry files still refer to them.
+Inactive releases expire after 30 days by default (`PLAYGROUND_RELEASE_RETENTION_DAYS`),
+measured from when they become inactive, with the active release and its previous rollback
+release always protected. Private lifecycle metadata records `inactiveSince`; reactivation
+clears it, so a long-lived deployment still gets a full window after replacement.
+Activation and rollback record these transitions before replacing root files, independently
+of edge purge or cleanup succeeding. Failed activation attempts can extend retention; they
+cannot cause the next activation to inherit an expired inactivity timestamp. Cleanup removes
+public assets, private PHP, any leftover staging directory and corresponding backups together after successful activation and its edge purge. Cleanup failures are reported after
+the purge so they cannot leave stale entry responses cached.
+Older tabs may need to reload after expiry. Legacy releases without installation metadata
+need a one-time operator audit; the installer does not guess their ages.
 
-Web PHP cannot read the SSH home directory. The release stays under `htdocs`
-behind Nginx's deny rule, while backups stay outside public serving. Public HTML
-or scripts left outside the private release would bypass the hostname checks.
+`/builder/builder.html` remains PHP-served with no-store, leaving no root builder directory
+that would capture `/builder/` ahead of its existing canonical redirect. The release's large
+assets still use direct static serving.
 
-The app host uses the existing `playground_handle_request()` logic for rewrites,
-conditional and unconditional redirects, directory indexes, MIME types, custom
-headers, cache exceptions, HEAD requests, and native PHP environment setup.
-There is no replacement app handler or new app-side PHP allowlist. Their credentials still come from WP Cloud persistent data via
-`playground_maybe_set_environment()`. Top-level GET navigations to scoped sandbox paths redirect to the configured app
-origin, preserving the path and query. Scoped app navigations serve the trusted
-`wordpress-popup.html` wrapper, whose iframe loads the original sandbox URL.
-Other scoped server requests return 404 to prevent iframe redirect loops. The app
-service worker passes top-level app aliases to this wrapper route and rejects
-scoped app subresource requests; WordPress responses are served only on the sandbox.
-The build creates a separate document root inside the private build:
+## Requests that reach PHP
 
-```text
-files/
-├── index.html, remote.html, api.html, assets/, ...
-└── wordpress-sandbox/
-    ├── wordpress-bridge.html
-    ├── sw.js
-    └── assets/<hashed-thumbnail-worker>.js
-```
+On the app host, missing paths use the existing `playground_handle_request()`
+logic: rewrites, redirects, directory indexes, MIME types, custom headers, cache
+exceptions, HEAD requests, and native PHP environment setup. Static files come
+from the active public release; PHP endpoints from its private directory. This
+keeps the custom headers on stable public URLs such as `/client/index.js`.
 
-Helper and worker-loader requests on the sandbox hostname use `wordpress-sandbox/`.
-`/wordpress-bridge-<build-version>.html` URLs all map to the deployed release's
-`wordpress-bridge.html`. The version cannot select a historical release, an app
-document, or PHP. For example, a browser may still run release A's WordPress worker
-after release B is deployed. B's helper URL must reach the server, rather than
-receive HTML naming A's script, which the deployment may have removed.
-The helper already contains app-origin script and preload URLs. The small worker
-files import the shared app-origin bundles. Vite finds the thumbnail worker from
-its source-file mapping, so its changing hash does not need a PHP URL exception.
-PHP serves these files as-is and returns 404 for missing files or paths escaping
-that directory. No app redirects or native PHP execution run on this host. Its
-WordPress pages come from the browser's service worker.
-The sandbox also serves existing non-PHP files under `/wp-<version>/`, including
-`wp-beta` and `wp-nightly`. These are the same deployed WordPress static files
-available on the app host, with public browser and edge caching. The resolved file
-must stay inside its selected version directory, and that directory must stay
-inside the deployed build. PHP files, directory indexes, missing files, and paths
-escaping that directory return 404; they never reach the app handler. All other
-sandbox requests return 404.
+On the sandbox host, PHP serves the active release's request helper for the
+versioned `/wordpress-bridge-<build-version>.html` URLs that older clients use,
+and returns 404 for everything else. No app redirects or PHP endpoints run there.
 
-Assets use the same app-host URLs for all Playgrounds, with CORS and caching.
-Files are streamed, with byte ranges for resumable runtime downloads. Existing
-app cache exceptions remain in effect, including no-store for the app/API entry
-pages and identity encoding for static ZIP archives. Sandbox bootstrap responses
-use `private, no-store`. Existing external iframe and SDK embeds need no referrer or
-new URL parameters.
+Top-level GET navigations to scoped paths that no sandbox worker handled, such as
+a new Safari tab, redirect from the sandbox to the same path and query on the app.
+The app serves the active release's `wordpress-popup.html` wrapper there, whose
+iframe loads the original sandbox URL. Other scoped requests return 404, so
+iframes never redirect and a missing runtime cannot nest wrappers.
+
+## Moving from the PHP-served layout
+
+The previous layout served every file through PHP from a hidden release. The
+first deployment of this layout adds the public release, root copies, and root
+`/sw.js` next to it and replaces `custom-redirects.php`; the old hidden releases
+stay in place. Browsers update their existing `/sw.js` registrations on both hosts
+to the new loader, which chooses its role by origin. Tabs opened before the switch
+can no longer load their old root `/assets/` chunks, as with any earlier deployment.
 
 ## Verify and roll back
 
-The HTTP contract test builds the sandbox directory, runs `apply-update.sh` in a
-temporary directory, then starts PHP with the installed public entry. It checks refused deployments,
-old-file removal, protected hidden files, permission-preserving rollback,
-configured non-production hosts, the app redirect/header/PHP
-rules, shared assets, ranges, HEAD/OPTIONS, symlink and traversal rejection,
-release switching, cache purging, and retained rollback files. Only the public
-WP Cloud probes are stubbed; the test does not prove the live Nginx or TLS setup.
-Run it with Node 24 and PHP:
+The HTTP contract test runs `apply-update.sh` against a temporary web root and
+serves it like WP Cloud: existing public files directly, hidden paths denied, and
+missing paths through the installed PHP entry. Only the public WP Cloud probes
+are stubbed; the test does not prove the live Nginx or TLS setup. Run it with
+Node 24 and PHP:
 
 ```sh
 npm exec -- nx run playground-website:test:wordpress-frame-router
 ```
 
-After deployment, check both HTTPS hosts without bypassing TLS verification.
-Confirm the dock stays on the app host and WordPress uses the sandbox host.
-Open two Playgrounds together and check their pages and database-tool popups
-still work.
-Test a post save, saved-site switching, a database-tool popup, and a disposable
-local folder outside Documents/iCloud. An unchanged external iframe with
-`referrerpolicy="no-referrer"` must still load. Repeat the direct-parent OPFS
-canary check from the browser suite.
+After deployment, verify on both HTTPS hosts: Nginx MIME types (including
+`application/wasm`), byte ranges, archive compression, framing, and edge caching.
+Confirm the dock stays on the app host and WordPress uses the sandbox host, and
+that app pages loaded on the sandbox host stop with an error.
 
-For a later deployment, copy the previous `custom-redirects.php` from the named
-backup into a temporary file under `htdocs`, then rename it over the active
-entry. Keep the private release it points to. To undo the first deployment, also
-restore the old public files from that backup. Purge the WP Cloud edge cache
-after rollback. No WordPress database change is needed. Restore the alias setting
-separately if required.
+Roll back with the same installer, naming the deployment whose pre-activation snapshot to restore:
 
-This split does not stop WordPress from embedding a fresh app/API document.
-That route to saved storage remains unresolved; this is not complete protection
-for saved files or native directory handles. Running Playgrounds still share one
-WordPress origin, without per-site HTTP authorization.
+```sh
+PLAYGROUND_RELEASE_ID=<current-id> PLAYGROUND_ROLLBACK_BACKUP=<current-id> \
+  ~/website-deployment/apply-update.sh \
+  https://playground.wordpress.net https://wpsandbox.wordpress.net
+```
+
+The inventory restores replaced and deleted files and removes files introduced since the
+snapshot, including the first transition from the PHP-only layout. It purges edge responses
+after restoration. Rollback requires the target release to remain on disk.
+
+App pages run only at their web-root URL, which serves the active release, so a fixed page in a
+retained release cannot start at its `/releases/<id>/` path. Retained assets, WordPress static
+documents and request helpers remain reachable. For urgent revocation of those, first activate
+or restore a known-safe release, then remove the vulnerable
+ID from both `releases/` and `.playground-releases/` and its backup, and purge the edge cache.
+Do not wait for retention when a retained bundle is vulnerable. Already loaded documents and
+browser caches cannot be recalled; a security fix may also need a worker-driven forced reload.
+Retention bounds availability of old code; it is not a security revocation mechanism.
+
+The preview models the observed WP Cloud static responses without adding Cache-Control.
+The live Nginx and CDN policy remains a rollout check: test root HTML/worker revalidation,
+release-file MIME types, ranges and actual cache lifetime on a staging host before enabling
+production. Retained URLs are immutable on disk, without assuming a one-year edge lifetime.
+
+Helpers and workers can overlap during retention. The v1 request/response envelope (`scope`,
+`requestId`, `bodyPort`) stays compatible; new runtime release metadata is optional, with absent
+metadata using legacy app-host asset aliases. A frozen v1 helper fixture tests the newer worker.
+Version the handshake before making an incompatible protocol change.
+
+This split does not stop WordPress from embedding a fresh app/API document, and
+running Playgrounds still share one WordPress origin, without per-site HTTP
+authorization.

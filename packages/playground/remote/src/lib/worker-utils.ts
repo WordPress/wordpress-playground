@@ -4,6 +4,7 @@ import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { unzipFile } from '@wp-playground/common';
 import { hasCachedResponse } from './offline-mode-cache';
+import { releaseBase } from './config';
 import { getLoadedWordPressVersion } from '@wp-playground/wordpress';
 
 /**
@@ -155,5 +156,9 @@ export async function getWordPressStaticZipUrl(php: PHP) {
 	if (!staticAssetsDirectory) {
 		return false;
 	}
-	return joinPaths('/', staticAssetsDirectory, 'wordpress-static.zip');
+	return joinPaths(
+		releaseBase,
+		staticAssetsDirectory,
+		'wordpress-static.zip'
+	);
 }

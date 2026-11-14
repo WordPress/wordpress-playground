@@ -71,7 +71,7 @@ jobs:
             name: playground-wordpress-net-wp-cloud
         # One origin choice for the browser build and the installed PHP host rule.
         env:
-            PLAYGROUND_APP_ORIGIN: https://playground.wordpress.net
+            VITE_PLAYGROUND_APP_ORIGIN: https://playground.wordpress.net
             VITE_WORDPRESS_SITE_URL: https://wpsandbox.wordpress.net
         steps:
             - uses: actions/checkout@v5
@@ -82,20 +82,24 @@ jobs:
             - uses: ./.github/actions/prepare-playground
             - name: Sync PHP next build assets
               run: npm run sync:php-next
-            # Do not restore bundles built with a different WordPress origin.
-            - run: npx nx build playground-website --skip-nx-cache
-              env:
-                  CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}
-                  VITE_GOOGLE_ANALYTICS_ID: G-SVTNFCP8T7
+            # The download is portable: root-relative assets and no production origins.
+            # Archive it before building the WP Cloud release into the same output.
+            - name: Build the self-hosting download
+              run: env -u PLAYGROUND_RELEASE_ID -u VITE_PLAYGROUND_APP_ORIGIN -u VITE_WORDPRESS_SITE_URL npx nx build playground-website --skip-nx-cache
             - run: tar -czf wasm-wordpress-net.tar.gz dist/packages/playground/wasm-wordpress-net
-            # Store dist/packages/artifacts/wasm-wordpress-net as a build artifact
             - uses: actions/upload-artifact@v4
               with:
                   name: playground-website
                   path: wasm-wordpress-net.tar.gz
-            # The artifact only becomes available after this workflow wraps up, so let's wrap.
-            # This artifact enables the download of a pre-built package and hosting of one's own playground instance.
-
+            # Each deployment gets its own public /releases/<id>/ directory. The build
+            # writes that path into every asset URL, so open tabs keep their own files.
+            - name: Choose the release ID
+              run: echo "PLAYGROUND_RELEASE_ID=$(date -u +%Y%m%d-%H%M%S)-$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
+            # Do not restore bundles built with a different WordPress origin or release.
+            - run: npx nx build playground-website --skip-nx-cache
+              env:
+                  CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}
+                  VITE_GOOGLE_ANALYTICS_ID: G-SVTNFCP8T7
             - name: Deploy Playground website build
               shell: bash
               run: |
@@ -121,4 +125,4 @@ jobs:
                   # Apply update
                   ssh -i ~/.ssh/id_ed25519 \
                     ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }} \
-                    -tt -C "~/website-deployment/apply-update.sh '$PLAYGROUND_APP_ORIGIN' '$VITE_WORDPRESS_SITE_URL'"
+                    -tt -C "PLAYGROUND_RELEASE_ID='$PLAYGROUND_RELEASE_ID' ~/website-deployment/apply-update.sh '$VITE_PLAYGROUND_APP_ORIGIN' '$VITE_WORDPRESS_SITE_URL'"

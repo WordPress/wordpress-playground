@@ -3,11 +3,21 @@ import { getWordPressDevelopmentOrigin } from './dev-server';
 
 const playgroundUrl = new URL('/', (import.meta || {}).url);
 /**
- * App origin, taken from the loaded module URL rather than the current document.
- * The WordPress-origin helper also imports this code from the app host, so using
- * location.origin there would incorrectly identify the WordPress host as the app.
+ * App origin. Builds deployed to WP Cloud configure it explicitly because both
+ * hostnames serve the same release files, so the WordPress-origin helper and
+ * worker load this module from the WordPress host. Other builds take it from the
+ * loaded module URL rather than the current document.
  */
-export const playgroundOrigin = playgroundUrl.origin;
+export const playgroundOrigin =
+	import.meta.env['VITE_PLAYGROUND_APP_ORIGIN'] || playgroundUrl.origin;
+/**
+ * Public directory of the running static release, such as /releases/<id>/, or /
+ * for builds served from the web root. Asset URLs already include it; code that
+ * builds root-relative URLs for release files must add it.
+ */
+export const releaseBase: string = import.meta.env.PROD
+	? import.meta.env.BASE_URL
+	: '/';
 const developmentWordPressOrigin = import.meta.env.DEV
 	? getWordPressDevelopmentOrigin(playgroundUrl)
 	: undefined;

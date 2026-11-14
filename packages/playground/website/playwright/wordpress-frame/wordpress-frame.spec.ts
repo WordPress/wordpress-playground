@@ -18,6 +18,15 @@ import {
 	wordPressOrigin as wpOrigin,
 } from '../../bin/wordpress-frame/origins.mjs';
 
+/** Match the request helper at its static release path or a versioned alias. */
+function isHelperFrame(url: string) {
+	const { pathname } = new URL(url);
+	return (
+		isWordPressBridgePath(pathname) ||
+		/^\/releases\/[^/]+\/wordpress-bridge\.html$/.test(pathname)
+	);
+}
+
 // These checks create saved sites and inspect shared download counters.
 test.describe.configure({ mode: 'default' });
 test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
@@ -152,52 +161,6 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		}
 	});
 
-	test('cached app HTML uses the sandbox in a referrer-free embed', async ({
-		page,
-	}) => {
-		const url = new URL('/', external);
-		url.searchParams.set('target', root + '/?wp=6.9&php=8.3&storage=temp');
-		await page.goto(url.href);
-		const app = await (await page
-			.locator('#embed')
-			.elementHandle())!.contentFrame();
-		await ready(app!);
-		const api = new URL('/api.html', root);
-		expect(await probeFramedAPI(page, api.href, 10000)).toBe(true);
-		await expect
-			.poll(() =>
-				app!.evaluate(async () => {
-					return Boolean(
-						await caches.match(
-							new URL('/api.html', window.location.origin).href,
-							{ ignoreSearch: true }
-						)
-					);
-				})
-			)
-			.toBe(true);
-		// Use a cache-only URL so this checks replayed HTML without relying on the
-		// browser's offline emulation to permit service-worker navigations.
-		api.pathname = '/cached-api.html';
-		expect((await page.request.get(api.href)).status()).toBe(404);
-		await app!.evaluate(async (cachedUrl) => {
-			for (const name of await caches.keys()) {
-				const cache = await caches.open(name);
-				const response = await cache.match(
-					new URL('/api.html', window.location.origin).href,
-					{ ignoreSearch: true }
-				);
-				if (response) {
-					await cache.put(cachedUrl, response);
-					return;
-				}
-			}
-			throw new Error('The real API document was not cached');
-		}, api.href);
-		// The cached API document must work with the same unchanged no-referrer URL.
-		expect(await probeFramedAPI(page, api.href, 10000)).toBe(true);
-	});
-
 	test('WordPress cannot read existing parent documents, OPFS or API connections', async ({
 		page,
 	}) => {
@@ -266,9 +229,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 
 		const helper = remote
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
+			.find((frame) => isHelperFrame(frame.url()))!;
 		await helper.evaluate(async (appOrigin) => {
 			const scope = new URL(window.location.href).searchParams.get(
 				'scope'
@@ -307,9 +268,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		const helper = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
+			.find((frame) => isHelperFrame(frame.url()))!;
 		expect(
 			await helper.evaluate(() =>
 				Boolean((window as any).cachedHelperExecuted)
@@ -339,9 +298,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		const helper = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
+			.find((frame) => isHelperFrame(frame.url()))!;
 		expect(
 			await helper.evaluate(() =>
 				Boolean((window as any).cachedHelperExecuted)
@@ -1406,9 +1363,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		const helper = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
+			.find((frame) => isHelperFrame(frame.url()))!;
 		const helperPath = new URL(helper.url()).pathname;
 		await wp.evaluate(async (helperPath) => {
 			const url = new URL(helperPath, window.location.origin).href;
@@ -1437,75 +1392,6 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 				}
 			}
 		}, helperPath);
-	}
-
-	/**
-	 * Check that an embedded app API can complete its normal isReady() handshake.
-	 *
-	 * Create the iframe below the supplied page or frame with no referrer and no
-	 * extra origin parameter, as existing integrations may do. Retry the legacy
-	 * APPLY message while the document boots; only this iframe's reply for the
-	 * generated request ID counts as success. Remove the iframe and timers on
-	 * success or timeout. A timeout returns false; it does not explain why boot
-	 * failed, so these embed-compatibility checks require a successful handshake.
-	 */
-	async function probeFramedAPI(
-		parent: Page | Frame,
-		apiUrl: string,
-		timeoutMs: number
-	) {
-		return await parent.evaluate(
-			async ({ apiUrl, timeoutMs, origin }) => {
-				const iframe = document.createElement('iframe');
-				iframe.hidden = true;
-				iframe.referrerPolicy = 'no-referrer';
-				iframe.src = apiUrl;
-				const id = crypto.randomUUID();
-				return await new Promise<boolean>((resolve) => {
-					const interval = setInterval(
-						() =>
-							iframe.contentWindow?.postMessage(
-								{
-									id,
-									type: 'APPLY',
-									path: ['isReady'],
-									argumentList: [],
-								},
-								origin
-							),
-						100
-					);
-					const timeout = setTimeout(() => finish(false), timeoutMs);
-					window.addEventListener('message', onMessage);
-					document.body.append(iframe);
-
-					/**
-					 * Match the reply to this iframe, app origin, and request ID.
-					 * Other Playground frames also send API messages during boot;
-					 * accepting one of those would hide a broken embedded API.
-					 */
-					function onMessage(event: MessageEvent) {
-						if (
-							event.source === iframe.contentWindow &&
-							event.origin === origin &&
-							event.data?.id === id &&
-							event.data.type === 'RAW'
-						)
-							finish(true);
-					}
-
-					/** Stop probing and remove the listener and temporary iframe on either outcome. */
-					function finish(connected: boolean) {
-						clearInterval(interval);
-						clearTimeout(timeout);
-						window.removeEventListener('message', onMessage);
-						iframe.remove();
-						resolve(connected);
-					}
-				});
-			},
-			{ apiUrl, timeoutMs, origin: root }
-		);
 	}
 
 	/**

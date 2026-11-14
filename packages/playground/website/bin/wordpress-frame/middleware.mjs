@@ -1,103 +1,99 @@
 import express from 'express';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-import { isWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path.ts';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { existsSync } from 'node:fs';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { request as httpRequest } from 'node:http';
+import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 /**
- * Route the local app and WordPress hosts before either server serves static files.
+ * Serve an installed web root on the app and WordPress hostnames, as WP Cloud does.
  *
- * For example, playground.localhost:9500 serves the SPA, remote.html, PHP bundles,
- * and WordPress downloads. wp.playground.localhost:9500 serves only the hidden
- * HTTP-request helper, a service-worker loader, and the thumbnail-worker
- * loaders. Other WordPress-host requests return 404 from this server: a running
- * site's /scope:site-a/ pages come from the browser's WordPress service worker.
+ * Existing files are served directly on both hosts, like Nginx, and hidden paths
+ * are denied. Missing paths go to a local PHP server running the installed
+ * custom-redirects.php, which applies the deployment's host rules. Unknown hosts
+ * get 404 so the preview cannot expose the app under another hostname.
  *
- * Scoped app navigations serve only the trusted iframe wrapper. User HTML must never load on the
- * same origin as the SPA and read its OPFS. Reject unknown hosts rather than
- * letting the static-file middleware expose the app under another hostname.
- * This middleware must therefore run before every express.static() handler.
+ * The release-switching tests also serve archived single-origin builds, which
+ * have no custom-redirects.php; those are served as plain static directories.
+ * Resolve the directory on every request so a test's release switch applies.
  *
- * On the first visit there is no WordPress service worker yet. Serve the small
- * built wordpress-sandbox/ directory, just as the PHP host gate does. Its helper
- * and loaders already import app-origin scripts, keeping one public bundle copy.
- * CORS and CORP headers on app assets allow those cross-origin module fetches.
- * The helper may sit below an external embedder. It exposes HTTP transport only,
- * never the app filesystem API.
- *
- * Both the normal preview and the release-switching test server use these rules.
- * Resolve getSandboxDirectory() on each request so switching releases switches
- * the helper and loaders too; a captured initial path would mix build versions.
- * This is host/path routing, not authorization between WordPress sites. It does
- * not stop WordPress from embedding a fresh document from the app host.
- *
- * @param {() => string} getSandboxDirectory Current release's sandbox document root.
- * @returns Express middleware for the fixed playground.localhost host pair.
+ * @param {() => string} getWebRoot Current web root.
+ * @param {string[]} hostnames Hostnames this preview answers.
  */
-export function wordPressFrameMiddleware(getSandboxDirectory) {
-	return (req, res, next) => {
+export function wordPressFrameMiddleware(getWebRoot, hostnames) {
+	const fallbacks = new Map();
+	return async (req, res, next) => {
+		if (!hostnames.includes(req.hostname)) return res.sendStatus(404);
+		const webRoot = getWebRoot();
 		res.set('X-Content-Type-Options', 'nosniff');
-		res.set('Cache-Control', 'no-store');
-		const scopedNavigation =
-			req.path.startsWith('/scope:') &&
-			req.method === 'GET' &&
-			req.get('Sec-Fetch-Dest') === 'document';
-		if (req.hostname === 'wp.playground.localhost') {
-			if (scopedNavigation) {
-				const app = new URL(
-					req.originalUrl,
-					`http://${req.get('host')}`
-				);
-				app.hostname = 'playground.localhost';
-				return res.redirect(302, app.href);
+		express.static(webRoot, {
+			dotfiles: 'deny',
+			index: false,
+			redirect: false,
+			// WP Cloud's direct static responses currently have no Cache-Control.
+			// Preserve explicit test overrides instead of inventing immutable caching.
+			cacheControl: false,
+		})(req, res, async () => {
+			if (!existsSync(join(webRoot, 'custom-redirects.php'))) {
+				return next();
 			}
-			// Versions in these URLs bypass workers installed by a different release.
-			// They do not select a release from disk: serve the preview's selected
-			// sandbox helper, which already names that release's scripts.
-			if (isWordPressBridgePath(req.path)) {
-				const search = new URL(req.url, 'http://localhost').search;
-				req.url = '/wordpress-bridge.html' + search;
+			if (!fallbacks.has(webRoot)) {
+				fallbacks.set(webRoot, startPhpFallback(webRoot));
 			}
-			// Serve only files in the sandbox root, without app fallbacks or indexes.
-			return express.static(getSandboxDirectory(), {
-				index: false,
-				redirect: false,
-				cacheControl: false,
-			})(req, res, () =>
-				res
-					.status(404)
-					.type('text')
-					.send(
-						req.path.startsWith('/scope:')
-							? 'This browser could not connect to the Playground site. Open it in Playground and try again.'
-							: 'Not found'
-					)
-			);
-		}
-		if (req.hostname !== 'playground.localhost') return res.sendStatus(404);
-		// Do not add COOP here: OAuth must retain its opener after cross-origin navigation.
-		if (req.path.startsWith('/scope:')) {
-			if (!scopedNavigation) return res.sendStatus(404);
-			return res.sendFile(
-				fileURLToPath(
-					new URL(
-						'../wordpress-popup.html',
-						pathToFileURL(`${getSandboxDirectory()}/`)
-					)
-				)
-			);
-		}
-		if (
-			req.path.endsWith('.js') ||
-			req.path.startsWith('/assets/') ||
-			/^\/wp-[^/]+\//.test(req.path)
-		) {
-			res.set('Access-Control-Allow-Origin', '*');
-			// Cloned navigations can preflight with headers such as Upgrade-Insecure-Requests.
-			res.set('Access-Control-Allow-Headers', '*');
-			res.set('Access-Control-Allow-Methods', 'GET, HEAD');
-			res.set('Cross-Origin-Resource-Policy', 'cross-origin');
-			res.set('Cache-Control', 'public, max-age=3600');
-			if (req.method === 'OPTIONS') return res.sendStatus(204);
-		}
-		next();
+			proxy(req, res, await fallbacks.get(webRoot));
+		});
 	};
+}
+
+/** Run the installed PHP entry for missing paths, as WP Cloud's fallback does. */
+async function startPhpFallback(webRoot) {
+	const router = join(
+		await mkdtemp(join(tmpdir(), 'playground-preview-')),
+		'wpcloud.php'
+	);
+	await writeFile(
+		router,
+		`<?php
+function __atomic_env_define( $name ) {}
+class Atomic_Persistent_Data {}
+require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
+`
+	);
+	const reservation = createServer();
+	reservation.listen(0, '127.0.0.1');
+	await once(reservation, 'listening');
+	const { port } = reservation.address();
+	await new Promise((resolve) => reservation.close(resolve));
+	const php = spawn(
+		'php',
+		['-S', `127.0.0.1:${port}`, '-t', webRoot, router],
+		{
+			stdio: ['ignore', 'ignore', 'pipe'],
+			env: { ...process.env, PHP_CLI_SERVER_WORKERS: '4' },
+		}
+	);
+	process.once('exit', () => php.kill());
+	await once(php.stderr, 'data');
+	return port;
+}
+
+function proxy(req, res, port) {
+	const upstream = httpRequest(
+		{
+			hostname: '127.0.0.1',
+			port,
+			path: req.originalUrl,
+			method: req.method,
+			headers: req.headers,
+		},
+		(response) => {
+			res.writeHead(response.statusCode, response.headers);
+			response.pipe(res);
+		}
+	);
+	upstream.on('error', (error) => res.destroy(error));
+	req.pipe(upstream);
 }
