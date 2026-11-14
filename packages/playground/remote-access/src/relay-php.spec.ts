@@ -1,7 +1,12 @@
-import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
+import {
+	spawn,
+	execFileSync,
+	type ChildProcessWithoutNullStreams,
+} from 'child_process';
 import { existsSync } from 'fs';
 import { createServer } from 'net';
 import { delimiter, join } from 'path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 describe.skipIf(!isPhpBinaryAvailable())('remote access relay.php', () => {
@@ -10,11 +15,38 @@ describe.skipIf(!isPhpBinaryAvailable())('remote access relay.php', () => {
 	let stderr = '';
 
 	beforeAll(async () => {
+		// Only PHP 8+ lets the cleanup fixture replace a disabled built-in.
+		const phpVersion = Number(
+			execFileSync('php', ['-r', 'echo PHP_VERSION_ID;'], {
+				encoding: 'utf8',
+			})
+		);
+		if (phpVersion < 80000) {
+			throw new Error(
+				'Relay HTTP tests require host PHP 8.0 or later to force scheduled cleanup.'
+			);
+		}
 		const port = await getAvailablePort();
 		relayUrl = `http://127.0.0.1:${port}/relay.php`;
 		server = spawn(
 			'php',
-			['-S', `127.0.0.1:${port}`, '-t', getRelayDocumentRoot()],
+			[
+				// Exercise scheduled cleanup on every request, including rejected requests.
+				'-d',
+				'disable_functions=random_int',
+				'-d',
+				'auto_prepend_file=' +
+					fileURLToPath(
+						new URL(
+							'./fixtures/relay-force-cleanup.php',
+							pathToFileURL(__filename)
+						)
+					),
+				'-S',
+				`127.0.0.1:${port}`,
+				'-t',
+				getRelayDocumentRoot(),
+			],
 			{
 				stdio: ['ignore', 'pipe', 'pipe'],
 			}
