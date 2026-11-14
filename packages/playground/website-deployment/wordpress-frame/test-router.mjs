@@ -105,7 +105,29 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 	);
 	const unchecked = await makeBuild('A');
 	await writeFile(join(unchecked, 'remote.html'), 'remote without a check');
-	await assert.rejects(install('A', unchecked), failure('do not check'));
+	await assert.rejects(
+		install('A', unchecked),
+		failure('remote.html does not check for https://app.example')
+	);
+	// Every page is checked, including copied pages, and the helper names the sandbox.
+	const nested = await makeBuild('A');
+	await writeFile(
+		join(nested, 'builder/builder.html'),
+		'builder without a check'
+	);
+	await assert.rejects(
+		install('A', nested),
+		failure('builder/builder.html does not check')
+	);
+	const helperOnApp = await makeBuild('A');
+	await writeFile(
+		join(helperOnApp, 'wordpress-bridge.html'),
+		guard(app) + 'helper'
+	);
+	await assert.rejects(
+		install('A', helperOnApp),
+		failure('does not check for https://wordpress.example')
+	);
 	await rm(webRoot, { recursive: true });
 	await mkdir(webRoot);
 
@@ -195,7 +217,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	for (const path of [
 		'/.playground-releases/A/files/status.php',
 		'/%2eplayground-releases/A/files/status.php',
-		'/releases/.staging-A/index.html',
+		'/.playground-releases/.staging-A/index.html',
 	]) {
 		assert.equal((await request(path, app)).status, 403, path);
 	}
@@ -215,13 +237,13 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	});
 	assert.equal(conditional.status, 302);
 	assert.equal(conditional.headers.get('location'), '/index.html');
-	assert.equal(
+	assert.match(
 		await (
 			await request('/wordpress.html', app, {
 				Referer: 'https://external.example/',
 			})
 		).text(),
-		'wordpress A'
+		/wordpress A$/
 	);
 	const proxy = await request('/plugin-proxy', app);
 	assert.equal(proxy.status, 200);
@@ -253,7 +275,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		assert.equal((await request(path, wordpress)).status, 404, path);
 	}
 	const helper = await request('/wordpress-bridge-abc123.html', wordpress);
-	assert.equal(await helper.text(), 'helper A');
+	assert.match(await helper.text(), /helper A$/);
 	assert.match(helper.headers.get('cache-control'), /no-store/);
 
 	// A top-level navigation that no worker handled falls back to the app's
@@ -263,9 +285,9 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	const redirect = await request(scoped, wordpress, navigation);
 	assert.equal(redirect.status, 302);
 	assert.equal(redirect.headers.get('location'), app + scoped);
-	assert.equal(
+	assert.match(
 		await (await request(scoped, app, navigation)).text(),
-		'wrapper A'
+		/wrapper A$/
 	);
 	for (const host of [app, wordpress]) {
 		assert.equal(
@@ -303,9 +325,9 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		failure('already exists')
 	);
 	await assert.rejects(stat(join(webRoot, 'obsolete')));
-	assert.equal(
+	assert.match(
 		await readFile(join(webRoot, 'new-page.html'), 'utf8'),
-		'new page'
+		/new page$/
 	);
 	// Manual rollback uses the same inventory and removes pages introduced by B.
 	const retiredMetadata = join(
@@ -343,9 +365,9 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		'A'
 	);
 	await assert.rejects(stat(join(webRoot, 'new-page.html')));
-	assert.equal(
+	assert.match(
 		await readFile(join(webRoot, 'obsolete/page.html'), 'utf8'),
-		'obsolete'
+		/obsolete$/
 	);
 	// Activation resets lifecycle metadata even when the subsequent purge fails.
 	assert.equal(
@@ -383,7 +405,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 
 	// A directory blocks one rename after other root entries have been replaced.
 	const broken = await makeBuild('C');
-	await writeFile(join(broken, 'zz-blocked.html'), 'blocked');
+	await writeFile(join(broken, 'zz-blocked.html'), guard(app) + 'blocked');
 	await mkdir(join(webRoot, 'zz-blocked.html'));
 	await assert.rejects(
 		install('C', broken),
@@ -399,14 +421,36 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		/remote A$/
 	);
 	await assert.rejects(stat(join(webRoot, 'new-page.html')));
-	assert.equal(
+	assert.match(
 		await readFile(join(webRoot, 'obsolete/page.html'), 'utf8'),
-		'obsolete'
+		/obsolete$/
 	);
+	// An upload that fails before activation is still recorded for retention.
+	await assert.rejects(
+		run(
+			'bash',
+			[
+				join(deployment, 'apply-update.sh'),
+				app,
+				wordpress,
+				await makeBuild('F'),
+				webRoot,
+				backups,
+			],
+			{
+				env: {
+					...env,
+					PLAYGROUND_RELEASE_ID: 'F',
+					PLAYGROUND_MIME_TYPES: join(temporary, 'missing.json'),
+				},
+			}
+		)
+	);
+	await stat(join(webRoot, '.playground-releases/.staging-F'));
 	// Retain an independent snapshot to exercise the original layout rollback too.
 	await cp(join(backups, 'A'), join(backups, 'initial'), { recursive: true });
 	// Retention removes expired inactive assets and private PHP, preserving rollback.
-	for (const id of ['A', 'B', 'C']) {
+	for (const id of ['A', 'B', 'C', 'F']) {
 		const path = join(webRoot, '.playground-releases', id, 'release.json');
 		const metadata = JSON.parse(await readFile(path, 'utf8'));
 		metadata.installedAt = 1;
@@ -418,11 +462,14 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	await stat(join(webRoot, 'releases/D'));
 	// An old upload that only just became inactive receives the full window.
 	await stat(join(webRoot, 'releases/B'));
-	for (const id of ['C']) {
+	for (const id of ['C', 'F']) {
 		await assert.rejects(stat(join(webRoot, 'releases', id)));
 		await assert.rejects(stat(join(webRoot, '.playground-releases', id)));
 		await assert.rejects(stat(join(backups, id)));
 	}
+	await assert.rejects(
+		stat(join(webRoot, '.playground-releases/.staging-F'))
+	);
 
 	const expired = join(webRoot, '.playground-releases/B/release.json');
 	const inactive = JSON.parse(await readFile(expired, 'utf8'));
@@ -489,7 +536,7 @@ async function makeBuild(release) {
 	const files = {
 		'index.html': `<script type="module" src="/releases/${release}/assets/main.js"></script>`,
 		'api.html': `api ${release}`,
-		'remote.html': `<script>if(location.origin!==${JSON.stringify(app)}){}</script>remote ${release}`,
+		'remote.html': `remote ${release}`,
 		'wordpress-popup.html': `wrapper ${release}`,
 		'wordpress-bridge.html': `helper ${release}`,
 		'builder/builder.html': `builder ${release}`,
@@ -509,10 +556,23 @@ async function makeBuild(release) {
 		'wp-6.8/templates/index.html': '<!-- wp:paragraph --><p>Template</p>',
 	};
 	for (const [name, content] of Object.entries(files)) {
+		// The build guards every app page except WordPress's own documents.
+		const page = name.endsWith('.html') && !name.startsWith('wp-');
 		await mkdir(dirname(join(build, name)), { recursive: true });
-		await writeFile(join(build, name), content);
+		await writeFile(
+			join(build, name),
+			page
+				? guard(name === 'wordpress-bridge.html' ? wordpress : app) +
+						content
+				: content
+		);
 	}
 	return build;
+}
+
+/** The origin check the build places before a page's scripts. */
+function guard(origin) {
+	return `<script>if(location.origin!==${JSON.stringify(origin)}){}</script>`;
 }
 
 async function freePort() {

@@ -77,9 +77,12 @@ PLAYGROUND_RELEASE_ID=<id> ~/website-deployment/apply-update.sh \
 `apply-update.sh`:
 
 1. Rejects non-canonical origins, matching hostnames, a missing entry document,
-   a build made for another release path, and pages without the app-origin
-   check. Checks both public hosts and Nginx's hidden-path deny rule.
-2. Moves the build into a hidden staging directory, then:
+   a build made for another release path, and any app page without its origin
+   check (the sandbox origin for `wordpress-bridge.html`, the app origin otherwise).
+   Checks both public hosts and Nginx's hidden-path deny rule.
+2. Records the release in its private lifecycle metadata, so retention also removes
+   an upload that fails before activation. Moves the build into
+   `/srv/htdocs/.playground-releases/.staging-<id>/`, which the probes verified, then:
     - moves its PHP endpoints to `/srv/htdocs/.playground-releases/<id>/files/`,
       because Nginx would run them on both hosts if they stayed public;
     - writes the release's `custom-redirects-lib.php`, MIME map, and PHP entry.
@@ -102,7 +105,7 @@ clears it, so a long-lived deployment still gets a full window after replacement
 Activation and rollback record these transitions before replacing root files, independently
 of edge purge or cleanup succeeding. Failed activation attempts can extend retention; they
 cannot cause the next activation to inherit an expired inactivity timestamp. Cleanup removes
-public assets, private PHP and corresponding backups together after successful activation and its edge purge. Cleanup failures are reported after
+public assets, private PHP, any leftover staging directory and corresponding backups together after successful activation and its edge purge. Cleanup failures are reported after
 the purge so they cannot leave stale entry responses cached.
 Older tabs may need to reload after expiry. Legacy releases without installation metadata
 need a one-time operator audit; the installer does not guess their ages.

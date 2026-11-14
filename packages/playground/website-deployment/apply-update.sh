@@ -71,10 +71,20 @@ if ! grep -qF "/releases/$RELEASE_ID/" "$BUILD/index.html"; then
     exit 1
 fi
 # Both hostnames serve every page, so each must stop itself on the wrong origin.
-if [ "$LOCAL" != 1 ] && ! grep -qF "location.origin!==\"$APP_ORIGIN\"" "$BUILD/remote.html"; then
-    echo "Refusing deployment: the build's pages do not check for $APP_ORIGIN." >&2
-    exit 1
-fi
+# Check every page, as the build guards them: a page added outside the guarded
+# Vite builds would otherwise run app code on the WordPress host.
+"$SITE_PHP" -r '
+    [ , $build, $app_origin, $wordpress_origin ] = $argv;
+    foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $build, FilesystemIterator::SKIP_DOTS ) ) as $file ) {
+        $page = substr( $file->getPathname(), strlen( $build ) + 1 );
+        if ( ! preg_match( "/\\.html?\\z/i", $page ) || preg_match( "~\\Awp-[^/]+/~", $page ) ) continue;
+        $origin = "wordpress-bridge.html" === $page ? $wordpress_origin : $app_origin;
+        if ( ! str_contains( file_get_contents( $file->getPathname() ), "location.origin!==\"$origin\"" ) ) {
+            fwrite( STDERR, "Refusing deployment: $page does not check for $origin.\n" );
+            exit( 1 );
+        }
+    }
+' "$BUILD" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
 
 fi
 
@@ -124,17 +134,21 @@ if [ "$LOCAL" != 1 ]; then
 fi
 
 if [ -z "$ROLLBACK" ]; then
-# Stage under a hidden name, which Nginx denies, until the release is complete.
+# Stage in the private directory, whose Nginx denial the probes verified, until
+# the release is complete. PHP endpoints remain there until moved below.
 mkdir -p "$WEB_ROOT/releases" "$WEB_ROOT/.playground-releases" "$BACKUPS"
 PUBLIC="$WEB_ROOT/releases/$RELEASE_ID"
 PRIVATE="$WEB_ROOT/.playground-releases/$RELEASE_ID"
-STAGING="$WEB_ROOT/releases/.staging-$RELEASE_ID"
+STAGING="$WEB_ROOT/.playground-releases/.staging-$RELEASE_ID"
 if [ -e "$PUBLIC" ] || [ -e "$PRIVATE" ] || [ -e "$STAGING" ]; then
     echo "Refusing deployment: release $RELEASE_ID already exists." >&2
     exit 1
 fi
-mv "$BUILD" "$STAGING"
 mkdir -p "$PRIVATE/files"
+# Record the release before anything can fail, so retention also removes an
+# upload that never activates. Activation replaces this with its full record.
+printf '{"release":"%s"}\n' "$RELEASE_ID" > "$PRIVATE/release.json"
+mv "$BUILD" "$STAGING"
 cp "$DEPLOYMENT/custom-redirects-lib.php" "$PRIVATE/"
 "$SITE_PHP" -r '
     $types = json_decode( file_get_contents( $argv[1] ), true, 512, JSON_THROW_ON_ERROR );
@@ -329,7 +343,7 @@ foreach ( glob( "$root/.playground-releases/*/release.json" ) as $metadata ) {
         if ( file_put_contents( $metadata, $json, LOCK_EX ) !== strlen( $json ) ) throw new RuntimeException( "Cannot update lifecycle metadata: $id" );
     }
     if ( in_array( $id, $protected, true ) || $candidate['inactiveSince'] >= time() - (int) $retention * 86400 ) continue;
-    foreach ( [ "$root/releases/$id", "$root/.playground-releases/$id", "$backups/$id" ] as $directory ) remove_tree( $directory );
+    foreach ( [ "$root/releases/$id", "$root/.playground-releases/.staging-$id", "$root/.playground-releases/$id", "$backups/$id" ] as $directory ) remove_tree( $directory );
     echo "Expired release $id\n";
 }
 
