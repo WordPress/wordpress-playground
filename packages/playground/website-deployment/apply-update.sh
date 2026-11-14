@@ -204,16 +204,6 @@ if ( ! ctype_digit( $retention ) || (int) $retention < 1 ) throw new RuntimeExce
 require "$deployment/custom-redirects-lib.php";
 $manifest = is_file( "$root/release.json" ) ? json_decode( file_get_contents( "$root/release.json" ), true, 512, JSON_THROW_ON_ERROR ) : [];
 $owned = $manifest['rootFiles'] ?? [];
-// Migrate the inventory of deployments made before rootFiles was recorded.
-if ( ! isset( $manifest['rootFiles'] ) && isset( $manifest['release'] ) ) {
-    $previous = "$root/releases/{$manifest['release']}";
-    if ( is_dir( $previous ) ) {
-        foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $previous, FilesystemIterator::SKIP_DOTS ) ) as $file ) {
-            $path = substr( $file->getPathname(), strlen( $previous ) + 1 );
-            if ( str_ends_with( $path, '.html' ) && ! preg_match( '~^wp-[^/]+/~', $path ) && is_file( "$root/$path" ) ) $owned[] = $path;
-        }
-    }
-}
 $fixed = [ 'custom-redirects.php', 'sw.js', 'release.json', '__wp__/index.php' ];
 $owned = array_unique( array_merge( $owned, $fixed ) );
 if ( $rollback !== '' ) {
