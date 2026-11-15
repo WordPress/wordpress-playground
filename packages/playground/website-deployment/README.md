@@ -53,6 +53,21 @@ WP's endpoint deployment or database updates.
 
 At the end of the deployment process, the WP Cloud edge cache is purged.
 
+## Rolling back
+
+Run the installer already on the server; a rollback needs no build or origins and
+finishes in seconds:
+
+```sh
+ssh <user@host> PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh
+```
+
+`previous` restores whatever was live before the current release; repeat it to step
+further back, or pass a release ID to undo that deployment.
+`https://playground.wordpress.net/release.json` names the live and previous releases.
+See the [two-host deployment guide](wordpress-frame/README.md#verify-and-roll-back)
+for details.
+
 ## Testing a deployment on a staging site
 
 Use a disposable WP Cloud site with two HTTPS hostnames, set up like production
