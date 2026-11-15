@@ -378,10 +378,8 @@ function deploy(release, { rollback = false } = {}) {
 }
 
 /**
- * Wait until the edge serves the active release's root files on the app host.
- * The cache purge returns before every edge node has dropped its old copies, and
- * covers only the app hostname. The WordPress host's helper registers the worker
- * with its build version in the query, so a stale bare /sw.js there does not apply.
+ * Wait until the edge serves the active release's root files on both hosts.
+ * The cache purge returns before every edge node has dropped its old copies.
  */
 async function waitForEdge(release) {
 	const started = Date.now();
@@ -390,6 +388,7 @@ async function waitForEdge(release) {
 		const [manifest, ...loaders] = await Promise.all([
 			fetch(new URL('/release.json', appOrigin)).then((r) => r.text()),
 			fetch(new URL('/sw.js', appOrigin)).then((r) => r.text()),
+			fetch(new URL('/sw.js', wordPressOrigin)).then((r) => r.text()),
 		]);
 		if (
 			JSON.parse(manifest).release === release &&

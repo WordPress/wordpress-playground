@@ -66,12 +66,12 @@ report_caching() {
 
 # The edge cache purge returns before every edge node drops its old copies, so
 # root files can name the previous release for a short time after a deployment.
-# The purge covers only the app hostname; see the WordPress host's worker below.
 if [ -n "$EXPECTED_RELEASE" ]; then
     loader="import \"/releases/$EXPECTED_RELEASE/sw.js\";"
     started=$SECONDS
     until curl --silent --max-time 30 "$APP/release.json" | grep -qF "\"release\":\"$EXPECTED_RELEASE\"" &&
-        curl --silent --max-time 30 "$APP/sw.js" | grep -qF "$loader"; do
+        curl --silent --max-time 30 "$APP/sw.js" | grep -qF "$loader" &&
+        curl --silent --max-time 30 "$WORDPRESS/sw.js" | grep -qF "$loader"; do
         if [ $((SECONDS - started)) -ge "${PLAYGROUND_CHECK_WAIT:-300}" ]; then
             break
         fi
@@ -95,22 +95,18 @@ if [ -n "$EXPECTED_RELEASE" ] && [ "$RELEASE" != "$EXPECTED_RELEASE" ]; then
 fi
 BASE="/releases/$RELEASE"
 
-# Both hosts load the active release's worker through the root loader. The WordPress
-# host's helper registers it with its build version in the query, a URL the edge has
-# not cached for another release; the bare URL there can stay cached after a purge.
+# Both hosts load the active release's worker through the root loader. Nginx lets
+# the edge cache it for a year, so this also shows the deployment purged both hosts.
 for host in "$APP" "$WORDPRESS"; do
-    if [ "$host" = "$APP" ]; then loader_url="$APP/sw.js"; else loader_url="$WORDPRESS/sw.js?build-version=deployment-check-$RANDOM$RANDOM"; fi
-    request "$loader_url"
-    expect_status 200 "$loader_url"
-    expect_body "import \"$BASE/sw.js\";" "$loader_url imports the active release's worker"
-    report_caching "$loader_url"
+    request "$host/sw.js"
+    expect_status 200 "$host/sw.js"
+    expect_body "import \"$BASE/sw.js\";" "$host/sw.js imports the active release's worker"
+    report_caching "$host/sw.js"
     request "$host$BASE/sw.js"
     expect_status 200 "$host$BASE/sw.js"
     expect_type 'javascript' "$host$BASE/sw.js"
     expect_static "$host$BASE/sw.js"
 done
-request "$WORDPRESS/sw.js"
-info "WordPress host bare /sw.js names $(grep -o 'releases/[^/]*' "$WORK/body" | head -n 1) (edge='$(header x-ac)')"
 
 # App entry pages. Pages needing no-store stay PHP-served; others are root copies.
 request "$APP/remote.html"

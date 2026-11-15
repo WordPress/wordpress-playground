@@ -62,7 +62,7 @@ if (process.argv.includes('-X')) {
         process.stderr.write('Fixture edge purge failed\\n');
         process.exit(22);
     }
-    require('node:fs').appendFileSync(${JSON.stringify(purges)}, 'purged\\n');
+    require('node:fs').appendFileSync(${JSON.stringify(purges)}, process.argv.at(-1) + '\\n');
     process.exit(0);
 }
 process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
@@ -516,9 +516,13 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 			.release,
 		'E'
 	);
-	assert.equal(
-		(await readFile(purges, 'utf8')).split('\n').length,
-		purgeCount + 1
+	// WP Cloud's purge covers only the primary domain unless each host is named.
+	assert.deepEqual(
+		(await readFile(purges, 'utf8')).split('\n').slice(purgeCount - 1, -1),
+		[
+			'https://api.example/edge-cache/test/purge/app.example',
+			'https://api.example/edge-cache/test/purge/wordpress.example',
+		]
 	);
 	await assert.rejects(stat(join(webRoot, 'releases/B')));
 

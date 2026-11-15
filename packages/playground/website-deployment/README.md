@@ -75,11 +75,11 @@ the site upgrades from trunk to two releases and rolls back. It checks open tabs
 reloads, fresh tabs and a site saved in browser storage. The test overwrites the site
 and refuses the production hostnames. It ends with a short list of browser checks.
 
-The edge cache purge returns before every edge node drops its copies, and it covers
-only the site's primary (app) hostname. The checks therefore wait for the app's root
-files to name the new release. On the WordPress host, the bare `/sw.js` can stay
-cached; the request helper registers the worker with its build version in the query,
-which the edge caches separately for each release.
+WP Cloud's edge cache purge clears only the primary domain unless a domain is
+named, so `apply-update.sh` purges each hostname. Nginx lets the edge cache `.js`
+files, including the root `/sw.js` loader, for a year, so both purges are needed.
+The purge returns before every edge node drops its copies; the checks wait for both
+hosts' root files to name the new release.
 
 `check-deployment.sh` only reads, so it can also check production after a deploy:
 

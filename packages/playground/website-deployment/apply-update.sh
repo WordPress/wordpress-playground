@@ -131,9 +131,14 @@ fi
 
 if [ "$LOCAL" != 1 ]; then
     # Do not report a complete deployment when the old edge responses remain cached.
-    curl --fail --silent --show-error --max-time 60 -X POST \
-        -H "Auth: $ATOMIC_SITE_API_KEY" "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge" > /dev/null
-    echo 'Edge cache purged'
+    # A purge without a domain clears only the site's primary domain, so name each host.
+    for origin in "$APP_ORIGIN" "$WORDPRESS_ORIGIN"; do
+        host="${origin#*://}"
+        curl --fail --silent --show-error --max-time 60 -X POST \
+            -H "Auth: $ATOMIC_SITE_API_KEY" \
+            "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge/${host%%:*}" > /dev/null
+    done
+    echo 'Edge cache purged for both hosts'
 fi
 
 # Prune only after the activation's edge purge, so a cleanup failure cannot leave
