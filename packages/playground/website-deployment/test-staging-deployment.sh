@@ -185,7 +185,7 @@ remote "ls -la $WEB_ROOT"
 if [ "${PLAYGROUND_STAGING_BROWSER:-0}" = 1 ] && [ "${PLAYGROUND_STAGING_FROM_TRUNK:-0}" = 1 ]; then
     step "Browser sessions across deployments"
     node "$DEPLOYMENT/test-staging-upgrade.mjs" "$TARGET" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
-    ACTIVE="the first release deployed by test-staging-upgrade.mjs"
+    ACTIVE="the trunk layout"
 fi
 
 cat <<EOF
