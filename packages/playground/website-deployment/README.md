@@ -69,8 +69,17 @@ It deploys two releases with `deploy-website.sh`, the script the workflow uses,
 then rolls back, checks that a broken upload is refused, and expires a release
 early. `check-deployment.sh` verifies each active release over HTTP. Set
 `PLAYGROUND_STAGING_FROM_TRUNK=1` to deploy `origin/trunk` first and rehearse the
-transition from the current production layout. The test overwrites the site and
-refuses the production hostnames. It ends with a short list of browser checks.
+transition from the current production layout. Add `PLAYGROUND_STAGING_BROWSER=1` to
+finish with `test-staging-upgrade.mjs`: Chromium and WebKit sessions stay open while
+the site upgrades from trunk to two releases and rolls back. It checks open tabs,
+reloads, fresh tabs and a site saved in browser storage. The test overwrites the site
+and refuses the production hostnames. It ends with a short list of browser checks.
+
+The edge cache purge returns before every edge node drops its copies, and it covers
+only the site's primary (app) hostname. The checks therefore wait for the app's root
+files to name the new release. On the WordPress host, the bare `/sw.js` can stay
+cached; the request helper registers the worker with its build version in the query,
+which the edge caches separately for each release.
 
 `check-deployment.sh` only reads, so it can also check production after a deploy:
 
