@@ -91,38 +91,19 @@ jobs:
               with:
                   name: playground-website
                   path: wasm-wordpress-net.tar.gz
-            # Each deployment gets its own public /releases/<id>/ directory. The build
-            # writes that path into every asset URL, so open tabs keep their own files.
-            - name: Choose the release ID
-              run: echo "PLAYGROUND_RELEASE_ID=$(date -u +%Y%m%d-%H%M%S)-$(git rev-parse --short=12 HEAD)" >> "$GITHUB_ENV"
-            # Do not restore bundles built with a different WordPress origin or release.
-            - run: npx nx build playground-website --skip-nx-cache
+            # Build a release named for this commit and install it. Staging tests run the
+            # same script; see packages/playground/website-deployment/README.md.
+            - name: Deploy Playground website build
+              shell: bash
               env:
                   CORS_PROXY_URL: ${{ vars.CORS_PROXY_URL }}
                   VITE_GOOGLE_ANALYTICS_ID: G-SVTNFCP8T7
-            - name: Deploy Playground website build
-              shell: bash
+                  DEPLOY_TARGET: ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}
               run: |
                   mkdir -p ~/.ssh
                   echo "${{ secrets.DEPLOY_WEBSITE_TARGET_HOST_KEY }}" >> ~/.ssh/known_hosts
                   echo "${{ secrets.DEPLOY_WEBSITE_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
                   chmod 0600 ~/.ssh/*
-
-                  # Website files
-                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
-                    dist/packages/playground/wasm-wordpress-net/ \
-                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/updated-playground-files'
-
-                  # Include MIME types for use with PHP-served files
-                  cp packages/php-wasm/universal/src/lib/mime-types.json \
-                    packages/playground/website-deployment/
-
-                  # Host-specific deployment scripts and server config
-                  rsync -avz -e "ssh -i ~/.ssh/id_ed25519" --delete \
-                    packages/playground/website-deployment/ \
-                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }}:'~/website-deployment'
-
-                  # Apply update
-                  ssh -i ~/.ssh/id_ed25519 \
-                    ${{ secrets.DEPLOY_WEBSITE_TARGET_USER }}@${{ secrets.DEPLOY_WEBSITE_TARGET_HOST }} \
-                    -tt -C "PLAYGROUND_RELEASE_ID='$PLAYGROUND_RELEASE_ID' ~/website-deployment/apply-update.sh '$VITE_PLAYGROUND_APP_ORIGIN' '$VITE_WORDPRESS_SITE_URL'"
+                  DEPLOY_SSH_COMMAND="ssh -i $HOME/.ssh/id_ed25519" \
+                    packages/playground/website-deployment/deploy-website.sh \
+                    "$DEPLOY_TARGET" "$VITE_PLAYGROUND_APP_ORIGIN" "$VITE_WORDPRESS_SITE_URL"

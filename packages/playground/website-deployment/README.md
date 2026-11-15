@@ -33,11 +33,11 @@ The main Playground site uses `apply-update.sh`. The My WordPress site uses
 `my-wordpress-net/apply-update.sh` so its endpoint deployment and schema
 updates do not affect the main Playground deployment path.
 
-The main deployment workflow sets `VITE_PLAYGROUND_APP_ORIGIN` to
-`https://playground.wordpress.net`, `VITE_WORDPRESS_SITE_URL` to
-`https://wpsandbox.wordpress.net`, and a unique `PLAYGROUND_RELEASE_ID`. It uses
-those values for the browser build and passes them to the single `apply-update.sh`
-script. `apply-update.sh` checks both hosts and the build, installs the public and
+The main deployment workflow runs `deploy-website.sh` with
+`https://playground.wordpress.net` as the app origin and
+`https://wpsandbox.wordpress.net` as the WordPress origin. That script chooses a
+unique `PLAYGROUND_RELEASE_ID`, builds the website for those values, uploads the
+build and this directory over SSH, and runs the single `apply-update.sh` script. `apply-update.sh` checks both hosts and the build, installs the public and
 private release directories, backs up the root files it replaces, replaces the PHP
 entry, copies the entry pages, and installs the root `/sw.js` loader before purging
 the edge. Its PHP steps live in `apply-update.php`, which receives values only as
@@ -52,6 +52,32 @@ existing handler. The main website's two-host routing does not change Personal
 WP's endpoint deployment or database updates.
 
 At the end of the deployment process, the WP Cloud edge cache is purged.
+
+## Testing a deployment on a staging site
+
+Use a disposable WP Cloud site with two HTTPS hostnames, set up like production
+(see the [two-host deployment guide](wordpress-frame/README.md)), and an SSH key
+for it. From the repository root:
+
+```sh
+PLAYGROUND_STAGING_CONFIRM=user@staging-host \
+  packages/playground/website-deployment/test-staging-deployment.sh \
+  user@staging-host https://app.staging.example https://wp.staging.example
+```
+
+It deploys two releases with `deploy-website.sh`, the script the workflow uses,
+then rolls back, checks that a broken upload is refused, and expires a release
+early. `check-deployment.sh` verifies each active release over HTTP. Set
+`PLAYGROUND_STAGING_FROM_TRUNK=1` to deploy `origin/trunk` first and rehearse the
+transition from the current production layout. The test overwrites the site and
+refuses the production hostnames. It ends with a short list of browser checks.
+
+`check-deployment.sh` only reads, so it can also check production after a deploy:
+
+```sh
+packages/playground/website-deployment/check-deployment.sh \
+  https://playground.wordpress.net https://wpsandbox.wordpress.net
+```
 
 ## Static-file ranges
 

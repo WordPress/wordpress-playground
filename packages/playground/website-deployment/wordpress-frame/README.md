@@ -66,8 +66,10 @@ fixed legacy SVG font declaration is allowed.
 The workflow builds the self-hosting download separately, without a release base
 or production origins, before building the WP Cloud release.
 
-The SSH step passes the same release ID and origins to `apply-update.sh`. A
-manual deployment must pass the values used for its build:
+`deploy-website.sh` builds the release, uploads it, and passes the same release ID
+and origins to `apply-update.sh`. It also runs outside the workflow; see
+[testing a deployment on a staging site](../README.md#testing-a-deployment-on-a-staging-site).
+To run the installer by hand on the server, pass the values used for the build:
 
 ```sh
 PLAYGROUND_RELEASE_ID=<id> ~/website-deployment/apply-update.sh \
