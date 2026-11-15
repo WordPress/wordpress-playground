@@ -5,11 +5,23 @@
  * this, so the preview's installer and browser checks cover exactly the pages
  * that production publishes. Top-level dotfiles of the remote, website, and
  * extras builds are not copied, as with the former `cp -r <build>/*` commands;
- * the remote and website Apache rules are concatenated instead.
+ * the remote and website Apache rules are concatenated instead. `.well-known/`
+ * is published: it holds the AI discovery manifest, `mcp.json`.
+ *
+ * The offline prefetch stores its listed files with one Cache.addAll() call, which
+ * stores nothing if any file is missing, so assembly fails on a missing file.
  *
  * Usage: node assemble-website.mjs <dist-directory> <output-directory> <blueprint-schema>
  */
-import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+	access,
+	cp,
+	mkdir,
+	readdir,
+	readFile,
+	rm,
+	writeFile,
+} from 'node:fs/promises';
 import { joinPaths } from '../../../php-wasm/util/src/lib/paths.ts';
 import { fileURLToPath } from 'node:url';
 
@@ -27,7 +39,7 @@ export async function assembleWebsite(dist, output, blueprintSchema) {
 	});
 	for (const name of ['remote', 'website', 'website-extras']) {
 		for (const entry of await readdir(joinPaths(dist, name))) {
-			if (entry.startsWith('.')) continue;
+			if (entry.startsWith('.') && entry !== '.well-known') continue;
 			await cp(joinPaths(dist, name, entry), joinPaths(output, entry), {
 				recursive: true,
 			});
@@ -40,6 +52,19 @@ export async function assembleWebsite(dist, output, blueprintSchema) {
 			await readFile(joinPaths(dist, 'website', '.htaccess')),
 		])
 	);
+	const offlineAssets = JSON.parse(
+		await readFile(
+			joinPaths(output, 'assets-required-for-offline-mode.json'),
+			'utf8'
+		)
+	);
+	for (const url of offlineAssets) {
+		await access(joinPaths(output, url)).catch(() => {
+			throw new Error(
+				`The offline asset list names a file the website does not publish: ${url}`
+			);
+		});
+	}
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

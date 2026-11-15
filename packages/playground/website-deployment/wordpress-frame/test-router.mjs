@@ -179,9 +179,9 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 	await writeFile(
 		router,
 		`<?php
-/** Model Nginx: deny hidden paths, serve existing files, otherwise run PHP. */
+/** Model Nginx: deny hidden paths except /.well-known/, serve existing files, otherwise run PHP. */
 $path = rawurldecode( parse_url( $_SERVER['REQUEST_URI'], PHP_URL_PATH ) );
-if ( preg_match( '~(^|/)\\.~', $path ) ) {
+if ( preg_match( '~(^|/)\\.~', $path ) && ! str_starts_with( $path, '/.well-known/' ) ) {
     http_response_code( 403 );
     return true;
 }
@@ -227,6 +227,11 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		assert.match(response.headers.get('cache-control'), /no-store/);
 	}
 	assert.equal(await (await request('/status.php', app)).text(), 'A');
+	// The AI discovery manifest lives in the release; WP Cloud lets /.well-known/ reach PHP.
+	assert.equal(
+		await (await request('/.well-known/mcp.json', app)).text(),
+		'manifest A'
+	);
 	const sdk = await request('/client/index.js', app);
 	assert.equal(sdk.headers.get('access-control-allow-origin'), '*');
 	assert.equal(
@@ -570,6 +575,7 @@ async function makeBuild(release) {
 		'assets/main.js': `main ${release}`,
 		'assets/runtime.wasm': 'runtime',
 		'client/index.js': `sdk ${release}`,
+		'.well-known/mcp.json': `manifest ${release}`,
 		'status.php': `<?php echo ${JSON.stringify(release)};`,
 		'wp-6.8/wp-includes/js/script.js': 'wordpress script',
 		'wp-6.8/templates/index.html': '<!-- wp:paragraph --><p>Template</p>',
