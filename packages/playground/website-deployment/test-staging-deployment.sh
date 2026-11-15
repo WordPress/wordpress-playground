@@ -14,13 +14,16 @@ set -euo pipefail
 # Optional environment:
 #   PLAYGROUND_STAGING_FROM_TRUNK=1  First deploy origin/trunk with its own installer,
 #                                    to rehearse the transition production will make.
+#   PLAYGROUND_STAGING_BROWSER=1     With PLAYGROUND_STAGING_FROM_TRUNK=1, finish by running
+#                                    test-staging-upgrade.mjs: browser sessions that stay
+#                                    open while the site upgrades from trunk.
 #   DEPLOY_SSH_COMMAND               SSH command for ssh and rsync; defaults to "ssh".
 #   CORS_PROXY_URL                   Passed to the builds.
 #
 # Steps: deploy release A, deploy release B, roll back to A, refuse a broken
-# upload, then expire B early. After a trunk deployment, finish by rolling back to it. check-deployment.sh verifies each active release.
-# Browser behavior, such as a tab opened before a deployment, needs a manual check;
-# the script prints the URLs to try.
+# upload, then expire B early. After a trunk deployment, finish by rolling back to
+# it. check-deployment.sh verifies each active release. The script ends with the
+# browser checks that remain manual.
 TARGET="${1:?Expected the SSH target, such as user@host}"
 APP_ORIGIN="${2:?Expected app origin}"
 WORDPRESS_ORIGIN="${3:?Expected WordPress origin}"
@@ -162,8 +165,14 @@ if [ "${PLAYGROUND_STAGING_FROM_TRUNK:-0}" = 1 ]; then
     PLAYGROUND_RELEASE_ID="$RELEASE_A" PLAYGROUND_ROLLBACK_BACKUP="$RELEASE_A" \
         "$DEPLOYMENT/deploy-website.sh" "$TARGET" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
     status_of() { curl --silent --output /dev/null --write-out '%{http_code}' "$1"; }
+    # The edge can serve the removed /release.json briefly after the purge.
     trunk_restored() {
-        [ "$(status_of "$APP_ORIGIN/release.json")" = 404 ] && [ "$(status_of "$APP_ORIGIN/")" = 200 ]
+        local started=$SECONDS
+        until [ "$(status_of "$APP_ORIGIN/release.json")" = 404 ]; do
+            [ $((SECONDS - started)) -lt 300 ] || return 1
+            sleep 2
+        done
+        [ "$(status_of "$APP_ORIGIN/")" = 200 ]
     }
     check "the trunk layout serves the app without release.json" trunk_restored
     ACTIVE="the trunk layout"
@@ -173,6 +182,12 @@ fi
 
 step "Web root after the test"
 remote "ls -la $WEB_ROOT"
+
+if [ "${PLAYGROUND_STAGING_BROWSER:-0}" = 1 ] && [ "${PLAYGROUND_STAGING_FROM_TRUNK:-0}" = 1 ]; then
+    step "Browser sessions across deployments"
+    node "$DEPLOYMENT/test-staging-upgrade.mjs" "$TARGET" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
+    ACTIVE="the first release deployed by test-staging-upgrade.mjs"
+fi
 
 cat <<EOF
 

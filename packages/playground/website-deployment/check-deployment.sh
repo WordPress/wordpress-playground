@@ -10,8 +10,9 @@ set -euo pipefail
 #
 # Sample asset names (PHP runtime, WordPress archive, CSS, SVG) come from the local
 # dist/packages/playground/wasm-wordpress-net when it was built for the deployed
-# release; otherwise those checks are skipped. Prints PASS, FAIL, SKIP and INFO
-# lines and exits non-zero if any check fails.
+# release; otherwise those checks are skipped. With an expected release, it first
+# waits up to PLAYGROUND_CHECK_WAIT seconds (default 300) for the edge to serve it.
+# Prints PASS, FAIL, SKIP and INFO lines and exits non-zero if any check fails.
 APP="${1:?Expected app origin}"
 WORDPRESS="${2:?Expected WordPress origin}"
 EXPECTED_RELEASE="${3:-}"
@@ -63,6 +64,22 @@ report_caching() {
     info "$1: Cache-Control='$(header cache-control)' Age='$(header age)' edge='$(header x-ac)'"
 }
 
+# The edge cache purge returns before every edge node drops its old copies, so
+# root files can name the previous release for a short time after a deployment.
+# The purge covers only the app hostname; see the WordPress host's worker below.
+if [ -n "$EXPECTED_RELEASE" ]; then
+    loader="import \"/releases/$EXPECTED_RELEASE/sw.js\";"
+    started=$SECONDS
+    until curl --silent --max-time 30 "$APP/release.json" | grep -qF "\"release\":\"$EXPECTED_RELEASE\"" &&
+        curl --silent --max-time 30 "$APP/sw.js" | grep -qF "$loader"; do
+        if [ $((SECONDS - started)) -ge "${PLAYGROUND_CHECK_WAIT:-300}" ]; then
+            break
+        fi
+        sleep 2
+    done
+    info "Waited $((SECONDS - started))s for the edge to serve $EXPECTED_RELEASE's root files"
+fi
+
 # The active release, as recorded by the installer.
 request "$APP/release.json"
 expect_status 200 "app /release.json"
@@ -78,17 +95,22 @@ if [ -n "$EXPECTED_RELEASE" ] && [ "$RELEASE" != "$EXPECTED_RELEASE" ]; then
 fi
 BASE="/releases/$RELEASE"
 
-# Both hosts load the active release's worker through the root loader.
+# Both hosts load the active release's worker through the root loader. The WordPress
+# host's helper registers it with its build version in the query, a URL the edge has
+# not cached for another release; the bare URL there can stay cached after a purge.
 for host in "$APP" "$WORDPRESS"; do
-    request "$host/sw.js"
-    expect_status 200 "$host/sw.js"
-    expect_body "import \"$BASE/sw.js\";" "$host/sw.js imports the active release's worker"
-    report_caching "$host/sw.js"
+    if [ "$host" = "$APP" ]; then loader_url="$APP/sw.js"; else loader_url="$WORDPRESS/sw.js?build-version=deployment-check-$RANDOM$RANDOM"; fi
+    request "$loader_url"
+    expect_status 200 "$loader_url"
+    expect_body "import \"$BASE/sw.js\";" "$loader_url imports the active release's worker"
+    report_caching "$loader_url"
     request "$host$BASE/sw.js"
     expect_status 200 "$host$BASE/sw.js"
     expect_type 'javascript' "$host$BASE/sw.js"
     expect_static "$host$BASE/sw.js"
 done
+request "$WORDPRESS/sw.js"
+info "WordPress host bare /sw.js names $(grep -o 'releases/[^/]*' "$WORK/body" | head -n 1) (edge='$(header x-ac)')"
 
 # App entry pages. Pages needing no-store stay PHP-served; others are root copies.
 request "$APP/remote.html"
