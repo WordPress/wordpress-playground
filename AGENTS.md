@@ -108,6 +108,7 @@ target and the `build:wordpress-frame` preview assemble the upload with the same
 installs the build as the public `releases/<id>/` directory, moves its PHP endpoints
 to the Nginx-denied `.playground-releases/<id>/`, and copies entry pages plus a root
 `/sw.js` loader to the web root. Pages needing custom headers stay PHP-served.
+Its PHP steps live in `apply-update.php`, which it calls with arguments only.
 The cacheable `playground-wordpress-builds:validate-static-documents` target validates
 WordPress HTML, SVG, XHTML, and XML with a parsed-document DOMPurify check. Asset refresh
 and publication depend on it. It rejects active and unreviewed malformed content without

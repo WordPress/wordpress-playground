@@ -40,7 +40,8 @@ those values for the browser build and passes them to the single `apply-update.s
 script. `apply-update.sh` checks both hosts and the build, installs the public and
 private release directories, backs up the root files it replaces, replaces the PHP
 entry, copies the entry pages, and installs the root `/sw.js` loader before purging
-the edge. See the [two-host deployment guide](wordpress-frame/README.md)
+the edge. Its PHP steps live in `apply-update.php`, which receives values only as
+arguments. See the [two-host deployment guide](wordpress-frame/README.md)
 for required WP Cloud settings, the Nginx preflight checks, and rollback.
 
 Personal WP retains the previous file placement: its deployment consults

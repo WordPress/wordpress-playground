@@ -74,7 +74,7 @@ PLAYGROUND_RELEASE_ID=<id> ~/website-deployment/apply-update.sh \
   https://playground.wordpress.net https://wpsandbox.wordpress.net
 ```
 
-`apply-update.sh`:
+`apply-update.sh` runs these steps, calling `apply-update.php` for those that need PHP:
 
 1. Rejects non-canonical origins, matching hostnames, a missing entry document,
    a build made for another release path, and any app page without its origin
