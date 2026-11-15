@@ -3,12 +3,14 @@
  *
  * Start with the site on trunk's layout, as test-staging-deployment.sh leaves it
  * with PLAYGROUND_STAGING_FROM_TRUNK=1. This script then deploys two releases of the
- * current checkout with deploy-website.sh and rolls back to the first. Before each
- * change it opens Playground in Chromium and WebKit; after it, it checks that:
+ * current checkout with deploy-website.sh, then rolls back twice with
+ * PLAYGROUND_ROLLBACK=previous: to the first release, and from it to trunk. Before
+ * each change it opens Playground in Chromium and WebKit; after it, it checks that:
  *
  * - the already-open tab still navigates WordPress, and its own release files remain;
- * - reloading it starts the newly active release, and a saved site still opens
- *   (Chromium only: the website saves sites to OPFS there);
+ * - reloading it starts the now-active release, with no other service worker left
+ *   waiting, and a site saved on trunk still opens (Chromium only: the website saves
+ *   sites to OPFS there), including back on trunk after the releases used it;
  * - a fresh tab starts the active release.
  *
  * Each browser keeps one profile throughout, so service workers, caches and saved
@@ -118,6 +120,17 @@ async function main() {
 		for (const session of sessions) {
 			await useOpenTab(session, { retainsFiles: true });
 			await reopen(session, releaseA);
+			await freshTab(session, releaseA);
+		}
+
+		// The emergency path for a first production deployment.
+		rollBack();
+		await waitForEdge('trunk');
+		step(`Roll back from ${releaseA} to trunk`);
+		for (const session of sessions) {
+			await useOpenTab(session, { retainsFiles: true });
+			await reopen(session, 'trunk');
+			await freshTab(session, 'trunk');
 		}
 	} finally {
 		for (const session of sessions) {
@@ -130,7 +143,7 @@ async function main() {
 	console.log(
 		failures.length
 			? `\n${failures.length} check(s) failed:\n  ${failures.join('\n  ')}`
-			: `\nAll upgrade checks passed. ${releaseA} is active.`
+			: '\nAll upgrade checks passed. The trunk layout is active.'
 	);
 	process.exitCode = failures.length ? 1 : 0;
 }
@@ -238,6 +251,30 @@ async function reopen(session, release) {
 		const running = await runningRelease(page);
 		return running === release || `running ${running}`;
 	});
+	// A waiting worker would mean the page is still controlled by another release's one.
+	await check(
+		`${session.name}: no other service worker is left waiting`,
+		async () => {
+			const deadline = Date.now() + 60000;
+			let state;
+			while (Date.now() < deadline) {
+				state = await page.evaluate(async () => {
+					const registration =
+						await navigator.serviceWorker.getRegistration('/');
+					return {
+						active: Boolean(registration?.active),
+						waiting: Boolean(registration?.waiting),
+						installing: Boolean(registration?.installing),
+					};
+				});
+				if (state.active && !state.waiting && !state.installing) {
+					return true;
+				}
+				await page.waitForTimeout(1000);
+			}
+			return JSON.stringify(state);
+		}
+	);
 	if (session.slug) {
 		await check(
 			`${session.name}: the saved site still has its marker post`,
@@ -392,17 +429,20 @@ function rollBack() {
  */
 async function waitForEdge(release) {
 	const started = Date.now();
-	const loader = `import "/releases/${release}/sw.js";`;
+	// Trunk's layout has no release.json, and its /sw.js is a worker, not a loader.
+	const servesRelease = (text) =>
+		release === 'trunk'
+			? !text.includes('import "/releases/')
+			: text.includes(`import "/releases/${release}/sw.js";`);
 	while (Date.now() - started < 300000) {
-		const [manifest, ...loaders] = await Promise.all([
-			fetch(new URL('/release.json', appOrigin)).then((r) => r.text()),
+		const [active, ...loaders] = await Promise.all([
+			fetch(new URL('/release.json', appOrigin)).then((r) =>
+				r.ok ? r.json().then((manifest) => manifest.release) : 'trunk'
+			),
 			fetch(new URL('/sw.js', appOrigin)).then((r) => r.text()),
 			fetch(new URL('/sw.js', wordPressOrigin)).then((r) => r.text()),
 		]);
-		if (
-			JSON.parse(manifest).release === release &&
-			loaders.every((text) => text.includes(loader))
-		) {
+		if (active === release && loaders.every(servesRelease)) {
 			console.log(
 				`INFO  the edge served ${release} after ${Math.round((Date.now() - started) / 1000)}s`
 			);

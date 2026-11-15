@@ -86,7 +86,8 @@ early. `check-deployment.sh` verifies each active release over HTTP. Set
 `PLAYGROUND_STAGING_FROM_TRUNK=1` to deploy `origin/trunk` first and rehearse the
 transition from the current production layout. Add `PLAYGROUND_STAGING_BROWSER=1` to
 finish with `test-staging-upgrade.mjs`: Chromium and WebKit sessions stay open while
-the site upgrades from trunk to two releases and rolls back. It checks open tabs,
+the site upgrades from trunk to two releases, then rolls back to the first release and
+from it to trunk. It checks open tabs,
 reloads, fresh tabs and a site saved in browser storage. The test overwrites the site
 and refuses the production hostnames. It ends with a short list of browser checks.
 
