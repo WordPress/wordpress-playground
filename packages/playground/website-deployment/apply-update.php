@@ -16,6 +16,8 @@ $commands = array(
 	'check-build'         => 'check_build',
 	'write-private-files' => 'write_private_files',
 	'activate'            => 'activate',
+	'rollback'            => 'rollback',
+	'hosts'               => 'hosts',
 	'prune'               => 'prune',
 );
 $command = $argv[1] ?? '';
@@ -135,36 +137,17 @@ function write_private_files( $staging, $private, $release, $wordpress_origin, $
 }
 
 /**
- * Activate a staged release, or restore a root snapshot for manual rollback.
+ * Activate a staged release, recording its origins for later edge-cache purges.
  *
  * One inventory owns root activation, failure recovery, manual rollback and pruning.
  * Release files remain immutable; only these small entry files are replaced.
  */
-function activate( $root, $backups, $release, $rollback, $retention ) {
+function activate( $root, $backups, $release, $retention, $app_origin, $wordpress_origin ) {
 	retention_seconds( $retention );
 	require_release_id( $release );
 	require_once __DIR__ . '/custom-redirects-lib.php';
 	$manifest = is_file( "$root/release.json" ) ? read_json( "$root/release.json" ) : array();
-	$owned    = array_unique(
-		array_merge(
-			$manifest['rootFiles'] ?? array(),
-			array( 'custom-redirects.php', 'sw.js', 'release.json', '__wp__/index.php' )
-		)
-	);
-	if ( '' !== $rollback ) {
-		require_release_id( $rollback );
-		$backup    = "$backups/$rollback";
-		$inventory = read_json( "$backup/inventory.json" );
-		$target    = is_file( "$backup/release.json" ) ? read_json( "$backup/release.json" ) : null;
-		if ( $target && ( ! is_dir( "$root/releases/{$target['release']}" ) || ! is_dir( "$root/.playground-releases/{$target['release']}" ) ) ) {
-			throw new RuntimeException( 'Rollback release has expired.' );
-		}
-		record_activation( $root, $manifest['release'] ?? null, $target['release'] ?? null );
-		restore_snapshot( $root, $backup, $inventory, $owned );
-		echo "Restored root snapshot $rollback\n";
-		return;
-	}
-
+	$owned    = owned_root_files( $manifest );
 	$public  = "$root/releases/$release";
 	$private = "$root/.playground-releases/$release";
 	$sources = array(
@@ -183,6 +166,8 @@ function activate( $root, $backups, $release, $rollback, $retention ) {
 		'release'         => $release,
 		'previousRelease' => $manifest['release'] ?? null,
 		'installedAt'     => time(),
+		'appOrigin'       => $app_origin,
+		'wordPressOrigin' => $wordpress_origin,
 		'rootFiles'       => array_merge( array_keys( $sources ), array( 'release.json' ) ),
 	);
 	write_file( "$private/release.json", json_encode( $next, JSON_THROW_ON_ERROR ) . "\n" );
@@ -219,6 +204,48 @@ function activate( $root, $backups, $release, $rollback, $retention ) {
 		throw new RuntimeException( 'Activation failed; previous root files restored.', 0, $error );
 	}
 	echo "Activated release $release; root snapshot: $backup\n";
+}
+
+/**
+ * Undo a deployment by restoring the root snapshot taken before it.
+ *
+ * "previous" undoes the live release's deployment. Any other value names the
+ * release whose deployment to undo. Only the small root files change, so open tabs
+ * keep working and the restored release takes effect once the edge is purged.
+ */
+function rollback( $root, $backups, $deployment ) {
+	$manifest = is_file( "$root/release.json" ) ? read_json( "$root/release.json" ) : array();
+	if ( 'previous' === $deployment ) {
+		$deployment = $manifest['release'] ?? '';
+		if ( '' === $deployment ) {
+			throw new RuntimeException( 'No release is live, so there is nothing to roll back.' );
+		}
+	}
+	require_release_id( $deployment );
+	$backup = "$backups/$deployment";
+	if ( ! is_file( "$backup/inventory.json" ) ) {
+		throw new RuntimeException( "No root snapshot was taken before deploying $deployment." );
+	}
+	$target   = is_file( "$backup/release.json" ) ? read_json( "$backup/release.json" ) : null;
+	$restored = $target['release'] ?? null;
+	if ( $restored && ( ! is_dir( "$root/releases/$restored" ) || ! is_dir( "$root/.playground-releases/$restored" ) ) ) {
+		throw new RuntimeException( "Release $restored has expired, so it cannot be restored." );
+	}
+	record_activation( $root, $manifest['release'] ?? null, $restored );
+	restore_snapshot( $root, $backup, read_json( "$backup/inventory.json" ), owned_root_files( $manifest ) );
+	echo "Rolled back release $deployment; " . ( $restored ? "release $restored" : 'the trunk layout' ) . " is live.\n";
+}
+
+/**
+ * Print the live release's hostnames, one per line, for the edge-cache purge.
+ */
+function hosts( $root ) {
+	$manifest = is_file( "$root/release.json" ) ? read_json( "$root/release.json" ) : array();
+	if ( ! isset( $manifest['appOrigin'], $manifest['wordPressOrigin'] ) ) {
+		throw new RuntimeException( 'release.json does not record the hostnames to purge.' );
+	}
+	echo parse_url( $manifest['appOrigin'], PHP_URL_HOST ) . "\n" .
+		parse_url( $manifest['wordPressOrigin'], PHP_URL_HOST ) . "\n";
 }
 
 /**
@@ -267,6 +294,16 @@ function prune( $root, $backups, $retention ) {
 function refuse( $reason ) {
 	fwrite( STDERR, "Refusing deployment: $reason\n" );
 	exit( 1 );
+}
+
+/** Root files the live release installed, plus the files every release installs. */
+function owned_root_files( $manifest ) {
+	return array_unique(
+		array_merge(
+			$manifest['rootFiles'] ?? array(),
+			array( 'custom-redirects.php', 'sw.js', 'release.json', '__wp__/index.php' )
+		)
+	);
 }
 
 function require_release_id( $id ) {

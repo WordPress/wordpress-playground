@@ -89,7 +89,13 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 			],
 			{ env: { ...env, PLAYGROUND_RELEASE_ID: release } }
 		);
-	const failure = (text) => (error) => error.stderr.includes(text);
+	// Rollback runs the installer on the server with no build, origins or release ID.
+	const rollback = (target, extraEnv = {}) =>
+		run('bash', [join(deployment, 'apply-update.sh'), webRoot, backups], {
+			env: { ...env, PLAYGROUND_ROLLBACK: target, ...extraEnv },
+		});
+	const failure = (text) => (error) =>
+		error.stderr.includes(text) || error.stdout.includes(text);
 
 	await assert.rejects(
 		install('A', await makeBuild('A'), ['https://App.example', wordpress]),
@@ -361,26 +367,9 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	const retired = JSON.parse(await readFile(retiredMetadata, 'utf8'));
 	retired.inactiveSince = 1;
 	await writeFile(retiredMetadata, JSON.stringify(retired));
+	// "previous" undoes the live release's deployment: B, restoring A.
 	await assert.rejects(
-		run(
-			'bash',
-			[
-				join(deployment, 'apply-update.sh'),
-				app,
-				wordpress,
-				'',
-				webRoot,
-				backups,
-			],
-			{
-				env: {
-					...env,
-					PLAYGROUND_RELEASE_ID: 'A',
-					PLAYGROUND_ROLLBACK_BACKUP: 'B',
-					PLAYGROUND_TEST_PURGE_FAILURE: '1',
-				},
-			}
-		),
+		rollback('previous', { PLAYGROUND_TEST_PURGE_FAILURE: '1' }),
 		failure('Fixture edge purge failed')
 	);
 	assert.equal(
@@ -408,23 +397,17 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		JSON.parse(await readFile(retiredMetadata, 'utf8')).inactiveSince > 1
 	);
 	// Restore A so the remaining failure/cleanup contracts exercise their original layout.
-	await run(
-		'bash',
+	// Naming a release undoes its deployment; the live release.json supplies the hosts.
+	const purgesBeforeRollback = (await readFile(purges, 'utf8')).split('\n');
+	await rollback('post-rollback');
+	assert.deepEqual(
+		(await readFile(purges, 'utf8'))
+			.split('\n')
+			.slice(purgesBeforeRollback.length - 1, -1),
 		[
-			join(deployment, 'apply-update.sh'),
-			app,
-			wordpress,
-			'',
-			webRoot,
-			backups,
-		],
-		{
-			env: {
-				...env,
-				PLAYGROUND_RELEASE_ID: 'A',
-				PLAYGROUND_ROLLBACK_BACKUP: 'post-rollback',
-			},
-		}
+			'https://api.example/edge-cache/test/purge/app.example',
+			'https://api.example/edge-cache/test/purge/wordpress.example',
+		]
 	);
 
 	// A directory blocks one rename after other root entries have been replaced.
@@ -527,24 +510,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	await assert.rejects(stat(join(webRoot, 'releases/B')));
 
 	// Rolling back the first transition also removes all newly introduced roots.
-	await run(
-		'bash',
-		[
-			join(deployment, 'apply-update.sh'),
-			app,
-			wordpress,
-			'',
-			webRoot,
-			backups,
-		],
-		{
-			env: {
-				...env,
-				PLAYGROUND_RELEASE_ID: 'A',
-				PLAYGROUND_ROLLBACK_BACKUP: 'initial',
-			},
-		}
-	);
+	await rollback('initial');
 	await assert.rejects(stat(join(webRoot, 'release.json')));
 	await assert.rejects(stat(join(webRoot, 'remote.html')));
 	await assert.rejects(stat(join(webRoot, 'new-page.html')));

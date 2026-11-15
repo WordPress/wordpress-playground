@@ -127,8 +127,8 @@ release_a_worker() {
 check "release A's files remain for open tabs" release_a_worker
 
 step "Roll back to release A"
-PLAYGROUND_RELEASE_ID="$RELEASE_B" PLAYGROUND_ROLLBACK_BACKUP="$RELEASE_B" \
-    "$DEPLOYMENT/deploy-website.sh" "$TARGET" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
+# Rollback uses the installer already on the server: no build, upload or origins.
+time remote "PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh"
 "$DEPLOYMENT/check-deployment.sh" "$APP_ORIGIN" "$WORDPRESS_ORIGIN" "$RELEASE_A"
 
 step "Refuse a broken upload"
@@ -160,10 +160,9 @@ check "expired release B was removed" \
 check "active release A was kept" remote "test -d $WEB_ROOT/releases/$RELEASE_A"
 
 if [ "${PLAYGROUND_STAGING_FROM_TRUNK:-0}" = 1 ]; then
-    # Release A's snapshot holds the trunk layout it replaced.
+    # Before release A came the trunk layout, so "previous" now restores it.
     step "Roll back to the trunk layout"
-    PLAYGROUND_RELEASE_ID="$RELEASE_A" PLAYGROUND_ROLLBACK_BACKUP="$RELEASE_A" \
-        "$DEPLOYMENT/deploy-website.sh" "$TARGET" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
+    time remote "PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh"
     status_of() { curl --silent --output /dev/null --write-out '%{http_code}' "$1"; }
     # The edge can serve the removed /release.json briefly after the purge.
     trunk_restored() {

@@ -112,7 +112,7 @@ async function main() {
 			await freshTab(session, releaseB);
 		}
 
-		deploy(releaseB, { rollback: true });
+		rollBack();
 		await waitForEdge(releaseA);
 		step(`Roll back from ${releaseB} to ${releaseA}`);
 		for (const session of sessions) {
@@ -354,26 +354,35 @@ async function waitForSavedSite(page, slug) {
 	);
 }
 
-function deploy(release, { rollback = false } = {}) {
-	step(
-		rollback
-			? `Roll back to the snapshot taken before ${release}`
-			: `Deploy ${release}`
-	);
+function deploy(release) {
+	step(`Deploy ${release}`);
 	const result = spawnSync(
 		'packages/playground/website-deployment/deploy-website.sh',
 		[target, appOrigin, wordPressOrigin],
 		{
 			stdio: 'inherit',
-			env: {
-				...process.env,
-				PLAYGROUND_RELEASE_ID: release,
-				...(rollback && { PLAYGROUND_ROLLBACK_BACKUP: release }),
-			},
+			env: { ...process.env, PLAYGROUND_RELEASE_ID: release },
 		}
 	);
 	if (result.status !== 0) {
 		throw new Error(`deploy-website.sh exited with ${result.status}`);
+	}
+}
+
+/** Undo the live release's deployment with the installer already on the server. */
+function rollBack() {
+	step('Roll back to the previous release');
+	const result = spawnSync(
+		'bash',
+		[
+			'-c',
+			'${DEPLOY_SSH_COMMAND:-ssh} -tt "$TARGET" ' +
+				'PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh',
+		],
+		{ stdio: 'inherit', env: { ...process.env, TARGET: target } }
+	);
+	if (result.status !== 0) {
+		throw new Error(`The rollback exited with ${result.status}`);
 	}
 }
 

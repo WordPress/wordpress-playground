@@ -160,17 +160,23 @@ After deployment, verify on both HTTPS hosts: Nginx MIME types (including
 Confirm the dock stays on the app host and WordPress uses the sandbox host, and
 that app pages loaded on the sandbox host stop with an error.
 
-Roll back with the same installer, naming the deployment whose pre-activation snapshot to restore:
+Roll back by running the installer already on the server. It needs no build, upload,
+origins or release ID, and finishes in seconds:
 
 ```sh
-PLAYGROUND_RELEASE_ID=<current-id> PLAYGROUND_ROLLBACK_BACKUP=<current-id> \
-  ~/website-deployment/apply-update.sh \
-  https://playground.wordpress.net https://wpsandbox.wordpress.net
+ssh <user@host> PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh
 ```
 
-The inventory restores replaced and deleted files and removes files introduced since the
-snapshot, including the first transition from the PHP-only layout. It purges edge responses
-after restoration. Rollback requires the target release to remain on disk.
+`previous` undoes the live release's deployment, restoring whatever was live before it;
+repeat it to step further back. To undo a specific deployment, pass its release ID instead.
+`https://playground.wordpress.net/release.json` names the live release and the previous one,
+and every deployment prints its release ID.
+
+The snapshot taken before that deployment restores replaced and deleted root files and removes
+files introduced since, including on the first transition from the PHP-only layout. The
+installer then purges the edge cache for the hostnames the replaced `release.json` recorded.
+Rollback skips the host probes and pruning; the next deployment prunes. Rollback requires the
+restored release to remain on disk.
 
 App pages run only at their web-root URL, which serves the active release, so a fixed page in a
 retained release cannot start at its `/releases/<id>/` path. Retained assets, WordPress static

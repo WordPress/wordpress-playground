@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-# Install one static release for Nginx to serve on both hostnames.
+# Install one static release for Nginx to serve on both hostnames, or roll back.
 #
 # The build was made with its asset URLs under /releases/$PLAYGROUND_RELEASE_ID/.
 # This script places it in that public directory, keeps its PHP endpoints in a
@@ -11,16 +11,32 @@ set -euo pipefail
 # Steps that need PHP live in apply-update.php, which receives values only as
 # arguments.
 #
-# The workflow passes the same origins and release ID used for the browser build.
-# Paths and platform settings can be supplied to run this script against a test site.
-APP_ORIGIN="${1:?Expected app origin}"
-WORDPRESS_ORIGIN="${2:?Expected WordPress origin}"
-BUILD="${3:-$HOME/updated-playground-files}"
-WEB_ROOT="${4:-/srv/htdocs}"
-BACKUPS="${5:-$HOME/website-backups}"
-RELEASE_ID="${PLAYGROUND_RELEASE_ID:?Expected PLAYGROUND_RELEASE_ID}"
-# Roll back the root snapshot taken immediately before this deployment.
-ROLLBACK="${PLAYGROUND_ROLLBACK_BACKUP:-}"
+# Install a release. deploy-website.sh passes the origins and release ID used for the build:
+#
+#   PLAYGROUND_RELEASE_ID=<id> apply-update.sh <app-origin> <wordpress-origin> \
+#     [build] [web-root] [backups]
+#
+# Roll back on the server, undoing the live release's deployment or a named one:
+#
+#   PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh [web-root] [backups]
+#   PLAYGROUND_ROLLBACK=<release-id> website-deployment/apply-update.sh
+#
+# /release.json names the live and previous releases. A rollback restores the root
+# files from the snapshot taken before that deployment and purges the edge cache. It builds,
+# uploads, probes and prunes nothing, so it finishes in seconds; the next deployment
+# prunes. Paths and platform settings can be supplied to run against a test site.
+ROLLBACK="${PLAYGROUND_ROLLBACK:-}"
+if [ -n "$ROLLBACK" ]; then
+    WEB_ROOT="${1:-/srv/htdocs}"
+    BACKUPS="${2:-$HOME/website-backups}"
+else
+    APP_ORIGIN="${1:?Expected app origin}"
+    WORDPRESS_ORIGIN="${2:?Expected WordPress origin}"
+    BUILD="${3:-$HOME/updated-playground-files}"
+    WEB_ROOT="${4:-/srv/htdocs}"
+    BACKUPS="${5:-$HOME/website-backups}"
+    RELEASE_ID="${PLAYGROUND_RELEASE_ID:?Expected PLAYGROUND_RELEASE_ID}"
+fi
 RETENTION_DAYS="${PLAYGROUND_RELEASE_RETENTION_DAYS:-30}"
 # Local preview and test installs skip the WP Cloud probes and edge purge.
 LOCAL="${PLAYGROUND_LOCAL_RELEASES:-0}"
@@ -32,11 +48,33 @@ if [ "$LOCAL" != 1 ]; then
     SITE_API_BASE="${SITE_API_BASE:-$( "$SITE_PHP" -r 'require "/scripts/env.php"; echo SITE_API_BASE;')}"
 fi
 
+# Purge the edge cache for the hostnames the live release.json records. Do not report
+# a complete deployment or rollback while old edge responses remain cached.
+# A purge without a domain clears only the site's primary domain, so name each host.
+purge_edge() {
+    [ "$LOCAL" != 1 ] || return 0
+    for host in "$@"; do
+        curl --fail --silent --show-error --max-time 60 -X POST \
+            -H "Auth: $ATOMIC_SITE_API_KEY" \
+            "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge/$host" > /dev/null
+    done
+    echo "Edge cache purged for $*"
+}
+
+if [ -n "$ROLLBACK" ]; then
+    # Read the hostnames before the snapshot replaces release.json; a trunk-era
+    # snapshot has none.
+    hosts="$("$SITE_PHP" "$DEPLOYMENT/apply-update.php" hosts "$WEB_ROOT")"
+    "$SITE_PHP" "$DEPLOYMENT/apply-update.php" rollback "$WEB_ROOT" "$BACKUPS" "$ROLLBACK"
+    # shellcheck disable=SC2086 # One hostname per line.
+    purge_edge $hosts
+    exit 0
+fi
+
 # Reject bad origins and release IDs before touching the web root.
 "$SITE_PHP" "$DEPLOYMENT/apply-update.php" check-origins \
     "$APP_ORIGIN" "$WORDPRESS_ORIGIN" "$RELEASE_ID" "$LOCAL"
 
-if [ -z "$ROLLBACK" ]; then
 # A partial upload, or a build made for another release path, must not go live.
 for file in index.html api.html remote.html wordpress-popup.html wordpress-bridge.html sw.js; do
     test -s "$BUILD/$file"
@@ -48,8 +86,6 @@ fi
 # Every page must stop itself on the wrong origin, and links must stay in the build.
 "$SITE_PHP" "$DEPLOYMENT/apply-update.php" check-build \
     "$BUILD" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
-
-fi
 
 PROBE=''
 HIDDEN_PROBE=''
@@ -96,7 +132,6 @@ if [ "$LOCAL" != 1 ]; then
     done
 fi
 
-if [ -z "$ROLLBACK" ]; then
 # Stage in the private directory, whose Nginx denial the probes verified, until
 # the release is complete. PHP endpoints remain there until moved below.
 mkdir -p "$WEB_ROOT/releases" "$WEB_ROOT/.playground-releases" "$BACKUPS"
@@ -123,23 +158,11 @@ for file in "$PRIVATE/"*.php; do
 done
 mv "$STAGING" "$PUBLIC"
 
-fi
-
-# Replace the root entry files, or restore a snapshot for manual rollback.
+# Replace the root entry files. release.json records both origins for later purges.
 "$SITE_PHP" "$DEPLOYMENT/apply-update.php" activate \
-    "$WEB_ROOT" "$BACKUPS" "$RELEASE_ID" "$ROLLBACK" "$RETENTION_DAYS"
-
-if [ "$LOCAL" != 1 ]; then
-    # Do not report a complete deployment when the old edge responses remain cached.
-    # A purge without a domain clears only the site's primary domain, so name each host.
-    for origin in "$APP_ORIGIN" "$WORDPRESS_ORIGIN"; do
-        host="${origin#*://}"
-        curl --fail --silent --show-error --max-time 60 -X POST \
-            -H "Auth: $ATOMIC_SITE_API_KEY" \
-            "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge/${host%%:*}" > /dev/null
-    done
-    echo 'Edge cache purged for both hosts'
-fi
+    "$WEB_ROOT" "$BACKUPS" "$RELEASE_ID" "$RETENTION_DAYS" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
+# shellcheck disable=SC2046 # One hostname per line.
+purge_edge $("$SITE_PHP" "$DEPLOYMENT/apply-update.php" hosts "$WEB_ROOT")
 
 # Prune only after the activation's edge purge, so a cleanup failure cannot leave
 # stale entry responses cached; it is still reported as a deployment error.
