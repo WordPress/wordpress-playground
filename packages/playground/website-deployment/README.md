@@ -85,11 +85,11 @@ then rolls back, checks that a broken upload is refused, and expires a release
 early. `check-deployment.sh` verifies each active release over HTTP. Set
 `PLAYGROUND_STAGING_FROM_TRUNK=1` to deploy `origin/trunk` first and rehearse the
 transition from the current production layout. Add `PLAYGROUND_STAGING_BROWSER=1` to
-finish with `test-staging-upgrade.mjs`: Chromium and WebKit sessions stay open while
-the site upgrades from trunk to two releases, then rolls back to the first release and
-from it to trunk. It checks open tabs,
-reloads, fresh tabs and a site saved in browser storage. The test overwrites the site
-and refuses the production hostnames. It ends with a short list of browser checks.
+finish with `test-staging-upgrade.mjs`: Chromium, Firefox and WebKit sessions stay
+open while the site upgrades from trunk to two releases, then rolls back to the first
+release and from it to trunk. It checks open tabs, reloads, fresh tabs and a site saved
+in browser storage. The test overwrites the site and refuses the production hostnames.
+It ends with a short list of browser checks.
 
 WP Cloud's edge cache purge clears only the primary domain unless a domain is
 named, so `apply-update.sh` purges each hostname. Nginx lets the edge cache `.js`

@@ -5,7 +5,7 @@
  * with PLAYGROUND_STAGING_FROM_TRUNK=1. This script then deploys two releases of the
  * current checkout with deploy-website.sh, then rolls back twice with
  * PLAYGROUND_ROLLBACK=previous: to the first release, and from it to trunk. Before
- * each change it opens Playground in Chromium and WebKit; after it, it checks that:
+ * each change it opens Playground in Chromium, Firefox and WebKit; after it, it checks that:
  *
  * - the already-open tab still navigates WordPress, and its own release files remain;
  * - reloading it starts the now-active release, with no other service worker left
@@ -24,7 +24,7 @@
  * It prints PASS and FAIL lines plus page errors for review, and exits non-zero
  * when any check fails.
  */
-import { chromium, webkit } from '@playwright/test';
+import { chromium, firefox, webkit } from '@playwright/test';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -75,6 +75,7 @@ async function main() {
 	try {
 		for (const [name, browserType] of [
 			['chromium', chromium],
+			['firefox', firefox],
 			['webkit', webkit],
 		]) {
 			const profile = await mkdtemp(
