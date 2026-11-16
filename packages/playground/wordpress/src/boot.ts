@@ -450,15 +450,22 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			phpIniEntries: options.phpIniEntries,
 		});
 
-		// Use the new AST-based SQLite driver.
-		// TODO: Remove this once the new driver is the default; when this is closed:
-		//         https://github.com/WordPress/sqlite-database-integration/issues/195
-		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
+		// Other workers and spawned processes share `/internal` and its
+		// constants, so only the first boot writes them.
+		const isFirstBoot =
+			isPrimary && !php.isFile('/internal/.boot-files-written');
 
-		// Define any custom constants provided via CLI or configuration
-		if (options.constants) {
-			for (const key in options.constants) {
-				php.defineConstant(key, options.constants[key]);
+		if (isFirstBoot) {
+			// Use the new AST-based SQLite driver.
+			// TODO: Remove this once the new driver is the default; when this is closed:
+			//         https://github.com/WordPress/sqlite-database-integration/issues/195
+			php.defineConstant('WP_SQLITE_AST_DRIVER', true);
+
+			// Define any custom constants provided via CLI or configuration
+			if (options.constants) {
+				for (const key in options.constants) {
+					php.defineConstant(key, options.constants[key]);
+				}
 			}
 		}
 
@@ -472,20 +479,17 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 		 * the filesystem there is the source of truth
 		 * for all other PHP instances.
 		 */
-		if (
-			isPrimary &&
-			/**
-			 * Only the first PHP instance of the first worker created
-			 * during WordPress boot writes these files – otherwise we'll keep
-			 * overwriting them with concurrent writers living in other worker
-			 * threads.
-			 *
-			 * The `.boot-files-written` file is our primitive synchronization
-			 * mechanism. It works, because secondary workers are only booted
-			 * once the primary worker has fully booted.
-			 */
-			!php.isFile('/internal/.boot-files-written')
-		) {
+		/**
+		 * Only the first PHP instance of the first worker created
+		 * during WordPress boot writes these files – otherwise we'll keep
+		 * overwriting them with concurrent writers living in other worker
+		 * threads.
+		 *
+		 * The `.boot-files-written` file is our primitive synchronization
+		 * mechanism. It works, because secondary workers are only booted
+		 * once the primary worker has fully booted.
+		 */
+		if (isFirstBoot) {
 			// TODO: There is a race here when multiple workers are calling bootRequestHandler(). Fix it.
 			await setupPlatformLevelMuPlugins(php, {
 				phpVersion: options.phpVersion,
