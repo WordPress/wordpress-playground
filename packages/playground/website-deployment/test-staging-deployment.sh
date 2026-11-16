@@ -100,7 +100,6 @@ if [ "${PLAYGROUND_STAGING_FROM_TRUNK:-0}" = 1 ]; then
         cd "$trunk"
         npm ci
         npm run sync:php-next
-        # Trunk's workflow passes the app origin as PLAYGROUND_APP_ORIGIN.
         PLAYGROUND_APP_ORIGIN="$APP_ORIGIN" VITE_WORDPRESS_SITE_URL="$WORDPRESS_ORIGIN" \
             npx nx build playground-website --skip-nx-cache
         rsync -az -e "$SSH" --delete dist/packages/playground/wasm-wordpress-net/ "$TARGET:~/updated-playground-files"

@@ -70,9 +70,9 @@ connects your app to an already hosted browser runtime. The
 installs the browser website and its Dock.
 
 The [Deploy Playground website workflow](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml)
-produces a temporary artifact for the public deployment. It expires, and the
-build is configured to render WordPress on `wpsandbox.wordpress.net`. Use the
-source build below for another domain, even if the artifact is still available.
+produces a temporary self-hosting artifact, built separately without production
+origins or release-specific asset paths. It expires; use the source build below
+when the artifact is unavailable or you need a different configuration.
 Running the deploy workflow in a fork without the deployment secrets skips
 the build, too.
 

@@ -35,7 +35,7 @@ The website deployment workflow configures both origins in its job environment
 and chooses a unique release ID for each build:
 
 ```yaml
-VITE_PLAYGROUND_APP_ORIGIN: https://playground.wordpress.net
+PLAYGROUND_APP_ORIGIN: https://playground.wordpress.net
 VITE_WORDPRESS_SITE_URL: https://wpsandbox.wordpress.net
 ```
 

@@ -41,7 +41,7 @@ echo "Release: $RELEASE_ID"
 if [ "${PLAYGROUND_SKIP_BUILD:-0}" != 1 ]; then
     # Do not restore bundles built with a different WordPress origin or release.
     PLAYGROUND_RELEASE_ID="$RELEASE_ID" \
-        VITE_PLAYGROUND_APP_ORIGIN="$APP_ORIGIN" \
+        PLAYGROUND_APP_ORIGIN="$APP_ORIGIN" \
         VITE_WORDPRESS_SITE_URL="$WORDPRESS_ORIGIN" \
         npx nx build playground-website --skip-nx-cache
 fi

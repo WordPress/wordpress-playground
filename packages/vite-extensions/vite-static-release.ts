@@ -14,8 +14,8 @@ import { protectStaticReleasePages } from './static-release-documents.mjs';
 export function staticReleaseOriginCheckPlugin(): Plugin {
 	const releaseBase = getStaticReleaseBase();
 	const appOrigin =
-		releaseBase && process.env['VITE_PLAYGROUND_APP_ORIGIN']
-			? requireOrigin('VITE_PLAYGROUND_APP_ORIGIN')
+		releaseBase && process.env['PLAYGROUND_APP_ORIGIN']
+			? requireOrigin('PLAYGROUND_APP_ORIGIN')
 			: undefined;
 	const wordPressOrigin = appOrigin
 		? requireOrigin('VITE_WORDPRESS_SITE_URL')
@@ -23,6 +23,16 @@ export function staticReleaseOriginCheckPlugin(): Plugin {
 	return {
 		name: 'static-release-origin-check',
 		apply: 'build',
+		config() {
+			return {
+				define: {
+					// Preserve the public build setting while exposing only this value.
+					'import.meta.env.PLAYGROUND_APP_ORIGIN': JSON.stringify(
+						process.env['PLAYGROUND_APP_ORIGIN'] || ''
+					),
+				},
+			};
+		},
 		async writeBundle({ dir }) {
 			if (!dir)
 				throw new Error(

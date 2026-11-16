@@ -40,7 +40,7 @@ the preview web root and once for the upgrade tests on port 7999. Node 24 and PH
 are required. The preview serves existing files directly on both hostnames, as
 Nginx does, and sends missing paths to a local PHP server running the installed
 `custom-redirects.php`. The normal WP Cloud deployment also sets
-`VITE_PLAYGROUND_APP_ORIGIN` and `VITE_WORDPRESS_SITE_URL`, which add each page's
+`PLAYGROUND_APP_ORIGIN` and `VITE_WORDPRESS_SITE_URL`, which add each page's
 origin check. App pages also stop away from their web-root URL, including at their
 own `/releases/<id>/` path. Previews apply the same checks to each installed copy
 for its configured origins while deriving module origins at runtime. The upload is

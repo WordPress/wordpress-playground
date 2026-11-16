@@ -9,7 +9,7 @@ const playgroundUrl = new URL('/', (import.meta || {}).url);
  * loaded module URL rather than the current document.
  */
 export const playgroundOrigin =
-	import.meta.env['VITE_PLAYGROUND_APP_ORIGIN'] || playgroundUrl.origin;
+	import.meta.env['PLAYGROUND_APP_ORIGIN'] || playgroundUrl.origin;
 /**
  * Public directory of the running static release, such as /releases/<id>/, or /
  * for builds served from the web root. Asset URLs already include it; code that

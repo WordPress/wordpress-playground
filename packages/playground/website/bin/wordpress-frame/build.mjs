@@ -28,7 +28,7 @@ for (const [webRoot, origins] of [
 		[upgradeApp.origin, upgradeWordPress.origin],
 	],
 ]) {
-	process.env.VITE_PLAYGROUND_APP_ORIGIN = origins[0];
+	process.env.PLAYGROUND_APP_ORIGIN = origins[0];
 	process.env.VITE_WORDPRESS_SITE_URL = origins[1];
 	for (const name of ['client', 'remote', 'website', 'website-extras']) {
 		await build({

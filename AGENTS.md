@@ -97,7 +97,7 @@ Standalone and self-hosted builds without a sandbox retain one origin.
 External embeds do not need a referrer or new URL parameters. This mode does not
 block WordPress from embedding fresh app/API documents.
 The normal WP Cloud deployment runs `website-deployment/deploy-website.sh`, which sets
-`VITE_WORDPRESS_SITE_URL` to `https://wpsandbox.wordpress.net`, `VITE_PLAYGROUND_APP_ORIGIN`
+`VITE_WORDPRESS_SITE_URL` to `https://wpsandbox.wordpress.net`, `PLAYGROUND_APP_ORIGIN`
 to `https://playground.wordpress.net`, and a unique `PLAYGROUND_RELEASE_ID`.
 `test-staging-deployment.sh` runs that same script against a disposable staging site, and
 `check-deployment.sh` checks a deployed release over HTTP without changing it. Vite builds with base `/releases/<id>/`, so every asset URL names its

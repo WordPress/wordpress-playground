@@ -44,6 +44,10 @@ the edge. Its PHP steps live in `apply-update.php`, which receives values only a
 arguments. See the [two-host deployment guide](wordpress-frame/README.md)
 for required WP Cloud settings, the Nginx preflight checks, and rollback.
 
+`PLAYGROUND_APP_ORIGIN` remains the app-origin build setting. Vite explicitly
+embeds that value in browser code and uses it for the page guards, so existing
+build scripts keep the same variable name.
+
 Personal WP retains the previous file placement: its deployment consults
 `custom-redirects-lib.php` about each file and moves files needing custom headers
 or routing under `<web-root>/static-files-to-serve-via-php/`, with their relative

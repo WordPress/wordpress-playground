@@ -31,11 +31,45 @@ describe('static release documents', () => {
 		await rm(directory, { recursive: true, force: true });
 	});
 
+	// The public build setting must reach browser code too. Vite's env replacement
+	// is independent of the Node-side guard and otherwise drops non-VITE variables.
+	it.each(['', 'https://app.example'])(
+		'embeds the public app-origin setting: %s',
+		async (appOrigin) => {
+			vi.stubEnv('PLAYGROUND_APP_ORIGIN', appOrigin);
+			vi.stubEnv('PLAYGROUND_RELEASE_ID', '');
+			const entry = joinPaths(directory, 'config.js');
+			await writeFile(
+				entry,
+				'export const appOrigin = import.meta.env.PLAYGROUND_APP_ORIGIN;'
+			);
+			const result = await build({
+				configFile: false,
+				root: directory,
+				logLevel: 'silent',
+				plugins: [staticReleaseOriginCheckPlugin()],
+				build: {
+					write: false,
+					lib: { entry, name: 'OriginConfig', formats: ['iife'] },
+				},
+			});
+			const bundles = Array.isArray(result) ? result : [result];
+			const chunk = bundles
+				.flatMap((bundle) => ('output' in bundle ? bundle.output : []))
+				.find((file) => file.type === 'chunk');
+			if (!chunk || chunk.type !== 'chunk')
+				throw new Error('Expected a compiled config module.');
+			expect(
+				new Function(chunk.code + '\nreturn OriginConfig.appOrigin;')()
+			).toBe(appOrigin);
+		}
+	);
+
 	// Retained releases stay public for open tabs' assets. Their pages must not start
 	// outside the web root, or a fixed page would remain usable until expiry.
 	it('guards built entries and copied public pages before their scripts execute', async () => {
 		vi.stubEnv('PLAYGROUND_RELEASE_ID', 'test');
-		vi.stubEnv('VITE_PLAYGROUND_APP_ORIGIN', 'https://app.example');
+		vi.stubEnv('PLAYGROUND_APP_ORIGIN', 'https://app.example');
 		vi.stubEnv('VITE_WORDPRESS_SITE_URL', 'https://wordpress.example');
 		const html =
 			'<!doctype html><html><head><script>window.entryExecuted=true</script></head></html>';
