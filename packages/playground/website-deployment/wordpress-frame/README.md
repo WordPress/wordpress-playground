@@ -112,6 +112,13 @@ the purge so they cannot leave stale entry responses cached.
 Older tabs may need to reload after expiry. Legacy releases without installation metadata
 need a one-time operator audit; the installer does not guess their ages.
 
+The app worker caches its own release's assets and leaves other releases' downloads to
+HTTP. This prevents WebKit from aborting a new release's download when the old worker is
+replaced. Retained tabs also use HTTP for their older release's assets after takeover;
+offline lazy loading in those tabs is not guaranteed. An already-installed worker from
+the previous layout lacks this rule, so the first upgrade can still require a reload
+if its downloads overlap worker replacement.
+
 `/builder/builder.html` remains PHP-served with no-store, leaving no root builder directory
 that would capture `/builder/` ahead of its existing canonical redirect. The release's large
 assets still use direct static serving.

@@ -93,6 +93,8 @@ Deployment tests use the same boundary on port 7999. See
 `packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
 WordPress always uses the configured sandbox origin. PHP, OPFS, and directory
 handles stay on the app origin. Tabs share one app service worker and asset cache.
+App workers leave other releases' assets to HTTP so worker replacement cannot interrupt
+those downloads in WebKit; their own release's assets keep offline caching.
 Standalone and self-hosted builds without a sandbox retain one origin.
 External embeds do not need a referrer or new URL parameters. This mode does not
 block WordPress from embedding fresh app/API documents.

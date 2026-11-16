@@ -356,6 +356,18 @@ self.addEventListener('fetch', (event) => {
 		return;
 	}
 
+	// Let HTTP own other releases' app downloads. Replacing this worker while
+	// its response is streaming aborts that download in WebKit. Downloads outside
+	// the worker survive the update; this release keeps its normal offline cache.
+	if (
+		self.location.origin === playgroundOrigin &&
+		url.origin === playgroundOrigin &&
+		url.pathname.startsWith('/releases/') &&
+		!url.pathname.startsWith(releaseBase)
+	) {
+		return;
+	}
+
 	// Release files are public platform code shared by both hosts, even when a
 	// WordPress page requests them. Do not redirect them into its scope.
 	if (
