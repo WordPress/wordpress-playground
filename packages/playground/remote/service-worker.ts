@@ -129,7 +129,7 @@ import {
 	playgroundOrigin,
 	wordPressSiteUrl,
 	releaseBase,
-	isManagedRelease,
+	usesMultiReleaseDirectoryLayout,
 } from './src/lib/config';
 // @ts-ignore -- Provided by Vite.
 import { buildVersion } from 'virtual:remote-config';
@@ -312,7 +312,7 @@ self.addEventListener('fetch', (event) => {
 
 	// A static release's app names the helper in its own release directory.
 	const isOwnReleaseHelper =
-		isManagedRelease &&
+		usesMultiReleaseDirectoryLayout &&
 		url.pathname === joinPaths(releaseBase, 'wordpress-bridge.html');
 	if (
 		self.location.origin !== playgroundOrigin &&
@@ -339,7 +339,9 @@ self.addEventListener('fetch', (event) => {
 		// Static releases serve it on this host too, so no CORS is needed.
 		const scriptUrl = new URL(
 			wordpressBridgeScriptUrl,
-			isManagedRelease ? self.location.origin : playgroundOrigin
+			usesMultiReleaseDirectoryLayout
+				? self.location.origin
+				: playgroundOrigin
 		);
 		return event.respondWith(
 			new Response(

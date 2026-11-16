@@ -22,7 +22,7 @@ export const releaseBase: string = import.meta.env.PROD
  * True when the build uses the installer's /releases/<id>/ layout. Without a
  * release ID, development and portable builds serve assets from / instead.
  */
-export const isManagedRelease = releaseBase !== '/';
+export const usesMultiReleaseDirectoryLayout = releaseBase !== '/';
 const developmentWordPressOrigin = import.meta.env.DEV
 	? getWordPressDevelopmentOrigin(playgroundUrl)
 	: undefined;

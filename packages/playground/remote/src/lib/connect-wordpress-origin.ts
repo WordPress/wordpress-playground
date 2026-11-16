@@ -3,7 +3,11 @@ import { streamToPort } from '@php-wasm/universal';
 import { responseTo } from '@php-wasm/web-service-worker';
 import type { RemoteAPI } from '@php-wasm/universal';
 import type { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
-import { wordPressSiteUrl, releaseBase, isManagedRelease } from './config';
+import {
+	wordPressSiteUrl,
+	releaseBase,
+	usesMultiReleaseDirectoryLayout,
+} from './config';
 import { joinPaths } from '@php-wasm/util';
 import { runtimeStaticAssetsDirectory } from './wordpress-static-assets';
 import { getWordPressBridgePath } from './wordpress-bridge-path';
@@ -66,7 +70,7 @@ export async function connectWordPressOrigin(
 	// itself, without fetching the deployed helper or its script URLs from the server.
 	// A static release names its own retained helper, which workers pass through.
 	const url = new URL(
-		isManagedRelease
+		usesMultiReleaseDirectoryLayout
 			? joinPaths(releaseBase, 'wordpress-bridge.html')
 			: getWordPressBridgePath(buildVersion),
 		wordPressSiteUrl

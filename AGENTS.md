@@ -106,7 +106,7 @@ to `https://playground.wordpress.net`, and a unique `PLAYGROUND_RELEASE_ID`.
 release, and adds an inline origin check to every app HTML page, including copied
 public files: the request helper requires the sandbox origin, all other pages the
 app origin and their web-root URL, so retained releases' pages cannot start.
-Remote config exports `isManagedRelease` for layout decisions; do not make callers
+Remote config exports `usesMultiReleaseDirectoryLayout` for layout decisions; do not make callers
 infer that meaning from `releaseBase === '/'`. JavaScript release ID validation is
 shared in `packages/playground/remote/src/lib/release-id.ts`. Compatibility code markers
 and removal conditions are listed in
