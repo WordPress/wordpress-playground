@@ -12,6 +12,32 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.65] (2026-11-16) 
+
+### Tools
+
+- \[ xdebug \] Bind the Xdebug bridge listeners to loopback\. ([#4486](https://github.com/WordPress/wordpress-playground/pull/4486))
+
+### Documentation
+
+- \[i18n\] Add Bengali translation for developers\/03\-build\-an\-app\/01\-index\.md\. ([#4572](https://github.com/WordPress/wordpress-playground/pull/4572))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/01\-index\.md\. ([#4584](https://github.com/WordPress/wordpress-playground/pull/4584))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/javascript\-api\/02\-index\-html\-vs\-remote\-html\.md\. ([#4590](https://github.com/WordPress/wordpress-playground/pull/4590))
+- \[i18n\] Add Bengali translation for developers\/07\-xdebug\/02\-getting\-started\.md\. ([#4581](https://github.com/WordPress/wordpress-playground/pull/4581))
+
+### Website
+
+- Delegate loopback permissions for Personal WP\. ([#4599](https://github.com/WordPress/wordpress-playground/pull/4599))
+- Renew WebMCP origin trial tokens\. ([#4598](https://github.com/WordPress/wordpress-playground/pull/4598))
+- Route direct WordPress navigations through the app origin\. ([#4593](https://github.com/WordPress/wordpress-playground/pull/4593))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@akirk @bgrgicak @dhrupo @mho22 @shamiulbishal
+
+
 ## [v3.1.64] (2026-11-10) 
 
 ### Enhancements
