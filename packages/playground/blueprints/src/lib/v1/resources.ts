@@ -752,13 +752,16 @@ export class UrlResource extends FetchResource {
 					: this.resource.url.slice(0, queryStart);
 			const query =
 				queryStart === -1 ? '' : this.resource.url.slice(queryStart);
-			const match =
-				pageUrl.match(
-					/^https:\/\/gist\.github\.com\/(?<owner>[^/]+)\/(?<id>[0-9a-zA-Z]+)\/raw(?<path>\/.*)?$/
-				) ||
-				pageUrl.match(
-					/^https:\/\/gist\.github\.com\/(?<owner>[^/]+)\/(?<id>[0-9a-zA-Z]+)\/?$/
-				);
+			const rawMatch = pageUrl.match(
+				/^https:\/\/gist\.github\.com\/(?<owner>[^/]+)\/(?<id>[0-9a-zA-Z]+)\/raw(?<path>\/.*)?$/
+			);
+			// A #file-… anchor selects a file the raw URL can't reproduce.
+			const pageMatch = this.resource.url.includes('#')
+				? null
+				: pageUrl.match(
+						/^https:\/\/gist\.github\.com\/(?<owner>[^/]+)\/(?<id>[0-9a-zA-Z]+)\/?$/
+				  );
+			const match = rawMatch || pageMatch;
 			if (match?.groups) {
 				this.resource = {
 					...this.resource,

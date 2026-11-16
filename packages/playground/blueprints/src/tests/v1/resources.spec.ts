@@ -82,6 +82,7 @@ describe('UrlResource', () => {
 	it.each([
 		'https://gist.github.com/ndiego',
 		'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee#file-block-hooks-demo-php',
+		'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee?utm_source=share#file-block-hooks-demo-php',
 		'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee.js',
 		'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/revisions',
 		'https://gist.github.com/ndiego/456b74b243d86c97cda89264c68cbdee/40832fe912dc1187c4e9114e175e328f0e7d147b',
