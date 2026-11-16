@@ -208,29 +208,28 @@ Ce processus compile les fichiers que vous allez servir. Il ne rend pas toutes l
 
 ### Vérifier la compilation locale {#verify-the-local-build}
 
-<!-- With Python 3 installed, run this command from the `wordpress-playground`
+<!-- With PHP installed, run this command from the `wordpress-playground`
 directory to serve the built files locally: -->
 
-Avec Python 3 installé, exécutez cette commande depuis le répertoire `wordpress-playground` pour servir les fichiers compilés localement :
+Avec PHP installé, exécutez cette commande depuis le répertoire `wordpress-playground` pour servir les fichiers compilés localement :
 
 ```sh
-python3 -m http.server 8768 --bind 127.0.0.1 \
-  --directory dist/packages/playground/wasm-wordpress-net
+php -S localhost:9999 -t dist/packages/playground/wasm-wordpress-net
 ```
 
-<!-- Open [http://127.0.0.1:8768/](http://127.0.0.1:8768/) in your browser. Confirm that: -->
+<!-- Open [http://localhost:9999/](http://localhost:9999/) in your browser. Confirm that: -->
 
-Ouvrez [http://127.0.0.1:8768/](http://127.0.0.1:8768/) dans votre navigateur. Vérifiez les points suivants :
+Ouvrez [http://localhost:9999/](http://localhost:9999/) dans votre navigateur. Vérifiez les points suivants :
 
 <!-- 1. The WordPress welcome page and Playground Dock appear.
 2. Entering `/wp-admin/` in the Dock's address field opens the WordPress Dashboard.
 3. The WordPress iframe URL, inspected with your browser's developer tools,
-   starts with `http://127.0.0.1:8768/scope:`. The app and WordPress should use
+   starts with `http://localhost:9999/scope:`. The app and WordPress should use
    the same scheme, hostname, and port, rather than `wpsandbox.wordpress.net`. -->
 
 1. La page de bienvenue de WordPress et le Dock de Playground s’affichent.
 2. Saisir `/wp-admin/` dans le champ d’adresse du Dock ouvre le tableau de bord de WordPress.
-3. L’URL de l’iframe WordPress, inspectée avec les outils de développement du navigateur, commence par `http://127.0.0.1:8768/scope:`. L’application et WordPress doivent utiliser le même protocole, le même nom d’hôte et le même port, plutôt que `wpsandbox.wordpress.net`.
+3. L’URL de l’iframe WordPress, inspectée avec les outils de développement du navigateur, commence par `http://localhost:9999/scope:`. L’application et WordPress doivent utiliser le même protocole, le même nom d’hôte et le même port, plutôt que `wpsandbox.wordpress.net`.
 
 <!-- Stop the server with `Ctrl+C`. This server is for local verification only.
 Use HTTPS when deploying to a public domain; service workers can run over
