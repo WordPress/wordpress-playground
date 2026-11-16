@@ -52,6 +52,7 @@ import {
 	IconPlay,
 } from './icons';
 import { speak } from '@wordpress/a11y';
+import { getRemoteUrl } from '../../../php-playground/constants';
 
 export type PlaygroundDemoProps = Partial<Attributes> & {
 	showAddNewFile?: boolean;
@@ -269,7 +270,8 @@ export default function PlaygroundPreview({
 				blueprint?: object;
 			} = {
 				iframe: iframeRef.current,
-				remoteUrl: 'https://playground.wordpress.net/remote.html',
+				// The runtime on this page's own app origin, not a fixed production host.
+				remoteUrl: getRemoteUrl().href,
 			};
 			if (finalBlueprint) {
 				configuration.blueprint = finalBlueprint;
