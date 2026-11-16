@@ -146,6 +146,8 @@ function activate( $root, $backups, $release, $retention, $app_origin, $wordpres
 	retention_seconds( $retention );
 	require_release_id( $release );
 	require_once __DIR__ . '/custom-redirects-lib.php';
+	// PRE_RELEASE_ROOT_COMPAT: a first install or pre-PR layout has no manifest.
+	// Snapshot its entry files too, so the first deployment can be rolled back.
 	$manifest = is_file( "$root/release.json" ) ? read_json( "$root/release.json" ) : array();
 	$owned    = owned_root_files( $manifest );
 	$public  = "$root/releases/$release";
@@ -226,6 +228,7 @@ function rollback( $root, $backups, $deployment ) {
 	if ( ! is_file( "$backup/inventory.json" ) ) {
 		throw new RuntimeException( "No root snapshot was taken before deploying $deployment." );
 	}
+	// PRE_RELEASE_ROOT_COMPAT: a snapshot without release.json restores the pre-PR layout.
 	$target   = is_file( "$backup/release.json" ) ? read_json( "$backup/release.json" ) : null;
 	$restored = $target['release'] ?? null;
 	if ( $restored && ( ! is_dir( "$root/releases/$restored" ) || ! is_dir( "$root/.playground-releases/$restored" ) ) ) {
@@ -262,6 +265,8 @@ function prune( $root, $backups, $retention ) {
 	}
 	$active    = read_json( "$root/release.json" );
 	$protected = array( $active['release'], $active['previousRelease'] ?? null );
+	// UNTRACKED_RELEASE_COMPAT: directories without metadata need an operator audit;
+	// never infer their age and accidentally delete a pre-PR rollback target.
 	foreach ( glob( "$root/.playground-releases/*/release.json" ) as $metadata ) {
 		$candidate = read_json( $metadata );
 		$id        = $candidate['release'] ?? null;
@@ -330,7 +335,7 @@ function read_json( $path ) {
 function record_activation( $root, $previous, $active ) {
 	foreach ( array_unique( array_filter( array( $active, $previous ) ) ) as $id ) {
 		$metadata = "$root/.playground-releases/$id/release.json";
-		// Earlier deployments without lifecycle metadata require the legacy audit.
+		// UNTRACKED_RELEASE_COMPAT: the pre-PR layout has no lifecycle metadata.
 		if ( ! is_file( $metadata ) ) {
 			continue;
 		}

@@ -1,16 +1,22 @@
 import { isParentOf, joinPaths } from '@php-wasm/util';
 
-/** The producer owns these paths, even when a newer worker controls its document. */
+/**
+ * Use the PHP runtime's release directory, which may differ from the controlling
+ * service worker's release. For example, combine /releases/A/ and wp-6.8 into
+ * releases/A/wp-6.8 so an older tab keeps downloading its own WordPress files.
+ */
 export function runtimeStaticAssetsDirectory(details: {
 	staticAssetsDirectory?: string;
 	releaseBase?: string;
 }): string | undefined {
-	// Iframe replies can already carry a qualified path. Do not prefix it twice.
+	// The helper iframe may have already added /releases/A/. Do not add it again.
 	if (
 		details.staticAssetsDirectory &&
 		isParentOf('/releases', joinPaths('/', details.staticAssetsDirectory))
 	)
 		return details.staticAssetsDirectory;
+	// PRE_RELEASE_ASSETS_COMPAT: pre-PR runtimes omit releaseBase. Portable builds
+	// explicitly use '/'; keep that supported layout when retiring the old-tab fallback.
 	return details.staticAssetsDirectory
 		? joinPaths(
 				'.',
@@ -20,7 +26,11 @@ export function runtimeStaticAssetsDirectory(details: {
 		: undefined;
 }
 
-/** Legacy aliases live on the app; retained release files exist on either host. */
+/**
+ * /releases/A/wp-6.8 exists on both hosts, so use the worker's own host.
+ * Unprefixed paths such as /wp-6.8 use the app host: portable builds still need
+ * this layout, as do tabs opened before release directories were introduced.
+ */
 export function wordPressStaticAssetOrigin(
 	directory: string,
 	workerOrigin: string,

@@ -129,6 +129,7 @@ import {
 	playgroundOrigin,
 	wordPressSiteUrl,
 	releaseBase,
+	isManagedRelease,
 } from './src/lib/config';
 // @ts-ignore -- Provided by Vite.
 import { buildVersion } from 'virtual:remote-config';
@@ -311,13 +312,15 @@ self.addEventListener('fetch', (event) => {
 
 	// A static release's app names the helper in its own release directory.
 	const isOwnReleaseHelper =
-		releaseBase !== '/' &&
+		isManagedRelease &&
 		url.pathname === joinPaths(releaseBase, 'wordpress-bridge.html');
 	if (
 		self.location.origin !== playgroundOrigin &&
 		url.origin === self.location.origin &&
 		(isWordPressBridgePath(url.pathname) || isOwnReleaseHelper)
 	) {
+		// PRE_RELEASE_HELPER_URL_COMPAT: pre-PR tabs use root helper aliases.
+		// Portable builds still use them; see the deployment removal checklist.
 		// Release A's worker may still be active after release B is deployed.
 		// If it answers B's helper URL, its HTML will still name A's script,
 		// which the server may have removed. Generate HTML only for this worker's
@@ -336,7 +339,7 @@ self.addEventListener('fetch', (event) => {
 		// Static releases serve it on this host too, so no CORS is needed.
 		const scriptUrl = new URL(
 			wordpressBridgeScriptUrl,
-			releaseBase === '/' ? playgroundOrigin : self.location.origin
+			isManagedRelease ? self.location.origin : playgroundOrigin
 		);
 		return event.respondWith(
 			new Response(
@@ -678,7 +681,8 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 			);
 		}
 		// Release-qualified directories belong to the runtime's retained release.
-		// Legacy runtimes report wp-<version>; those aliases still live on the app.
+		// PRE_RELEASE_ASSETS_COMPAT: older tabs omit a release directory and still
+		// fetch /wp-<version> from the app host. Portable builds use that layout too.
 		const assetOrigin = wordPressStaticAssetOrigin(
 			staticAssetsDirectory,
 			self.location.origin,
@@ -691,7 +695,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		);
 		const request = await cloneRequest(event.request, {
 			url: assetUrl,
-			// Legacy asset aliases may require a cross-origin request.
+			// Unprefixed app-host assets require CORS when this is the WordPress worker.
 			...(crossOrigin && { mode: 'cors' }),
 			// Omit credentials to avoid causing cache aborts due to presence of
 			// cookies

@@ -114,6 +114,8 @@ describe('shared runtime discovery across deployments', () => {
 	it.each(['/worker.js', '/releases/old/worker.js'])(
 		'retires the previous entry at %s before connecting the new release',
 		async (path) => {
+			// localStorage remembers where the old tab's SharedWorker lives. A deploy
+			// can move the new script into /releases/new/ without closing that runtime.
 			const previous = {
 				...identity('old'),
 				url: `https://example.test${path}?build=old`,
@@ -121,9 +123,11 @@ describe('shared runtime discovery across deployments', () => {
 			storage.set(key, JSON.stringify(previous));
 			const connection = connectSharedRuntime('default', 'new', 'new');
 			expect(workers[0].url).toBe(previous.url);
+			// The old runtime has started saving, but still owns the site's files.
 			workers[0].send({ type: RELOAD_REQUIRED, ready: false });
 			await vi.advanceTimersByTimeAsync(0);
 			expect(workers).toHaveLength(1);
+			// Only its shutdown confirmation permits a replacement to connect.
 			workers[0].send({ type: RUNTIME_CLOSED });
 			await vi.advanceTimersByTimeAsync(0);
 			workers[1].send({
@@ -138,6 +142,8 @@ describe('shared runtime discovery across deployments', () => {
 		'https://attacker.test/releases/old/worker.js',
 		'https://example.test/scope:site/worker.js',
 		'https://example.test/releases/old/other.js',
+		'https://example.test/releases/-invalid/worker.js',
+		'https://example.test/releases/old/nested/worker.js',
 	])('rejects an unrelated stored worker URL: %s', async (url) => {
 		storage.set(key, JSON.stringify({ ...identity('old'), url }));
 		const connection = connectSharedRuntime('default', 'new', 'new');

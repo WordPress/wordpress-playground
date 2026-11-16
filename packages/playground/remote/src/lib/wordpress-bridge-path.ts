@@ -13,6 +13,8 @@ export function getWordPressBridgePath(buildVersion: string): string {
 
 /**
  * Recognize the unversioned /wordpress-bridge.html and its build-version aliases.
+ * PRE_RELEASE_HELPER_URL_COMPAT: old managed-host clients use these aliases;
+ * portable and development builds still generate them as their current URLs.
  * Servers map every alias to the deployed release's wordpress-bridge.html file;
  * the version cannot select a historical release, an app document, or PHP.
  * Git builds use a hexadecimal commit ID; builds outside Git use a timestamp.

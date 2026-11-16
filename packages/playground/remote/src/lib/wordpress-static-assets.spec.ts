@@ -31,7 +31,7 @@ it.each([
 		'https://app.example',
 	],
 ])(
-	'preserves runtime-owned assets and legacy host aliases: %j',
+	"keeps each runtime's release directory and app-host fallback: %j",
 	(details, directory, origin) => {
 		expect(runtimeStaticAssetsDirectory(details)).toBe(directory);
 		expect(

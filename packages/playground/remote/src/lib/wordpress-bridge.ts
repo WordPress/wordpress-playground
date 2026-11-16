@@ -17,9 +17,12 @@
  * origin. The build supplies playgroundOrigin explicitly. Workers generate helper
  * HTML only for their own buildVersion; other versions reach the server.
  *
- * Retained helpers can talk to a newer worker. Keep the request/response envelope,
- * scope, requestId and transferable bodyPort compatible throughout retention.
- * Runtime releaseBase metadata is optional: absent means the legacy app aliases.
+ * An older tab keeps using its helper iframe from /releases/A/ even after the
+ * service worker updates to B. Both must still agree on message fields (scope,
+ * requestId and the bodyPort used to stream a response) while A is supported.
+ * RELEASE_HELPER_PROTOCOL_COMPAT: keep these fields compatible with older helpers.
+ * PRE_RELEASE_ASSETS_COMPAT: runtimes from before this PR omit releaseBase and use
+ * app-host paths such as /wp-6.8. Portable builds explicitly use releaseBase: '/'.
  * An incompatible protocol change needs a versioned handshake before deployment.
  */
 import { playgroundOrigin } from './config';
@@ -30,7 +33,7 @@ const scope = new URL(location.href).searchParams.get('scope');
 // The host serves /sw.js as a same-origin loader for the app's public worker.
 // Keep this URL literal: the service worker also bundles this helper for offline HTML.
 const workerUrl = new URL('/sw.js', location.origin);
-// A CDN may retain the old single-origin worker at /sw.js even after deployment.
+// PRE_SANDBOX_CDN_COMPAT: a CDN may retain the old single-origin /sw.js worker.
 // updateViaCache bypasses the browser's HTTP cache, not that CDN response.
 workerUrl.searchParams.set('build-version', buildVersion);
 let registration: ServiceWorkerRegistration;

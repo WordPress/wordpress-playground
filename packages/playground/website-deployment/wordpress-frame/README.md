@@ -1,5 +1,9 @@
 # Two-host deployment on WP Cloud
 
+Updated as of **2026-11-16**, for PR #4613. Recheck this guide when changing the
+installer, browser worker protocol, or WP Cloud routing; the implementation is
+the source of truth for exact behavior.
+
 The normal website deployment serves:
 
 - App: `https://playground.wordpress.net`
@@ -109,8 +113,8 @@ of edge purge or cleanup succeeding. Failed activation attempts can extend reten
 cannot cause the next activation to inherit an expired inactivity timestamp. Cleanup removes
 public assets, private PHP, any leftover staging directory and corresponding backups together after successful activation and its edge purge. Cleanup failures are reported after
 the purge so they cannot leave stale entry responses cached.
-Older tabs may need to reload after expiry. Legacy releases without installation metadata
-need a one-time operator audit; the installer does not guess their ages.
+Older tabs may need to reload after expiry. Directories created before the installer
+recorded lifecycle metadata need an operator audit; the installer does not guess their ages.
 
 The app worker caches its own release's assets and leaves other releases' downloads to
 HTTP. This prevents WebKit from aborting a new release's download when the old worker is
@@ -199,10 +203,13 @@ The live Nginx and CDN policy remains a rollout check: test root HTML/worker rev
 release-file MIME types, ranges and actual cache lifetime on a staging host before enabling
 production. Retained URLs are immutable on disk, without assuming a one-year edge lifetime.
 
-Helpers and workers can overlap during retention. The v1 request/response envelope (`scope`,
-`requestId`, `bodyPort`) stays compatible; new runtime release metadata is optional, with absent
-metadata using legacy app-host asset aliases. A frozen v1 helper fixture tests the newer worker.
-Version the handshake before making an incompatible protocol change.
+An older tab's helper iframe can remain open after its service worker updates.
+The frozen v1 helper test checks that they can still exchange requests and response bodies.
+Version the handshake before making an incompatible message change.
+
+The [compatibility removal checklist](compatibility.md) identifies temporary allowances,
+their code markers, and the conditions for removing them. Closing the rollback window
+alone does not retire already-open browser tabs.
 
 This split does not stop WordPress from embedding a fresh app/API document, and
 running Playgrounds still share one WordPress origin, without per-site HTTP

@@ -36,8 +36,8 @@ function playground_is_static_file_needing_special_treatment( $path ) {
  * headers and query parameters must not change that configuration.
  *
  * @param string|null $build_directory Public release directory, or null for the public layout.
- * @param string|null $wordpress_origin Configured sandbox origin; null for the legacy layout.
- * @param string|null $app_origin Configured app origin; null for the legacy layout.
+ * @param string|null $wordpress_origin Configured sandbox origin; null for Personal WP's layout.
+ * @param string|null $app_origin Configured app origin; null for Personal WP's layout.
  * @param string|null $php_directory Private directory holding the release's PHP endpoints.
  */
 function playground_handle_request( $build_directory = null, $wordpress_origin = null, $app_origin = null, $php_directory = null ) {
@@ -93,8 +93,9 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 			header( 'Location: ' . $app_origin . $_SERVER['REQUEST_URI'], true, 302 );
 			exit;
 		}
-		// Nginx already served every release file. Old clients name the helper with
-		// their buildVersion; serve the active release's helper for any of them.
+		// PRE_RELEASE_HELPER_URL_COMPAT: tabs opened before release directories use
+		// root helper aliases. Serve the active helper until those clients are retired.
+		// Nginx already served current managed releases' /releases/<id>/ helper files.
 		if ( '/wordpress-bridge.html' === $original_requested_path ||
 			preg_match( '~^/wordpress-bridge-[a-f0-9]+\.html$~D', $original_requested_path )
 		) {
@@ -252,8 +253,9 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		header( "Content-Type: $content_type" );
 	}
 
-	// The private main build shares platform code with the WordPress origin. Add
-	// CORS independently so existing cache/agent-cluster exceptions still run.
+	// PRE_RELEASE_ASSETS_COMPAT: pre-PR tabs fetch /wp-<version> and root scripts
+	// from the app host. Keep their CORS headers until those tabs are retired.
+	// Other public API URLs also need CORS; do not remove this entire rule.
 	// Personal WP keeps its existing public-file headers.
 	$is_shared_asset = null !== $build_directory && 'php' !== $extension && (
 		str_starts_with( $served_path, '/assets/' ) ||

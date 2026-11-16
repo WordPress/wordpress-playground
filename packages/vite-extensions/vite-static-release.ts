@@ -1,5 +1,6 @@
 import type { Plugin } from 'vite';
 import { protectStaticReleasePages } from './static-release-documents.mjs';
+import { isValidReleaseId } from '../playground/remote/src/lib/release-id';
 
 /**
  * Both WP Cloud hostnames serve the same files, so every page is reachable on
@@ -60,7 +61,7 @@ export function getStaticReleaseBase(): string | undefined {
 	if (!id) {
 		return undefined;
 	}
-	if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(id)) {
+	if (!isValidReleaseId(id)) {
 		throw new Error(`Invalid PLAYGROUND_RELEASE_ID: ${id}`);
 	}
 	return `/releases/${id}/`;

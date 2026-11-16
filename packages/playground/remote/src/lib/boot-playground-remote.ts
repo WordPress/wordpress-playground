@@ -1,5 +1,5 @@
 import { connectWordPressOrigin } from './connect-wordpress-origin';
-import { wordPressSiteUrl, releaseBase } from './config';
+import { wordPressSiteUrl, isManagedRelease } from './config';
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
 import type { SyncProgressCallback } from '@php-wasm/web';
@@ -58,7 +58,7 @@ function getWorkerUrl(): string {
 // A worker controls only paths below its own URL, so static releases register the
 // root /sw.js loader, which imports this release's worker.
 export const serviceWorkerUrl = new URL(
-	releaseBase === '/' ? serviceWorkerPath : '/sw.js',
+	isManagedRelease ? '/sw.js' : serviceWorkerPath,
 	origin
 );
 
@@ -858,7 +858,7 @@ async function captureSiteThumbnailFromWordPress({
 			// renderer from there: module scripts and workers need same-origin URLs.
 			const moduleUrl = new URL(
 				siteThumbnailModuleUrl,
-				releaseBase === '/' ? document.location.href : frontPageOrigin
+				isManagedRelease ? frontPageOrigin : document.location.href
 			);
 			// The marker lets the service worker distinguish this app asset
 			// from a path inside the scoped WordPress site.

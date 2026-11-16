@@ -11,7 +11,10 @@ import { gzipSync } from 'node:zlib';
 import { build } from 'vite';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { joinPaths } from '../php-wasm/util/src/lib/paths';
-import { staticReleaseOriginCheckPlugin } from './vite-static-release';
+import {
+	getStaticReleaseBase,
+	staticReleaseOriginCheckPlugin,
+} from './vite-static-release';
 import {
 	protectStaticReleasePages,
 	validateWordPressStaticDocuments,
@@ -30,6 +33,18 @@ describe('static release documents', () => {
 		vi.unstubAllEnvs();
 		await rm(directory, { recursive: true, force: true });
 	});
+
+	// Release IDs become directory and URL components. The browser-side worker
+	// lookup and the build must reject IDs the server-side installer cannot use.
+	it.each(['../old', '-invalid', 'two/directories', 'release\n'])(
+		'rejects an invalid deployment ID before building: %j',
+		(id) => {
+			vi.stubEnv('PLAYGROUND_RELEASE_ID', id);
+			expect(() => getStaticReleaseBase()).toThrow(
+				'Invalid PLAYGROUND_RELEASE_ID'
+			);
+		}
+	);
 
 	// The public build setting must reach browser code too. Vite's env replacement
 	// is independent of the Node-side guard and otherwise drops non-VITE variables.

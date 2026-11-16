@@ -1,4 +1,8 @@
-/** Run the released plugin in Node-hosted WordPress, outside the browser sandbox. */
+/**
+ * CLI serves the external WordPress page that contains the released plugin.
+ * The plugin embeds the browser build at the supplied preview origin; the CLI
+ * runtime is only its host site, not the Playground runtime being tested.
+ */
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { phpVar } from '@php-wasm/util';

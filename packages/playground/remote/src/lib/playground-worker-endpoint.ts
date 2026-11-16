@@ -493,6 +493,9 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			);
 			try {
 				const response = await fetch(listUrl);
+				// Reject error pages instead of saving them as asset paths. The catch
+				// below logs the failure and lets startup continue without this list;
+				// leaving the file absent allows the next boot to try again.
 				if (!response.ok) throw new Error(`HTTP ${response.status}`);
 				const remoteAssetPaths = await response.text();
 				primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
