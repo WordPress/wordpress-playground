@@ -97,6 +97,33 @@ For example, an external page can keep this iframe unchanged:
 No referrer-based framing allowlist is installed. Requiring every external frame
 to identify its origin would break existing embeds that hide their referrer.
 
+### Released interactive code block
+
+`playwright/wordpress-frame/interactive-code-block.spec.ts` runs the real
+WordPress.org `interactive-code-block` plugin (the `wordpress-playground-block`
+package in `WordPress/playground-tools`) in a separate Node-hosted WordPress server
+on an ephemeral port. It publishes a post containing the block, activates its preview,
+edits and runs PHP, checks the downloaded ZIP, and opens the full-page view. The
+embedding page, app iframe, and rendered WordPress have distinct origins, and no SDK
+or RPC methods are mocked. It exercises the SDK's cross-origin loading from
+`/client/index.js`, which the installed PHP handler serves with CORS headers.
+
+`playwright/wordpress-frame/interactive-code-block-release.json` pins the plugin
+version, download URL, and SHA-256. The verified ZIP is cached in
+`node_modules/.cache/playground-e2e/`. To update the fixture, change the version,
+URL, and checksum together. The installed plugin's JavaScript keeps its compiled
+logic; only literal `https://playground.wordpress.net` origins are replaced with the
+app origin under test, including SDK imports and the full-page URL. The test rejects
+accidental requests to the production hosts.
+
+Run it against an installed preview build:
+
+```sh
+npx nx run playground-website:build:wordpress-frame
+npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts \
+  --project=chromium interactive-code-block.spec.ts
+```
+
 ## Limits
 
 Every WordPress frame uses the configured sandbox origin, including reopened
