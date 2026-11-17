@@ -137,7 +137,7 @@ clears it, so a long-lived deployment still gets a full window after replacement
 Activation and rollback record these transitions before replacing root files, independently
 of edge purge or cleanup succeeding. Failed activation attempts can extend retention; they
 cannot cause the next activation to inherit an expired inactivity timestamp. Cleanup removes
-public assets, private PHP, any leftover staging directory and corresponding backups together after successful activation and its edge purge. Cleanup failures are reported after
+public assets, private PHP, any leftover staging directory and corresponding backups after successful activation and its edge purge. Deletion failures stop cleanup; lifecycle metadata is kept or restored so the next deployment can retry. Cleanup failures are reported after
 the purge so they cannot leave stale entry responses cached.
 Older tabs may need to reload after expiry. Directories created before the installer
 recorded lifecycle metadata need an operator audit; the installer does not guess their ages.
@@ -198,10 +198,10 @@ Confirm the dock stays on the app host and WordPress uses the sandbox host, and
 that app pages loaded on the sandbox host stop with an error.
 
 Roll back by running the installer already on the server. It needs no build, upload,
-origins or release ID, and finishes in seconds:
+origins or release ID. The SSH terminal loads the same environment as deployment; the installer checks required purge settings before restoring files:
 
 ```sh
-ssh <user@host> PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh
+ssh -tt <user@host> PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh
 ```
 
 `previous` undoes the live release's deployment, restoring whatever was live before it;

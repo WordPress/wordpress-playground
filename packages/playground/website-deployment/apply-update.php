@@ -292,8 +292,18 @@ function prune( $root, $backups, $retention ) {
 		if ( in_array( $id, $protected, true ) || $candidate['inactiveSince'] >= time() - $window ) {
 			continue;
 		}
-		foreach ( array( "$root/releases/$id", "$root/.playground-releases/.staging-$id", "$root/.playground-releases/$id", "$backups/$id" ) as $directory ) {
-			remove_tree( $directory );
+		try {
+			// Keep lifecycle metadata until public files, staging and backups are gone.
+			foreach ( array( "$root/releases/$id", "$root/.playground-releases/.staging-$id", "$backups/$id", "$root/.playground-releases/$id" ) as $directory ) {
+				remove_tree( $directory );
+			}
+		} catch ( Throwable $error ) {
+			// Private cleanup may delete release.json before another deletion fails.
+			// Restore it so the next prune can find and retry this expired release.
+			if ( ! is_file( $metadata ) ) {
+				write_file( $metadata, json_encode( $candidate, JSON_THROW_ON_ERROR ) . "\n" );
+			}
+			throw $error;
 		}
 		echo "Expired release $id\n";
 	}
@@ -411,16 +421,18 @@ function remove_root_file( $root, $path ) {
 	}
 }
 
-function remove_tree( $directory ) {
-	if ( ! is_dir( $directory ) ) {
+function remove_tree( $path ) {
+	if ( is_dir( $path ) && ! is_link( $path ) ) {
+		foreach ( new FilesystemIterator( $path ) as $file ) {
+			remove_tree( $file->getPathname() );
+		}
+		$removed = rmdir( $path );
+	} elseif ( file_exists( $path ) || is_link( $path ) ) {
+		$removed = unlink( $path );
+	} else {
 		return;
 	}
-	foreach ( new FilesystemIterator( $directory ) as $file ) {
-		if ( $file->isDir() && ! $file->isLink() ) {
-			remove_tree( $file->getPathname() );
-		} else {
-			unlink( $file->getPathname() );
-		}
+	if ( ! $removed ) {
+		throw new RuntimeException( "Cannot remove $path" );
 	}
-	rmdir( $directory );
 }

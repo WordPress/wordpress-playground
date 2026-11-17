@@ -63,7 +63,7 @@ Run the installer already on the server; a rollback needs no build or origins an
 finishes in seconds:
 
 ```sh
-ssh <user@host> PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh
+ssh -tt <user@host> PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh
 ```
 
 `previous` restores whatever was live before the current release; repeat it to step

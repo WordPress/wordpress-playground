@@ -21,7 +21,7 @@ set -euo pipefail
 #
 # To roll back, run the installer already on the server; it needs no build or origins:
 #
-#   ssh <user@host> PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh
+#   ssh -tt <user@host> PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh
 TARGET="${1:?Expected the SSH target, such as user@host}"
 APP_ORIGIN="${2:?Expected app origin}"
 WORDPRESS_ORIGIN="${3:?Expected WordPress origin}"

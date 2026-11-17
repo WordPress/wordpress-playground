@@ -270,8 +270,11 @@ export default function PlaygroundPreview({
 				blueprint?: object;
 			} = {
 				iframe: iframeRef.current,
-				// The runtime on this page's own app origin, not a fixed production host.
-				remoteUrl: getRemoteUrl().href,
+				// The standalone extras dev server has no remote.html. Deployed builds
+				// include it on this app's origin, so they use their own release.
+				remoteUrl: import.meta.env.DEV
+					? 'https://playground.wordpress.net/remote.html'
+					: getRemoteUrl().href,
 			};
 			if (finalBlueprint) {
 				configuration.blueprint = finalBlueprint;

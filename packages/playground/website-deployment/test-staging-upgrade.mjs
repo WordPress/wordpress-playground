@@ -25,6 +25,7 @@
  * when any check fails.
  */
 import { chromium, firefox, webkit } from '@playwright/test';
+import { waitForEdge } from '../website/playwright/wait-for-edge.ts';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -98,7 +99,7 @@ async function main() {
 		}
 
 		deploy(releaseA);
-		await waitForEdge(releaseA);
+		await waitForEdge(appOrigin, wordPressOrigin, releaseA);
 		step(`Upgrade from trunk to ${releaseA}`);
 		for (const session of sessions) {
 			await useOpenTab(session, { retainsFiles: false });
@@ -107,7 +108,7 @@ async function main() {
 		}
 
 		deploy(releaseB);
-		await waitForEdge(releaseB);
+		await waitForEdge(appOrigin, wordPressOrigin, releaseB);
 		step(`Upgrade from ${releaseA} to ${releaseB}`);
 		for (const session of sessions) {
 			await useOpenTab(session, { retainsFiles: true });
@@ -116,7 +117,7 @@ async function main() {
 		}
 
 		rollBack();
-		await waitForEdge(releaseA);
+		await waitForEdge(appOrigin, wordPressOrigin, releaseA);
 		step(`Roll back from ${releaseB} to ${releaseA}`);
 		for (const session of sessions) {
 			await useOpenTab(session, { retainsFiles: true });
@@ -126,7 +127,7 @@ async function main() {
 
 		// The emergency path for a first production deployment.
 		rollBack();
-		await waitForEdge('trunk');
+		await waitForEdge(appOrigin, wordPressOrigin, 'trunk');
 		step(`Roll back from ${releaseA} to trunk`);
 		for (const session of sessions) {
 			await useOpenTab(session, { retainsFiles: true });
@@ -422,38 +423,6 @@ function rollBack() {
 	if (result.status !== 0) {
 		throw new Error(`The rollback exited with ${result.status}`);
 	}
-}
-
-/**
- * Wait until the edge serves the active release's root files on both hosts.
- * The cache purge returns before every edge node has dropped its old copies.
- */
-async function waitForEdge(release) {
-	const started = Date.now();
-	// Trunk's layout has no release.json, and its /sw.js is a worker, not a loader.
-	const servesRelease = (text) =>
-		release === 'trunk'
-			? !text.includes('import "/releases/')
-			: text.includes(`import "/releases/${release}/sw.js";`);
-	while (Date.now() - started < 300000) {
-		const [active, ...loaders] = await Promise.all([
-			fetch(new URL('/release.json', appOrigin)).then((r) =>
-				r.ok ? r.json().then((manifest) => manifest.release) : 'trunk'
-			),
-			fetch(new URL('/sw.js', appOrigin)).then((r) => r.text()),
-			fetch(new URL('/sw.js', wordPressOrigin)).then((r) => r.text()),
-		]);
-		if (active === release && loaders.every(servesRelease)) {
-			console.log(
-				`INFO  the edge served ${release} after ${Math.round((Date.now() - started) / 1000)}s`
-			);
-			return;
-		}
-		await new Promise((resolve) => setTimeout(resolve, 2000));
-	}
-	throw new Error(
-		`The edge still serves another release than ${release} after 300s`
-	);
 }
 
 /** Run a check: true passes, a string or exception fails with that reason. */

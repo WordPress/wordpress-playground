@@ -43,9 +43,13 @@ LOCAL="${PLAYGROUND_LOCAL_RELEASES:-0}"
 DEPLOYMENT="$(cd "$(dirname "$0")" && pwd)"
 # Explicitly use the site's declared PHP version. The SSH default has been 7.4,
 # which cannot run this handler. Tests may supply their installed PHP binary.
-SITE_PHP="${SITE_PHP:-/usr/local/php${PHP_VERSION}/bin/php}"
+SITE_PHP="${SITE_PHP:-/usr/local/php${PHP_VERSION:?Expected PHP_VERSION or SITE_PHP}/bin/php}"
 if [ "$LOCAL" != 1 ]; then
+    # Check purge credentials before installing or restoring any root files.
+    : "${ATOMIC_SITE_API_KEY:?Expected ATOMIC_SITE_API_KEY}"
+    : "${ATOMIC_SITE_ID:?Expected ATOMIC_SITE_ID}"
     SITE_API_BASE="${SITE_API_BASE:-$( "$SITE_PHP" -r 'require "/scripts/env.php"; echo SITE_API_BASE;')}"
+    : "${SITE_API_BASE:?Expected SITE_API_BASE}"
 fi
 
 # Purge the edge cache for the hostnames the live release.json records. Do not report
@@ -53,6 +57,10 @@ fi
 # A purge without a domain clears only the site's primary domain, so name each host.
 purge_edge() {
     [ "$LOCAL" != 1 ] || return 0
+    if [ "$#" -eq 0 ]; then
+        echo "No hostnames to purge." >&2
+        return 1
+    fi
     for host in "$@"; do
         curl --fail --silent --show-error --max-time 60 -X POST \
             -H "Auth: $ATOMIC_SITE_API_KEY" \
@@ -161,8 +169,9 @@ mv "$STAGING" "$PUBLIC"
 # Replace the root entry files. release.json records both origins for later purges.
 "$SITE_PHP" "$DEPLOYMENT/apply-update.php" activate \
     "$WEB_ROOT" "$BACKUPS" "$RELEASE_ID" "$RETENTION_DAYS" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
-# shellcheck disable=SC2046 # One hostname per line.
-purge_edge $("$SITE_PHP" "$DEPLOYMENT/apply-update.php" hosts "$WEB_ROOT")
+hosts="$("$SITE_PHP" "$DEPLOYMENT/apply-update.php" hosts "$WEB_ROOT")"
+# shellcheck disable=SC2086 # One hostname per line.
+purge_edge $hosts
 
 # Prune only after the activation's edge purge, so a cleanup failure cannot leave
 # stale entry responses cached; it is still reported as a deployment error.

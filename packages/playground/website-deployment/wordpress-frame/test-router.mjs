@@ -21,6 +21,7 @@ import {
 	stat,
 	symlink,
 	writeFile,
+	utimes,
 } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { request as httpRequest } from 'node:http';
@@ -77,17 +78,26 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 		ATOMIC_SITE_API_KEY: 'test',
 		ATOMIC_SITE_ID: 'test',
 	};
-	const install = (release, upload, origins = [app, wordpress]) =>
+	const install = (
+		release,
+		upload,
+		{
+			origins = [app, wordpress],
+			root = webRoot,
+			snapshots = backups,
+			environment = {},
+		} = {}
+	) =>
 		run(
 			'bash',
 			[
 				join(deployment, 'apply-update.sh'),
 				...origins,
 				upload,
-				webRoot,
-				backups,
+				root,
+				snapshots,
 			],
-			{ env: { ...env, PLAYGROUND_RELEASE_ID: release } }
+			{ env: { ...env, PLAYGROUND_RELEASE_ID: release, ...environment } }
 		);
 	// Rollback runs the installer on the server with no build, origins or release ID.
 	const rollback = (target, extraEnv = {}) =>
@@ -98,11 +108,13 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 		error.stderr.includes(text) || error.stdout.includes(text);
 
 	await assert.rejects(
-		install('A', await makeBuild('A'), ['https://App.example', wordpress]),
+		install('A', await makeBuild('A'), {
+			origins: ['https://App.example', wordpress],
+		}),
 		failure('canonical form')
 	);
 	await assert.rejects(
-		install('A', await makeBuild('A'), [app, app]),
+		install('A', await makeBuild('A'), { origins: [app, app] }),
 		failure('different hostnames')
 	);
 	await assert.rejects(
@@ -152,6 +164,16 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 	}
 	await rm(webRoot, { recursive: true });
 	await mkdir(webRoot);
+
+	for (const key of ['ATOMIC_SITE_API_KEY', 'ATOMIC_SITE_ID']) {
+		const upload = await makeBuild('A');
+		await assert.rejects(
+			install('A', upload, { environment: { [key]: '' } }),
+			failure(`Expected ${key}`)
+		);
+		await stat(upload);
+		await assert.rejects(stat(join(webRoot, '.playground-releases/A')));
+	}
 
 	const first = await makeBuild('A');
 	await symlink('main.js', join(first, 'assets/alias.js'));
@@ -367,6 +389,19 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	const retired = JSON.parse(await readFile(retiredMetadata, 'utf8'));
 	retired.inactiveSince = 1;
 	await writeFile(retiredMetadata, JSON.stringify(retired));
+	const rootBeforeMissingCredentials = await readFile(
+		join(webRoot, 'release.json')
+	);
+	for (const key of ['ATOMIC_SITE_API_KEY', 'ATOMIC_SITE_ID']) {
+		await assert.rejects(
+			rollback('previous', { [key]: '' }),
+			failure(`Expected ${key}`)
+		);
+		assert.deepEqual(
+			await readFile(join(webRoot, 'release.json')),
+			rootBeforeMissingCredentials
+		);
+	}
 	// "previous" undoes the live release's deployment: B, restoring A.
 	await assert.rejects(
 		rollback('previous', { PLAYGROUND_TEST_PURGE_FAILURE: '1' }),
@@ -478,6 +513,59 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		stat(join(webRoot, '.playground-releases/.staging-F'))
 	);
 
+	// Cleanup failure/retry: public, backup and private-directory deletions must
+	// fail loudly and keep lifecycle metadata, even if its file was already unlinked.
+	for (const kind of ['public', 'backup', 'private']) {
+		const id = `cleanup-${kind}`;
+		const publicPath = join(webRoot, 'releases', id);
+		const privatePath = join(webRoot, '.playground-releases', id);
+		const snapshotPath = join(backups, id);
+		for (const directory of [publicPath, privatePath, snapshotPath])
+			await mkdir(directory);
+		await writeFile(join(publicPath, 'asset.txt'), 'expired public file');
+		await writeFile(join(snapshotPath, 'snapshot.txt'), 'expired backup');
+		const metadataPath = join(privatePath, 'release.json');
+		await writeFile(
+			metadataPath,
+			JSON.stringify({ release: id, inactiveSince: 1 })
+		);
+		const locked =
+			kind === 'public'
+				? publicPath
+				: kind === 'backup'
+					? snapshotPath
+					: join(webRoot, '.playground-releases');
+		await chmod(locked, 0o555);
+		try {
+			await assert.rejects(
+				run(env.SITE_PHP, [
+					join(deployment, 'apply-update.php'),
+					'prune',
+					webRoot,
+					backups,
+					'30',
+				]),
+				failure('Cannot remove')
+			);
+			assert.equal(
+				JSON.parse(await readFile(metadataPath, 'utf8')).release,
+				id
+			);
+		} finally {
+			await chmod(locked, 0o755);
+		}
+		const retry = await run(env.SITE_PHP, [
+			join(deployment, 'apply-update.php'),
+			'prune',
+			webRoot,
+			backups,
+			'30',
+		]);
+		assert.match(retry.stdout, new RegExp(`Expired release ${id}`));
+		for (const directory of [publicPath, privatePath, snapshotPath])
+			await assert.rejects(stat(directory));
+	}
+
 	const expired = join(webRoot, '.playground-releases/B/release.json');
 	const inactive = JSON.parse(await readFile(expired, 'utf8'));
 	inactive.inactiveSince = 1;
@@ -514,6 +602,104 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	await assert.rejects(stat(join(webRoot, 'release.json')));
 	await assert.rejects(stat(join(webRoot, 'remote.html')));
 	await assert.rejects(stat(join(webRoot, 'new-page.html')));
+
+	// Untracked release retention: a prior active release without lifecycle metadata
+	// must survive activation and later pruning, even when its files look expired.
+	const isolatedRoot = join(temporary, 'untracked-site');
+	const isolatedBackups = join(temporary, 'untracked-backups');
+	const untrackedPaths = [
+		join(isolatedRoot, 'releases/untracked'),
+		join(isolatedRoot, '.playground-releases/untracked'),
+	];
+	for (const directory of untrackedPaths) {
+		await mkdir(directory, { recursive: true });
+		await writeFile(
+			join(directory, 'keep.txt'),
+			'untracked rollback files'
+		);
+		await utimes(directory, 1, 1);
+	}
+	await writeFile(
+		join(isolatedRoot, 'release.json'),
+		JSON.stringify({
+			release: 'untracked',
+			appOrigin: app,
+			wordPressOrigin: wordpress,
+		})
+	);
+	const isolated = { root: isolatedRoot, snapshots: isolatedBackups };
+	for (const id of ['tracked-first', 'tracked-second'])
+		await install(id, await makeBuild(id), isolated);
+	await run(env.SITE_PHP, [
+		join(deployment, 'apply-update.php'),
+		'prune',
+		isolatedRoot,
+		isolatedBackups,
+		'30',
+	]);
+	for (const directory of untrackedPaths)
+		assert.equal(
+			await readFile(join(directory, 'keep.txt'), 'utf8'),
+			'untracked rollback files'
+		);
+	await assert.rejects(stat(join(untrackedPaths[1], 'release.json')));
+
+	// Host lookup failures and empty output must not report a purge or prune files.
+	const phpWrapper = join(fakeBin, 'php-with-host-errors');
+	await writeFile(
+		phpWrapper,
+		`#!/usr/bin/env node
+if (process.argv[3] === 'hosts') {
+    if (process.env.PLAYGROUND_TEST_HOSTS_MODE === 'failure') {
+        process.stderr.write('Fixture host lookup failed\\n');
+        process.exit(17);
+    }
+    process.exit(0);
+}
+const result = require('node:child_process').spawnSync(${JSON.stringify(env.SITE_PHP)}, process.argv.slice(2), { stdio: 'inherit' });
+process.exit(result.status ?? 1);
+`
+	);
+	await chmod(phpWrapper, 0o755);
+	const keepUntilPurge = join(isolatedRoot, 'releases/waiting-for-purge');
+	const waitingMetadata = join(
+		isolatedRoot,
+		'.playground-releases/waiting-for-purge'
+	);
+	await mkdir(keepUntilPurge);
+	await mkdir(waitingMetadata);
+	await writeFile(
+		join(waitingMetadata, 'release.json'),
+		JSON.stringify({ release: 'waiting-for-purge', inactiveSince: 1 })
+	);
+	for (const mode of ['failure', 'empty']) {
+		const before = await readFile(purges, 'utf8');
+		const id = `hosts-${mode}`;
+		await assert.rejects(
+			install(id, await makeBuild(id), {
+				...isolated,
+				environment: {
+					SITE_PHP: phpWrapper,
+					PLAYGROUND_TEST_HOSTS_MODE: mode,
+				},
+			}),
+			failure(
+				mode === 'failure'
+					? 'Fixture host lookup failed'
+					: 'No hostnames to purge'
+			)
+		);
+		assert.equal(await readFile(purges, 'utf8'), before);
+		await stat(keepUntilPurge);
+		await stat(join(waitingMetadata, 'release.json'));
+	}
+	await install(
+		'after-host-errors',
+		await makeBuild('after-host-errors'),
+		isolated
+	);
+	await assert.rejects(stat(keepUntilPurge));
+	await assert.rejects(stat(waitingMetadata));
 
 	console.log(
 		'Static release contracts passed: validation, layout, zero PHP static requests, ' +
