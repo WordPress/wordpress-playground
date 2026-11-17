@@ -69,7 +69,17 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	await new Promise((resolve) => reservation.close(resolve));
 	const php = spawn(
 		'php',
-		['-S', `127.0.0.1:${port}`, '-t', webRoot, router],
+		// Tests replace the PHP entry during simulated outages and release switches.
+		// Read those changes immediately instead of replaying OPcache's old script.
+		[
+			'-d',
+			'opcache.enable=0',
+			'-S',
+			`127.0.0.1:${port}`,
+			'-t',
+			webRoot,
+			router,
+		],
 		{
 			stdio: ['ignore', 'ignore', 'pipe'],
 			env: { ...process.env, PHP_CLI_SERVER_WORKERS: '4' },

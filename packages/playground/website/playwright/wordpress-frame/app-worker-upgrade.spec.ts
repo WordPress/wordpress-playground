@@ -8,7 +8,7 @@ import { appOrigin as previewAppOrigin } from '../../bin/wordpress-frame/origins
 
 const webRoot = joinPaths(
 	__dirname,
-	'../../../../../dist/packages/playground/wordpress-frame-public'
+	'../../../../../dist/packages/playground/website-preview'
 );
 
 test('another release can finish loading while the app worker is replaced', async ({

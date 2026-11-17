@@ -6,7 +6,8 @@ vi.mock('./shared-playground-worker.ts?worker&url', () => ({
 import { connectSharedRuntime } from './connect-shared-runtime';
 import { RELOAD_REQUIRED, RUNTIME_CLOSED } from './shared-runtime';
 
-// Contract: independent tabs retire the previous owner before discovering a new one.
+// Personal WP opts into SharedWorker; the main Playground website uses dedicated workers.
+// Contract: Personal WP tabs retire the previous owner before discovering a new one.
 // Stale storage and concurrent startup can otherwise select different worker generations.
 describe('shared runtime discovery across deployments', () => {
 	let workers: MockWorker[];

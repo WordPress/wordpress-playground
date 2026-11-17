@@ -13,7 +13,7 @@ const test = base.extend<object, { pluginPost: string }>({
 	pluginPost: [
 		async ({ browserName }, use) => {
 			// CLI hosts only the external WordPress page containing the real plugin.
-			// Pass this PR's installed browser-preview origin to the fixture: it replaces
+			// Pass the installed browser-preview origin to the fixture: it replaces
 			// the plugin's production Playground URLs with that origin, leaving its SDK
 			// code intact. Embedded PHP then runs in the browser against our build.
 			const here = pathToFileURL(__filename);

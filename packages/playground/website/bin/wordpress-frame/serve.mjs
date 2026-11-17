@@ -17,7 +17,7 @@ const assetResponses = [];
 // Nx may start the preview from a package directory, so resolve from this script.
 const webRoot = fileURLToPath(
 	new URL(
-		'../../../../../dist/packages/playground/wordpress-frame-public/',
+		'../../../../../dist/packages/playground/website-preview/',
 		import.meta.url
 	)
 );

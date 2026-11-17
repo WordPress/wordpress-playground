@@ -8,9 +8,9 @@ import { joinPaths } from '@php-wasm/util';
 import { appOrigin as previewAppOrigin } from '../../bin/wordpress-frame/origins.mjs';
 
 // The installed preview web root: root entry copies and the release directory.
-const remoteDirectory = joinPaths(
+const webRoot = joinPaths(
 	__dirname,
-	'../../../../../dist/packages/playground/wordpress-frame-public'
+	'../../../../../dist/packages/playground/website-preview'
 );
 let server: Server;
 let appOrigin: string;
@@ -37,10 +37,7 @@ test.beforeAll(async () => {
 	app.get('/remote.html', async (_request, response) => {
 		// This fixture uses an ephemeral origin. Keep the real page's guard,
 		// configured for the fixture rather than the regular preview listener.
-		const html = await readFile(
-			joinPaths(remoteDirectory, 'remote.html'),
-			'utf8'
-		);
+		const html = await readFile(joinPaths(webRoot, 'remote.html'), 'utf8');
 		response
 			.type('html')
 			.send(
@@ -73,9 +70,7 @@ self.addEventListener('fetch', event => {
 			phpWorkerRequests.push(
 				request.get('X-Test-Worker-Release') ?? 'uncontrolled'
 			);
-			const script = await readFile(
-				joinPaths(remoteDirectory, request.path)
-			);
+			const script = await readFile(joinPaths(webRoot, request.path));
 			// Send headers and part of the real PHP worker script immediately, but
 			// leave its download unfinished while B activates. WebKit closes A's
 			// handled fetch at that point with "Service Worker context closed".
@@ -83,7 +78,7 @@ self.addEventListener('fetch', event => {
 			setTimeout(() => response.end(script), 1500);
 		}
 	);
-	app.use(express.static(remoteDirectory));
+	app.use(express.static(webRoot));
 	server = createServer(app);
 	await new Promise<void>((resolve) =>
 		server.listen(0, '127.0.0.1', resolve)

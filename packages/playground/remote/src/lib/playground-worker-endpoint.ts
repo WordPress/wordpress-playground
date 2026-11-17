@@ -433,12 +433,14 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	 * WordPress version. A saved site may contain a different version than requested;
 	 * using the requested version could select the wrong public asset directory.
 	 *
-	 * Older saved sites may lack wordpress-remote-asset-paths. Fetch that list from
-	 * the installed version's directory on the shared app origin and save it in the
-	 * site's files. The WordPress host serves virtual site pages, not these platform
-	 * downloads. Add the listed paths to the set used by createRequestHandler() to
-	 * distinguish omitted static files from normal WordPress 404s. If recovery fails,
-	 * log a warning and continue startup without the missing list.
+	 * Minified WordPress omits static files from its ZIP. wordpress-remote-asset-paths
+	 * tells createRequestHandler() which missing files to download, rather than
+	 * treating them as normal WordPress 404s. Older saved sites can lack this list;
+	 * this recovery also runs without a deployment. Fetch it for the installed WP
+	 * version from this app build's release directory and save it with the site.
+	 * Release URLs matter when reopening a saved site after an app deployment:
+	 * its list and asset pack must come from files that deployment actually serves.
+	 * If recovery fails, log a warning and continue startup without the missing list.
 	 */
 	protected async finalizeAfterBoot(
 		requestHandler: any,

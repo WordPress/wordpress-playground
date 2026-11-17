@@ -14,6 +14,10 @@ vi.mock('@wp-playground/wordpress', async (importOriginal) => ({
 
 afterEach(() => vi.unstubAllGlobals());
 
+// Minified WordPress leaves some assets out of its ZIP. This list tells the HTTP
+// handler which missing files to download instead of treating them as WordPress 404s.
+// Older saved sites can lack the list. Reopening one after deployment must fetch it
+// from the running app's release, where its WordPress asset pack is published.
 it.each(['/', '/releases/stored/'])(
 	'recovers a missing asset list from its runtime release: %s',
 	async (releaseBase) => {

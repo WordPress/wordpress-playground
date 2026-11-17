@@ -1,6 +1,6 @@
 # Two-host deployment on WP Cloud
 
-Updated as of **2026-11-16**, for PR #4613. Recheck this guide when changing the
+Updated as of **2026-11-17**, for PR #4613. Recheck this guide when changing the
 installer, browser worker protocol, or WP Cloud routing; the implementation is
 the source of truth for exact behavior.
 
@@ -18,6 +18,11 @@ on both. Only requests for missing files run PHP. All request handling for those
 lives in `../custom-redirects-lib.php`; there is no separate router to install.
 Personal WP keeps its existing entry and separate deployment script.
 
+The **WordPress bridge** (`wordpress-bridge.html`) is a hidden iframe on the
+sandbox origin. It carries HTTP requests from the sandbox service worker to PHP
+on the app origin, then carries the responses back. Older comments and URLs may
+call this the request helper; they refer to the same document.
+
 ## Before the first deployment
 
 Both names must map to the same WP Cloud site and have valid TLS. Set
@@ -33,6 +38,20 @@ Nginx rule.
 
 Do not run this deployment script on an unrelated WordPress installation.
 
+## Checks before activation
+
+The Vite plugin adds page checks during the build. Independently, the installer
+walks every uploaded app HTML file (including copied and nested pages) and refuses
+the upload if any page lacks its expected origin check. The bridge must name the
+sandbox origin; the other pages must name the app origin. Omitting the plugin
+therefore fails deployment before activation. Installer tests cover missing
+checks and a bridge built for the wrong origin. Browser tests execute the checks
+at both root and release URLs.
+
+WordPress's own documents under `wp-*` are checked separately by the parsed-document
+scanner, which is required by the build and WordPress asset publication targets.
+These are passive templates/images, not app entry pages.
+
 ## What the deployment does
 
 The website deployment workflow configures both origins in its job environment
@@ -46,10 +65,9 @@ VITE_WORDPRESS_SITE_URL: https://wpsandbox.wordpress.net
 With `PLAYGROUND_RELEASE_ID` set, Vite builds with base `/releases/<id>/`, so
 every asset URL names its release. It also adds an inline check to the top of
 every app HTML page, including copied public pages, which stops the page before
-any script loads unless it runs on its intended origin: the WordPress request
-helper on the sandbox, everything else on
+any script loads unless it runs on its intended origin: the WordPress bridge (`wordpress-bridge.html`) on the sandbox, everything else on
 the app origin. Both hostnames serve every file, so this check is what keeps app
-pages off the sandbox host and the helper off the app host.
+pages off the sandbox host and the bridge off the app host.
 
 The build also parses WordPress HTML, XHTML, SVG (including SVGZ), and XML documents and rejects
 active content using DOMPurify. This includes event attributes, encoded script
@@ -57,9 +75,11 @@ URLs, embedded documents, SVG animation, and XML stylesheet instructions. It
 checks the parsed tree without rewriting the original template or image bytes.
 XML documents must use UTF-8; unsupported encodings fail the build rather than
 bypass inspection. Malformed XML fails closed because browsers can execute a valid prefix before a later parse error.
-The exact path and SHA-256 exceptions in `../../wordpress-builds/build/static-document-exceptions.json`
+The WordPress-relative path and SHA-256 exceptions in `../../wordpress-builds/build/static-document-exceptions.json`
 cover only reviewed upstream SVG defects: duplicate `fill` attributes in dashboard backgrounds
-and JSX-style opacity attributes in six sides icons. Changed bytes require another review.
+and JSX-style opacity attributes in six sides icons. The same reviewed path and
+bytes are accepted in new WordPress versions automatically. Changed bytes or new
+paths require another review; never generate approvals from scan failures.
 Passive XML/editor namespaces are ignored while their HTML/SVG/MathML descendants are inspected.
 `playground-wordpress-builds:validate-static-documents` caches this scan through Nx by assets,
 policy, reviewed exceptions and dependency lockfile. Asset refreshes and publication depend on it;
@@ -135,7 +155,7 @@ exceptions, HEAD requests, and native PHP environment setup. Static files come
 from the active public release; PHP endpoints from its private directory. This
 keeps the custom headers on stable public URLs such as `/client/index.js`.
 
-On the sandbox host, PHP serves the active release's request helper for the
+On the sandbox host, PHP serves the active release's WordPress bridge for the
 versioned `/wordpress-bridge-<build-version>.html` URLs that older clients use,
 and returns 404 for everything else. No app redirects or PHP endpoints run there.
 
@@ -191,7 +211,7 @@ restored release to remain on disk.
 
 App pages run only at their web-root URL, which serves the active release, so a fixed page in a
 retained release cannot start at its `/releases/<id>/` path. Retained assets, WordPress static
-documents and request helpers remain reachable. For urgent revocation of those, first activate
+documents and WordPress bridges remain reachable. For urgent revocation of those, first activate
 or restore a known-safe release, then remove the vulnerable
 ID from both `releases/` and `.playground-releases/` and its backup, and purge the edge cache.
 Do not wait for retention when a retained bundle is vulnerable. Already loaded documents and

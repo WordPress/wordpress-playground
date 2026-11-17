@@ -8,11 +8,25 @@ import exceptions from '../playground/wordpress-builds/build/static-document-exc
 import { basename, joinPaths } from '../php-wasm/util/src/lib/paths.ts';
 
 /**
- * Check WordPress documents before publishing them on the app origin. Use the
- * browser's document model and DOMPurify's maintained policy instead of matching
- * script spellings. Reject changes; never rewrite WordPress templates or SVGs.
+ * Both production hostnames serve the same static files, including WordPress's
+ * templates and images. A script hidden in one of those documents could run on
+ * the app origin and read saved sites. Reject active content before publishing.
+ * Use the browser's document model and DOMPurify's maintained policy instead of matching
+ * script spellings. Reject files that would need sanitizing rather than rewriting
+ * them: these bytes also belong to WordPress, and changing its templates or SVGs
+ * could break rendering, updates, or file checksums.
  */
 export async function validateWordPressStaticDocuments(directory) {
+	// Review each WordPress-relative path and hash once. Expand to the versions
+	// present in this build so adding a WordPress version needs no copied entries.
+	// Changed bytes or paths still fail; never approve new defects automatically.
+	const reviewedFiles = new Map();
+	for (const entry of await readdir(directory, { withFileTypes: true })) {
+		if (!entry.isDirectory() || !entry.name.startsWith('wp-')) continue;
+		for (const [path, hash] of Object.entries(exceptions)) {
+			reviewedFiles.set(joinPaths(entry.name, path), hash);
+		}
+	}
 	for (const file of await readdir(directory, { recursive: true })) {
 		if (
 			!/^wp-[^/]+\//.test(file) ||
@@ -72,7 +86,7 @@ export async function validateWordPressStaticDocuments(directory) {
 			// Only reviewed, byte-identical upstream defects may bypass parsing.
 			if (!isHtml && error.name === 'SyntaxError') {
 				if (
-					exceptions[file] ===
+					reviewedFiles.get(file) ===
 					createHash('sha256').update(bytes).digest('hex')
 				)
 					continue;
@@ -223,9 +237,10 @@ function removeComments(node) {
  *
  * App pages also require their web-root URL. Every retained release stays public
  * under /releases/<id>/ for open tabs, which need its assets, not its pages; the
- * app always loads pages from the root. A fixed page in an old release therefore
- * cannot start. Old tabs load the request helper from their release, so it keeps
- * only the origin requirement.
+ * app always loads pages from the root. If we fix a security bug in an app page,
+ * someone must not be able to open its old copy at /releases/<id>/ and run that
+ * vulnerable code on the app origin. Old tabs load the WordPress bridge from their
+ * release, so it keeps only the origin requirement.
  */
 export async function protectStaticReleasePages(
 	directory,

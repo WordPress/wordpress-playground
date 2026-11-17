@@ -13,10 +13,12 @@ export function runtimeStaticAssetsDirectory(details: {
 	if (
 		details.staticAssetsDirectory &&
 		isParentOf('/releases', joinPaths('/', details.staticAssetsDirectory))
-	)
+	) {
 		return details.staticAssetsDirectory;
-	// PRE_RELEASE_ASSETS_COMPAT: pre-PR runtimes omit releaseBase. Portable builds
-	// explicitly use '/'; keep that supported layout when retiring the old-tab fallback.
+	}
+
+	// PRE_RELEASE_ASSETS_COMPAT: older root-only production runtimes omit releaseBase.
+	// Portable builds explicitly use '/'; preserve that layout when retiring this fallback.
 	return details.staticAssetsDirectory
 		? joinPaths(
 				'.',

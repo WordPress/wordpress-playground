@@ -319,8 +319,9 @@ self.addEventListener('fetch', (event) => {
 		url.origin === self.location.origin &&
 		(isWordPressBridgePath(url.pathname) || isOwnReleaseHelper)
 	) {
-		// PRE_RELEASE_HELPER_URL_COMPAT: pre-PR tabs use root helper aliases.
-		// Portable builds still use them; see the deployment removal checklist.
+		// PRE_RELEASE_HELPER_URL_COMPAT: builds without release directories use root
+		// bridge aliases. Development and portable builds still use them too; see
+		// the deployment removal checklist.
 		// Release A's worker may still be active after release B is deployed.
 		// If it answers B's helper URL, its HTML will still name A's script,
 		// which the server may have removed. Generate HTML only for this worker's
@@ -542,12 +543,10 @@ self.addEventListener('fetch', (event) => {
 	 *
 	 * ## The problem with deployments
 	 *
-	 * App deployments remove all the static assets associated with the
-	 * previous app version. Meanwhile, cached entry documents still hold
-	 * references to those assets.
-	 *
-	 * If we just loaded a cached entry document, the client would crash
-	 * with seemingly random errors.
+	 * Cached entry documents reference their own build's assets. Managed releases
+	 * retain those files for 30 days after becoming inactive; older root-only
+	 * deployments replaced them immediately. Replaying an old entry online can
+	 * therefore reference expired files or keep running code we have since fixed.
 	 *
 	 * Instead, we fetch the most recent version of each entry document from
 	 * the network.

@@ -1,11 +1,13 @@
 /**
- * Give each app build its own helper document URL.
+ * Build-version URL used by development and portable builds for the WordPress
+ * bridge (wordpress-bridge.html), the hidden iframe that relays HTTP to PHP.
+ * Production builds with release directories use /releases/<id>/wordpress-bridge.html.
  *
- * For example, a browser can still run release A's WordPress worker after
- * release B is deployed. A's helper HTML names A's script, which B may no longer
- * serve. Including B's buildVersion in the helper path lets that request reach
- * the server, so the deployed helper can load its script and update the worker
- * before PHP startup finishes.
+ * PRE_RELEASE_HELPER_URL_COMPAT: root aliases are legacy on production hosts.
+ * Before release directories, an installed worker could return bridge HTML that
+ * named a script the next deployment removed. A new build's URL must reach the
+ * server so it gets the deployed bridge and updates the worker before PHP starts.
+ * Keep these URLs for development and portable builds when retiring old production aliases.
  */
 export function getWordPressBridgePath(buildVersion: string): string {
 	return `/wordpress-bridge-${buildVersion}.html`;

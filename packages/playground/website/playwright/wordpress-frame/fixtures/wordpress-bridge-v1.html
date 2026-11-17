@@ -1,5 +1,10 @@
 <!doctype html>
-<!-- Frozen v1 helper wire protocol. Do not update alongside production messages. -->
+<!--
+	An older WordPress bridge, kept as a test fixture. Its message fields and body
+	stream format must stay as they were, even when the production bridge changes.
+	The upgrade test checks that a new service worker can still talk to this bridge
+	in an already-open tab. Updating both together could hide a breaking change.
+-->
 <script type="module">
 	const appOrigin = '__APP_ORIGIN__';
 	const scope = new URL(location.href).searchParams.get('scope');
@@ -32,8 +37,8 @@
 		)
 			return;
 		const { requestId, response } = event.data;
-		// V1 reconstructs the body channel before its second cross-origin transfer.
-		// Keep this wire fixture independent of current stream utility implementations.
+		// Forward body chunks through a new port before sending them across origins again.
+		// Keep this old implementation here; importing today's utility would change the test.
 		if (response.bodyPort) {
 			const source = response.bodyPort;
 			const { port1, port2 } = new MessageChannel();

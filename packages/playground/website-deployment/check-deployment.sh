@@ -130,7 +130,7 @@ done
 request "$WORDPRESS/remote.html"
 expect_body "location.origin!==\"$APP\"" "WordPress host /remote.html stops itself (checks for the app origin)"
 
-# The request helper is framed by the app, so frame-blocking headers would break it.
+# The WordPress bridge is framed by the app, so frame-blocking headers would break it.
 for path in "$BASE/wordpress-bridge.html" /wordpress-bridge.html; do
     request "$WORDPRESS$path"
     expect_status 200 "WordPress host $path"

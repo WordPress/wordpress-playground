@@ -253,7 +253,8 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		header( "Content-Type: $content_type" );
 	}
 
-	// PRE_RELEASE_ASSETS_COMPAT: pre-PR tabs fetch /wp-<version> and root scripts
+	// PRE_RELEASE_ASSETS_COMPAT: tabs loaded before release directories fetch
+	// /wp-<version> and root scripts
 	// from the app host. Keep their CORS headers until those tabs are retired.
 	// Other public API URLs also need CORS; do not remove this entire rule.
 	// Personal WP keeps its existing public-file headers.

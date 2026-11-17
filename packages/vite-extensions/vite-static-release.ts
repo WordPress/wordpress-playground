@@ -5,7 +5,7 @@ import { isValidReleaseId } from '../playground/remote/src/lib/release-id';
 /**
  * Both WP Cloud hostnames serve the same files, so every page is reachable on
  * both. Stop each static release page before any of its scripts load unless it
- * runs on its intended origin: the WordPress request helper on the sandbox,
+ * runs on its intended origin: the WordPress WordPress bridge on the sandbox,
  * everything else on the app origin, where PHP and saved sites live. App pages
  * must also be at their web-root URL, so retained releases' pages cannot start.
  *

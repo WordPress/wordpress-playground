@@ -231,6 +231,31 @@ describe('static release documents', () => {
 		).toBe(source);
 	});
 
+	// A new WordPress version may ship the same reviewed XML defect. Expanding
+	// exceptions across versions must not also accept a new path or changed bytes.
+	it('reuses a reviewed defect across versions but still requires its path and bytes', async () => {
+		const source = await readFile(
+			joinPaths(
+				__dirname,
+				'../playground/wordpress-builds/public/wp-6.9/wp-admin/images/dashboard-background.svg'
+			)
+		);
+		const images = joinPaths(directory, 'wp-future/wp-admin/images');
+		await mkdir(images, { recursive: true });
+		const file = joinPaths(images, 'dashboard-background.svg');
+		await writeFile(file, source);
+		await validateWordPressStaticDocuments(directory);
+		await writeFile(joinPaths(images, 'unreviewed.svg'), source);
+		await expect(
+			validateWordPressStaticDocuments(directory)
+		).rejects.toThrow('Malformed WordPress static document');
+		await rm(joinPaths(images, 'unreviewed.svg'));
+		await writeFile(file, Buffer.concat([source, Buffer.from('\n')]));
+		await expect(
+			validateWordPressStaticDocuments(directory)
+		).rejects.toThrow('Malformed WordPress static document');
+	});
+
 	it('checks compressed SVG documents as well as plain SVG', async () => {
 		await mkdir(joinPaths(directory, 'wp-6.9'));
 		await writeFile(

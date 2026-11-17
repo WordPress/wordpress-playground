@@ -19,10 +19,7 @@ const upgradeApp = new URL(appOrigin);
 const upgradeWordPress = new URL(wordPressOrigin);
 upgradeApp.port = upgradeWordPress.port = '7999';
 for (const [webRoot, origins] of [
-	[
-		'dist/packages/playground/wordpress-frame-public',
-		[appOrigin, wordPressOrigin],
-	],
+	['dist/packages/playground/website-preview', [appOrigin, wordPressOrigin]],
 	[
 		'dist/packages/playground/wasm-wordpress-net-new',
 		[upgradeApp.origin, upgradeWordPress.origin],
