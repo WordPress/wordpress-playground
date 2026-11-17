@@ -204,12 +204,6 @@ if (!isRemoteModule) {
 		await fs.rm(wordpressDir, { recursive: true });
 	}
 
-	// Use the mount owner's container IDs: rootless Docker maps the caller to UID 0,
-	// while rootful Docker exposes the host UID. Only rootful exports need repair.
-	const restoreOutputOwnershipCommand =
-		'if [ "$(stat -c %u /output)" != 0 ]; then ' +
-		'chown -R --reference=/output /output; fi';
-
 	// Extract the WordPress static root with wp-includes/ etc
 	await asyncSpawn(
 		'docker',
@@ -224,7 +218,9 @@ if (!isRemoteModule) {
 			'sh',
 			'-c',
 			`cp -r /root/output/wp-${versionInfo.slug} /output/ && ` +
-				restoreOutputOwnershipCommand,
+				getRestoreOutputOwnershipCommand(
+					`/output/wp-${versionInfo.slug}`
+				),
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
@@ -242,8 +238,10 @@ if (!isRemoteModule) {
 			'wordpress-playground',
 			'sh',
 			'-c',
-			`cp /root/output/*.zip /output/ && ` +
-				restoreOutputOwnershipCommand,
+			`cp /root/output/wp-${versionInfo.slug}.zip /output/ && ` +
+				getRestoreOutputOwnershipCommand(
+					`/output/wp-${versionInfo.slug}.zip`
+				),
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
@@ -286,6 +284,17 @@ if (isRemoteModule) {
 		'node',
 		['build-tar-zst.mjs', `--version=${versionInfo.slug}`, '--delete-zip'],
 		{ cwd: sourceDir, stdio: 'inherit' }
+	);
+}
+
+/**
+ * Repair only the exported path, using the mount owner's container-visible IDs.
+ * Rootless Docker already writes as that owner (UID 0), so it needs no repair.
+ */
+function getRestoreOutputOwnershipCommand(exportedPath) {
+	return (
+		'if [ "$(stat -c %u /output)" != 0 ]; then ' +
+		`chown -R --reference=/output "${exportedPath}"; fi`
 	);
 }
 
