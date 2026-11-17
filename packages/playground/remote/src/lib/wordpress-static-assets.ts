@@ -9,7 +9,7 @@ export function runtimeStaticAssetsDirectory(details: {
 	staticAssetsDirectory?: string;
 	releaseBase?: string;
 }): string | undefined {
-	// The helper iframe may have already added /releases/A/. Do not add it again.
+	// The bridge iframe may have already added /releases/A/. Do not add it again.
 	if (
 		details.staticAssetsDirectory &&
 		isParentOf('/releases', joinPaths('/', details.staticAssetsDirectory))

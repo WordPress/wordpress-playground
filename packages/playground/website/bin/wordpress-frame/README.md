@@ -55,21 +55,20 @@ every page that production publishes. See the
   The top-level app can use its normal native folder picker. The save controls
   check the PHP iframe's origin, not the rendered WordPress URL. No popup or
   cross-origin filesystem protocol is added.
-- The WordPress origin registers a service worker through a small helper page.
-  Each app build puts its buildVersion in the helper URL. A browser worker installed
-  during a previous visit lets URLs naming other builds reach the server, rather
-  than return HTML naming its own release's script, which may no longer be served.
-  The deployed helper registers the deployed WordPress worker and waits for it
-  to activate before reporting ready.
-  Requests travel through that helper to the assigned PHP worker. Responses keep
-  the existing streamed-body transport.
-- Each app build loads its helper from its own release directory on the WordPress
-  host, which the WordPress service worker passes to the server. The worker
-  generates helper HTML for older clients' versioned URLs itself. It never loads
-  platform code from WordPress-origin CacheStorage, which every WordPress page can
-  modify. Release files are served on both hosts, so the helper, the thumbnail
-  renderer, and static WordPress files load from the WordPress host without CORS.
-- The helper can request HTTP responses for its assigned URL scope and read the
+- The **WordPress bridge** (`wordpress-bridge.html`) is a hidden iframe on the
+  WordPress origin. It registers the WordPress service worker and waits for it to
+  activate before reporting ready. HTTP requests travel through the bridge to the
+  assigned PHP worker; responses keep the existing streamed-body transport.
+- Production apps load `/releases/<id>/wordpress-bridge.html` for their own release.
+  Development and portable builds use `/wordpress-bridge-<buildVersion>.html`.
+  The WordPress worker generates trusted HTML for its own release path, its matching
+  build-version alias, and the unversioned compatibility alias. URLs naming other
+  releases or builds reach HTTP, so an installed worker cannot substitute a bridge
+  that names its own script. WordPress-origin CacheStorage is never used for this
+  platform code because every WordPress page can modify it. Release files are served
+  on both hosts, so the bridge, thumbnail renderer, and static WordPress files load
+  from the WordPress host without CORS.
+- The bridge can request HTTP responses for its assigned URL scope and read the
   public static-asset directory name. It cannot invoke arbitrary PHP client
   methods, mount a directory, or choose a different runtime.
 - Window-backed client APIs accept messages only from their connected window.
@@ -170,8 +169,8 @@ npx nx run playground-website:e2e:wordpress-frame --args='wordpress-frame.spec.t
 ```
 
 The browser checks cover direct parent OPFS access, rejected child PHP API calls,
-restricted helper methods, saved-site switching without replacing the SPA,
-shared PHP/WordPress downloads, cache-poisoning attempts against the helper and
+restricted bridge methods, saved-site switching without replacing the SPA,
+shared PHP/WordPress downloads, cache-poisoning attempts against the bridge and
 thumbnail-worker loader, warm offline startup, editor saves, the same-origin
 directory-handle path, current-URL reporting, two-way app/WordPress messages,
 outside-click dismissal, and cross-origin OAuth popups. The folder test

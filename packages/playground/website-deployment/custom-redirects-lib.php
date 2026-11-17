@@ -24,7 +24,7 @@ function playground_is_static_file_needing_special_treatment( $path ) {
  * Nginx serves files that exist in the web root, including every public
  * releases/<id>/ directory, on both hostnames. Only requests for missing files
  * reach this handler. On the configured sandbox host it serves the request
- * helper for versioned helper URLs, sends scoped navigations to the app, and
+ * bridge for versioned bridge URLs, sends scoped navigations to the app, and
  * returns 404 for everything else: never app files, redirects, or PHP endpoints.
  *
  * The deployment script passes the active public release directory and its
@@ -93,9 +93,9 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 			header( 'Location: ' . $app_origin . $_SERVER['REQUEST_URI'], true, 302 );
 			exit;
 		}
-		// PRE_RELEASE_HELPER_URL_COMPAT: tabs opened before release directories use
-		// root helper aliases. Serve the active helper until those clients are retired.
-		// Nginx already served current managed releases' /releases/<id>/ helper files.
+		// PRE_RELEASE_BRIDGE_URL_COMPAT: tabs opened before release directories use
+		// root bridge aliases. Serve the active bridge until those clients are retired.
+		// Nginx already served current managed releases' /releases/<id>/ bridge files.
 		if ( '/wordpress-bridge.html' === $original_requested_path ||
 			preg_match( '~^/wordpress-bridge-[a-f0-9]+\.html$~D', $original_requested_path )
 		) {

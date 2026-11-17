@@ -126,8 +126,8 @@ describe('static release documents', () => {
 				joinPaths(directory, 'dist', file),
 				'utf8'
 			);
-			const isHelper = file === 'wordpress-bridge.html';
-			const expected = isHelper
+			const isBridge = file === 'wordpress-bridge.html';
+			const expected = isBridge
 				? 'https://wordpress.example'
 				: 'https://app.example';
 			for (const origin of [
@@ -143,10 +143,10 @@ describe('static release documents', () => {
 					const guard = dom.window.document.head.firstElementChild!;
 					expect(guard.tagName).toBe('SCRIPT');
 					const execute = () => dom.window.eval(guard.textContent!);
-					// Old tabs load their own release's helper by its release path.
+					// Old tabs load their own release's bridge by its release path.
 					const runs =
 						origin === expected &&
-						(isHelper || !path.startsWith('/releases/'));
+						(isBridge || !path.startsWith('/releases/'));
 					if (runs) expect(execute, origin + path).not.toThrow();
 					else
 						expect(execute, origin + path).toThrow(

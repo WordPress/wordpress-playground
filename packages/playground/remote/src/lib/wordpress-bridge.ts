@@ -1,7 +1,7 @@
 /**
  * Relay HTTP messages between the WordPress service worker and app-origin PHP.
  *
- * This script runs in a hidden WordPress-origin helper iframe, not in remote.html
+ * This script runs in a hidden WordPress-origin bridge iframe, not in remote.html
  * or the visible WordPress page. Its URL names the app's release directory (or
  * buildVersion in development and portable builds).
  * The service worker can reach this iframe because they share an origin. The
@@ -15,13 +15,14 @@
  * PHP. No directory handles or general PHP API connection cross this iframe.
  *
  * The document and its release-qualified module URL are served on the WordPress
- * origin. The build supplies playgroundOrigin explicitly. Workers generate helper
- * HTML only for their own buildVersion; other versions reach the server.
+ * origin. The build supplies playgroundOrigin explicitly. Workers generate bridge
+ * HTML for their own release path, matching build-version alias, and unversioned
+ * compatibility alias. Other releases and builds reach HTTP.
  *
- * An older tab keeps using its helper iframe from /releases/A/ even after the
+ * An older tab keeps using its bridge iframe from /releases/A/ even after the
  * service worker updates to B. Both must still agree on message fields (scope,
  * requestId and the bodyPort used to stream a response) while A is supported.
- * RELEASE_HELPER_PROTOCOL_COMPAT: keep these fields compatible with older helpers.
+ * RELEASE_BRIDGE_PROTOCOL_COMPAT: keep these fields compatible with older bridges.
  * PRE_RELEASE_ASSETS_COMPAT: runtimes built before /releases/<id>/ asset URLs
  * omit releaseBase and use app-host paths such as /wp-6.8. Portable builds explicitly
  * use releaseBase: '/'.
@@ -33,7 +34,7 @@ import { buildVersion } from 'virtual:remote-config';
 
 const scope = new URL(location.href).searchParams.get('scope');
 // The host serves /sw.js as a same-origin loader for the app's public worker.
-// Keep this URL literal: the service worker also bundles this helper for offline HTML.
+// Keep this URL literal: the service worker also bundles this bridge for offline HTML.
 const workerUrl = new URL('/sw.js', location.origin);
 // PRE_SANDBOX_CDN_COMPAT: introduced by #4526, before release directories, when
 // WordPress moved from the app host to wpsandbox.wordpress.net. The CDN could still
@@ -89,7 +90,7 @@ window.addEventListener('message', (event) => {
 	)
 		return;
 	const { requestId, response } = event.data;
-	// Rebuild the stream bridge instead of transferring the same port twice.
+	// Rebuild the body stream channel instead of transferring the same port twice.
 	// Firefox can lose queued body chunks when the producer closes during that second transfer.
 	// https://bugzilla.mozilla.org/show_bug.cgi?id=2077609
 	if (response.bodyPort) {

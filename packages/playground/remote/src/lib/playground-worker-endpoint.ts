@@ -166,7 +166,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		});
 	}
 
-	/** Give PHP the same public WordPress origin used by its iframe and HTTP helper. */
+	/** Give PHP the same public WordPress origin used by its iframe and HTTP bridge. */
 	protected computeSiteUrl(scope: string) {
 		return setURLScope(wordPressSiteUrl, scope).toString();
 	}

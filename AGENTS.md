@@ -79,7 +79,7 @@ npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 Normal loopback website development keeps the SPA, PHP, OPFS, and directory
 handles on `127.0.0.1:5400`, with rendered WordPress on `127.0.0.1:4400`.
 `localhost` uses the same two ports. Vite's app proxy preserves the app Host;
-the remote server restricts direct WordPress-port requests to the HTTP helper and
+the remote server restricts direct WordPress-port requests to the WordPress bridge and
 worker loaders. Standalone remote, Personal WP, sync, and forwarded hosts retain
 their previous routing. Do not replace either server with an auto-selected port.
 A single Chromium CI smoke test covers the live Vite module graph; the full
@@ -130,7 +130,7 @@ missing paths. Inactive releases expire after 30 days (configurable), protecting
 replaced/deleted files and remove newly introduced ones with the same installer.
 Do not add a second installer script. Host checks live in
 `website-deployment/custom-redirects-lib.php`, reached through its existing
-`playground_handle_request()` entry point. The sandbox host serves only helper
+`playground_handle_request()` entry point. The sandbox host serves only bridge
 aliases for older clients and returns 404 otherwise, with scoped top-level GET
 navigations redirected to the configured app origin. Scoped app navigations serve
 the trusted WordPress iframe wrapper; iframe and subresource requests never

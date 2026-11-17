@@ -59,8 +59,8 @@
  * ### CacheStorage in the service worker
  *
  * In the split-origin setup, the WordPress origin never uses CacheStorage for
- * platform assets: every WordPress page can replace those entries. Its helper
- * HTML for older clients is generated below from trusted worker code. Release
+ * platform assets: every WordPress page can replace those entries. Its bridge
+ * HTML is generated below from trusted worker code. Release
  * files come from the server and the browser HTTP cache. The app
  * keeps its own origin-protected CacheStorage for PHP and WordPress downloads.
  *
@@ -137,7 +137,7 @@ import {
 	getWordPressBridgePath,
 	isWordPressBridgePath,
 } from './src/lib/wordpress-bridge-path';
-// @ts-ignore -- Vite bundles the helper for both its network and worker-generated HTML.
+// @ts-ignore -- Vite bundles the bridge for both its network and worker-generated HTML.
 import wordpressBridgeScriptUrl from './src/lib/wordpress-bridge.ts?worker&url';
 
 import {
@@ -310,32 +310,31 @@ self.addEventListener('fetch', (event) => {
 		);
 	}
 
-	// A static release's app names the helper in its own release directory.
-	const isOwnReleaseHelper =
+	// A static release's app names the bridge in its own release directory.
+	const isOwnReleaseBridge =
 		usesMultiReleaseDirectoryLayout &&
 		url.pathname === joinPaths(releaseBase, 'wordpress-bridge.html');
 	if (
 		self.location.origin !== playgroundOrigin &&
 		url.origin === self.location.origin &&
-		(isWordPressBridgePath(url.pathname) || isOwnReleaseHelper)
+		(isWordPressBridgePath(url.pathname) || isOwnReleaseBridge)
 	) {
-		// PRE_RELEASE_HELPER_URL_COMPAT: builds without release directories use root
+		// PRE_RELEASE_BRIDGE_URL_COMPAT: builds without release directories use root
 		// bridge aliases. Development and portable builds still use them too; see
 		// the deployment removal checklist.
-		// Release A's worker may still be active after release B is deployed.
-		// If it answers B's helper URL, its HTML will still name A's script,
-		// which the server may have removed. Generate HTML only for this worker's
-		// buildVersion and the unversioned /wordpress-bridge.html compatibility URL.
-		// Helper URLs naming any other build must reach the server, which serves
-		// the deployed release's helper HTML and script URLs.
+		// An installed worker can belong to a different release than the app.
+		// Generate HTML only for our release path, our buildVersion alias, and the
+		// unversioned compatibility alias. Otherwise our HTML would substitute our
+		// script for the app's requested version. Other release paths fall through
+		// to HTTP below; let other build-version aliases reach HTTP here too.
 		if (
-			!isOwnReleaseHelper &&
+			!isOwnReleaseBridge &&
 			url.pathname !== '/wordpress-bridge.html' &&
 			url.pathname !== getWordPressBridgePath(buildVersion)
 		)
 			return;
 		// WordPress can replace any CacheStorage entry on this origin. Generate
-		// the helper from trusted worker code, including when starting offline.
+		// the bridge from trusted worker code, including when starting offline.
 		// Its script comes from the server, never WordPress-writable cached bytes.
 		// Static releases serve it on this host too, so no CORS is needed.
 		const scriptUrl = new URL(
@@ -346,7 +345,7 @@ self.addEventListener('fetch', (event) => {
 		);
 		return event.respondWith(
 			new Response(
-				`<!doctype html><title>WordPress request transport</title><script type="module" src=${JSON.stringify(scriptUrl.href)}></script>`,
+				`<!doctype html><title>WordPress bridge</title><script type="module" src=${JSON.stringify(scriptUrl.href)}></script>`,
 				{
 					headers: {
 						'Content-Type': 'text/html',

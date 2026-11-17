@@ -251,9 +251,9 @@ export async function protectStaticReleasePages(
 		if (!/\.html?$/i.test(file) || /^wp-[^/]+\//.test(file)) continue;
 		const path = joinPaths(directory, file);
 		const html = await readFile(path, 'utf8');
-		const isHelper = file === 'wordpress-bridge.html';
-		const expected = isHelper ? wordPressOrigin : appOrigin;
-		const pathCheck = isHelper
+		const isBridge = file === 'wordpress-bridge.html';
+		const expected = isBridge ? wordPressOrigin : appOrigin;
+		const pathCheck = isBridge
 			? ''
 			: `||!(${JSON.stringify(rootPathnames(file))}.includes(location.pathname)` +
 				// Scoped app navigations receive the WordPress wrapper page.

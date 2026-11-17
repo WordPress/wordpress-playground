@@ -21,7 +21,7 @@ export type SharedRuntimeAPI = PlaygroundWorkerEndpoint & {
  * runtime per tab. Personal WP opts into this mode; normal website tabs do not.
  * On an update, wait for the old runtime to finish work and save its files before
  * connecting to the replacement, so two versions cannot write the site at once.
- * Sandbox HTTP requests still use the helper, not a direct app-service-worker port.
+ * Sandbox HTTP requests still use the bridge, not a direct app-service-worker port.
  */
 export async function connectSharedRuntime(
 	scope: string,
@@ -110,7 +110,7 @@ export async function connectSharedRuntime(
 		},
 	});
 
-	/** Keep sandbox HTTP on the helper path, including after a worker restart. */
+	/** Keep sandbox HTTP on the bridge path, including after a worker restart. */
 	const register = (serviceWorker: ServiceWorker) => {
 		if (wordPressSiteUrl !== playgroundOrigin) return;
 		if (retired) {

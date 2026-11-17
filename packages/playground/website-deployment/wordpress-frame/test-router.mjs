@@ -115,7 +115,7 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 		install('A', unchecked),
 		failure('remote.html does not check for https://app.example')
 	);
-	// Every page is checked, including copied pages, and the helper names the sandbox.
+	// Every page is checked, including copied pages, and the bridge names the sandbox.
 	const nested = await makeBuild('A');
 	await writeFile(
 		join(nested, 'builder/builder.html'),
@@ -125,13 +125,13 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 		install('A', nested),
 		failure('builder/builder.html does not check')
 	);
-	const helperOnApp = await makeBuild('A');
+	const bridgeOnApp = await makeBuild('A');
 	await writeFile(
-		join(helperOnApp, 'wordpress-bridge.html'),
-		guard(app) + 'helper'
+		join(bridgeOnApp, 'wordpress-bridge.html'),
+		guard(app) + 'bridge'
 	);
 	await assert.rejects(
-		install('A', helperOnApp),
+		install('A', bridgeOnApp),
 		failure('does not check for https://wordpress.example')
 	);
 	// Nginx follows links, so they may name only build files, relative to themselves.
@@ -300,13 +300,13 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		assert.equal((await request(path, app)).status, 403, path);
 
 	// The WordPress host runs no app handler or endpoint. Old clients' versioned
-	// helper URLs receive the active release's helper.
+	// bridge URLs receive the active release's bridge.
 	for (const path of ['/', '/api.html', '/status.php', '/client/index.js']) {
 		assert.equal((await request(path, wordpress)).status, 404, path);
 	}
-	const helper = await request('/wordpress-bridge-abc123.html', wordpress);
-	assert.match(await helper.text(), /helper A$/);
-	assert.match(helper.headers.get('cache-control'), /no-store/);
+	const bridge = await request('/wordpress-bridge-abc123.html', wordpress);
+	assert.match(await bridge.text(), /bridge A$/);
+	assert.match(bridge.headers.get('cache-control'), /no-store/);
 
 	// A top-level navigation that no worker handled falls back to the app's
 	// wrapper. Other requests must not redirect: iframes would nest wrappers.
@@ -532,7 +532,7 @@ async function makeBuild(release) {
 		'api.html': `api ${release}`,
 		'remote.html': `remote ${release}`,
 		'wordpress-popup.html': `wrapper ${release}`,
-		'wordpress-bridge.html': `helper ${release}`,
+		'wordpress-bridge.html': `bridge ${release}`,
 		'builder/builder.html': `builder ${release}`,
 		'wordpress.html': `wordpress ${release}`,
 		'plugin-proxy.php': '<?php echo getenv("GITHUB_TOKEN");',

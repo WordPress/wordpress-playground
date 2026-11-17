@@ -4,7 +4,7 @@ import { getWordPressDevelopmentOrigin } from './dev-server';
 const playgroundUrl = new URL('/', (import.meta || {}).url);
 /**
  * App origin. Builds deployed to WP Cloud configure it explicitly because both
- * hostnames serve the same release files, so the WordPress-origin helper and
+ * hostnames serve the same release files, so the WordPress-origin bridge and
  * worker load this module from the WordPress host. Other builds take it from the
  * loaded module URL rather than the current document.
  */

@@ -299,10 +299,10 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			)
 		).toBe(404);
 
-		const helper = remote
+		const bridge = remote
 			.childFrames()
 			.find((frame) => isWordPressBridgeFrame(frame.url()))!;
-		await helper.evaluate(async (appOrigin) => {
+		await bridge.evaluate(async (appOrigin) => {
 			const scope = new URL(window.location.href).searchParams.get(
 				'scope'
 			);
@@ -332,18 +332,18 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		context,
 	}) => {
 		await page.goto('/?wp=6.9&php=8.3&storage=temp');
-		await poisonHelperCache(await ready(page));
+		await poisonBridgeCache(await ready(page));
 
 		const other = await context.newPage();
 		await other.goto(root + '/?wp=6.9&php=8.3&storage=temp');
 		const wp = await ready(other);
-		const helper = wp
+		const bridge = wp
 			.parentFrame()!
 			.childFrames()
 			.find((frame) => isWordPressBridgeFrame(frame.url()))!;
 		expect(
-			await helper.evaluate(() =>
-				Boolean((window as any).cachedHelperExecuted)
+			await bridge.evaluate(() =>
+				Boolean((window as any).cachedBridgeExecuted)
 			)
 		).toBe(false);
 		await other.close();
@@ -362,18 +362,18 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		await ready(page);
 		// Cache documents first fetched before the app service worker took control.
 		await page.reload();
-		await poisonHelperCache(await ready(page));
+		await poisonBridgeCache(await ready(page));
 
 		await context.setOffline(true);
 		await page.reload();
 		const wp = await ready(page);
-		const helper = wp
+		const bridge = wp
 			.parentFrame()!
 			.childFrames()
 			.find((frame) => isWordPressBridgeFrame(frame.url()))!;
 		expect(
-			await helper.evaluate(() =>
-				Boolean((window as any).cachedHelperExecuted)
+			await bridge.evaluate(() =>
+				Boolean((window as any).cachedBridgeExecuted)
 			)
 		).toBe(false);
 		await page.evaluate(() =>
@@ -1423,36 +1423,36 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	}
 
 	/**
-	 * Model a WordPress plugin replacing cached helper HTML with its own script.
+	 * Model a WordPress plugin replacing cached bridge HTML with its own script.
 	 *
-	 * Prepend a visible execution marker to the real helper, keeping its normal
-	 * request connection working. A broken helper or boot timeout must not pass
+	 * Prepend a visible execution marker to the real bridge, keeping its normal
+	 * request connection working. A broken bridge or boot timeout must not pass
 	 * as protection against the injected script. Replace matching entries in every
 	 * existing cache, including older releases, and create an attacker-named cache:
 	 * user code on the WordPress origin can write all of them, not just its own.
 	 */
-	async function poisonHelperCache(wp: Frame) {
-		const helper = wp
+	async function poisonBridgeCache(wp: Frame) {
+		const bridge = wp
 			.parentFrame()!
 			.childFrames()
 			.find((frame) => isWordPressBridgeFrame(frame.url()))!;
-		const helperPath = new URL(helper.url()).pathname;
-		await wp.evaluate(async (helperPath) => {
-			const url = new URL(helperPath, window.location.origin).href;
+		const bridgePath = new URL(bridge.url()).pathname;
+		await wp.evaluate(async (bridgePath) => {
+			const url = new URL(bridgePath, window.location.origin).href;
 			const response = await fetch(url, {
 				referrerPolicy: 'no-referrer',
 			});
 			if (!response.ok)
 				throw new Error('The real WordPress bridge did not load');
-			// Keep the real helper working so a timeout cannot mask execution of the injected script.
+			// Keep the real bridge working so a timeout cannot mask execution of the injected script.
 			const html =
-				'<script>window.cachedHelperExecuted = true;</script>' +
+				'<script>window.cachedBridgeExecuted = true;</script>' +
 				(await response.text());
 			const names = new Set(['attacker-cache', ...(await caches.keys())]);
 			for (const name of names) {
 				const cache = await caches.open(name);
 				const keys = (await cache.keys()).filter(
-					(key) => new URL(key.url).pathname === helperPath
+					(key) => new URL(key.url).pathname === bridgePath
 				);
 				for (const key of [url, ...keys]) {
 					await cache.put(
@@ -1463,7 +1463,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 					);
 				}
 			}
-		}, helperPath);
+		}, bridgePath);
 	}
 
 	/**

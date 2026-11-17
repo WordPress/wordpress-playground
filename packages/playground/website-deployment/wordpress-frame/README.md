@@ -20,8 +20,7 @@ Personal WP keeps its existing entry and separate deployment script.
 
 The **WordPress bridge** (`wordpress-bridge.html`) is a hidden iframe on the
 sandbox origin. It carries HTTP requests from the sandbox service worker to PHP
-on the app origin, then carries the responses back. Older comments and URLs may
-call this the request helper; they refer to the same document.
+on the app origin, then carries the responses back.
 
 ## Before the first deployment
 
@@ -223,8 +222,8 @@ The live Nginx and CDN policy remains a rollout check: test root HTML/worker rev
 release-file MIME types, ranges and actual cache lifetime on a staging host before enabling
 production. Retained URLs are immutable on disk, without assuming a one-year edge lifetime.
 
-An older tab's helper iframe can remain open after its service worker updates.
-The frozen v1 helper test checks that they can still exchange requests and response bodies.
+An older tab's bridge iframe can remain open after its service worker updates.
+The frozen v1 bridge test checks that they can still exchange requests and response bodies.
 Version the handshake before making an incompatible message change.
 
 The [compatibility removal checklist](compatibility.md) identifies temporary allowances,
