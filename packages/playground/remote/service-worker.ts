@@ -364,11 +364,17 @@ self.addEventListener('fetch', (event) => {
 	// Let HTTP own other releases' app downloads. Replacing this worker while
 	// its response is streaming aborts that download in WebKit. Downloads outside
 	// the worker survive the update; this release keeps its normal offline cache.
+	const isAppAssetFromAnotherRelease =
+		(url.pathname.startsWith('/releases/') &&
+			!url.pathname.startsWith(releaseBase)) ||
+		// PRE_RELEASE_ASSETS_COMPAT: rollback can restore the root-only asset layout.
+		// Managed builds put their own app assets under releaseBase instead.
+		(usesMultiReleaseDirectoryLayout &&
+			url.pathname.startsWith('/assets/'));
 	if (
 		self.location.origin === playgroundOrigin &&
 		url.origin === playgroundOrigin &&
-		url.pathname.startsWith('/releases/') &&
-		!url.pathname.startsWith(releaseBase)
+		isAppAssetFromAnotherRelease
 	) {
 		return;
 	}
