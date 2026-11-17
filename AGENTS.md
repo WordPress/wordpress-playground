@@ -130,6 +130,8 @@ missing paths. Inactive releases expire after 30 days (configurable), protecting
 replaced/deleted files and remove newly introduced ones with the same installer.
 Cleanup failures retain lifecycle metadata for retry; prune runs only after both hosts
 have been purged. PHP's `flock` serializes the whole installer on each web root.
+Only the lock coordinator disables WP Cloud's auto-prepend bootstrap, preserving
+the shell environment for its child; PHP installation steps keep the normal bootstrap.
 Purge hosts are recorded outside root snapshots; `PLAYGROUND_PURGE_ONLY=1` retries a
 failed purge without another rollback. Pending purges block further installations
 and rollbacks. Failed activation purges after restoring the previous files.

@@ -64,7 +64,9 @@ if [ "$LOCAL" != 1 ]; then
     : "${SITE_API_BASE:?Expected SITE_API_BASE}"
 fi
 if [ "$LOCK_HELD" = 0 ]; then
-    exec "$SITE_PHP" "$DEPLOYMENT/apply-update.php" with-lock \
+    # WP Cloud's web bootstrap filters HOME and other environment variables.
+    # The lock coordinator needs the original shell environment for its child.
+    exec "$SITE_PHP" -d auto_prepend_file= "$DEPLOYMENT/apply-update.php" with-lock \
         "$WEB_ROOT" "$DEPLOYMENT/apply-update.sh" "$@"
 fi
 PENDING_PURGE="$BACKUPS/pending-edge-purge"

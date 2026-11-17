@@ -770,17 +770,24 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 
 	// Host lookup failures and empty output must not report a purge or prune files.
 	const phpWrapper = join(fakeBin, 'php-with-host-errors');
+	const phpBootstrap = join(temporary, 'php-bootstrap.php');
+	// WP Cloud's auto-prepend removes shell settings before PHP files run. The
+	// lock coordinator must preserve them for its child; PHP install steps need none.
+	await writeFile(
+		phpBootstrap,
+		'<?php putenv("HOME"); putenv("PLAYGROUND_RELEASE_ID");'
+	);
 	await writeFile(
 		phpWrapper,
 		`#!/usr/bin/env node
-if (process.argv[3] === 'prepare-purge') {
+if (process.argv[3] === 'prepare-purge' && ['failure', 'empty'].includes(process.env.PLAYGROUND_TEST_HOSTS_MODE)) {
     if (process.env.PLAYGROUND_TEST_HOSTS_MODE === 'failure') {
         process.stderr.write('Fixture host lookup failed\\n');
         process.exit(17);
     }
     process.exit(0);
 }
-const result = require('node:child_process').spawnSync(${JSON.stringify(env.SITE_PHP)}, process.argv.slice(2), { stdio: 'inherit' });
+const result = require('node:child_process').spawnSync(${JSON.stringify(env.SITE_PHP)}, ['-d', ${JSON.stringify(`auto_prepend_file=${phpBootstrap}`)}, ...process.argv.slice(2)], { stdio: 'inherit' });
 process.exit(result.status ?? 1);
 `
 	);
@@ -849,11 +856,10 @@ process.exit(result.status ?? 1);
 		await stat(keepUntilPurge);
 		await stat(join(waitingMetadata, 'release.json'));
 	}
-	await install(
-		'after-host-errors',
-		await makeBuild('after-host-errors'),
-		isolated
-	);
+	await install('after-host-errors', await makeBuild('after-host-errors'), {
+		...isolated,
+		environment: { SITE_PHP: phpWrapper },
+	});
 	await assert.rejects(stat(keepUntilPurge));
 	await assert.rejects(stat(waitingMetadata));
 
