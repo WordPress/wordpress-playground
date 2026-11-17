@@ -13,25 +13,24 @@ npm install @php-wasm/xdebug-bridge
 ### Programmatic API
 
 ```typescript
-import { startBridge } from './xdebug-bridge/src/start-bridge';
+import { startBridge } from '@php-wasm/xdebug-bridge';
 
 // Start with default settings
-const server = startBridge();
-await server.start();
+const bridge = await startBridge({});
+bridge.start();
 ```
 
+Open the printed DevTools URL in Chrome on the same computer. By default, Chrome connects to the bridge at `127.0.0.1:9229` over CDP. Once Chrome connects, the bridge listens for Xdebug at `127.0.0.1:9003` over DBGp and `startBridge()` resolves.
+
+To use a different Xdebug port, set `dbgpPort` and configure Xdebug's `xdebug.client_port` to match.
+
 ```typescript
-import { startBridge } from './xdebug-bridge/src/start-bridge';
+import { startBridge } from '@php-wasm/xdebug-bridge';
 
-// Start with custom configuration
-const server = startBridge({
-	cdpHost: '127.0.0.1', // CDP connection host
-	cdpPort: 9229, // CDP connection port
-	dbgpPort: 9003, // XDebug connection port
-	phpRoot: './', // Root to directory
+const bridge = await startBridge({
+	dbgpPort: 9000,
 });
-
-await server.start();
+bridge.start();
 ```
 
 ### CLI Usage
@@ -61,11 +60,11 @@ npx xdebug-bridge --help
 - `cdpPort`: Port to listen for CDP connections (default: 9229)
 - `dbgpHost`: Host to bind the XDebug listener to (default: '127.0.0.1')
 - `dbgpPort`: Port to listen for XDebug connections (default: 9003)
-- `phpRoot`: Root path for php files
-- `verbosity`: Output logs and progress messages (choices: "quiet", "normal", "debug") (default: "normal")
-- `phpInstance`: PHP instance
-- `getPHPFile`: Custom file listing function
-- `breakOnFirstLine`: Breaks on the first breakable line
+- `phpRoot`: Directory to scan for PHP files (default: the current working directory).
+- `excludedPaths`: Files or directories to skip when scanning for PHP files (default: `[]`).
+- `phpInstance`: PHP.wasm instance whose virtual filesystem the bridge scans and reads. Set `phpRoot` to the directory inside that filesystem.
+- `getPHPFile`: Function that takes a file path and returns its source as a string or a promise for a string. Used when `phpInstance` is omitted. By default, the bridge reads from the local filesystem.
+- `breakOnFirstLine`: Pause on the first breakable line (default: `false`).
 
 ## Events
 

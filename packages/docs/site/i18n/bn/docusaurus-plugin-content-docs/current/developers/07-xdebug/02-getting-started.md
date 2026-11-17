@@ -220,32 +220,28 @@ npx @wp-playground/cli@latest server --xdebug --experimental-devtools
 ```
 
 <!--
-The terminal will display a URL to connect to Chrome DevTools:
+Open the URL printed by the bridge in Chrome on the same computer. DevTools connects to the Chrome DevTools Protocol (CDP) listener at `127.0.0.1:9229`.
 -->
 
-Chrome DevTools-এ কানেক্ট করার জন্য টার্মিনাল একটি URL দেখাবে:
+ব্রিজ যে URL দেখায়, সেটি একই কম্পিউটারে Chrome-এ খুলুন। DevTools তখন `127.0.0.1:9229` ঠিকানায় Chrome DevTools Protocol (CDP) লিসেনারের সাথে যুক্ত হবে।
 
-```bash
-Starting a PHP server...
-Setting up WordPress latest
-Resolved WordPress release URL: https://downloads.w.org/release/wordpress-6.8.3.zip
-Fetching SQLite integration plugin...
-Booting WordPress...
-WordPress is running on http://127.0.0.1:9400 with 1 worker(s)
+```text
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
 devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
-
-Chrome connected! Initializing Xdebug receiver...
-XDebug receiver running on port 9003
-Running a PHP script with Xdebug enabled...
 ```
 
 <!--
-By clicking on the provided URL, for example, `devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229`, you can access DevTools connected to your application, with the ability to inspect all files of a WordPress instance.
+Once DevTools connects, the bridge starts listening for Xdebug (DBGp) connections at `127.0.0.1:9003`. Both listeners use IPv4 loopback by default.
 -->
 
-দেওয়া URL-টিতে (যেমন `devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229`) ক্লিক করলে আপনার অ্যাপ্লিকেশনের সাথে কানেক্টেড DevTools খুলে যাবে, সেখানে ওয়ার্ডপ্রেস ইনস্ট্যান্সের সব ফাইল ঘেঁটে দেখতে পারবেন।
+DevTools যুক্ত হলে ব্রিজ `127.0.0.1:9003` ঠিকানায় Xdebug (DBGp) কানেকশনের জন্য অপেক্ষা করে। ডিফল্টভাবে দুটি লিসেনারই IPv4 লুপব্যাক ঠিকানা ব্যবহার করে।
+
+```text
+Chrome connected! Initializing Xdebug receiver...
+XDebug receiver running on 127.0.0.1:9003
+Running a PHP script with Xdebug enabled...
+```
 
 <!--
 ![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
