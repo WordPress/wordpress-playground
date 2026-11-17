@@ -204,6 +204,8 @@ if (!isRemoteModule) {
 		await fs.rm(wordpressDir, { recursive: true });
 	}
 
+	const restoreOutputOwnershipCommand = getRestoreOutputOwnershipCommand();
+
 	// Extract the WordPress static root with wp-includes/ etc
 	await asyncSpawn(
 		'docker',
@@ -217,7 +219,8 @@ if (!isRemoteModule) {
 			'wordpress-playground',
 			'sh',
 			'-c',
-			`cp -r /root/output/wp-${versionInfo.slug} /output/`,
+			`cp -r /root/output/wp-${versionInfo.slug} /output/` +
+				restoreOutputOwnershipCommand,
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
@@ -235,7 +238,7 @@ if (!isRemoteModule) {
 			'wordpress-playground',
 			'sh',
 			'-c',
-			`cp /root/output/*.zip /output/`,
+			`cp /root/output/*.zip /output/` + restoreOutputOwnershipCommand,
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
@@ -279,6 +282,25 @@ if (isRemoteModule) {
 		['build-tar-zst.mjs', `--version=${versionInfo.slug}`, '--delete-zip'],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
+}
+
+/**
+ * Docker exports bind-mounted files as root on Linux. Restore the caller's ownership
+ * before validation reads owner-only SQLite directories or later steps edit the files.
+ */
+function getRestoreOutputOwnershipCommand() {
+	if (
+		typeof process.getuid !== 'function' ||
+		typeof process.getgid !== 'function'
+	) {
+		return '';
+	}
+	const uid = process.getuid();
+	const gid = process.getgid();
+	if (uid === 0) {
+		return '';
+	}
+	return ` && chown -R ${uid}:${gid} /output`;
 }
 
 function asyncSpawn(...args) {
