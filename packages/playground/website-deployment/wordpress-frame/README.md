@@ -226,6 +226,8 @@ ssh -tt <user@host> PLAYGROUND_PURGE_ONLY=1 website-deployment/apply-update.sh
 
 This retries both host purges without changing files or rolling back another release.
 Failed activation also purges after restoring the previous root files.
+If the origin pair changes between releases, rollback records and purges the hostnames
+from both the current release and the snapshot it restores.
 
 The inline JavaScript guard stops app pages opened at /releases/<id>/ URLs before
 app scripts run. It works in HTML served directly by Nginx too. This prevents a

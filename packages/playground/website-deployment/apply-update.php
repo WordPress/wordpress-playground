@@ -276,8 +276,10 @@ function rollback( $root, $backups, $deployment ) {
 /**
  * Save purge hosts outside root snapshots before activation or rollback.
  * Rollback to trunk can remove release.json; this record still permits a purge retry.
+ * An empty rollback selector records the incoming and current activation origins.
  */
-function prepare_purge( $root, $backups, $app_origin = null, $wordpress_origin = null ) {
+function prepare_purge( $root, $backups, $rollback = '', $app_origin = null, $wordpress_origin = null ) {
+	$manifest = array();
 	$origins = null !== $app_origin && null !== $wordpress_origin
 		? array( $app_origin, $wordpress_origin ) : array();
 	if ( is_file( "$root/release.json" ) ) {
@@ -287,6 +289,18 @@ function prepare_purge( $root, $backups, $app_origin = null, $wordpress_origin =
 		}
 		// Include the old hosts too, in case activation restores a different origin pair.
 		$origins = array_merge( $origins, array( $manifest['appOrigin'], $manifest['wordPressOrigin'] ) );
+	}
+	if ( '' !== $rollback ) {
+		$deployment = 'previous' === $rollback ? ( $manifest['release'] ?? '' ) : $rollback;
+		require_release_id( $deployment );
+		$snapshot = "$backups/$deployment/release.json";
+		if ( is_file( $snapshot ) ) {
+			$target = read_json( $snapshot );
+			if ( ! isset( $target['appOrigin'], $target['wordPressOrigin'] ) ) {
+				throw new RuntimeException( 'Rollback snapshot does not record the hostnames to purge.' );
+			}
+			$origins = array_merge( $origins, array( $target['appOrigin'], $target['wordPressOrigin'] ) );
+		}
 	}
 	if ( ! $origins ) {
 		throw new RuntimeException( 'release.json does not record the hostnames to purge.' );

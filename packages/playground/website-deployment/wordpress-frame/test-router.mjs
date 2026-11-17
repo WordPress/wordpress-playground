@@ -863,6 +863,69 @@ process.exit(result.status ?? 1);
 	await assert.rejects(stat(keepUntilPurge));
 	await assert.rejects(stat(waitingMetadata));
 
+	// An origin migration must purge both the departing and restored hostname pairs.
+	const movedOrigins = [
+		'https://app-moved.example',
+		'https://wordpress-moved.example',
+	];
+	await install(
+		'moved-origins',
+		await makeBuild('moved-origins', movedOrigins),
+		{
+			...isolated,
+			origins: movedOrigins,
+		}
+	);
+	await assert.rejects(
+		run(
+			'bash',
+			[
+				join(deployment, 'apply-update.sh'),
+				isolatedRoot,
+				isolatedBackups,
+			],
+			{
+				env: {
+					...env,
+					PLAYGROUND_ROLLBACK: 'previous',
+					PLAYGROUND_TEST_PURGE_FAILURE: '1',
+				},
+			}
+		),
+		failure('Fixture edge purge failed')
+	);
+	assert.equal(
+		JSON.parse(await readFile(join(isolatedRoot, 'release.json'), 'utf8'))
+			.release,
+		'after-host-errors'
+	);
+	assert.equal(
+		await readFile(join(isolatedBackups, 'pending-edge-purge'), 'utf8'),
+		'app-moved.example\nwordpress-moved.example\napp.example\nwordpress.example\n'
+	);
+	const purgesBeforeMigrationRetry = (await readFile(purges, 'utf8')).split(
+		'\n'
+	).length;
+	await run(
+		'bash',
+		[join(deployment, 'apply-update.sh'), isolatedRoot, isolatedBackups],
+		{
+			env: { ...env, PLAYGROUND_PURGE_ONLY: '1' },
+		}
+	);
+	assert.deepEqual(
+		(await readFile(purges, 'utf8'))
+			.split('\n')
+			.slice(purgesBeforeMigrationRetry - 1, -1),
+		[
+			'https://api.example/edge-cache/test/purge/app-moved.example',
+			'https://api.example/edge-cache/test/purge/wordpress-moved.example',
+			'https://api.example/edge-cache/test/purge/app.example',
+			'https://api.example/edge-cache/test/purge/wordpress.example',
+		]
+	);
+	await assert.rejects(stat(join(isolatedBackups, 'pending-edge-purge')));
+
 	console.log(
 		'Static release contracts passed: validation, layout, zero PHP static requests, ' +
 			'host routing, native endpoints, scoped fallbacks, retained releases and backups.'
@@ -873,7 +936,7 @@ process.exit(result.status ?? 1);
 }
 
 /** Write a minimal build whose asset URLs name the given release. */
-async function makeBuild(release) {
+async function makeBuild(release, origins = [app, wordpress]) {
 	const build = await mkdtemp(join(temporary, 'build-'));
 	const files = {
 		'index.html': `<script type="module" src="/releases/${release}/assets/main.js"></script>`,
@@ -905,8 +968,11 @@ async function makeBuild(release) {
 		await writeFile(
 			join(build, name),
 			page
-				? guard(name === 'wordpress-bridge.html' ? wordpress : app) +
-						content
+				? guard(
+						name === 'wordpress-bridge.html'
+							? origins[1]
+							: origins[0]
+					) + content
 				: content
 		);
 	}

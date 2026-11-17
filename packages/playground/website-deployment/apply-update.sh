@@ -123,7 +123,7 @@ fi
 if [ -n "$ROLLBACK" ]; then
     # Read the current hostnames before rollback: snapshots of the old root-only
     # layout have no release.json to name the hosts whose edge caches need purging.
-    prepare_edge_purge
+    prepare_edge_purge "$ROLLBACK"
     status=0
     "$SITE_PHP" "$DEPLOYMENT/apply-update.php" rollback "$WEB_ROOT" "$BACKUPS" "$ROLLBACK" || status=$?
     finish_edge_purge
@@ -218,7 +218,7 @@ done
 mv "$STAGING" "$PUBLIC"
 
 # Replace the root entry files. release.json records both origins for later purges.
-prepare_edge_purge "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
+prepare_edge_purge "" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
 status=0
 "$SITE_PHP" "$DEPLOYMENT/apply-update.php" activate \
     "$WEB_ROOT" "$BACKUPS" "$RELEASE_ID" "$RETENTION_DAYS" "$APP_ORIGIN" "$WORDPRESS_ORIGIN" || status=$?

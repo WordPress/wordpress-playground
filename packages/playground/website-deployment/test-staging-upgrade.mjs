@@ -65,6 +65,7 @@ const commit = execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], {
 const releaseA = `staging-upgrade-${stamp}-a-${commit}`;
 const releaseB = `staging-upgrade-${stamp}-b-${commit}`;
 const failures = [];
+let currentStep = 'Starting layout';
 
 await main();
 
@@ -128,6 +129,11 @@ async function main() {
 		step('Trunk: open Playground in each browser');
 		for (const session of sessions) {
 			await openSite(session);
+		}
+		step('Trunk: reload and open fresh tabs before any deployment');
+		for (const session of sessions) {
+			await reopen(session, 'trunk');
+			await freshTab(session, 'trunk');
 		}
 
 		deploy(releaseA);
@@ -348,12 +354,28 @@ async function freshTab(session, release) {
 async function newPage(session) {
 	const page = await session.context.newPage();
 	page.on('pageerror', (error) =>
-		session.errors.push(`pageerror: ${error.message}`)
+		session.errors.push(
+			`${currentStep}: ${page.url()}: pageerror: ${error.stack || error.message}`
+		)
 	);
 	page.on('console', (message) => {
 		if (message.type() === 'error') {
-			session.errors.push(`console: ${message.text()}`);
+			session.errors.push(
+				`${currentStep}: ${message.location().url || page.url()}: console: ${message.text()}`
+			);
 		}
+	});
+	page.on('requestfailed', (request) => {
+		let owner = 'worker request';
+		try {
+			const frame = request.frame();
+			owner = `frame ${frame.url()} (detached: ${frame.isDetached()})`;
+		} catch {
+			// Worker requests have no owning frame.
+		}
+		console.log(
+			`INFO  ${session.name}: ${currentStep}: ${request.resourceType()} ${request.url()} failed: ${request.failure()?.errorText}; ${owner}`
+		);
 	});
 	return page;
 }
@@ -478,10 +500,11 @@ function reportErrors(session) {
 		`\nINFO  ${session.name}: ${unique.length} distinct page error(s)`
 	);
 	for (const error of unique.slice(0, 20)) {
-		console.log(`  ${error.slice(0, 300)}`);
+		console.log(`  ${error}`);
 	}
 }
 
 function step(title) {
+	currentStep = title;
 	console.log(`\n=== ${title}`);
 }

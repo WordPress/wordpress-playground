@@ -104,6 +104,9 @@ open while the site upgrades from trunk to two releases, then rolls back to the 
 release and from it to trunk. It checks open tabs, reloads, fresh tabs and a site saved
 in browser storage. The test overwrites the site and refuses the production hostnames.
 It ends with a short list of browser checks.
+The trunk rehearsal also forces a failed edge purge after rollback and tests purge-only
+recovery without a release manifest. Browser errors include their phase and request URLs;
+reloads before the first upgrade provide a trunk-only comparison.
 If bundled Firefox cannot launch locally, set
 `PLAYGROUND_STAGING_FIREFOX_CHANNEL=moz-firefox` to use installed Firefox.
 

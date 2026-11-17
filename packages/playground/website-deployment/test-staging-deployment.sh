@@ -161,8 +161,16 @@ check "active release A was kept" remote "test -d $WEB_ROOT/releases/$RELEASE_A"
 
 if [ "${PLAYGROUND_STAGING_FROM_TRUNK:-0}" = 1 ]; then
     # Before release A came the trunk layout, so "previous" now restores it.
-    step "Roll back to the trunk layout"
-    time remote "PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh"
+    step "Roll back to trunk with a failed edge purge, then recover"
+    # A refused local TLS connection fails before sending the purge credentials.
+    rollback_with_failed_purge() {
+        ! remote "SITE_API_BASE=https://127.0.0.1:1 PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh"
+    }
+    check "rollback reports the failed edge purge" rollback_with_failed_purge
+    check "rollback restored trunk before the purge failed" remote "test ! -f $WEB_ROOT/release.json"
+    check "the failed purge kept its hostnames" remote "test -s website-backups/pending-edge-purge"
+    remote "PLAYGROUND_PURGE_ONLY=1 website-deployment/apply-update.sh"
+    check "purge retry removed its pending record" remote "test ! -e website-backups/pending-edge-purge"
     status_of() { curl --silent --output /dev/null --write-out '%{http_code}' "$1"; }
     # The edge can serve the removed /release.json briefly after the purge.
     trunk_restored() {

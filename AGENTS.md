@@ -134,10 +134,13 @@ Only the lock coordinator disables WP Cloud's auto-prepend bootstrap, preserving
 the shell environment for its child; PHP installation steps keep the normal bootstrap.
 Purge hosts are recorded outside root snapshots; `PLAYGROUND_PURGE_ONLY=1` retries a
 failed purge without another rollback. Pending purges block further installations
-and rollbacks. Failed activation purges after restoring the previous files.
+and rollbacks. Rollback records both the current and restored hostname pairs, including
+origin changes. Failed activation purges after restoring the previous files.
 Staging readiness checks require successful worker responses and retry transient
 HTTP errors; rollback compares both workers with their captured baseline bytes.
 The browser rehearsal rejects a non-trunk baseline before opening browsers or deploying.
+It first reloads trunk as a control, and logs errors with their phase and request URLs.
+The live deployment rehearsal forces a failed purge after restoring trunk, then retries it.
 Its unit tests run in `playground-website:test`.
 The staging browser rehearsal accepts `PLAYGROUND_STAGING_FIREFOX_CHANNEL=moz-firefox`
 to use installed Firefox when the bundled browser cannot launch locally.
