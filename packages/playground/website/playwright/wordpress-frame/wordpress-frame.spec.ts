@@ -544,6 +544,64 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		}
 	});
 
+	test('each tab serves its own site without exposing requests to other tabs', async ({
+		page,
+		context,
+		browserName,
+	}) => {
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		const wp = await ready(page);
+		const other = await context.newPage();
+		await other.goto(root + '/?wp=6.9&php=8.3&storage=temp');
+		const otherWp = await ready(other);
+		// Both sites share the WordPress worker. Record everything it sends this page.
+		await otherWp.evaluate(() => {
+			const messages: string[] = ((window as any).workerMessages = []);
+			navigator.serviceWorker.addEventListener('message', (event) =>
+				messages.push(JSON.stringify(event.data))
+			);
+			navigator.serviceWorker.startMessages();
+		});
+		for (const [tab, body] of [
+			[page, 'first site'],
+			[other, 'second site'],
+		] as const) {
+			await tab.evaluate(
+				(body) =>
+					(window as any).playgroundSites
+						.getClient()
+						.writeFile('/wordpress/site-probe.txt', body),
+				body
+			);
+		}
+		const readProbes = async () => [
+			await wp.evaluate(async () =>
+				(await fetch('./site-probe.txt')).text()
+			),
+			await otherWp.evaluate(async () =>
+				(await fetch('./site-probe.txt')).text()
+			),
+		];
+		expect(await readProbes()).toEqual(['first site', 'second site']);
+
+		if (browserName === 'chromium') {
+			// Browsers stop idle workers. The new worker must reconnect each site.
+			const cdp = await context.newCDPSession(page);
+			await cdp.send('ServiceWorker.enable');
+			await cdp.send('ServiceWorker.stopAllWorkers');
+			expect(await readProbes()).toEqual(['first site', 'second site']);
+		}
+
+		const firstScope = new URL(
+			await wp.evaluate(() => window.location.href)
+		).pathname;
+		const received: string[] = await otherWp.evaluate(
+			() => (window as any).workerMessages
+		);
+		expect(received.join('\n')).not.toContain(firstScope);
+		await other.close();
+	});
+
 	test('WordPress can fetch and navigate to a static file from the shared asset origin', async ({
 		page,
 	}) => {

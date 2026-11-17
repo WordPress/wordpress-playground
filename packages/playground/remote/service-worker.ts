@@ -26,10 +26,12 @@
  * scoped app requests are rejected so user HTML cannot access app storage.
  *
  * PHP stays in an app-origin worker. The WordPress service worker sends HTTP
- * requests to a hidden iframe on its own origin, which forwards them to its
- * app-origin parent and PHP. Replies return through that iframe. A scope picks
- * the PHP instance; it is not authorization between pages sharing the WordPress
- * origin. The app can also still be embedded as a fresh document from WordPress.
+ * requests over a MessagePort registered by a hidden iframe on its own origin,
+ * which forwards them to its app-origin parent and PHP. Replies return through
+ * that port, so other pages on the WordPress origin neither see nor answer them.
+ * A scope picks the PHP instance; it is not authorization between pages sharing
+ * the WordPress origin. The app can also still be embedded as a fresh document
+ * from WordPress.
  *
  * ## Caching strategy
  *
@@ -138,10 +140,8 @@ import {
 } from '@php-wasm/scopes';
 import { applyRewriteRules } from '@php-wasm/universal';
 import {
-	awaitReply,
 	convertFetchEventToPHPRequest,
 	cloneRequest,
-	broadcastMessageExpectReply,
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
@@ -169,6 +169,10 @@ import {
 	hasSharedRuntime,
 	sendSharedRuntimeRequest,
 } from './src/lib/shared-runtime-service-worker';
+import {
+	registerScopedRequestPort,
+	sendScopedRequest,
+} from './src/lib/scoped-request-service-worker';
 
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
@@ -182,6 +186,7 @@ if (!(self as any).document) {
 self.addEventListener('message', (event) => {
 	handleRemoteAccessRelayMessage(event);
 	registerSharedRuntime(event);
+	registerScopedRequestPort(event);
 });
 
 /**
@@ -542,11 +547,12 @@ self.addEventListener('fetch', (event) => {
  * Serve a scoped WordPress URL through PHP, with shared static files as a fallback.
  *
  * For /scope:site-a/wp-admin/edit.php, ask the running PHP instance for site-a to
- * handle the HTTP request. Dedicated runtimes receive it through window messages;
- * in split-origin mode the hidden WordPress iframe carries those messages across
- * to remote.html. If this service worker has a registered shared runtime, use its
- * direct connection instead. The caller also redirects unscoped same-origin URLs
- * from a scoped referrer (for example, a block-editor iframe) into this path.
+ * handle the HTTP request. Dedicated runtimes receive it through the MessagePort
+ * that site-a's document registered; in split-origin mode that is the hidden
+ * WordPress iframe, which carries it across to remote.html. If this service worker
+ * has a registered shared runtime, use its direct connection instead. The caller
+ * also redirects unscoped same-origin URLs from a scoped referrer (for example, a
+ * block-editor iframe) into this path.
  *
  * Only a 404 marked x-backfill-from: remote-host permits a public asset fetch.
  * For a minified build's omitted CSS file, remove /scope:site-a/, apply WordPress
@@ -572,7 +578,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		(await hasSharedRuntime(scope))
 			? (message, scope) =>
 					sendSharedRuntimeRequest(message, scope, event)
-			: undefined
+			: sendScopedRequest
 	);
 	if (
 		workerResponse.headers.has('x-playground-reload-required') &&
@@ -896,13 +902,10 @@ async function getScopedWpDetails(
 		return result;
 	}
 	if (!scopeToWpModule[scope]) {
-		const requestId = await broadcastMessageExpectReply(
-			{
-				method: 'getWordPressModuleDetails',
-			},
+		scopeToWpModule[scope] = await sendScopedRequest(
+			{ method: 'getWordPressModuleDetails' },
 			scope
 		);
-		scopeToWpModule[scope] = await awaitReply(self, requestId);
 	}
 	return scopeToWpModule[scope];
 }

@@ -1,9 +1,17 @@
+import { MessageChannel as NodeMessageChannel } from 'node:worker_threads';
+import type { MessagePort as NodeMessagePort } from 'node:worker_threads';
+
 vi.mock('./config', () => ({
 	playgroundOrigin: 'https://playground.test',
 }));
 vi.mock('virtual:remote-config', () => ({ buildVersion: 'new-release' }));
 
-type TestWorker = EventTarget & { state: string };
+type TestWorker = EventTarget & {
+	state: string;
+	postMessage: ReturnType<typeof vi.fn>;
+};
+const testWorker = (state: string): TestWorker =>
+	Object.assign(new EventTarget(), { state, postMessage: vi.fn() });
 
 describe('WordPress helper worker updates', () => {
 	let registration: {
@@ -17,7 +25,7 @@ describe('WordPress helper worker updates', () => {
 	beforeEach(() => {
 		vi.resetModules();
 		registration = {
-			active: Object.assign(new EventTarget(), { state: 'activated' }),
+			active: testWorker('activated'),
 			installing: null,
 			waiting: null,
 			update: vi.fn(async () => {}),
@@ -39,6 +47,7 @@ describe('WordPress helper worker updates', () => {
 			parent: { postMessage },
 			addEventListener: vi.fn(),
 		});
+		vi.stubGlobal('MessageChannel', NodeMessageChannel);
 	});
 
 	afterEach(() => vi.unstubAllGlobals());
@@ -56,9 +65,7 @@ describe('WordPress helper worker updates', () => {
 	it('waits for the update check and replacement activation with an existing registration', async () => {
 		// Model register() returning release A's already-active registration.
 		// B is not exposed as installing until its network update check finishes.
-		const replacement = Object.assign(new EventTarget(), {
-			state: 'installing',
-		});
+		const replacement = testWorker('installing');
 		const listen = vi.spyOn(replacement, 'addEventListener');
 		let finishUpdate!: () => void;
 		registration.update.mockImplementation(
@@ -71,7 +78,9 @@ describe('WordPress helper worker updates', () => {
 				})
 		);
 		const startup = import('./wordpress-bridge');
-		await vi.waitFor(() => expect(registration.update).toHaveBeenCalledOnce());
+		await vi.waitFor(() =>
+			expect(registration.update).toHaveBeenCalledOnce()
+		);
 		expect(postMessage).not.toHaveBeenCalled();
 		finishUpdate();
 		await vi.waitFor(() => expect(listen).toHaveBeenCalled());
@@ -101,7 +110,9 @@ describe('WordPress helper worker updates', () => {
 			new TypeError('Offline')
 		);
 		await import('./wordpress-bridge');
-		expect(navigator.serviceWorker.getRegistration).toHaveBeenCalledWith('/');
+		expect(navigator.serviceWorker.getRegistration).toHaveBeenCalledWith(
+			'/'
+		);
 		expect(postMessage).toHaveBeenCalledWith(
 			{ type: 'wordpress-bridge-ready', scope: 'test' },
 			'https://playground.test'
@@ -112,7 +123,9 @@ describe('WordPress helper worker updates', () => {
 		'does not report ready after a registration failure with a %s worker',
 		async (state) => {
 			const error = new TypeError('No installed worker');
-			vi.mocked(navigator.serviceWorker.register).mockRejectedValue(error);
+			vi.mocked(navigator.serviceWorker.register).mockRejectedValue(
+				error
+			);
 			if (state === 'missing') {
 				vi.mocked(
 					navigator.serviceWorker.getRegistration
@@ -132,4 +145,64 @@ describe('WordPress helper worker updates', () => {
 		await expect(import('./wordpress-bridge')).rejects.toBe(error);
 		expect(postMessage).not.toHaveBeenCalled();
 	});
+
+	it('returns each reply through the worker port that carried its request', async () => {
+		await import('./wordpress-bridge');
+		const onParentMessage = vi
+			.mocked(window.addEventListener)
+			.mock.calls.find(([type]) => type === 'message')![1] as (
+			event: Partial<MessageEvent>
+		) => void;
+		const onWorkerMessage = vi
+			.mocked(navigator.serviceWorker.addEventListener)
+			.mock.calls.find(([type]) => type === 'message')![1] as (
+			event: Partial<MessageEvent>
+		) => void;
+		const firstPort = registeredPort(registration.active!);
+		// A restarted worker registers a new port and restarts its request IDs.
+		const restarted = testWorker('activated');
+		onWorkerMessage({
+			data: { type: 'connect-scoped-request-port' },
+			source: restarted as unknown as ServiceWorker,
+		});
+		const secondPort = registeredPort(restarted);
+		const replies = [firstPort, secondPort].map(
+			(port) => new Promise((resolve) => port.once('message', resolve))
+		);
+		for (const port of [firstPort, secondPort]) {
+			port.postMessage({ method: 'request', args: [], requestId: 1 });
+		}
+		await vi.waitFor(() => expect(postMessage).toHaveBeenCalledTimes(3));
+		const relayed = postMessage.mock.calls
+			.slice(1)
+			.map(([data]) => data.requestId);
+		expect(new Set(relayed).size).toBe(2);
+		for (const [index, requestId] of relayed.entries()) {
+			onParentMessage({
+				source: window.parent as Window,
+				origin: 'https://playground.test',
+				data: {
+					type: 'wordpress-bridge-response',
+					scope: 'test',
+					requestId,
+					response: { from: index },
+				},
+			});
+		}
+		expect(await Promise.all(replies)).toEqual([
+			{ type: 'response', requestId: 1, response: { from: 0 } },
+			{ type: 'response', requestId: 1, response: { from: 1 } },
+		]);
+		firstPort.close();
+		secondPort.close();
+	});
 });
+
+function registeredPort(worker: TestWorker): NodeMessagePort {
+	const [message, [port]] = worker.postMessage.mock.calls.at(-1)!;
+	expect(message).toEqual({
+		type: 'register-scoped-request-port',
+		scope: 'test',
+	});
+	return port;
+}

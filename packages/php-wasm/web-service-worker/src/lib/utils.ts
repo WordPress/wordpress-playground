@@ -1,7 +1,6 @@
 /// <reference lib="WebWorker" />
 declare const self: ServiceWorkerGlobalScope;
 
-import { awaitReply, getNextRequestId } from './messaging';
 import { getURLScope, isURLScoped, setURLScope } from '@php-wasm/scopes';
 import { portToStream } from '@php-wasm/universal';
 
@@ -9,13 +8,14 @@ import { portToStream } from '@php-wasm/universal';
  * Converts a scoped fetch into a PHP request and returns its HTTP response.
  *
  * @param event - Fetch event whose request is scoped directly or through its referrer.
- * @param sendRequest - Optional transport receiving the RPC message and site scope.
+ * @param sendRequest - Transport receiving the RPC message and site scope.
  * Returns a PHP response with headers and either bytes or a streamed body port.
- * When omitted, the request is broadcast to scoped window clients and awaits their reply.
+ * Deliver the message only to the document serving that scope: the request
+ * carries the URL, headers, and body, and other clients must not answer it.
  */
 export async function convertFetchEventToPHPRequest(
 	event: FetchEvent,
-	sendRequest?: (
+	sendRequest: (
 		message: { method: string; args: any[] },
 		scope: string
 	) => Promise<any>
@@ -67,12 +67,7 @@ export async function convertFetchEventToPHPRequest(
 				`The URL ${url.toString()} is not scoped. This should not happen.`
 			);
 		}
-		if (sendRequest) {
-			phpResponse = await sendRequest(message, scope);
-		} else {
-			const requestId = await broadcastMessageExpectReply(message, scope);
-			phpResponse = await awaitReply(self, requestId);
-		}
+		phpResponse = await sendRequest(message, scope);
 
 		// X-frame-options gets in the way when PHP is
 		// being displayed in an iframe.
@@ -174,50 +169,6 @@ export async function convertFetchEventToPHPRequest(
 		headers: phpResponse.headers,
 		status: phpResponse.httpStatusCode,
 	});
-}
-
-/**
- * Sends the message to all the controlled clients
- * of this service worker.
- *
- * This used to be implemented with a BroadcastChannel, but
- * it didn't work in Safari. BroadcastChannel breaks iframe
- * embedding the playground in Safari.
- *
- * Weirdly, Safari does not pass any messages from the ServiceWorker
- * to Window if the page is rendered inside an iframe. Window to Service
- * Worker communication works just fine.
- *
- * The regular client.postMessage() communication works perfectly, so that's
- * what this function uses to broadcast the message.
- *
- * @param  message The message to broadcast.
- * @param  scope   Target web worker scope.
- * @returns The request ID to receive the reply.
- */
-export async function broadcastMessageExpectReply(message: any, scope: string) {
-	const requestId = getNextRequestId();
-	for (const client of await self.clients.matchAll({
-		// Sometimes the client that triggered the current fetch()
-		// event is considered uncontrolled in Google Chrome. This
-		// only happens on the first few fetches() after the initial
-		// registration of the service worker.
-		includeUncontrolled: true,
-	})) {
-		client.postMessage({
-			...message,
-			/**
-			 * Attach the scope with a URL starting with `/scope:` to this message.
-			 *
-			 * We need this mechanics because this worker broadcasts
-			 * events to all the listeners across all browser tabs. Scopes
-			 * helps WASM workers ignore requests meant for other WASM workers.
-			 */
-			scope,
-			requestId,
-		});
-	}
-	return requestId;
 }
 
 /**

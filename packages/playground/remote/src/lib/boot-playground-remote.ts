@@ -35,7 +35,7 @@ import serviceWorkerPath from '../../service-worker.ts?worker&url';
 import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { logger } from '@php-wasm/logger';
 import { phpEventStdinTransfer, PhpWasmError } from '@php-wasm/util';
-import { responseTo } from '@php-wasm/web-service-worker';
+import { serveScopedRequests } from './scoped-request-port';
 
 // @ts-ignore
 import workerEntryPointUrl from './playground-worker-endpoint-blueprints.ts?worker&url';
@@ -564,8 +564,8 @@ export async function bootPlaygroundRemote() {
 		 * A WordPress-origin service worker cannot reach this app-origin document
 		 * directly. Wait for connectWordPressOrigin() to establish its hidden iframe
 		 * connection before reporting the API as ready. Same-origin dedicated
-		 * runtimes keep the window listener below; same-origin shared runtimes
-		 * already have a direct service-worker connection and need no window relay.
+		 * runtimes register their own service-worker port below; same-origin shared
+		 * runtimes already have a direct service-worker connection.
 		 */
 		async boot(options) {
 			if (sharedRuntime) {
@@ -578,28 +578,11 @@ export async function bootPlaygroundRemote() {
 			if (wordPressSiteUrl !== origin) {
 				await connectWordPressOrigin(phpWorkerApi, options.scope!);
 			} else if (!sharedRuntime) {
-				// Dedicated runtimes retain the existing window relay.
-				navigator.serviceWorker.addEventListener(
-					'message',
-					async function onMessage(event) {
-						/**
-						 * Ignore events meant for other PHP instances to
-						 * avoid handling the same event twice.
-						 *
-						 * This is important because the service worker posts the
-						 * same message to all application instances across all browser tabs.
-						 */
-						if (
-							options.scope &&
-							event.data.scope !== options.scope
-						) {
-							return;
-						}
-
-						const args = event.data.args || [];
-						const method = event.data
-							.method as keyof PlaygroundWorkerEndpoint;
-
+				// Dedicated runtimes receive this scope's requests over their own port.
+				serveScopedRequests(
+					options.scope,
+					registration.active!,
+					async ({ method, args = [] }, reply) => {
 						if (method === 'request') {
 							const streamedResponse = await (
 								phpWorkerApi.requestStreamed as any
@@ -627,20 +610,16 @@ export async function bootPlaygroundRemote() {
 							const bodyPort = streamToPort(
 								streamedResponse.stdout
 							);
-							(event.source! as ServiceWorker).postMessage(
-								responseTo(event.data.requestId, {
-									httpStatusCode,
-									headers,
-									bodyPort,
-								}),
-								[bodyPort]
-							);
+							reply({ httpStatusCode, headers, bodyPort }, [
+								bodyPort,
+							]);
 						} else {
-							const result = await (
-								phpWorkerApi[method] as (...args: any[]) => any
-							)(...args);
-							event.source!.postMessage(
-								responseTo(event.data.requestId, result)
+							reply(
+								await (
+									phpWorkerApi[
+										method as keyof PlaygroundWorkerEndpoint
+									] as (...args: any[]) => any
+								)(...args)
 							);
 						}
 					}
