@@ -522,7 +522,7 @@ const schema11 = {
 							type: 'string',
 							enum: ['rewrite-wp-config', 'define-before-run'],
 							description:
-								"The method of defining the constants in wp-config.php. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php.",
+								'How Playground defines the constants.\n\n- `define-before-run` (default) defines the constants before each PHP request.   It leaves `wp-config.php` untouched. An existing `define()` call in that file   may try to define the same constant again.\n\n- `rewrite-wp-config` adds or updates the corresponding `define()` calls in   `wp-config.php`.',
 						},
 						virtualize: {
 							type: 'boolean',
@@ -4656,7 +4656,7 @@ const schema33 = {
 					type: 'string',
 					enum: ['rewrite-wp-config', 'define-before-run'],
 					description:
-						"The method of defining the constants in wp-config.php. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php.",
+						'How Playground defines the constants.\n\n- `define-before-run` (default) defines the constants before each PHP request.   It leaves `wp-config.php` untouched. An existing `define()` call in that file   may try to define the same constant again.\n\n- `rewrite-wp-config` adds or updates the corresponding `define()` calls in   `wp-config.php`.',
 				},
 				virtualize: {
 					type: 'boolean',

@@ -644,7 +644,7 @@
 						"method": {
 							"type": "string",
 							"enum": ["rewrite-wp-config", "define-before-run"],
-							"description": "The method of defining the constants in wp-config.php. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php."
+							"description": "How Playground defines the constants.\n\n- `define-before-run` (default) defines the constants before each PHP request.   It leaves `wp-config.php` untouched. An existing `define()` call in that file   may try to define the same constant again.\n\n- `rewrite-wp-config` adds or updates the corresponding `define()` calls in   `wp-config.php`."
 						},
 						"virtualize": {
 							"type": "boolean",
@@ -2320,13 +2320,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+														"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+														"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 													}
 												}
 											]
@@ -2743,13 +2743,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+																	"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+																	"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 																}
 															}
 														]
@@ -3155,13 +3155,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+																		"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+																		"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 																	}
 																}
 															]
@@ -3301,13 +3301,13 @@
 																			{
 																				"type": "array",
 																				"items": {
-																					"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+																					"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 																				}
 																			},
 																			{
 																				"type": "object",
 																				"additionalProperties": {
-																					"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+																					"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 																				}
 																			}
 																		]
@@ -3844,13 +3844,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+																							"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+																							"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 																						}
 																					}
 																				]
@@ -3992,13 +3992,13 @@
 																								{
 																									"type": "array",
 																									"items": {
-																										"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+																										"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 																									}
 																								},
 																								{
 																									"type": "object",
 																									"additionalProperties": {
-																										"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+																										"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 																									}
 																								}
 																							]
@@ -4296,13 +4296,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+														"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+														"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 													}
 												}
 											]
@@ -4545,13 +4545,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+														"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+														"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 													}
 												}
 											]
@@ -4848,7 +4848,7 @@
 			],
 			"description": "Plugin directory reference, e.g. \"jetpack\", \"jetpack@6.4\", or \"akismet@6.4.3\".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to \"wordpress-seo\" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step"
 		},
-		"alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608": {
+		"alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4862,13 +4862,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+						"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-152187-152281-1337903113-104333-152295-1337903113-104299-152295-1337903113-0-169608"
+						"$ref": "#/definitions/alias-1337903113-152317-152411-1337903113-104252-152425-1337903113-104218-152425-1337903113-0-170399"
 					}
 				}
 			]
