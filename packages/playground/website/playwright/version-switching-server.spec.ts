@@ -6,9 +6,10 @@ import { tmpdir } from 'node:os';
 import { joinPaths } from '@php-wasm/util';
 import { startVersionSwitchingServer } from './version-switching-server';
 
-// Contract: upgrade-test controls and cache settings must reach installed releases.
-// The independent static/PHP middleware can otherwise consume these requests first.
-it('switches away from an installed release and preserves explicit cache settings', async () => {
+// Upgrade tests keep a browser open while this server changes which build it serves.
+// Handle switch requests and cache overrides before serving files or invoking PHP;
+// otherwise those handlers can hide the controls or replace the requested headers.
+it('serves the selected release and keeps caching disabled when requested', async () => {
 	const temporary = await mkdtemp(joinPaths(tmpdir(), 'playground-switch-'));
 	const archived = joinPaths(temporary, 'old');
 	const installed = joinPaths(temporary, 'new');
@@ -63,13 +64,18 @@ it('switches away from an installed release and preserves explicit cache setting
 					outgoing.end();
 				}
 			);
+		expect((await get('/remote.html')).body).toBe('old');
 		expect((await get('/switch-versions/new')).status).toBe(200);
 		server.setHttpCacheEnabled(false);
-		expect((await get('/releases/new/main.js')).cache).toContain(
-			'no-store'
-		);
+		const newAsset = await get('/releases/new/main.js');
+		expect(newAsset.status).toBe(200);
+		expect(newAsset.body).toBe('new');
+		expect(newAsset.cache).toContain('no-store');
 		expect((await get('/switch-versions/old')).status).toBe(200);
-		expect((await get('/remote.html')).body).toBe('old');
+		const oldPage = await get('/remote.html');
+		expect(oldPage.status).toBe(200);
+		expect(oldPage.body).toBe('old');
+		expect(oldPage.cache).toContain('no-store');
 		expect(
 			(await get('/switch-versions/new', 'untrusted.example')).status
 		).toBe(404);

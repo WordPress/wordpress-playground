@@ -62,8 +62,8 @@ purge_edge() {
 }
 
 if [ -n "$ROLLBACK" ]; then
-    # Read the hostnames before the snapshot replaces release.json; a trunk-era
-    # snapshot has none.
+    # Read the current hostnames before rollback: snapshots of the old root-only
+    # layout have no release.json to name the hosts whose edge caches need purging.
     hosts="$("$SITE_PHP" "$DEPLOYMENT/apply-update.php" hosts "$WEB_ROOT")"
     "$SITE_PHP" "$DEPLOYMENT/apply-update.php" rollback "$WEB_ROOT" "$BACKUPS" "$ROLLBACK"
     # shellcheck disable=SC2086 # One hostname per line.
@@ -91,8 +91,8 @@ PROBE=''
 HIDDEN_PROBE=''
 trap 'rm -f "$PROBE" "$HIDDEN_PROBE"' EXIT
 if [ "$LOCAL" != 1 ]; then
-    # PHP endpoints live under hidden paths in htdocs, which MUST be denied by
-    # Nginx, including encoded path variants.
+    # Nginx must block these private PHP files so requests cannot bypass the app's checks.
+    # Require the same protection for encoded path variants.
     mkdir -p -m 755 "$WEB_ROOT/.playground-releases"
     PROBE="$(mktemp "$WEB_ROOT/.playground-releases/probe.XXXXXXXX")"
     # Hidden server files, such as editor swap files, stay in htdocs. Check that

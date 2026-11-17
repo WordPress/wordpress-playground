@@ -156,6 +156,8 @@ function activate( $root, $backups, $release, $retention, $app_origin, $wordpres
 		'custom-redirects.php' => "$private/public-entry.php",
 		'__wp__/index.php'     => __DIR__ . '/__wp__/index.php',
 	);
+	// Keep pages needing custom headers or routing on PHP. The shared predicate in
+	// custom-redirects-lib.php reads the existing rules instead of a second page list.
 	foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $public, FilesystemIterator::SKIP_DOTS ) ) as $file ) {
 		$path = substr( $file->getPathname(), strlen( $public ) + 1 );
 		if ( str_ends_with( $path, '.html' ) && ! preg_match( '~^wp-[^/]+/~', $path ) && ! playground_is_static_file_needing_special_treatment( "/$path" ) ) {

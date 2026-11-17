@@ -18,7 +18,9 @@ export type SharedRuntimeAPI = PlaygroundWorkerEndpoint & {
 
 /**
  * Connect this page to the site's shared PHP runtime instead of starting another
- * runtime per tab. Personal WP opts into this mode; normal website tabs do not.
+ * runtime per tab. Personal WP and SDK clients can opt in with workerMode: 'shared';
+ * the main website uses dedicated workers. Hosted SDK clients use the remote build's
+ * release URLs too, so this connection must still find a previous release's worker.
  * On an update, wait for the old runtime to finish work and save its files before
  * connecting to the replacement, so two versions cannot write the site at once.
  * Sandbox HTTP requests still use the bridge, not a direct app-service-worker port.

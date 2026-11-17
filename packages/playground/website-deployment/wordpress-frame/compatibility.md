@@ -44,10 +44,11 @@ those builds have no managed release ID.
   directories. A cached single-origin worker routes sandbox requests incorrectly. Remove only after
   both hostnames' old worker responses are purged or expired and returning-client
   tests show the unqualified URL updates correctly.
-- **Reviewed upstream document defects:** WordPress-relative path/hash scanner exceptions
+- **Reviewed upstream document defects:** Lists of reviewed hashes per WordPress-relative path
   remain until the upstream files are fixed or removed. They are not allowances
   for older Playground clients. Matching bytes at the same path in new WordPress
-  versions are accepted automatically; changed bytes or new paths require review.
+  versions are accepted automatically. Multiple reviewed variants can share a path;
+  other malformed bytes or paths require review.
   The fixed SVG font DTD declaration is also an
   upstream file format allowance, not a client migration. See
   `static-document-exceptions.json` and `validate-static-documents.mjs`.

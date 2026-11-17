@@ -51,6 +51,12 @@ WordPress's own documents under `wp-*` are checked separately by the parsed-docu
 scanner, which is required by the build and WordPress asset publication targets.
 These are passive templates/images, not app entry pages.
 
+The page guard does not require PHP. Root `/`, `/index.html`, `/api.html` and
+`/builder/builder.html` still use PHP to preserve their existing `no-store` headers.
+`playground_is_static_file_needing_special_treatment()` in `custom-redirects-lib.php`
+reads the routing/header rules; `activate()` uses it to decide which HTML pages to
+copy to the root. Other app entry copies and release assets are served by Nginx.
+
 ## What the deployment does
 
 The website deployment workflow configures both origins in its job environment
@@ -74,11 +80,12 @@ URLs, embedded documents, SVG animation, and XML stylesheet instructions. It
 checks the parsed tree without rewriting the original template or image bytes.
 XML documents must use UTF-8; unsupported encodings fail the build rather than
 bypass inspection. Malformed XML fails closed because browsers can execute a valid prefix before a later parse error.
-The WordPress-relative path and SHA-256 exceptions in `../../wordpress-builds/build/static-document-exceptions.json`
+The WordPress-relative paths and lists of reviewed SHA-256 hashes in `../../wordpress-builds/build/static-document-exceptions.json`
 cover only reviewed upstream SVG defects: duplicate `fill` attributes in dashboard backgrounds
 and JSX-style opacity attributes in six sides icons. The same reviewed path and
-bytes are accepted in new WordPress versions automatically. Changed bytes or new
-paths require another review; never generate approvals from scan failures.
+bytes are accepted in new WordPress versions automatically. Different reviewed
+variants at one path can have separate hashes in its list. Other malformed bytes or
+paths require review; never generate approvals from scan failures.
 Passive XML/editor namespaces are ignored while their HTML/SVG/MathML descendants are inspected.
 `playground-wordpress-builds:validate-static-documents` caches this scan through Nx by assets,
 policy, reviewed exceptions and dependency lockfile. Asset refreshes and publication depend on it;
@@ -208,14 +215,17 @@ installer then purges the edge cache for the hostnames the replaced `release.jso
 Rollback skips the host probes and pruning; the next deployment prunes. Rollback requires the
 restored release to remain on disk.
 
-App pages run only at their web-root URL, which serves the active release, so a fixed page in a
-retained release cannot start at its `/releases/<id>/` path. Retained assets, WordPress static
-documents and WordPress bridges remain reachable. For urgent revocation of those, first activate
-or restore a known-safe release, then remove the vulnerable
-ID from both `releases/` and `.playground-releases/` and its backup, and purge the edge cache.
-Do not wait for retention when a retained bundle is vulnerable. Already loaded documents and
-browser caches cannot be recalled; a security fix may also need a worker-driven forced reload.
-Retention bounds availability of old code; it is not a security revocation mechanism.
+The inline JavaScript guard stops app pages opened at /releases/<id>/ URLs before
+app scripts run. It works in HTML served directly by Nginx too. This prevents a
+fresh visit to an old app entry; it does not stop an already-open tab or revoke
+JavaScript it has downloaded. Retained assets, WordPress static documents and
+WordPress bridges remain reachable.
+
+When a release is vulnerable, first activate or restore a known-safe release, then
+remove the vulnerable ID from both `releases/` and `.playground-releases/` and its
+backup, and purge the edge cache. Do not wait for retention. This removes server
+copies; it cannot recall already loaded documents or browser caches. A fix may also
+need a worker-driven forced reload for open tabs. Retention is not revocation.
 
 The preview models the observed WP Cloud static responses without adding Cache-Control.
 The live Nginx and CDN policy remains a rollout check: test root HTML/worker revalidation,

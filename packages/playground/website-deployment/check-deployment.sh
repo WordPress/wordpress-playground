@@ -154,6 +154,8 @@ for host in "$APP" "$WORDPRESS"; do
     request "$host$BASE/logger.php"
     expect_status 404 "$host$BASE/logger.php (endpoints are not public)"
 done
+# logger.php sends app error reports using server credentials. The WordPress host
+# must not run app endpoints; this host rule does not authenticate logger requests.
 request "$WORDPRESS/logger.php"
 expect_status 404 "WordPress host /logger.php"
 

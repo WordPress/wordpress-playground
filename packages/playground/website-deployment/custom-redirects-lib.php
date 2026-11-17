@@ -4,7 +4,11 @@
  * whenever making changes here.
  */
 
-// Used during deployment to identify files that need to be served in a custom way via PHP
+/**
+ * Keep root requests on PHP when existing routing, headers or setup require it.
+ * activate() uses these rules to decide which HTML pages it can copy to the root
+ * for Nginx to serve. PHP endpoints are moved to private files separately.
+ */
 function playground_is_static_file_needing_special_treatment( $path ) {
 	if ( str_ends_with( $path, '.php' ) ) {
 		return false;

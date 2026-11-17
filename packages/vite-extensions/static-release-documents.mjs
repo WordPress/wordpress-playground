@@ -17,14 +17,15 @@ import { basename, joinPaths } from '../php-wasm/util/src/lib/paths.ts';
  * could break rendering, updates, or file checksums.
  */
 export async function validateWordPressStaticDocuments(directory) {
-	// Review each WordPress-relative path and hash once. Expand to the versions
+	// List reviewed hashes per WordPress-relative path: different versions can ship
+	// different approved bytes at that path. Expand those lists to the versions
 	// present in this build so adding a WordPress version needs no copied entries.
-	// Changed bytes or paths still fail; never approve new defects automatically.
+	// Unreviewed malformed files still fail; never approve new defects automatically.
 	const reviewedFiles = new Map();
 	for (const entry of await readdir(directory, { withFileTypes: true })) {
 		if (!entry.isDirectory() || !entry.name.startsWith('wp-')) continue;
-		for (const [path, hash] of Object.entries(exceptions)) {
-			reviewedFiles.set(joinPaths(entry.name, path), hash);
+		for (const [path, hashes] of Object.entries(exceptions)) {
+			reviewedFiles.set(joinPaths(entry.name, path), hashes);
 		}
 	}
 	for (const file of await readdir(directory, { recursive: true })) {
@@ -85,11 +86,8 @@ export async function validateWordPressStaticDocuments(directory) {
 			// Browsers can execute XML scripts before encountering a later parse error.
 			// Only reviewed, byte-identical upstream defects may bypass parsing.
 			if (!isHtml && error.name === 'SyntaxError') {
-				if (
-					reviewedFiles.get(file) ===
-					createHash('sha256').update(bytes).digest('hex')
-				)
-					continue;
+				const hash = createHash('sha256').update(bytes).digest('hex');
+				if (reviewedFiles.get(file)?.includes(hash)) continue;
 				throw new Error(
 					`Malformed WordPress static document: ${file}`,
 					{ cause: error }
@@ -235,12 +233,11 @@ function removeComments(node) {
 /**
  * Guard every app HTML file, including public files Vite copies without transforming.
  *
- * App pages also require their web-root URL. Every retained release stays public
- * under /releases/<id>/ for open tabs, which need its assets, not its pages; the
- * app always loads pages from the root. If we fix a security bug in an app page,
- * someone must not be able to open its old copy at /releases/<id>/ and run that
- * vulnerable code on the app origin. Old tabs load the WordPress bridge from their
- * release, so it keeps only the origin requirement.
+ * App pages also require their web-root URL. The inline check runs before their
+ * scripts and makes the remaining HTML inert at /releases/<id>/ URLs. This blocks
+ * opening an old app entry directly after a fix, while retaining its assets for
+ * existing tabs. It does not stop already-running tabs or revoke downloaded code.
+ * Old tabs load the WordPress bridge from their release, so it checks only origin.
  */
 export async function protectStaticReleasePages(
 	directory,

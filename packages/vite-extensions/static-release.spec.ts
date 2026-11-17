@@ -8,6 +8,8 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { gzipSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
+import staticDocumentExceptions from '../playground/wordpress-builds/build/static-document-exceptions.json';
 import { build } from 'vite';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import { joinPaths } from '../php-wasm/util/src/lib/paths';
@@ -231,29 +233,48 @@ describe('static release documents', () => {
 		).toBe(source);
 	});
 
-	// A new WordPress version may ship the same reviewed XML defect. Expanding
-	// exceptions across versions must not also accept a new path or changed bytes.
-	it('reuses a reviewed defect across versions but still requires its path and bytes', async () => {
+	// Contract: each path accepts any of its reviewed hashes, never other bytes/paths.
+	// Different WP versions can carry different defects at the same path; the XML
+	// parse failure and hash-list lookup are independent paths that can regress.
+	it('accepts multiple reviewed variants at one path across WordPress versions', async () => {
 		const source = await readFile(
 			joinPaths(
 				__dirname,
 				'../playground/wordpress-builds/public/wp-6.9/wp-admin/images/dashboard-background.svg'
 			)
 		);
+		const relativePath = 'wp-admin/images/dashboard-background.svg';
+		const originalFile = joinPaths(directory, 'wp-original', relativePath);
 		const images = joinPaths(directory, 'wp-future/wp-admin/images');
+		await mkdir(joinPaths(directory, 'wp-original/wp-admin/images'), {
+			recursive: true,
+		});
 		await mkdir(images, { recursive: true });
 		const file = joinPaths(images, 'dashboard-background.svg');
-		await writeFile(file, source);
-		await validateWordPressStaticDocuments(directory);
-		await writeFile(joinPaths(images, 'unreviewed.svg'), source);
-		await expect(
-			validateWordPressStaticDocuments(directory)
-		).rejects.toThrow('Malformed WordPress static document');
-		await rm(joinPaths(images, 'unreviewed.svg'));
-		await writeFile(file, Buffer.concat([source, Buffer.from('\n')]));
-		await expect(
-			validateWordPressStaticDocuments(directory)
-		).rejects.toThrow('Malformed WordPress static document');
+		// A trailing newline leaves the reviewed SVG defect unchanged but gives a
+		// second version different bytes. Approve it in memory for this test only.
+		const secondVariant = Buffer.concat([source, Buffer.from('\n')]);
+		const hashes = staticDocumentExceptions[relativePath];
+		hashes.push(createHash('sha256').update(secondVariant).digest('hex'));
+		try {
+			await writeFile(originalFile, source);
+			await writeFile(file, secondVariant);
+			await validateWordPressStaticDocuments(directory);
+			await writeFile(joinPaths(images, 'unreviewed.svg'), source);
+			await expect(
+				validateWordPressStaticDocuments(directory)
+			).rejects.toThrow('Malformed WordPress static document');
+			await rm(joinPaths(images, 'unreviewed.svg'));
+			await writeFile(
+				file,
+				Buffer.concat([secondVariant, Buffer.from('\n')])
+			);
+			await expect(
+				validateWordPressStaticDocuments(directory)
+			).rejects.toThrow('Malformed WordPress static document');
+		} finally {
+			hashes.pop();
+		}
 	});
 
 	it('checks compressed SVG documents as well as plain SVG', async () => {
