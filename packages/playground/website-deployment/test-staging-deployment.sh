@@ -17,6 +17,7 @@ set -euo pipefail
 #   PLAYGROUND_STAGING_BROWSER=1     With PLAYGROUND_STAGING_FROM_TRUNK=1, finish by running
 #                                    test-staging-upgrade.mjs: browser sessions that stay
 #                                    open while the site upgrades from trunk.
+#   PLAYGROUND_STAGING_FIREFOX_CHANNEL  Optional Playwright Firefox channel, e.g. moz-firefox.
 #   DEPLOY_SSH_COMMAND               SSH command for ssh and rsync; defaults to "ssh".
 #   CORS_PROXY_URL                   Passed to the builds.
 #

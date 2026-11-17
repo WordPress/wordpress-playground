@@ -131,6 +131,8 @@ replaced/deleted files and remove newly introduced ones with the same installer.
 Cleanup failures retain lifecycle metadata for retry; prune runs only after both hosts
 have been purged. Staging readiness checks require successful worker responses and
 retry transient HTTP errors. Their unit tests run in `playground-website:test`.
+The staging browser rehearsal accepts `PLAYGROUND_STAGING_FIREFOX_CHANNEL=moz-firefox`
+to use installed Firefox when the bundled browser cannot launch locally.
 Do not add a second installer script. Host checks live in
 `website-deployment/custom-redirects-lib.php`, reached through its existing
 `playground_handle_request()` entry point. The sandbox host serves only bridge

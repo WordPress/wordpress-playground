@@ -94,6 +94,8 @@ open while the site upgrades from trunk to two releases, then rolls back to the 
 release and from it to trunk. It checks open tabs, reloads, fresh tabs and a site saved
 in browser storage. The test overwrites the site and refuses the production hostnames.
 It ends with a short list of browser checks.
+If bundled Firefox cannot launch locally, set
+`PLAYGROUND_STAGING_FIREFOX_CHANNEL=moz-firefox` to use installed Firefox.
 
 WP Cloud's edge cache purge clears only the primary domain unless a domain is
 named, so `apply-update.sh` purges each hostname. Nginx lets the edge cache `.js`

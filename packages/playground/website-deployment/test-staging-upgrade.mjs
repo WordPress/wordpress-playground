@@ -23,6 +23,8 @@
  *
  * It prints PASS and FAIL lines plus page errors for review, and exits non-zero
  * when any check fails.
+ * Set PLAYGROUND_STAGING_FIREFOX_CHANNEL=moz-firefox to use installed Firefox
+ * on systems where Playwright's bundled Firefox cannot launch.
  */
 import { chromium, firefox, webkit } from '@playwright/test';
 import { waitForEdge } from '../website/playwright/wait-for-edge.ts';
@@ -88,6 +90,10 @@ async function main() {
 				savesSites: name === 'chromium',
 				context: await browserType.launchPersistentContext(profile, {
 					headless: true,
+					channel:
+						name === 'firefox'
+							? process.env.PLAYGROUND_STAGING_FIREFOX_CHANNEL
+							: undefined,
 				}),
 				errors: [],
 			});
