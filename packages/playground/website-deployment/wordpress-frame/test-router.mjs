@@ -104,8 +104,72 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 		run('bash', [join(deployment, 'apply-update.sh'), webRoot, backups], {
 			env: { ...env, PLAYGROUND_ROLLBACK: target, ...extraEnv },
 		});
+	const retryPurge = (extraEnv = {}) =>
+		run('bash', [join(deployment, 'apply-update.sh'), webRoot, backups], {
+			env: { ...env, PLAYGROUND_PURGE_ONLY: '1', ...extraEnv },
+		});
+	// Contract: both entry points wait for the same host lock before changing files.
+	// A second shell can otherwise interleave a rollback with activation's root writes.
+	const whileLocked = async (start, unchanged) => {
+		const holder = spawn(env.SITE_PHP, [
+			'-r',
+			'$lock = fopen($argv[1], "c"); flock($lock, LOCK_EX); echo "locked\\n"; fgets(STDIN);',
+			join(webRoot, '.playground-deployment.lock'),
+		]);
+		await once(holder.stdout, 'data');
+		const operation = start();
+		try {
+			// The installer reports contention before its blocking flock call.
+			await once(operation.child.stdout, 'data');
+			await unchanged();
+		} finally {
+			holder.stdin.end('\n');
+			await once(holder, 'exit');
+			await operation;
+		}
+	};
 	const failure = (text) => (error) =>
 		error.stderr.includes(text) || error.stdout.includes(text);
+
+	// The running installer must retain the lock even if its PHP parent is killed.
+	const lockGate = join(temporary, 'release-lock');
+	const lockedScript = join(temporary, 'locked-installer.sh');
+	await writeFile(
+		lockedScript,
+		'echo running; while [ ! -f "$2" ]; do sleep 0.05; done\n'
+	);
+	const lockHolder = spawn(env.SITE_PHP, [
+		join(deployment, 'apply-update.php'),
+		'with-lock',
+		webRoot,
+		lockedScript,
+		lockGate,
+	]);
+	const holderExit = once(lockHolder, 'exit');
+	await once(lockHolder.stdout, 'data');
+	const tryLock = () =>
+		run(env.SITE_PHP, [
+			'-r',
+			'$lock = fopen($argv[1], "c"); exit(flock($lock, LOCK_EX | LOCK_NB) ? 0 : 1);',
+			join(webRoot, '.playground-deployment.lock'),
+		]);
+	try {
+		await assert.rejects(tryLock());
+		lockHolder.kill('SIGTERM');
+		await holderExit;
+		await assert.rejects(tryLock());
+	} finally {
+		await writeFile(lockGate, 'release');
+		await run(
+			env.SITE_PHP,
+			[
+				'-r',
+				'$lock = fopen($argv[1], "c"); flock($lock, LOCK_EX);',
+				join(webRoot, '.playground-deployment.lock'),
+			],
+			{ timeout: 5000 }
+		);
+	}
 
 	await assert.rejects(
 		install('A', await makeBuild('A'), {
@@ -354,7 +418,19 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	}
 
 	// A later release replaces the root files and keeps A for open tabs.
-	await install('B', await makeBuild('B'));
+	const uploadB = await makeBuild('B');
+	await whileLocked(
+		() => install('B', uploadB),
+		async () => {
+			await stat(uploadB);
+			assert.equal(
+				JSON.parse(
+					await readFile(join(webRoot, 'release.json'), 'utf8')
+				).release,
+				'A'
+			);
+		}
+	);
 	assert.match(
 		await (await request('/remote.html', app)).text(),
 		/remote B$/
@@ -422,6 +498,20 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		JSON.parse(await readFile(retiredMetadata, 'utf8')).inactiveSince,
 		undefined
 	);
+	await assert.rejects(
+		rollback('previous'),
+		failure('An edge purge is pending')
+	);
+	await assert.rejects(
+		retryPurge({ PLAYGROUND_TEST_PURGE_FAILURE: '1' }),
+		failure('Fixture edge purge failed')
+	);
+	await retryPurge();
+	assert.equal(
+		JSON.parse(await readFile(join(webRoot, 'release.json'), 'utf8'))
+			.release,
+		'A'
+	);
 	await install('post-rollback', await makeBuild('post-rollback'));
 	await install(
 		'after-post-rollback',
@@ -434,7 +524,17 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	// Restore A so the remaining failure/cleanup contracts exercise their original layout.
 	// Naming a release undoes its deployment; the live release.json supplies the hosts.
 	const purgesBeforeRollback = (await readFile(purges, 'utf8')).split('\n');
-	await rollback('post-rollback');
+	await whileLocked(
+		() => rollback('post-rollback'),
+		async () => {
+			assert.equal(
+				JSON.parse(
+					await readFile(join(webRoot, 'release.json'), 'utf8')
+				).release,
+				'after-post-rollback'
+			);
+		}
+	);
 	assert.deepEqual(
 		(await readFile(purges, 'utf8'))
 			.split('\n')
@@ -449,10 +549,23 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	const broken = await makeBuild('C');
 	await writeFile(join(broken, 'zz-blocked.html'), guard(app) + 'blocked');
 	await mkdir(join(webRoot, 'zz-blocked.html'));
+	const purgesBeforeFailedActivation = (await readFile(purges, 'utf8')).split(
+		'\n'
+	).length;
 	await assert.rejects(
 		install('C', broken),
 		failure('previous root files restored')
 	);
+	assert.deepEqual(
+		(await readFile(purges, 'utf8'))
+			.split('\n')
+			.slice(purgesBeforeFailedActivation - 1, -1),
+		[
+			'https://api.example/edge-cache/test/purge/app.example',
+			'https://api.example/edge-cache/test/purge/wordpress.example',
+		]
+	);
+	await assert.rejects(stat(join(backups, 'pending-edge-purge')));
 	assert.equal(
 		JSON.parse(await readFile(join(webRoot, 'release.json'), 'utf8'))
 			.release,
@@ -598,10 +711,21 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	await assert.rejects(stat(join(webRoot, 'releases/B')));
 
 	// Rolling back the first transition also removes all newly introduced roots.
-	await rollback('initial');
+	await assert.rejects(
+		rollback('initial', { PLAYGROUND_TEST_PURGE_FAILURE: '1' }),
+		failure('Fixture edge purge failed')
+	);
 	await assert.rejects(stat(join(webRoot, 'release.json')));
 	await assert.rejects(stat(join(webRoot, 'remote.html')));
 	await assert.rejects(stat(join(webRoot, 'new-page.html')));
+	assert.equal(
+		await readFile(join(backups, 'pending-edge-purge'), 'utf8'),
+		'app.example\nwordpress.example\n'
+	);
+	await retryPurge();
+	await assert.rejects(stat(join(backups, 'pending-edge-purge')));
+	await assert.rejects(stat(join(webRoot, 'release.json')));
+	await retryPurge(); // Retrying a completed purge is harmless and never rolls back again.
 
 	// Untracked release retention: a prior active release without lifecycle metadata
 	// must survive activation and later pruning, even when its files look expired.
@@ -649,7 +773,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	await writeFile(
 		phpWrapper,
 		`#!/usr/bin/env node
-if (process.argv[3] === 'hosts') {
+if (process.argv[3] === 'prepare-purge') {
     if (process.env.PLAYGROUND_TEST_HOSTS_MODE === 'failure') {
         process.stderr.write('Fixture host lookup failed\\n');
         process.exit(17);
@@ -661,6 +785,38 @@ process.exit(result.status ?? 1);
 `
 	);
 	await chmod(phpWrapper, 0o755);
+	const rootBeforeBadLookup = await readFile(
+		join(isolatedRoot, 'release.json')
+	);
+	for (const mode of ['failure', 'empty']) {
+		await assert.rejects(
+			run(
+				'bash',
+				[
+					join(deployment, 'apply-update.sh'),
+					isolatedRoot,
+					isolatedBackups,
+				],
+				{
+					env: {
+						...env,
+						PLAYGROUND_ROLLBACK: 'previous',
+						SITE_PHP: phpWrapper,
+						PLAYGROUND_TEST_HOSTS_MODE: mode,
+					},
+				}
+			),
+			failure(
+				mode === 'failure'
+					? 'Fixture host lookup failed'
+					: 'No hostnames to purge'
+			)
+		);
+		assert.deepEqual(
+			await readFile(join(isolatedRoot, 'release.json')),
+			rootBeforeBadLookup
+		);
+	}
 	const keepUntilPurge = join(isolatedRoot, 'releases/waiting-for-purge');
 	const waitingMetadata = join(
 		isolatedRoot,

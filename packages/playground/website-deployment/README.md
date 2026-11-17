@@ -69,6 +69,16 @@ ssh -tt <user@host> PLAYGROUND_ROLLBACK=previous website-deployment/apply-update
 `previous` restores whatever was live before the current release; repeat it to step
 further back, or pass a release ID to undo that deployment.
 `https://playground.wordpress.net/release.json` names the live and previous releases.
+Deployment and rollback take the same host lock. If the edge purge fails, finish it
+without changing the live files again:
+
+```sh
+ssh -tt <user@host> PLAYGROUND_PURGE_ONLY=1 website-deployment/apply-update.sh
+```
+
+The installer keeps the hostnames in `~/website-backups/pending-edge-purge` until
+both purges succeed, including when rollback removes `release.json`. A pending purge
+must finish before another deployment or rollback can start.
 See the [two-host deployment guide](wordpress-frame/README.md#verify-and-roll-back)
 for details.
 

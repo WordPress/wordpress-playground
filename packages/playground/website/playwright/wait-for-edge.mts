@@ -7,8 +7,14 @@
 export async function waitForEdge(
 	appOrigin: string,
 	wordPressOrigin: string,
-	release: string
+	release: string,
+	baselineWorkers?: readonly [string, string]
 ) {
+	if (release === 'trunk' && !baselineWorkers) {
+		throw new Error(
+			'Baseline worker bodies are required to verify rollback to trunk.'
+		);
+	}
 	const started = Date.now();
 	const deadline = started + 300000;
 	let lastFailure = 'The edge still serves another release.';
@@ -43,7 +49,9 @@ export async function waitForEdge(
 				const workers = [appWorker.body, wordPressWorker.body];
 				if (
 					active === release &&
-					workers.every((text) => servesRelease(text, release))
+					workers.every((text, index) =>
+						servesRelease(text, release, baselineWorkers?.[index])
+					)
 				) {
 					console.log(
 						`INFO  the edge served ${release} after ${Math.round((Date.now() - started) / 1000)}s`
@@ -65,8 +73,8 @@ export async function waitForEdge(
 	);
 }
 
-function servesRelease(text: string, release: string) {
+function servesRelease(text: string, release: string, baseline?: string) {
 	return release === 'trunk'
-		? !text.includes('import "/releases/')
+		? text === baseline
 		: text.includes(`import "/releases/${release}/sw.js";`);
 }

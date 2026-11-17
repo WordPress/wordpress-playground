@@ -27,7 +27,7 @@
  * on systems where Playwright's bundled Firefox cannot launch.
  */
 import { chromium, firefox, webkit } from '@playwright/test';
-import { waitForEdge } from '../website/playwright/wait-for-edge.ts';
+import { waitForEdge } from '../website/playwright/wait-for-edge.mts';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -70,10 +70,36 @@ await main();
 
 async function main() {
 	step('Starting layout');
-	await check('the site runs trunk (no /release.json)', async () => {
-		const response = await fetch(new URL('/release.json', appOrigin));
-		return response.status === 404 || `HTTP ${response.status}`;
+	const baseline = await fetch(new URL('/release.json', appOrigin), {
+		signal: AbortSignal.timeout(30000),
 	});
+	await baseline.arrayBuffer();
+	if (baseline.status !== 404) {
+		throw new Error(
+			`The staging upgrade rehearsal requires trunk (no /release.json); got HTTP ${baseline.status}.`
+		);
+	}
+	console.log('PASS  the site runs trunk (no /release.json)');
+	// Rollback must restore these exact workers; a 200 error page is not readiness.
+	const baselineWorkers = await Promise.all(
+		[appOrigin, wordPressOrigin].map(async (origin) => {
+			const response = await fetch(new URL('/sw.js', origin), {
+				signal: AbortSignal.timeout(30000),
+			});
+			const type = response.headers.get('content-type')?.split(';')[0];
+			const body = await response.text();
+			if (
+				response.status !== 200 ||
+				!['application/javascript', 'text/javascript'].includes(type) ||
+				!body.trim()
+			) {
+				throw new Error(
+					`Cannot capture the baseline worker at ${origin}/sw.js.`
+				);
+			}
+			return body;
+		})
+	);
 	const sessions = [];
 	try {
 		for (const [name, browserType] of [
@@ -133,7 +159,7 @@ async function main() {
 
 		// The emergency path for a first production deployment.
 		rollBack();
-		await waitForEdge(appOrigin, wordPressOrigin, 'trunk');
+		await waitForEdge(appOrigin, wordPressOrigin, 'trunk', baselineWorkers);
 		step(`Roll back from ${releaseA} to trunk`);
 		for (const session of sessions) {
 			await useOpenTab(session, { retainsFiles: true });

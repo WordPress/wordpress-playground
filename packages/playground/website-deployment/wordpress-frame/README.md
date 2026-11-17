@@ -215,6 +215,18 @@ installer then purges the edge cache for the hostnames the replaced `release.jso
 Rollback skips the host probes and pruning; the next deployment prunes. Rollback requires the
 restored release to remain on disk.
 
+Deployment and rollback share an exclusive lock at `/srv/htdocs/.playground-deployment.lock`.
+PHP holds it through file replacement, failure recovery, edge purging and cleanup.
+If an edge purge fails, its hostnames remain in `~/website-backups/pending-edge-purge`,
+outside the restored files. Finish that purge before another deployment or rollback:
+
+```sh
+ssh -tt <user@host> PLAYGROUND_PURGE_ONLY=1 website-deployment/apply-update.sh
+```
+
+This retries both host purges without changing files or rolling back another release.
+Failed activation also purges after restoring the previous root files.
+
 The inline JavaScript guard stops app pages opened at /releases/<id>/ URLs before
 app scripts run. It works in HTML served directly by Nginx too. This prevents a
 fresh visit to an old app entry; it does not stop an already-open tab or revoke

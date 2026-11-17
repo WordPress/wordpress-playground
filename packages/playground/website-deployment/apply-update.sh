@@ -20,13 +20,21 @@ set -euo pipefail
 #
 #   PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh [web-root] [backups]
 #   PLAYGROUND_ROLLBACK=<release-id> website-deployment/apply-update.sh
+#   PLAYGROUND_PURGE_ONLY=1 website-deployment/apply-update.sh [web-root] [backups]
 #
 # /release.json names the live and previous releases. A rollback restores the root
 # files from the snapshot taken before that deployment and purges the edge cache. It builds,
 # uploads, probes and prunes nothing, so it finishes in seconds; the next deployment
 # prunes. Paths and platform settings can be supplied to run against a test site.
+# Only the PHP lock holder invokes this internal entry point.
+LOCK_HELD=0
+if [ "${1:-}" = --deployment-lock-held ]; then
+    LOCK_HELD=1
+    shift
+fi
 ROLLBACK="${PLAYGROUND_ROLLBACK:-}"
-if [ -n "$ROLLBACK" ]; then
+PURGE_ONLY="${PLAYGROUND_PURGE_ONLY:-0}"
+if [ -n "$ROLLBACK" ] || [ "$PURGE_ONLY" = 1 ]; then
     WEB_ROOT="${1:-/srv/htdocs}"
     BACKUPS="${2:-$HOME/website-backups}"
 else
@@ -36,6 +44,10 @@ else
     WEB_ROOT="${4:-/srv/htdocs}"
     BACKUPS="${5:-$HOME/website-backups}"
     RELEASE_ID="${PLAYGROUND_RELEASE_ID:?Expected PLAYGROUND_RELEASE_ID}"
+fi
+if [ -n "$ROLLBACK" ] && [ "$PURGE_ONLY" = 1 ]; then
+    echo "Choose rollback or purge-only recovery, not both." >&2
+    exit 1
 fi
 RETENTION_DAYS="${PLAYGROUND_RELEASE_RETENTION_DAYS:-30}"
 # Local preview and test installs skip the WP Cloud probes and edge purge.
@@ -51,8 +63,13 @@ if [ "$LOCAL" != 1 ]; then
     SITE_API_BASE="${SITE_API_BASE:-$( "$SITE_PHP" -r 'require "/scripts/env.php"; echo SITE_API_BASE;')}"
     : "${SITE_API_BASE:?Expected SITE_API_BASE}"
 fi
+if [ "$LOCK_HELD" = 0 ]; then
+    exec "$SITE_PHP" "$DEPLOYMENT/apply-update.php" with-lock \
+        "$WEB_ROOT" "$DEPLOYMENT/apply-update.sh" "$@"
+fi
+PENDING_PURGE="$BACKUPS/pending-edge-purge"
 
-# Purge the edge cache for the hostnames the live release.json records. Do not report
+# Purge the edge cache for the recorded hostnames. Do not report
 # a complete deployment or rollback while old edge responses remain cached.
 # A purge without a domain clears only the site's primary domain, so name each host.
 purge_edge() {
@@ -69,14 +86,46 @@ purge_edge() {
     echo "Edge cache purged for $*"
 }
 
+prepare_edge_purge() {
+    [ "$LOCAL" != 1 ] || return 0
+    local hosts
+    hosts="$("$SITE_PHP" "$DEPLOYMENT/apply-update.php" prepare-purge "$WEB_ROOT" "$BACKUPS" "$@")"
+    if [ -z "$hosts" ]; then
+        echo "No hostnames to purge." >&2
+        return 1
+    fi
+}
+
+finish_edge_purge() {
+    [ "$LOCAL" != 1 ] || return 0
+    local hosts
+    hosts="$(cat "$PENDING_PURGE")"
+    # shellcheck disable=SC2086 # One hostname per line.
+    purge_edge $hosts
+    rm "$PENDING_PURGE"
+}
+
+if [ "$PURGE_ONLY" = 1 ]; then
+    if [ -e "$PENDING_PURGE" ]; then
+        finish_edge_purge
+    else
+        echo "No pending edge purge."
+    fi
+    exit 0
+fi
+if [ -e "$PENDING_PURGE" ]; then
+    echo "An edge purge is pending. Run PLAYGROUND_PURGE_ONLY=1 website-deployment/apply-update.sh with the same paths before continuing." >&2
+    exit 1
+fi
+
 if [ -n "$ROLLBACK" ]; then
     # Read the current hostnames before rollback: snapshots of the old root-only
     # layout have no release.json to name the hosts whose edge caches need purging.
-    hosts="$("$SITE_PHP" "$DEPLOYMENT/apply-update.php" hosts "$WEB_ROOT")"
-    "$SITE_PHP" "$DEPLOYMENT/apply-update.php" rollback "$WEB_ROOT" "$BACKUPS" "$ROLLBACK"
-    # shellcheck disable=SC2086 # One hostname per line.
-    purge_edge $hosts
-    exit 0
+    prepare_edge_purge
+    status=0
+    "$SITE_PHP" "$DEPLOYMENT/apply-update.php" rollback "$WEB_ROOT" "$BACKUPS" "$ROLLBACK" || status=$?
+    finish_edge_purge
+    exit "$status"
 fi
 
 # Reject bad origins and release IDs before touching the web root.
@@ -167,11 +216,12 @@ done
 mv "$STAGING" "$PUBLIC"
 
 # Replace the root entry files. release.json records both origins for later purges.
+prepare_edge_purge "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
+status=0
 "$SITE_PHP" "$DEPLOYMENT/apply-update.php" activate \
-    "$WEB_ROOT" "$BACKUPS" "$RELEASE_ID" "$RETENTION_DAYS" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
-hosts="$("$SITE_PHP" "$DEPLOYMENT/apply-update.php" hosts "$WEB_ROOT")"
-# shellcheck disable=SC2086 # One hostname per line.
-purge_edge $hosts
+    "$WEB_ROOT" "$BACKUPS" "$RELEASE_ID" "$RETENTION_DAYS" "$APP_ORIGIN" "$WORDPRESS_ORIGIN" || status=$?
+finish_edge_purge
+[ "$status" -eq 0 ] || exit "$status"
 
 # Prune only after the activation's edge purge, so a cleanup failure cannot leave
 # stale entry responses cached; it is still reported as a deployment error.

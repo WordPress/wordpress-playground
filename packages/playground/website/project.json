@@ -117,7 +117,7 @@
 			"options": {
 				"useFlatConfig": false,
 				"lintFilePatterns": [
-					"packages/playground/website/**/*.{ts,tsx,js,jsx}",
+					"packages/playground/website/**/*.{ts,mts,tsx,js,jsx}",
 					"packages/playground/website/bin/*.mts"
 				],
 				"maxWarnings": 0

@@ -129,8 +129,14 @@ missing paths. Inactive releases expire after 30 days (configurable), protecting
 `release.json` inventories owned root files; activation failures and manual rollback restore
 replaced/deleted files and remove newly introduced ones with the same installer.
 Cleanup failures retain lifecycle metadata for retry; prune runs only after both hosts
-have been purged. Staging readiness checks require successful worker responses and
-retry transient HTTP errors. Their unit tests run in `playground-website:test`.
+have been purged. PHP's `flock` serializes the whole installer on each web root.
+Purge hosts are recorded outside root snapshots; `PLAYGROUND_PURGE_ONLY=1` retries a
+failed purge without another rollback. Pending purges block further installations
+and rollbacks. Failed activation purges after restoring the previous files.
+Staging readiness checks require successful worker responses and retry transient
+HTTP errors; rollback compares both workers with their captured baseline bytes.
+The browser rehearsal rejects a non-trunk baseline before opening browsers or deploying.
+Its unit tests run in `playground-website:test`.
 The staging browser rehearsal accepts `PLAYGROUND_STAGING_FIREFOX_CHANNEL=moz-firefox`
 to use installed Firefox when the bundled browser cannot launch locally.
 Do not add a second installer script. Host checks live in

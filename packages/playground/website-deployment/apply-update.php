@@ -12,12 +12,13 @@
  */
 
 $commands = array(
+	'with-lock'          => 'with_deployment_lock',
 	'check-origins'       => 'check_origins',
 	'check-build'         => 'check_build',
 	'write-private-files' => 'write_private_files',
 	'activate'            => 'activate',
 	'rollback'            => 'rollback',
-	'hosts'               => 'hosts',
+	'prepare-purge'       => 'prepare_purge',
 	'prune'               => 'prune',
 );
 $command = $argv[1] ?? '';
@@ -26,6 +27,36 @@ if ( ! isset( $commands[ $command ] ) ) {
 	exit( 2 );
 }
 $commands[ $command ]( ...array_slice( $argv, 2 ) );
+
+/** Hold one lock across all shell and PHP steps, including failure recovery and purge. */
+function with_deployment_lock( $root, $script, ...$arguments ) {
+	if ( ! is_dir( $root ) && ! mkdir( $root, 0755, true ) ) {
+		throw new RuntimeException( "Cannot create web root $root" );
+	}
+	$lock = fopen( "$root/.playground-deployment.lock", 'c' );
+	if ( false === $lock ) {
+		throw new RuntimeException( 'Cannot open deployment lock.' );
+	}
+	if ( ! flock( $lock, LOCK_EX | LOCK_NB, $would_block ) ) {
+		if ( ! $would_block ) {
+			throw new RuntimeException( 'Cannot lock deployment.' );
+		}
+		fwrite( STDOUT, "Waiting for another deployment or rollback to finish.\n" );
+		if ( ! flock( $lock, LOCK_EX ) ) {
+			throw new RuntimeException( 'Cannot lock deployment.' );
+		}
+	}
+	// Inherit the lock too, so killing this parent cannot unlock a running installer.
+	$process = proc_open(
+		array_merge( array( 'bash', $script, '--deployment-lock-held' ), $arguments ),
+		array( 0 => STDIN, 1 => STDOUT, 2 => STDERR, 3 => $lock ),
+		$pipes
+	);
+	if ( false === $process ) {
+		throw new RuntimeException( 'Cannot start locked installer.' );
+	}
+	exit( proc_close( $process ) );
+}
 
 /**
  * Reject origins before touching the web root.
@@ -243,15 +274,33 @@ function rollback( $root, $backups, $deployment ) {
 }
 
 /**
- * Print the live release's hostnames, one per line, for the edge-cache purge.
+ * Save purge hosts outside root snapshots before activation or rollback.
+ * Rollback to trunk can remove release.json; this record still permits a purge retry.
  */
-function hosts( $root ) {
-	$manifest = is_file( "$root/release.json" ) ? read_json( "$root/release.json" ) : array();
-	if ( ! isset( $manifest['appOrigin'], $manifest['wordPressOrigin'] ) ) {
+function prepare_purge( $root, $backups, $app_origin = null, $wordpress_origin = null ) {
+	$origins = null !== $app_origin && null !== $wordpress_origin
+		? array( $app_origin, $wordpress_origin ) : array();
+	if ( is_file( "$root/release.json" ) ) {
+		$manifest = read_json( "$root/release.json" );
+		if ( ! isset( $manifest['appOrigin'], $manifest['wordPressOrigin'] ) ) {
+			throw new RuntimeException( 'release.json does not record the hostnames to purge.' );
+		}
+		// Include the old hosts too, in case activation restores a different origin pair.
+		$origins = array_merge( $origins, array( $manifest['appOrigin'], $manifest['wordPressOrigin'] ) );
+	}
+	if ( ! $origins ) {
 		throw new RuntimeException( 'release.json does not record the hostnames to purge.' );
 	}
-	echo parse_url( $manifest['appOrigin'], PHP_URL_HOST ) . "\n" .
-		parse_url( $manifest['wordPressOrigin'], PHP_URL_HOST ) . "\n";
+	$hosts = array_unique( array_map( fn( $origin ) => parse_url( $origin, PHP_URL_HOST ), $origins ) );
+	if ( in_array( null, $hosts, true ) || in_array( false, $hosts, true ) || in_array( '', $hosts, true ) ) {
+		throw new RuntimeException( 'No hostnames to purge.' );
+	}
+	if ( ! is_dir( $backups ) && ! mkdir( $backups, 0755, true ) ) {
+		throw new RuntimeException( "Cannot create backups directory $backups" );
+	}
+	$contents = implode( "\n", $hosts ) . "\n";
+	write_file( "$backups/pending-edge-purge", $contents );
+	echo $contents;
 }
 
 /**
