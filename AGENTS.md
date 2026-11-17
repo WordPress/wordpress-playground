@@ -123,7 +123,8 @@ The cacheable `playground-wordpress-builds:validate-static-documents` target val
 WordPress HTML, SVG, XHTML, and XML with a parsed-document DOMPurify check. Asset refresh
 and publication depend on it. It rejects active and unreviewed malformed content without
 rewriting bytes; reviewed upstream defects require reviewed hash lists per WordPress-relative path, shared across versions.
-WordPress Docker exports restore the invoking user's ownership before host-side validation.
+WordPress Docker exports restore the mounted output directory's owner before host-side validation.
+Use container-visible IDs so rootless Docker keeps the files owned by the caller.
 Preserve SQLite's owner-only directory permissions when exporting build artifacts.
 The self-hosting download is built separately without release paths or production
 origins.

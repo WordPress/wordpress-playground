@@ -204,7 +204,11 @@ if (!isRemoteModule) {
 		await fs.rm(wordpressDir, { recursive: true });
 	}
 
-	const restoreOutputOwnershipCommand = getRestoreOutputOwnershipCommand();
+	// Use the mount owner's container IDs: rootless Docker maps the caller to UID 0,
+	// while rootful Docker exposes the host UID. Only rootful exports need repair.
+	const restoreOutputOwnershipCommand =
+		' && if [ "$(stat -c %u /output)" != 0 ]; then ' +
+		'chown -R --reference=/output /output; fi';
 
 	// Extract the WordPress static root with wp-includes/ etc
 	await asyncSpawn(
@@ -282,25 +286,6 @@ if (isRemoteModule) {
 		['build-tar-zst.mjs', `--version=${versionInfo.slug}`, '--delete-zip'],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
-}
-
-/**
- * Docker exports bind-mounted files as root on Linux. Restore the caller's ownership
- * before validation reads owner-only SQLite directories or later steps edit the files.
- */
-function getRestoreOutputOwnershipCommand() {
-	if (
-		typeof process.getuid !== 'function' ||
-		typeof process.getgid !== 'function'
-	) {
-		return '';
-	}
-	const uid = process.getuid();
-	const gid = process.getgid();
-	if (uid === 0) {
-		return '';
-	}
-	return ` && chown -R ${uid}:${gid} /output`;
 }
 
 function asyncSpawn(...args) {
