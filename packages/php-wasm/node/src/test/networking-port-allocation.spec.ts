@@ -42,12 +42,12 @@ describe('networking port allocation', () => {
 		}
 	});
 
-	it('binds the inbound websocket proxy directly on an automatic port', async () => {
+	it('binds the inbound TCP proxy to the requested host and port', async () => {
 		class StubWebSocketServer extends EventTarget {
 			private readonly port = 43210;
-			public options: { port: number };
+			public options: { host: string; port: number };
 
-			constructor(options: { port: number }) {
+			constructor(options: { host: string; port: number }) {
 				super();
 				this.options = options;
 				process.nextTick(() =>
@@ -111,7 +111,7 @@ describe('networking port allocation', () => {
 			expect(this).toBe(websocketServer);
 		});
 		const websocketServer = new DecoratedServer(
-			{ port: 12345 },
+			{ host: '0.0.0.0', port: 12345 },
 			onListening
 		);
 
@@ -119,8 +119,15 @@ describe('networking port allocation', () => {
 		await new Promise((resolve) => process.nextTick(resolve));
 
 		try {
-			expect(websocketServer.options.port).toBe(0);
-			expect(listenCalls).toContainEqual([12345, expect.any(Function)]);
+			expect(websocketServer.options).toEqual({
+				host: '127.0.0.1',
+				port: 0,
+			});
+			expect(listenCalls).toContainEqual([
+				12345,
+				'0.0.0.0',
+				expect.any(Function),
+			]);
 			expect(onListening).toHaveBeenCalledOnce();
 			websocketServer.close();
 			expect(closeCalled).toBe(true);
