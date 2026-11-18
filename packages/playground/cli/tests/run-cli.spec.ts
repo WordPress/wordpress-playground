@@ -1538,6 +1538,84 @@ describe('php command', () => {
 		}
 	});
 
+	test(
+		'should keep backslash paths inside the mounted directory',
+		{ skip: process.platform !== 'win32' },
+		async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-mount-test-')
+			);
+			const mountDir = path.join(tmpDir, 'mount');
+			const outsideDir = path.join(tmpDir, 'outside');
+			mkdirSync(mountDir);
+			mkdirSync(outsideDir);
+			writeFileSync(path.join(mountDir, 'inside.txt'), 'foo');
+			writeFileSync(path.join(outsideDir, 'secret.txt'), 'bar');
+			writeFileSync(path.join(outsideDir, 'target.txt'), 'baz');
+			mkdirSync(path.join(outsideDir, 'corge'));
+
+			const stdoutChunks: string[] = [];
+			const stdoutSpy = vi
+				.spyOn(process.stdout, 'write')
+				.mockImplementation((chunk: any) => {
+					stdoutChunks.push(
+						typeof chunk === 'string'
+							? chunk
+							: new TextDecoder().decode(chunk)
+					);
+					return true;
+				});
+
+			try {
+				const exitCode = await runCLI({
+					command: 'php',
+					_: [
+						'php',
+						'-r',
+						String.raw`echo json_encode([
+							'read' => @file_get_contents('/mnt/..\outside\secret.txt'),
+							'write' => @file_put_contents('/mnt/..\outside\target.txt', 'qux'),
+							'delete' => @unlink('/mnt/..\outside\secret.txt'),
+							'rename' => @rename('/mnt/inside.txt', '/mnt/..\outside\quux.txt'),
+							'rmdir' => @rmdir('/mnt/..\outside\corge'),
+							'symlink' => @symlink('/mnt/inside.txt', '/mnt/..\outside\grault.txt'),
+							'inside' => file_get_contents('/mnt/inside.txt'),
+						]);`,
+					],
+					mount: [{ hostPath: mountDir, vfsPath: '/mnt' }],
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: undefined,
+				});
+
+				expect(exitCode).toBe(0);
+				expect(JSON.parse(stdoutChunks.join(''))).toEqual({
+					read: false,
+					write: false,
+					delete: false,
+					rename: false,
+					rmdir: false,
+					symlink: false,
+					inside: 'foo',
+				});
+				expect(
+					await readFile(path.join(outsideDir, 'secret.txt'), 'utf8')
+				).toBe('bar');
+				expect(
+					await readFile(path.join(outsideDir, 'target.txt'), 'utf8')
+				).toBe('baz');
+				expect(readdirSync(outsideDir).sort()).toEqual([
+					'corge',
+					'secret.txt',
+					'target.txt',
+				]);
+			} finally {
+				stdoutSpy.mockRestore();
+				rmSync(tmpDir, { recursive: true, force: true });
+			}
+		}
+	);
+
 	test('should exit with non-zero code on PHP error', async () => {
 		const stdoutSpy = vi
 			.spyOn(process.stdout, 'write')
