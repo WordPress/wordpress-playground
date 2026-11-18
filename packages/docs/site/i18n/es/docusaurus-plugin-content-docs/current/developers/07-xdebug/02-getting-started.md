@@ -55,29 +55,25 @@ Para depurar con Chrome DevTools, agrega la bandera `--experimental-devtools`:
 npx @wp-playground/cli@latest server --xdebug --experimental-devtools
 ```
 
-<!-- The terminal will display a URL to connect Chrome DevTools: -->
+<!-- Open the URL printed by the bridge in Chrome on the same computer. DevTools connects to the Chrome DevTools Protocol (CDP) listener at `127.0.0.1:9229`. -->
 
-La terminal mostrará una URL para conectar Chrome DevTools:
+En el mismo equipo, abre en Chrome la URL que muestra el puente de Xdebug. DevTools se conecta a `127.0.0.1:9229` mediante el protocolo CDP (Chrome DevTools Protocol).
 
-```bash
-Starting a PHP server...
-Setting up WordPress latest
-Resolved WordPress release URL: https://downloads.w.org/release/wordpress-6.8.3.zip
-Fetching SQLite integration plugin...
-Booting WordPress...
-WordPress is running on http://127.0.0.1:9400 with 1 worker(s)
+```text
 Starting XDebug Bridge...
 Connect Chrome DevTools to CDP at:
 devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
-
-Chrome connected! Initializing Xdebug receiver...
-XDebug receiver running on port 9003
-Running a PHP script with Xdebug enabled...
 ```
 
-<!-- By clicking on the provided URL, for example, `devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229`, you can access DevTools connected to your application, with the ability to inspect all files of a WordPress instance. -->
+<!-- Once DevTools connects, the bridge starts listening for Xdebug (DBGp) connections at `127.0.0.1:9003`. Both listeners use IPv4 loopback by default. -->
 
-Al hacer clic en la URL proporcionada, por ejemplo, `devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229`, puedes acceder a DevTools conectado con tu aplicación, con la posibilidad de inspeccionar todos los archivos de una instancia WordPress.
+Una vez que DevTools se conecta, el puente empieza a escuchar conexiones de Xdebug (DBGp) en `127.0.0.1:9003`. De forma predeterminada, el puente escucha en la dirección IPv4 de bucle invertido para ambos protocolos.
+
+```text
+Chrome connected! Initializing Xdebug receiver...
+XDebug receiver running on 127.0.0.1:9003
+Running a PHP script with Xdebug enabled...
+```
 
 ![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
 
