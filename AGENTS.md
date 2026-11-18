@@ -79,7 +79,7 @@ npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 Normal loopback website development keeps the SPA, PHP, OPFS, and directory
 handles on `127.0.0.1:5400`, with rendered WordPress on `127.0.0.1:4400`.
 `localhost` uses the same two ports. Vite's app proxy preserves the app Host;
-the remote server restricts direct WordPress-port requests to the HTTP helper and
+the remote server restricts direct WordPress-port requests to the WordPress bridge and
 worker loaders. Standalone remote, Personal WP, sync, and forwarded hosts retain
 their previous routing. Do not replace either server with an auto-selected port.
 A single Chromium CI smoke test covers the live Vite module graph; the full
@@ -93,35 +93,80 @@ Deployment tests use the same boundary on port 7999. See
 `packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
 WordPress always uses the configured sandbox origin. PHP, OPFS, and directory
 handles stay on the app origin. Tabs share one app service worker and asset cache.
+App workers leave other releases' assets to HTTP so worker replacement cannot interrupt
+those downloads in WebKit, including `/assets/` when rolling back to the root-only layout;
+their own release's assets keep offline caching.
 Standalone and self-hosted builds without a sandbox retain one origin.
 External embeds do not need a referrer or new URL parameters. This mode does not
 block WordPress from embedding fresh app/API documents.
-The normal WP Cloud deployment sets `VITE_WORDPRESS_SITE_URL` to
-`https://wpsandbox.wordpress.net` and `PLAYGROUND_APP_ORIGIN` to
-`https://playground.wordpress.net` in one workflow environment. Pass those same
-values to the single `apply-update.sh` deployment script; it writes the sandbox
-origin into the release's PHP entry. The remote Vite build uses `PLAYGROUND_APP_ORIGIN` to
-create a `wordpress-sandbox/` subdirectory containing only the HTTP helper and
-worker loaders, all importing shared app-origin scripts. The PHP host gate
-serves that directory as-is, without constructing response bodies or falling
-back to app files. The built preview uses the same directory and generators.
+The normal WP Cloud deployment runs `website-deployment/deploy-website.sh`, which sets
+`VITE_WORDPRESS_SITE_URL` to `https://wpsandbox.wordpress.net`, `PLAYGROUND_APP_ORIGIN`
+to `https://playground.wordpress.net`, and a unique `PLAYGROUND_RELEASE_ID`.
+`test-staging-deployment.sh` runs that same script against a disposable staging site, and
+`check-deployment.sh` checks a deployed release over HTTP without changing it. Vite builds with base `/releases/<id>/`, so every asset URL names its
+release, and adds an inline origin check to every app HTML page, including copied
+public files: the WordPress bridge requires the sandbox origin, all other pages the
+app origin and their web-root URL, so retained releases' pages cannot start.
+JavaScript release ID validation is
+shared in `packages/playground/remote/src/lib/release-id.ts`. Compatibility code markers
+and removal conditions are listed in
+`packages/playground/website-deployment/wordpress-frame/compatibility.md`. When changing
+marked code, update that checklist and its coverage. Remove compatibility code only
+when its documented removal conditions hold; preserve supported portable/dev layouts.
+The target and the `build:wordpress-frame` preview assemble the upload with the same
+`bin/assemble-website.mjs`, so preview checks cover every published page. The single `apply-update.sh`
+installs the build as the public `releases/<id>/` directory, moves its PHP endpoints
+to the Nginx-denied `.playground-releases/<id>/`, and copies entry pages plus a root
+`/sw.js` loader to the web root. Pages needing custom headers stay PHP-served.
+Its PHP steps live in `apply-update.php`, which it calls with arguments only.
+The cacheable `playground-wordpress-builds:validate-static-documents` target validates
+WordPress HTML, SVG, XHTML, and XML with a parsed-document DOMPurify check. Asset refresh
+and publication depend on it. It rejects active and unreviewed malformed content without
+rewriting bytes; reviewed upstream defects require reviewed hash lists per WordPress-relative path, shared across versions.
+WordPress Docker exports restore the mounted output directory's owner before host-side validation.
+Use container-visible IDs so rootless Docker keeps the files owned by the caller.
+Limit ownership repair to the exported version directory and core archive.
+Preserve SQLite's owner-only directory permissions when exporting build artifacts.
+The self-hosting download is built separately without release paths or production
+origins.
+Nginx serves existing files on both hostnames; `custom-redirects.php` handles only
+missing paths. Inactive releases expire after 30 days (configurable), protecting active and previous releases.
+`release.json` inventories owned root files; activation failures and manual rollback restore
+replaced/deleted files and remove newly introduced ones with the same installer.
+Cleanup failures retain lifecycle metadata for retry; prune runs only after both hosts
+have been purged. PHP's `flock` serializes the whole installer on each web root.
+Only the lock coordinator disables WP Cloud's auto-prepend bootstrap, preserving
+the shell environment for its child; PHP installation steps keep the normal bootstrap.
+Purge hosts are recorded outside root snapshots; `PLAYGROUND_PURGE_ONLY=1` retries a
+failed purge without another rollback. Pending purges block further installations
+and rollbacks. Rollback records both the current and restored hostname pairs, including
+origin changes. Failed activation purges after restoring the previous files.
+Staging readiness checks require successful worker responses and retry transient
+HTTP errors; rollback compares both workers with their captured baseline bytes.
+The browser rehearsal rejects a non-trunk baseline before opening browsers or deploying.
+It first reloads trunk as a control, and logs errors with their phase and request URLs.
+The live deployment rehearsal forces a failed purge after restoring trunk, then retries it.
+Its unit tests run in `playground-website:test`.
+The staging browser rehearsal accepts `PLAYGROUND_STAGING_FIREFOX_CHANNEL=moz-firefox`
+to use installed Firefox when the bundled browser cannot launch locally.
 Do not add a second installer script. Host checks live in
-`website-deployment/custom-redirects-lib.php`, reached
-through its existing `playground_handle_request()` entry point. Only the sandbox host takes an early
-bootstrap-only path, with scoped top-level GET navigations redirected to the configured
-app origin. Scoped app navigations serve the trusted WordPress iframe wrapper;
-iframe and subresource requests never redirect. App requests keep the existing redirects, headers, and PHP
-setup. The deployment script selects a complete
-private release and checks both hosts and Nginx's hidden-path deny rule before
-activation. Personal WP keeps its no-argument public-file layout and separate script.
+`website-deployment/custom-redirects-lib.php`, reached through its existing
+`playground_handle_request()` entry point. The sandbox host serves only bridge
+aliases for older clients and returns 404 otherwise, with scoped top-level GET
+navigations redirected to the configured app origin. Scoped app navigations serve
+the trusted WordPress iframe wrapper; iframe and subresource requests never
+redirect. App requests keep the existing redirects, headers, and PHP setup.
+One `/sw.js` serves both hostnames and chooses its role by origin. Personal WP keeps
+its no-argument public-file layout and separate script.
 The HTTP/install contract tests run with
 `playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
-WordPress request-helper URLs include the app build version. Servers map them to
-the deployed release's sandbox helper file; workers generate helper HTML only for
-their own buildVersion and the unversioned /wordpress-bridge.html URL. Requests
-naming any other buildVersion reach the server, so a worker installed during a
-previous visit cannot supply a script URL removed by deployment. The deployed
-helper waits for the worker it registers to activate before completing PHP startup.
+The WordPress bridge (`wordpress-bridge.html`) is the hidden sandbox iframe that relays
+HTTP between its service worker and app-origin PHP. Production bridge URLs name the
+app's release directory. Development and portable builds use build-version root aliases;
+older root-only production builds use those aliases too. Workers generate bridge HTML
+only for their own release/buildVersion and the unversioned compatibility alias. Other
+versions reach the server, so an installed worker cannot supply a removed script URL.
+The bridge waits for the worker it registers to activate before completing PHP startup.
 
 WP Cloud's PHP-served static files support single bounded and open-ended byte
 ranges for runtime download retries. Other range forms get the full response;
@@ -228,6 +273,11 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 - Path aliases defined in `tsconfig.base.json` for cross-package imports
 
 ### Code Style
+
+- **Explicit conditions:** Name the fact a branch depends on. If a value only implies
+  that fact (a path, sentinel, or naming convention), derive a clearly named boolean
+  once and use it at decision sites. Keep the inference in one place and explain
+  why it holds. Prefer names that describe the actual behavior or layout.
 
 - **Comment length**: Max 100 characters per line (enforced by ESLint)
 - **No console.log**: Disallowed except in tests and bin/ scripts
