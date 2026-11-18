@@ -119,14 +119,28 @@ installs the browser website and its Dock. -->
 
 Compile o site do Playground a partir do código-fonte para hospedá-lo no seu próprio domínio. Isso não exige um artefato do GitHub Actions. O pacote npm `@wp-playground/client` conecta sua aplicação a um ambiente de execução no navegador já hospedado. O pacote npm `@wp-playground/cli` executa o WordPress localmente com Node.js. Nenhum deles instala o site do Playground e seu Dock.
 
-<!-- The [Deploy Playground website workflow](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml)
-produces a temporary artifact for the public deployment. It expires, and the
-build is configured to render WordPress on `wpsandbox.wordpress.net`. Use the
-source build below for another domain, even if the artifact is still available.
-Running the deploy workflow in a fork without the deployment secrets skips
-the build, too. -->
+<!-- ### Download the standalone build -->
 
-O [fluxo de trabalho Deploy Playground website](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml) produz um artefato temporário para a implantação pública. Ele expira, e a compilação é configurada para exibir o WordPress em `wpsandbox.wordpress.net`. Para outro domínio, compile a partir do código-fonte seguindo as instruções abaixo, mesmo que o artefato ainda esteja disponível. Executar o fluxo de implantação em um fork sem os segredos de implantação também faz com que a compilação seja ignorada.
+### Baixar a versão independente {#download-the-standalone-build}
+
+<!-- Sign in to GitHub and open a recent successful run of the
+[Deploy Playground website workflow](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml).
+Download `playground-website` from **Artifacts**. Unzip the download, then extract
+`wasm-wordpress-net.tar.gz`. Serve the contents of
+`dist/packages/playground/wasm-wordpress-net` as your site root. -->
+
+Entre na sua conta do GitHub. No [fluxo de trabalho Deploy Playground website](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml), abra uma execução recente concluída com sucesso. Baixe `playground-website` na seção **Artifacts**. Descompacte o arquivo ZIP e extraia `wasm-wordpress-net.tar.gz`. Sirva o conteúdo de `dist/packages/playground/wasm-wordpress-net` como a raiz do seu site.
+
+<!-- The standalone build uses root-relative asset paths and serves the Playground app
+and WordPress from the same origin. If the artifact has expired or you need custom
+build settings, [build locally](#build-locally). -->
+
+A versão independente usa caminhos de recursos relativos à raiz e serve a aplicação Playground e o WordPress na mesma origem. Se o artefato tiver expirado ou se você precisar personalizar a configuração da compilação, [compile localmente](#build-locally).
+
+<!-- The workflow builds the artifact only on `trunk` and requires the deployment
+secrets. Manual runs require an authorized maintainer or the GitHub Actions bot. -->
+
+O fluxo de trabalho só gera o artefato no branch `trunk` e exige os segredos de implantação. Apenas integrantes autorizados da equipe de manutenção ou o bot do GitHub Actions podem iniciar uma execução manual.
 
 <!-- ### Build locally -->
 
