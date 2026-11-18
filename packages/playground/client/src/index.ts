@@ -60,6 +60,11 @@ export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
 	/**
+	 * Maximum time to load the iframe and connect its API, in milliseconds.
+	 * Defaults to 60000. PHP downloads and Blueprint execution are not timed out.
+	 */
+	connectionTimeoutMs?: number;
+	/**
 	 * Runtime mode. Defaults to `dedicated`, with one worker per connection.
 	 * `shared` connects tabs on the same origin and storage partition to one runtime
 	 * for the given scope and build. Requires SharedWorker support and an explicit `scope`.
@@ -196,6 +201,8 @@ export interface PlaygroundAPIClient {
 export interface StartPlaygroundAPIOptions {
 	iframe: HTMLIFrameElement;
 	apiUrl: string;
+	/** Maximum time to load the iframe and connect its API. Defaults to 60000ms. */
+	connectionTimeoutMs?: number;
 }
 
 /**
@@ -252,7 +259,11 @@ export async function startPlaygroundWeb(
 			: 'Preparing WordPress'
 	);
 
-	await loadIframe(iframe, remoteUrl);
+	const connectedPlayground = await loadIframe<PlaygroundClient>(
+		iframe,
+		remoteUrl,
+		options.connectionTimeoutMs
+	);
 	if (detailedProgressCaptions) {
 		progressTracker.setCaption('Connecting to Playground runtime');
 	}
@@ -260,7 +271,11 @@ export async function startPlaygroundWeb(
 	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)
 		: new BlueprintsV1Handler(options as StartPlaygroundOptions);
-	const playground = await handler.bootPlayground(iframe, progressTracker);
+	const playground = await handler.bootPlayground(
+		iframe,
+		progressTracker,
+		connectedPlayground
+	);
 
 	progressTracker.finish();
 
@@ -280,23 +295,71 @@ export async function startPlaygroundAPI(
 	allowStorageAccessByUserActivation(iframe);
 	const resolvedAPIUrl = new URL(apiUrl, remoteOrigin).toString();
 
-	await loadIframe(iframe, resolvedAPIUrl);
-
-	const api = consumeAPI<PlaygroundAPIClient>(
-		iframe.contentWindow!,
-		iframe.ownerDocument!.defaultView!
+	const api = await loadIframe<PlaygroundAPIClient>(
+		iframe,
+		resolvedAPIUrl,
+		options.connectionTimeoutMs
 	);
-	await api.isConnected();
 	await api.isReady();
 
 	return api;
 }
 
-function loadIframe(iframe: HTMLIFrameElement, url: string): Promise<void> {
-	return new Promise((resolve) => {
-		iframe.addEventListener('load', () => resolve(), { once: true });
-		iframe.src = url;
-	});
+async function loadIframe<API>(
+	iframe: HTMLIFrameElement,
+	url: string,
+	connectionTimeoutMs = 60000
+) {
+	const context = iframe.ownerDocument.defaultView!;
+	const remoteOrigin = new URL(url).origin;
+	const controller = new AbortController();
+	const { signal } = controller;
+	const onStartupError = (event: MessageEvent) => {
+		if (
+			event.source !== iframe.contentWindow ||
+			event.origin !== remoteOrigin ||
+			event.data?.type !== 'playground-runtime-startup-error' ||
+			typeof event.data.error?.message !== 'string'
+		)
+			return;
+		const error = new Error(event.data.error.message);
+		if (typeof event.data.error.name === 'string')
+			error.name = event.data.error.name;
+		controller.abort(error);
+	};
+	context.addEventListener('message', onStartupError);
+	const timeout = setTimeout(() => {
+		const error = new Error(
+			`Playground did not connect within ${connectionTimeoutMs}ms. Its page or startup scripts may be blocked: ${url}`
+		);
+		error.name = 'TimeoutError';
+		controller.abort(error);
+	}, connectionTimeoutMs);
+	try {
+		await new Promise<void>((resolve, reject) => {
+			const cleanup = () => {
+				iframe.removeEventListener('load', onLoad);
+				signal.removeEventListener('abort', onAbort);
+			};
+			const onLoad = () => {
+				cleanup();
+				resolve();
+			};
+			const onAbort = () => {
+				cleanup();
+				reject(signal.reason);
+			};
+			iframe.addEventListener('load', onLoad, { once: true });
+			signal.addEventListener('abort', onAbort, { once: true });
+			iframe.src = url;
+		});
+		const api = consumeAPI<API>(iframe.contentWindow!, context, signal);
+		await api.isConnected();
+		return api;
+	} finally {
+		clearTimeout(timeout);
+		context.removeEventListener('message', onStartupError);
+	}
 }
 
 async function shouldUseBlueprintV2Handler(

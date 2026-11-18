@@ -94,10 +94,13 @@ const query = new URL(document.location.href).searchParams;
  * The WordPress request connection is separate from the full client API exposed
  * to the embedding window: rendered WordPress does not receive that API here.
  */
-export async function bootPlaygroundRemote() {
+export async function bootPlaygroundRemote(
+	onStartupProgress?: (caption: string) => void
+) {
 	assertNotInfiniteLoadingLoop();
 	const sharedMode = query.get('shared-worker') === '1';
 	const reportStartupProgress = (caption: string) => {
+		onStartupProgress?.(caption);
 		if (sharedMode)
 			window.parent.postMessage(
 				{ type: 'playground-runtime-startup-progress', caption },
@@ -128,7 +131,7 @@ export async function bootPlaygroundRemote() {
 		}
 	}
 
-	reportStartupProgress('Starting WordPress runtime');
+	reportStartupProgress('Registering service worker');
 	const registrationUrl = new URL(serviceWorkerUrl);
 	if (sharedMode) registrationUrl.searchParams.set('shared-worker', '1');
 	const registration = await sw.register(registrationUrl + '', {
@@ -172,6 +175,7 @@ export async function bootPlaygroundRemote() {
 	}
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
+	reportStartupProgress('Starting PHP worker');
 
 	const sharedRuntime = sharedMode
 		? await connectSharedRuntime(

@@ -22,6 +22,11 @@ console.log(response.text);
 
 Loading the client from `https://playground.wordpress.net/client/index.js` keeps it in sync with the remote Playground runtime. The client and the iframe communicate over an internal protocol, and backwards compatibility is guaranteed by serving a matching client and remote from the same deployment.
 
+Both startup functions reject if the iframe cannot connect its API within 60 seconds.
+Set `connectionTimeoutMs` to adjust that limit. The limit covers loading the iframe and
+connecting its API; PHP downloads and Blueprint execution can take longer. A remote
+that can run its startup error handler reports the original error immediately.
+
 ## Embedding with separate WordPress origins
 
 The WordPress-origin prototype keeps the app and SDK endpoints on the app origin.

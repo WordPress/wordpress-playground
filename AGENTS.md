@@ -194,6 +194,11 @@ The core architecture uses an iframe-based isolation model:
 @php-wasm/universal (abstract interface)
 ```
 
+The client bounds iframe/API connection time and accepts early startup failures only
+from its remote iframe's window and origin. The remote's inline error handler must
+work even if its bootstrap module cannot load. Offline caches are optional for online
+downloads; preserve explicit HTTP 401/403 responses instead of replaying cached HTML.
+
 **Key packages:**
 
 - `@wp-playground/client`: JavaScript API for embedding Playground in iframes

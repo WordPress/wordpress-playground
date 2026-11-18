@@ -27,7 +27,11 @@ export class BlueprintsV2Handler {
 
 	async bootPlayground(
 		iframe: HTMLIFrameElement,
-		progressTracker: ProgressTracker
+		progressTracker: ProgressTracker,
+		playground = consumeAPI<PlaygroundClient>(
+			iframe.contentWindow!,
+			iframe.ownerDocument!.defaultView!
+		) as PlaygroundClient
 	) {
 		const {
 			onBlueprintValidated,
@@ -50,10 +54,6 @@ export class BlueprintsV2Handler {
 
 		// Connect the Comlink API client to the remote worker,
 		// boot the playground, and run the blueprint steps.
-		const playground = consumeAPI<PlaygroundClient>(
-			iframe.contentWindow!,
-			iframe.ownerDocument!.defaultView!
-		) as PlaygroundClient;
 		await playground.isConnected();
 		if (!disableProgressBar) {
 			progressTracker.pipe(playground);

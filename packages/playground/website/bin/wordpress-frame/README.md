@@ -185,6 +185,13 @@ The OPFS check writes a private file from `remote.html`,
 attempts reads and same-path writes/deletes from WordPress, and confirms that
 both root-origin documents still read the unchanged private file.
 
+`startup-failures.spec.ts` serves the installed release on isolated origins and injects
+HTTP challenges for entry HTML, bootstrap modules, service workers, and PHP workers.
+It checks SDK rejection and copyable diagnostics, preserves online 401/403 responses
+with a warm entry cache, and checks HTTP downloads when CacheStorage fails. Healthy
+PHP startup and cached fallback after a transient 503 are controls. These tests run
+in Chromium, Firefox, and WebKit as part of the normal deployment preview suite.
+
 ## CI
 
 CI runs the entire existing website E2E suite once, against the WordPress-only

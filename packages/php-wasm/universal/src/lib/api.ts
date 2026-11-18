@@ -50,7 +50,8 @@ export async function consumeAPISync<APIType>(
 
 export function consumeAPI<APIType>(
 	remote: Worker | MessagePort | Window | NodeWorker | NodeProcess,
-	context: undefined | EventTarget = undefined
+	context: undefined | EventTarget = undefined,
+	connectionSignal?: AbortSignal
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
 
@@ -83,11 +84,13 @@ export function consumeAPI<APIType>(
 	} else {
 		const windowEndpoint = Comlink.windowEndpoint(
 			remote as Window,
-			context
+			context,
+			'*',
+			connectionSignal
 		);
 		const bootstrapApi = Comlink.wrap<WithAPIState>(windowEndpoint);
 		endpoint = deferredEndpoint(
-			connectWindowApiThroughMessagePort(bootstrapApi)
+			connectWindowApiThroughMessagePort(bootstrapApi, connectionSignal)
 		);
 	}
 
@@ -108,8 +111,13 @@ export function consumeAPI<APIType>(
 				return async () => {
 					// Keep retrying until the remote API confirms it's connected.
 					while (true) {
+						connectionSignal?.throwIfAborted();
 						try {
-							await runWithTimeout(api.isConnected(), 200);
+							await runWithTimeout(
+								api.isConnected(),
+								200,
+								connectionSignal
+							);
 							break;
 						} catch {
 							// Timeout exceeded, try again. We can't just use a single
@@ -141,13 +149,24 @@ export function consumeAPI<APIType>(
  * the remote Window installs its Comlink listener.
  */
 async function connectWindowApiThroughMessagePort(
-	bootstrapApi: Remote<WithAPIState> & ProxyMethods
+	bootstrapApi: Remote<WithAPIState> & ProxyMethods,
+	connectionSignal?: AbortSignal
 ): Promise<MessagePort> {
 	while (true) {
+		connectionSignal?.throwIfAborted();
 		try {
-			await runWithTimeout(bootstrapApi.isConnected(), 200);
-			return await bootstrapApi[createEndpoint]();
+			await runWithTimeout(
+				bootstrapApi.isConnected(),
+				200,
+				connectionSignal
+			);
+			return await runWithTimeout(
+				bootstrapApi[createEndpoint](),
+				undefined,
+				connectionSignal
+			);
 		} catch {
+			connectionSignal?.throwIfAborted();
 			// The remote Window has not exposed its API yet, or it changed
 			// before the endpoint request completed.
 		}
@@ -175,23 +194,30 @@ function deferredEndpoint(portPromise: Promise<MessagePort>): Endpoint {
 		transfer?: Transferable[];
 	}> = [];
 
-	void portPromise.then((connectedPort) => {
-		port = connectedPort;
-		for (const { type, listener, options } of listeners) {
-			port.addEventListener(type, listener, options);
-		}
-		if (shouldStart) {
-			port.start();
-		}
-		for (const { message, transfer } of messages) {
-			if (transfer) {
-				port.postMessage(message, transfer);
-			} else {
-				port.postMessage(message);
+	void portPromise.then(
+		(connectedPort) => {
+			port = connectedPort;
+			for (const { type, listener, options } of listeners) {
+				port.addEventListener(type, listener, options);
 			}
+			if (shouldStart) {
+				port.start();
+			}
+			for (const { message, transfer } of messages) {
+				if (transfer) {
+					port.postMessage(message, transfer);
+				} else {
+					port.postMessage(message);
+				}
+			}
+			messages.length = 0;
+		},
+		() => {
+			// A cancelled startup has no remote endpoint to answer these requests.
+			listeners.length = 0;
+			messages.length = 0;
 		}
-		messages.length = 0;
-	});
+	);
 
 	return {
 		postMessage(message, transfer) {
@@ -239,19 +265,25 @@ function deferredEndpoint(portPromise: Promise<MessagePort>): Endpoint {
 
 async function runWithTimeout<T>(
 	promise: Promise<T>,
-	timeout: number
+	timeout: number | undefined,
+	signal?: AbortSignal
 ): Promise<T> {
+	signal?.throwIfAborted();
 	return new Promise<T>((resolve, reject) => {
-		const timeoutId = setTimeout(reject, timeout);
+		const finish = (callback: (value: any) => void, value?: unknown) => {
+			clearTimeout(timeoutId);
+			signal?.removeEventListener('abort', onAbort);
+			callback(value);
+		};
+		const onAbort = () => finish(reject, signal!.reason);
+		const timeoutId =
+			timeout === undefined
+				? undefined
+				: setTimeout(() => finish(reject), timeout);
+		signal?.addEventListener('abort', onAbort, { once: true });
 		promise.then(
-			(value) => {
-				clearTimeout(timeoutId);
-				resolve(value);
-			},
-			(error) => {
-				clearTimeout(timeoutId);
-				reject(error);
-			}
+			(value) => finish(resolve, value),
+			(error) => finish(reject, error)
 		);
 	});
 }

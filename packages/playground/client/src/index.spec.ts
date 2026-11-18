@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ProgressTracker } from '@php-wasm/progress';
 import type { BlueprintBundle } from '@wp-playground/blueprints';
+import type * as Universal from '@php-wasm/universal';
 
 const mocks = vi.hoisted(() => {
 	vi.stubGlobal('location', {
@@ -29,6 +30,11 @@ vi.mock('./blueprints-v1-handler', () => ({
 
 vi.mock('./blueprints-v2-handler', () => ({
 	BlueprintsV2Handler: mocks.BlueprintsV2Handler,
+}));
+
+vi.mock('@php-wasm/universal', async (importOriginal) => ({
+	...(await importOriginal<typeof Universal>()),
+	consumeAPI: () => ({ isConnected: async () => {} }),
 }));
 
 import { startPlaygroundAPI, startPlaygroundWeb } from './index';
@@ -138,6 +144,8 @@ describe('startPlaygroundAPI', () => {
 function createIframe() {
 	return {
 		src: '',
+		ownerDocument: { defaultView: new EventTarget() },
+		removeEventListener: vi.fn(),
 		addEventListener: vi.fn((_event, callback: () => void) => {
 			callback();
 		}),
