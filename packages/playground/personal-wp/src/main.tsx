@@ -10,10 +10,6 @@ import store from './lib/state/redux/store';
 import { Layout } from './components/layout';
 import { EnsurePlaygroundSite } from './components/ensure-playground-site';
 import {
-	RemoteAccessViewer,
-	getRemoteAccessSessionId,
-} from './components/remote-access-viewer';
-import {
 	RemoteAccessConnect,
 	isRemoteAccessConnectRoute,
 } from './components/remote-access-connect';
@@ -21,16 +17,9 @@ import {
 collectWindowErrors(logger);
 
 const root = createRoot(document.getElementById('root')!);
-const remoteAccessSessionId = getRemoteAccessSessionId();
 
 root.render(
-	remoteAccessSessionId ? (
-		<RemoteAccessViewer sessionId={remoteAccessSessionId} />
-	) : isRemoteAccessConnectRoute() ? (
-		<RemoteAccessConnect />
-	) : (
-		<PersonalWP />
-	)
+	isRemoteAccessConnectRoute() ? <RemoteAccessConnect /> : <PersonalWP />
 );
 
 function PersonalWP() {

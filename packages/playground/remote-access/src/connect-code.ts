@@ -52,16 +52,6 @@ export function buildRemoteAccessRelayEndpointUrl(
 	return url.toString();
 }
 
-export function buildRemoteAccessUrl(
-	currentUrl: string,
-	sessionId: string,
-	shareParam = 'share'
-): string {
-	const viewerUrl = new URL(currentUrl, 'http://remote-access.local');
-	viewerUrl.searchParams.set(shareParam, sessionId);
-	return `${viewerUrl.pathname}${viewerUrl.search}`;
-}
-
 export class ResolveAccessCodeError extends Error {
 	readonly response: Response;
 
