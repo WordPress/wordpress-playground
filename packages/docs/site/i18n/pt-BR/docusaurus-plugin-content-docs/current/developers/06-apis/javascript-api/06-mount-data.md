@@ -1,5 +1,7 @@
 ---
+title: Montar dados
 slug: /developers/apis/javascript-api/mount-data
+description: Monte uma pasta local no WordPress Playground e salve seu site no armazenamento OPFS do navegador para restaurá-lo ao recarregar a página.
 ---
 
 <!-- # Mount data -->
