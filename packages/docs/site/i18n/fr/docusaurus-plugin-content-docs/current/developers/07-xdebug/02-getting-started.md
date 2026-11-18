@@ -57,7 +57,7 @@ npx @wp-playground/cli@latest server --xdebug --experimental-devtools
 
 <!-- Open the URL printed by the bridge in Chrome on the same computer. DevTools connects to the Chrome DevTools Protocol (CDP) listener at `127.0.0.1:9229`. -->
 
-Sur le même ordinateur, ouvrez dans Chrome l’URL affichée par le pont Xdebug. DevTools se connecte à l’adresse `127.0.0.1:9229` via le protocole CDP (Chrome DevTools Protocol).
+Sur le même ordinateur, ouvrez dans Chrome l'URL affichée par le pont Xdebug. DevTools se connecte à l’adresse `127.0.0.1:9229` via le protocole CDP (Chrome DevTools Protocol).
 
 ```text
 Starting XDebug Bridge...
@@ -115,9 +115,9 @@ Dans le dossier où se trouve le plugin, exécutons la commande dans notre termi
 npx @wp-playground/cli@latest server --xdebug --experimental-devtools --auto-mount
 ```
 
-<!-- The Playground CLI(`@wp-playground/cli`) will automatically detect the plugin folder and mount it. Opening the project in your browser and DevTools, you'll be able to add breakpoints in your plugin's code and test it line by line. -->
+<!-- The Playground CLI automatically mounts and activates the plugin. Open the DevTools URL from the terminal and set a breakpoint inside `sam_display_admin_message()`. Open `http://127.0.0.1:9400/wp-admin/plugins.php` in your browser to hit the breakpoint. If WordPress asks you to sign in, use `admin` as the username and `password` as the password. -->
 
-Le Playground CLI (`@wp-playground/cli`) détectera automatiquement le dossier du plugin et le montera. En ouvrant le projet dans votre navigateur et DevTools, vous pourrez ajouter des points d'arrêt dans le code de votre plugin et le tester ligne par ligne.
+La CLI de Playground monte et active automatiquement le plugin. Ouvrez l'URL de DevTools affichée dans le terminal et placez un point d'arrêt dans `sam_display_admin_message()`. Ouvrez `http://127.0.0.1:9400/wp-admin/plugins.php` dans votre navigateur pour déclencher le point d'arrêt. Si WordPress vous demande de vous connecter, utilisez `admin` comme identifiant et `password` comme mot de passe.
 
 ![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
 
@@ -125,29 +125,29 @@ Le Playground CLI (`@wp-playground/cli`) détectera automatiquement le dossier d
 
 ## Démarrer avec l'intégration IDE
 
-<!-- Similar to the process with DevTools, let's use the same plugin code from before to debug with VSCode, add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VSCode. If you're working with PhpStorm, just add the `--experimental-unsafe-ide-integration=phpstorm` flag. -->
+<!-- To debug the sample plugin in this guide with VS Code, use the `--experimental-unsafe-ide-integration=vscode` flag. For PhpStorm, use `--experimental-unsafe-ide-integration=phpstorm`. -->
 
-Similaire au processus avec DevTools, utilisons le même code de plugin qu'avant pour déboguer avec VSCode, ajoutez le drapeau `--experimental-unsafe-ide-integration=vscode`. Ce drapeau optimisera le processus de configuration pour VSCode. Si vous travaillez avec PhpStorm, ajoutez simplement le drapeau `--experimental-unsafe-ide-integration=phpstorm`.
+Pour déboguer le plugin d'exemple de ce guide avec VS Code, utilisez l'option `--experimental-unsafe-ide-integration=vscode`. Pour PhpStorm, utilisez `--experimental-unsafe-ide-integration=phpstorm`.
 
 <!-- To debug in VSCode you'll need the following prerequisites: -->
 
 Pour déboguer dans VSCode, vous aurez besoin des prérequis suivants :
 
-1. Une extension pour ajouter le support du profilage PHP, par exemple, [PHP Profiler](https://open-vsx.org/extension/devsense/profiler-php-vscode)
+1. Installez une extension de débogage PHP compatible avec Xdebug, comme [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug).
 2. Un dossier `.vscode/`. Si le fichier `launch.json` n'existe pas, ne vous inquiétez pas, `@wp-playground/cli` le créera.
 3. Activez les points d'arrêt (breakpoints) dans votre IDE. Certains IDE ont cette fonctionnalité désactivée par défaut, alors faites attention à ce détail.
 
-<!-- If everything is ready, you run the command: -->
+<!-- Run the following command from the plugin directory. -->
 
-Si tout est prêt, exécutez la commande :
+Exécutez la commande suivante depuis le dossier du plugin.
 
 ```bash
 npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration=vscode --auto-mount
 ```
 
-<!-- Now, go to your code, add the breakpoints and happy testing. -->
+<!-- Start the **WP Playground CLI - Listen for Xdebug** configuration in your IDE and set a breakpoint inside `sam_display_admin_message()`. Open `http://127.0.0.1:9400/wp-admin/plugins.php` in your browser to hit the breakpoint. If WordPress asks you to sign in, use `admin` as the username and `password` as the password. -->
 
-Maintenant, allez dans votre code, ajoutez les points d'arrêt et bon débogage.
+Lancez la configuration **WP Playground CLI - Listen for Xdebug** dans votre IDE et placez un point d'arrêt dans `sam_display_admin_message()`. Ouvrez `http://127.0.0.1:9400/wp-admin/plugins.php` dans votre navigateur pour déclencher le point d'arrêt. Si WordPress vous demande de vous connecter, utilisez `admin` comme identifiant et `password` comme mot de passe.
 
 ![Xdebug en action sur VSCode](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
 

@@ -35,7 +35,7 @@ Only one project can be debugged at a time.
 
 ## Starting with IDE integration
 
-Similar to the process with DevTools, let's use the same plugin code from before to debug with VS Code, and add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VS Code. If you're working with PhpStorm, add the `--experimental-unsafe-ide-integration=phpstorm` flag.
+To debug the sample plugin in this guide with VS Code, use the `--experimental-unsafe-ide-integration=vscode` flag. For PhpStorm, use `--experimental-unsafe-ide-integration=phpstorm`.
 
 <div class="callout callout-info">
 
@@ -45,11 +45,11 @@ This flag is marked as `unsafe` because it edits the IDE config files to set Xde
 
 To debug in VS Code, you'll need the following prerequisites:
 
-1. An extension to add PHP profiling support, for example, [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug) or another debugger extension to your preference.
+1. Install a PHP debugger extension that supports Xdebug, such as [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug).
 2. Have a `.vscode/` folder.
 3. Enable breakpoints in your IDE. Some IDEs come with this feature disabled, so be aware of this detail.
 
-If everything is ready, you run the command:
+Run the following command from the plugin directory.
 
 ```bash
 npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration=vscode --auto-mount
@@ -74,7 +74,7 @@ If you don't have a `.vscode/launch.json` file, the terminal will create a file 
 }
 ```
 
-Now, you can go to your code, add the breakpoints, start the debugging session named by your IDE, and happy testing.
+Start the **WP Playground CLI - Listen for Xdebug** configuration in your IDE and set a breakpoint inside `sam_display_admin_message()`. Open `http://127.0.0.1:9400/wp-admin/plugins.php` in your browser to hit the breakpoint. If WordPress asks you to sign in, use `admin` as the username and `password` as the password.
 
 ![Xdebug in action on VS Code](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
 
@@ -153,7 +153,7 @@ In the folder where the plugin is located, let's run the command in our terminal
 npx @wp-playground/cli@latest server --xdebug --experimental-devtools --auto-mount
 ```
 
-The Playground CLI(`@wp-playground/cli`) will automatically detect the plugin folder and mount it. Opening the project in your browser and DevTools, you'll be able to add breakpoints in your plugin's code and test it line by line.
+The Playground CLI automatically mounts and activates the plugin. Open the DevTools URL from the terminal and set a breakpoint inside `sam_display_admin_message()`. Open `http://127.0.0.1:9400/wp-admin/plugins.php` in your browser to hit the breakpoint. If WordPress asks you to sign in, use `admin` as the username and `password` as the password.
 
 ![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
 

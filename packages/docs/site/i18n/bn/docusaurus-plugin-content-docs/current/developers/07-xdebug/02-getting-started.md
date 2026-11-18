@@ -83,10 +83,10 @@ Only one project can be debugged at a time.
 ## IDE ইন্টিগ্রেশন দিয়ে শুরু
 
 <!--
-Similar to the process with DevTools, let's use the same plugin code from before to debug with VS Code, and add the `--experimental-unsafe-ide-integration=vscode` flag. This flag will optimize the setup process for VS Code. If you're working with PhpStorm, add the `--experimental-unsafe-ide-integration=phpstorm` flag.
+To debug the sample plugin in this guide with VS Code, use the `--experimental-unsafe-ide-integration=vscode` flag. For PhpStorm, use `--experimental-unsafe-ide-integration=phpstorm`.
 -->
 
-DevTools-এর মতোই, VS Code দিয়ে ডিবাগ করতে আগের প্লাগইন কোডটিই ব্যবহার করব, সাথে `--experimental-unsafe-ide-integration=vscode` ফ্ল্যাগটি যোগ করব। এই ফ্ল্যাগ VS Code-এর সেটআপ অনেকটা সহজ করে দেয়। PhpStorm ব্যবহার করলে `--experimental-unsafe-ide-integration=phpstorm` ফ্ল্যাগটি দিন।
+এই গাইডের নমুনা প্লাগইনটি VS Code-এ ডিবাগ করতে `--experimental-unsafe-ide-integration=vscode` ফ্ল্যাগটি ব্যবহার করুন। PhpStorm-এর জন্য `--experimental-unsafe-ide-integration=phpstorm` ব্যবহার করুন।
 
 <!--
 <div class="callout callout-info">
@@ -105,22 +105,22 @@ This flag is marked as `unsafe` because it edits the IDE config files to set Xde
 <!--
 To debug in VS Code, you'll need the following prerequisites:
 
-1. An extension to add PHP profiling support, for example, [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug) or another debugger extension to your preference.
+1. Install a PHP debugger extension that supports Xdebug, such as [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug).
 2. Have a `.vscode/` folder.
 3. Enable breakpoints in your IDE. Some IDEs come with this feature disabled, so be aware of this detail.
 -->
 
 VS Code-এ ডিবাগ করার আগে এগুলো রেডি রাখুন:
 
-1. PHP প্রোফাইলিং সাপোর্ট যোগ করার একটি এক্সটেনশন, যেমন [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug) অথবা আপনার পছন্দের অন্য কোনো ডিবাগার এক্সটেনশন।
+1. Xdebug সমর্থন করে এমন একটি PHP ডিবাগার এক্সটেনশন ইনস্টল করুন, যেমন [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug)।
 2. একটি `.vscode/` ফোল্ডার।
 3. IDE-তে ব্রেকপয়েন্ট চালু করা। কিছু IDE-তে এটি ডিফল্টভাবে বন্ধ থাকে, তাই খেয়াল রাখুন।
 
 <!--
-If everything is ready, you run the command:
+Run the following command from the plugin directory.
 -->
 
-সব রেডি হলে কমান্ডটি চালান:
+প্লাগইনের ফোল্ডার থেকে নিচের কমান্ডটি চালান।
 
 ```bash
 npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration=vscode --auto-mount
@@ -150,10 +150,10 @@ If you don't have a `.vscode/launch.json` file, the terminal will create a file 
 ```
 
 <!--
-Now, you can go to your code, add the breakpoints, start the debugging session named by your IDE, and happy testing.
+Start the **WP Playground CLI - Listen for Xdebug** configuration in your IDE and set a breakpoint inside `sam_display_admin_message()`. Open `http://127.0.0.1:9400/wp-admin/plugins.php` in your browser to hit the breakpoint. If WordPress asks you to sign in, use `admin` as the username and `password` as the password.
 -->
 
-এবার কোডে গিয়ে ব্রেকপয়েন্ট বসান, তারপর IDE-তে ওই নামের ডিবাগিং সেশনটি চালু করুন। ব্যস, এবার টেস্ট শুরু করুন!
+IDE-তে **WP Playground CLI - Listen for Xdebug** কনফিগারেশনটি চালু করুন এবং `sam_display_admin_message()` ফাংশনের ভেতরে একটি ব্রেকপয়েন্ট বসান। ব্রেকপয়েন্টে থামতে ব্রাউজারে `http://127.0.0.1:9400/wp-admin/plugins.php` খুলুন। WordPress লগইন করতে বললে ব্যবহারকারীর নাম হিসেবে `admin` এবং পাসওয়ার্ড হিসেবে `password` দিন।
 
 <!--
 ![Xdebug in action on VS Code](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
@@ -292,10 +292,10 @@ npx @wp-playground/cli@latest server --xdebug --experimental-devtools --auto-mou
 ```
 
 <!--
-The Playground CLI(`@wp-playground/cli`) will automatically detect the plugin folder and mount it. Opening the project in your browser and DevTools, you'll be able to add breakpoints in your plugin's code and test it line by line.
+The Playground CLI automatically mounts and activates the plugin. Open the DevTools URL from the terminal and set a breakpoint inside `sam_display_admin_message()`. Open `http://127.0.0.1:9400/wp-admin/plugins.php` in your browser to hit the breakpoint. If WordPress asks you to sign in, use `admin` as the username and `password` as the password.
 -->
 
-Playground CLI (`@wp-playground/cli`) নিজে থেকেই প্লাগইন ফোল্ডারটি খুঁজে নিয়ে মাউন্ট করবে। ব্রাউজার আর DevTools-এ প্রজেক্টটি খুললে প্লাগইনের কোডে ব্রেকপয়েন্ট বসিয়ে লাইন বাই লাইন টেস্ট করতে পারবেন।
+Playground CLI নিজে থেকেই প্লাগইনটি মাউন্ট ও সক্রিয় করে। টার্মিনালে দেখানো DevTools URL খুলুন এবং `sam_display_admin_message()` ফাংশনের ভেতরে একটি ব্রেকপয়েন্ট বসান। ব্রেকপয়েন্টে থামতে ব্রাউজারে `http://127.0.0.1:9400/wp-admin/plugins.php` খুলুন। WordPress লগইন করতে বললে ব্যবহারকারীর নাম হিসেবে `admin` এবং পাসওয়ার্ড হিসেবে `password` দিন।
 
 <!--
 ![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
