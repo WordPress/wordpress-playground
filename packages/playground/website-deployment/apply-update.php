@@ -20,6 +20,8 @@ $commands = array(
 	'rollback'            => 'rollback',
 	'prepare-purge'       => 'prepare_purge',
 	'prune'               => 'prune',
+	'restore-static-assets' => 'restore_static_assets',
+	'verify-static-assets'  => 'verify_static_assets',
 );
 $command = $argv[1] ?? '';
 if ( ! isset( $commands[ $command ] ) ) {
@@ -369,6 +371,79 @@ function prune( $root, $backups, $retention ) {
 			throw $error;
 		}
 		echo "Expired release $id\n";
+	}
+}
+
+/**
+ * PRE_RELEASE_STATIC_ASSETS_COMPAT: copy reviewed hashed assets to their original URLs.
+ * The source is a trusted artifact or private backup, never a public historical release.
+ * Validate the entire inventory before writing anything. These copies are deliberately
+ * outside release ownership: activating, pruning or rolling back a release cannot remove them.
+ */
+function restore_static_assets( $root, $source, $inventory ) {
+	$root = realpath( $root );
+	$source = realpath( $source );
+	if ( false === $root || ! is_dir( $root ) || false === $source || ! is_dir( $source ) ) {
+		throw new RuntimeException( 'Expected existing web root and static asset source.' );
+	}
+	$files = read_json( $inventory )['files'];
+	if ( ! is_array( $files ) || ! $files ) {
+		throw new RuntimeException( 'Expected a nonempty reviewed asset inventory.' );
+	}
+	$sources = array();
+	foreach ( $files as $path => $asset ) {
+		// Only root/asset-directory hashed JS and CSS are needed by this restoration.
+		// This allow-list excludes entry pages, PHP, hidden files and URL/path aliases.
+		if ( ! preg_match( '~\A(?:assets/)?[A-Za-z0-9_-]+-[A-Za-z0-9_-]{8,}\.(?:js|css)\z~D', $path ) ||
+			! preg_match( '/\A[a-f0-9]{64}\z/D', $asset['sha256'] ?? '' ) ||
+			! isset( $asset['dependencies'] ) || ! is_array( $asset['dependencies'] )
+		) {
+			throw new RuntimeException( "Invalid reviewed static asset: $path" );
+		}
+		foreach ( $asset['dependencies'] as $dependency ) {
+			if ( ! isset( $files[ $dependency ] ) ) {
+				throw new RuntimeException( "Missing reviewed dependency for $path: $dependency" );
+			}
+		}
+		$file = realpath( "$source/$path" );
+		if ( false === $file || ! str_starts_with( $file, "$source/" ) || ! is_file( $file ) ||
+			hash_file( 'sha256', $file ) !== $asset['sha256']
+		) {
+			throw new RuntimeException( "Missing or changed original asset: $path" );
+		}
+		$parent = dirname( "$root/$path" );
+		if ( is_link( $parent ) ||
+			( file_exists( $parent ) && ( ! is_dir( $parent ) || realpath( $parent ) !== $parent ) ) ||
+			is_link( "$root/$path" ) ||
+			( file_exists( "$root/$path" ) &&
+				( ! is_file( "$root/$path" ) || hash_file( 'sha256', "$root/$path" ) !== $asset['sha256'] ) )
+		) {
+			throw new RuntimeException( "Static asset collision: $path" );
+		}
+		$sources[ $path ] = $file;
+	}
+	foreach ( $sources as $path => $file ) {
+		install_file( "$root/$path", $file );
+	}
+	echo 'Restored ' . count( $sources ) . " reviewed static assets.\n";
+}
+
+/** Check the real Nginx/CDN responses; PHP cannot set headers on existing root files. */
+function verify_static_assets( $inventory, ...$origins ) {
+	foreach ( $origins as $origin ) {
+		foreach ( read_json( $inventory )['files'] as $path => $asset ) {
+			$context = stream_context_create( array( 'http' => array( 'timeout' => 30, 'follow_location' => 0 ) ) );
+			$body = file_get_contents( "$origin/$path", false, $context );
+			$headers = implode( "\n", $http_response_header ?? array() );
+			$type = str_ends_with( $path, '.js' ) ? '(?:application|text)/javascript' : 'text/css';
+			if ( false === $body || ! preg_match( '~\AHTTP/\S+ 200\b~', $headers ) ||
+				hash( 'sha256', $body ) !== $asset['sha256'] ||
+				! preg_match( '~^Content-Type: ' . $type . '(?:;[^\n]*)?\r?$~mi', $headers ) ||
+				! preg_match( '/^Access-Control-Allow-Origin: \*\r?$/mi', $headers )
+			) {
+				throw new RuntimeException( "Static asset HTTP verification failed: $origin/$path" );
+			}
+		}
 	}
 }
 

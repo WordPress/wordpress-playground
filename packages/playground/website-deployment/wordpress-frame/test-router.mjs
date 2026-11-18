@@ -8,6 +8,7 @@
  * and edge behavior still need deployment checks.
  */
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
 import { once } from 'node:events';
 import {
@@ -108,6 +109,113 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 		run('bash', [join(deployment, 'apply-update.sh'), webRoot, backups], {
 			env: { ...env, PLAYGROUND_PURGE_ONLY: '1', ...extraEnv },
 		});
+	const restoreAssets = (inventory, original, destination = webRoot) =>
+		run(
+			'bash',
+			[
+				join(deployment, 'apply-update.sh'),
+				'http://app.localhost',
+				'http://wordpress.localhost',
+				original,
+				destination,
+				backups,
+			],
+			{
+				env: {
+					...env,
+					PLAYGROUND_RESTORE_STATIC_ASSETS: inventory,
+					PLAYGROUND_LOCAL_RELEASES: '1',
+				},
+			}
+		);
+	const failure = (text) => (error) =>
+		error.stderr.includes(text) || error.stdout.includes(text);
+	// Contract: immutable reviewed bytes remain at their original URLs through
+	// activation and rollback. Root inventory cleanup is an independent deletion path.
+	const originals = join(temporary, 'originals');
+	await mkdir(originals);
+	const restoredPath = 'wordpress-bridge-original.js';
+	const dependencyPath = 'assets/bridge-dependency.js';
+	const restoredBody = `import './${dependencyPath}';`;
+	const dependencyBody = 'export const original = true;';
+	await mkdir(join(originals, 'assets'));
+	await writeFile(join(originals, restoredPath), restoredBody);
+	await writeFile(join(originals, dependencyPath), dependencyBody);
+	const checksum = (body) => createHash('sha256').update(body).digest('hex');
+	const assets = {
+		[restoredPath]: {
+			sha256: checksum(restoredBody),
+			dependencies: [dependencyPath],
+		},
+		[dependencyPath]: {
+			sha256: checksum(dependencyBody),
+			dependencies: [],
+		},
+	};
+	const inventory = join(temporary, 'static-assets.json');
+	const setInventory = (files) =>
+		writeFile(inventory, JSON.stringify({ files }));
+	await setInventory(assets);
+	await restoreAssets(inventory, originals);
+	await restoreAssets(inventory, originals); // Identical repeated restoration is safe.
+	for (const [path, body] of [
+		[restoredPath, restoredBody],
+		[dependencyPath, dependencyBody],
+	]) {
+		assert.equal(await readFile(join(webRoot, path), 'utf8'), body);
+	}
+	// Contract: a reviewed inventory cannot publish active documents/PHP or follow
+	// escaping links. Source resolution and public static serving are separate paths.
+	for (const path of [
+		'index.html',
+		'old.php',
+		'../escape-original.js',
+		'assets/../escape-original.js',
+		'sw.js',
+		'.hidden-original.js',
+	]) {
+		await setInventory({
+			[path]: { sha256: checksum('unsafe'), dependencies: [] },
+		});
+		await assert.rejects(
+			restoreAssets(inventory, originals),
+			failure('Invalid reviewed static asset')
+		);
+	}
+	await setInventory({ [restoredPath]: assets[restoredPath] });
+	await assert.rejects(
+		restoreAssets(inventory, originals),
+		failure('Missing reviewed dependency')
+	);
+	await setInventory(assets);
+	await writeFile(join(originals, dependencyPath), 'changed bytes');
+	await assert.rejects(
+		restoreAssets(inventory, originals),
+		failure('Missing or changed original asset')
+	);
+	await writeFile(join(originals, dependencyPath), dependencyBody);
+	await writeFile(join(webRoot, restoredPath), 'collision');
+	await assert.rejects(
+		restoreAssets(inventory, originals),
+		failure('Static asset collision')
+	);
+	await writeFile(join(webRoot, restoredPath), restoredBody);
+	await rm(join(originals, dependencyPath));
+	await symlink(join(webRoot, restoredPath), join(originals, dependencyPath));
+	await assert.rejects(
+		restoreAssets(inventory, originals),
+		failure('Missing or changed original asset')
+	);
+	await rm(join(originals, dependencyPath));
+	await writeFile(join(originals, dependencyPath), dependencyBody);
+	const blockedParent = join(temporary, 'blocked-parent');
+	await mkdir(blockedParent);
+	await writeFile(join(blockedParent, 'assets'), 'existing file');
+	await assert.rejects(
+		restoreAssets(inventory, originals, blockedParent),
+		failure('Static asset collision')
+	);
+	await assert.rejects(stat(join(blockedParent, restoredPath)));
 	// Contract: both entry points wait for the same host lock before changing files.
 	// A second shell can otherwise interleave a rollback with activation's root writes.
 	const whileLocked = async (start, unchanged) => {
@@ -128,8 +236,6 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 			await operation;
 		}
 	};
-	const failure = (text) => (error) =>
-		error.stderr.includes(text) || error.stdout.includes(text);
 
 	// The running installer must retain the lock even if its PHP parent is killed.
 	const lockGate = join(temporary, 'release-lock');
@@ -228,6 +334,13 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 	}
 	await rm(webRoot, { recursive: true });
 	await mkdir(webRoot);
+	await restoreAssets(inventory, originals);
+	const reviewedDirectory = join(source, 'static-assets');
+	const reviewedInventory = join(reviewedDirectory, 'inventory.json');
+	const reviewed = JSON.parse(
+		await readFile(reviewedInventory, 'utf8')
+	).files;
+	await restoreAssets(reviewedInventory, reviewedDirectory);
 
 	for (const key of ['ATOMIC_SITE_API_KEY', 'ATOMIC_SITE_ID']) {
 		const upload = await makeBuild('A');
@@ -278,6 +391,13 @@ if ( preg_match( '~(^|/)\\.~', $path ) && ! str_starts_with( $path, '/.well-know
     return true;
 }
 if ( is_file( ${JSON.stringify(webRoot)} . $path ) && ! str_ends_with( $path, '.php' ) ) {
+    // Match the observed WP Cloud Nginx policy for JavaScript files.
+    if ( str_ends_with( $path, '.js' ) ) {
+        header( 'Content-Type: application/javascript' );
+        header( 'Access-Control-Allow-Origin: *' );
+        readfile( ${JSON.stringify(webRoot)} . $path );
+        return true;
+    }
     return false;
 }
 file_put_contents( ${JSON.stringify(phpCalls)}, $path . "\\n", FILE_APPEND );
@@ -310,6 +430,44 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		}
 	}
 	await assert.rejects(readFile(phpCalls)); // No static request reached PHP.
+	for (const host of [app, wordpress]) {
+		for (const [path, asset] of Object.entries(reviewed)) {
+			const response = await request('/' + path, host);
+			assert.equal(response.status, 200);
+			assert.match(response.headers.get('content-type'), /javascript/);
+			assert.equal(
+				response.headers.get('access-control-allow-origin'),
+				'*'
+			);
+			assert.equal(
+				createHash('sha256')
+					.update(Buffer.from(await response.arrayBuffer()))
+					.digest('hex'),
+				asset.sha256
+			);
+		}
+	}
+	await run(env.SITE_PHP, [
+		join(deployment, 'apply-update.php'),
+		'verify-static-assets',
+		inventory,
+		`http://127.0.0.1:${port}`,
+	]);
+	for (const host of [app, wordpress]) {
+		for (const [path, body] of [
+			[restoredPath, restoredBody],
+			[dependencyPath, dependencyBody],
+		]) {
+			const response = await request('/' + path, host);
+			assert.equal(response.status, 200);
+			assert.match(response.headers.get('content-type'), /javascript/);
+			assert.equal(
+				response.headers.get('access-control-allow-origin'),
+				'*'
+			);
+			assert.equal(await response.text(), body);
+		}
+	}
 
 	// The app host's missing paths keep the existing handler: no-store entry pages,
 	// native endpoints from the private directory, redirects, and SDK CORS.
@@ -926,6 +1084,20 @@ process.exit(result.status ?? 1);
 	);
 	await assert.rejects(stat(join(isolatedBackups, 'pending-edge-purge')));
 
+	for (const [path, body] of [
+		[restoredPath, restoredBody],
+		[dependencyPath, dependencyBody],
+	]) {
+		assert.equal(await readFile(join(webRoot, path), 'utf8'), body);
+	}
+	for (const [path, asset] of Object.entries(reviewed)) {
+		assert.equal(
+			createHash('sha256')
+				.update(await readFile(join(webRoot, path)))
+				.digest('hex'),
+			asset.sha256
+		);
+	}
 	console.log(
 		'Static release contracts passed: validation, layout, zero PHP static requests, ' +
 			'host routing, native endpoints, scoped fallbacks, retained releases and backups.'

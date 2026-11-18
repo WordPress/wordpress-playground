@@ -1,0 +1,26 @@
+{
+	"source": {
+		"run": "https://github.com/WordPress/wordpress-playground/actions/runs/42856256223",
+		"commit": "ada3b06ce0d85550b55ef3d818460a806ca4f220",
+		"artifact": "playground-website",
+		"archive": "wasm-wordpress-net.tar.gz",
+		"archivePath": "dist/packages/playground/wasm-wordpress-net/wordpress-bridge-Cmo7aZBy.js"
+	},
+	"files": {
+		"wordpress-bridge-Cmo7aZBy.js": {
+			"sha256": "7df97b79ad717abfdc9391dcdb354b17bcded53065395ae249e647d5d45207f7",
+			"dependencies": []
+		},
+		"assets/wordpress-bridge-CRsvYt8i.js": {
+			"sha256": "6bc5ae907fb8717c9cdabcc7cba1347cc2c1a56b8245be85a0a9422f496ed222",
+			"dependencies": [
+				"assets/modulepreload-polyfill-B5Qt9EMX.js",
+				"wordpress-bridge-Cmo7aZBy.js"
+			]
+		},
+		"assets/modulepreload-polyfill-B5Qt9EMX.js": {
+			"sha256": "607112fb81d7899ceedf89cdb1b3540a53eb96ad5e4202fb1e22f873281de839",
+			"dependencies": []
+		}
+	}
+}

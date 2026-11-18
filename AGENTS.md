@@ -160,6 +160,12 @@ One `/sw.js` serves both hostnames and chooses its role by origin. Personal WP k
 its no-argument public-file layout and separate script.
 The HTTP/install contract tests run with
 `playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
+Reviewed pre-migration bridge assets live in `website-deployment/wordpress-frame/static-assets/`.
+The existing installer restores only their inventoried hashed static files with
+`PLAYGROUND_RESTORE_STATIC_ASSETS=<inventory.json>`; keep their original bytes.
+These root copies are independent of release ownership, retention, and rollback.
+The opt-in `playground-website:e2e:pre-release-transition` target requires the historical
+build artifact through `PLAYGROUND_PRE_RELEASE_BUILD`; see the static-assets README.
 The WordPress bridge (`wordpress-bridge.html`) is the hidden sandbox iframe that relays
 HTTP between its service worker and app-origin PHP. Production bridge URLs name the
 app's release directory. Development and portable builds use build-version root aliases;

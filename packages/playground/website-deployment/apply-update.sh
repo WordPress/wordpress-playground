@@ -21,6 +21,8 @@ set -euo pipefail
 #   PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh [web-root] [backups]
 #   PLAYGROUND_ROLLBACK=<release-id> website-deployment/apply-update.sh
 #   PLAYGROUND_PURGE_ONLY=1 website-deployment/apply-update.sh [web-root] [backups]
+#   PLAYGROUND_RESTORE_STATIC_ASSETS=<inventory.json> website-deployment/apply-update.sh \
+#     <app-origin> <wordpress-origin> <trusted-static-source> [web-root] [backups]
 #
 # /release.json names the live and previous releases. A rollback restores the root
 # files from the snapshot taken before that deployment and purges the edge cache. It builds,
@@ -34,6 +36,7 @@ if [ "${1:-}" = --deployment-lock-held ]; then
 fi
 ROLLBACK="${PLAYGROUND_ROLLBACK:-}"
 PURGE_ONLY="${PLAYGROUND_PURGE_ONLY:-0}"
+RESTORE_ASSETS="${PLAYGROUND_RESTORE_STATIC_ASSETS:-}"
 if [ -n "$ROLLBACK" ] || [ "$PURGE_ONLY" = 1 ]; then
     WEB_ROOT="${1:-/srv/htdocs}"
     BACKUPS="${2:-$HOME/website-backups}"
@@ -43,7 +46,13 @@ else
     BUILD="${3:-$HOME/updated-playground-files}"
     WEB_ROOT="${4:-/srv/htdocs}"
     BACKUPS="${5:-$HOME/website-backups}"
-    RELEASE_ID="${PLAYGROUND_RELEASE_ID:?Expected PLAYGROUND_RELEASE_ID}"
+    if [ -z "$RESTORE_ASSETS" ]; then
+        RELEASE_ID="${PLAYGROUND_RELEASE_ID:?Expected PLAYGROUND_RELEASE_ID}"
+    fi
+fi
+if [ -n "$RESTORE_ASSETS" ] && { [ -n "$ROLLBACK" ] || [ "$PURGE_ONLY" = 1 ]; }; then
+    echo "Choose static asset restoration, rollback, or purge-only recovery." >&2
+    exit 1
 fi
 if [ -n "$ROLLBACK" ] && [ "$PURGE_ONLY" = 1 ]; then
     echo "Choose rollback or purge-only recovery, not both." >&2
@@ -128,6 +137,23 @@ if [ -n "$ROLLBACK" ]; then
     "$SITE_PHP" "$DEPLOYMENT/apply-update.php" rollback "$WEB_ROOT" "$BACKUPS" "$ROLLBACK" || status=$?
     finish_edge_purge
     exit "$status"
+fi
+
+# PRE_RELEASE_STATIC_ASSETS_COMPAT: restore only reviewed immutable files, never
+# old documents or PHP. Root copies are independent of release activation and
+# snapshots, so later installations, pruning and rollback leave these URLs intact.
+if [ -n "$RESTORE_ASSETS" ]; then
+    "$SITE_PHP" "$DEPLOYMENT/apply-update.php" check-origins \
+        "$APP_ORIGIN" "$WORDPRESS_ORIGIN" static-assets "$LOCAL"
+    prepare_edge_purge "" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
+    "$SITE_PHP" "$DEPLOYMENT/apply-update.php" restore-static-assets \
+        "$WEB_ROOT" "$BUILD" "$RESTORE_ASSETS"
+    finish_edge_purge
+    if [ "$LOCAL" != 1 ]; then
+        "$SITE_PHP" "$DEPLOYMENT/apply-update.php" verify-static-assets \
+            "$RESTORE_ASSETS" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
+    fi
+    exit 0
 fi
 
 # Reject bad origins and release IDs before touching the web root.

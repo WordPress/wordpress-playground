@@ -8,6 +8,15 @@ builds that load assets from `/assets/` and `/wp-<version>/`, do not report a
 
 ## Temporary support for the old root-only production layout
 
+`PRE_RELEASE_STATIC_ASSETS_COMPAT` in `apply-update.sh` and `apply-update.php`
+restores the reviewed original bridge scripts listed in `static-assets/inventory.json`.
+Their public root copies survive activation, pruning, and rollback independently of
+managed release lifecycles. Installer contracts and the opt-in
+`e2e:pre-release-transition` artifact rehearsal cover this allowance. Remove these
+files only when the affected pre-migration apps/workers are no longer supported,
+including returning offline tabs. First provide an explicit recovery path for those
+clients. Release retention alone is not a removal condition.
+
 | Code marker                     | Allowance and locations                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Remove when                                                                                                                                                                                                                                                                   |
 | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `PRE_RELEASE_ASSETS_COMPAT`     | A PHP runtime can omit `releaseBase` and report `wp-6.8` instead of `releases/<id>/wp-6.8`. `remote/src/lib/wordpress-static-assets.ts` and `remote/service-worker.ts` then use the app-host alias and CORS. `custom-redirects-lib.php` supplies headers for those aliases. App workers also leave root `/assets/` downloads to HTTP during rollback, covered by `app-worker-upgrade.spec.ts`. WordPress asset resolution is covered by `wordpress-static-assets.spec.ts`. | Runtimes from the old root-only production layout are no longer supported, including already-open tabs, and rollback to those builds is no longer required. Force old tabs to reload before dropping their support. Preserve explicit `releaseBase: '/'` for portable builds. |

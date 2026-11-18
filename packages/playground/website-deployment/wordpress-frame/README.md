@@ -254,6 +254,10 @@ The [compatibility removal checklist](compatibility.md) identifies temporary all
 their code markers, and the conditions for removing them. Closing the rollback window
 alone does not retire already-open browser tabs.
 
+For the known pre-migration bridge script failure, use the existing installer's
+[reviewed static asset restoration](static-assets/README.md). It preserves the
+original hashed URLs without publishing historical HTML or PHP.
+
 This split does not stop WordPress from embedding a fresh app/API document, and
 running Playgrounds still share one WordPress origin, without per-site HTTP
 authorization.

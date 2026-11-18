@@ -36,6 +36,12 @@ export function wordPressFrameMiddleware(getWebRoot, hostnames) {
 			// WP Cloud's direct static responses currently have no Cache-Control.
 			// Preserve explicit test overrides instead of inventing immutable caching.
 			cacheControl: false,
+			setHeaders(res, path) {
+				// WP Cloud serves JavaScript and CSS with CORS on both hostnames.
+				if (path.endsWith('.js') || path.endsWith('.css')) {
+					res.setHeader('Access-Control-Allow-Origin', '*');
+				}
+			},
 		})(req, res, async () => {
 			if (!existsSync(join(webRoot, 'custom-redirects.php'))) {
 				return next();

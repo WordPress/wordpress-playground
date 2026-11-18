@@ -253,6 +253,12 @@
 			"options": {
 				"command": "npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts"
 			}
+		},
+		"e2e:pre-release-transition": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "npx playwright test --config=packages/playground/website/playwright/playwright.pre-release-transition.config.ts"
+			}
 		}
 	}
 }

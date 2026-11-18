@@ -33,6 +33,10 @@ export default defineConfig({
 		use: {
 			...project.use,
 			...(project.name === 'chromium' ? { channel: 'chromium' } : {}),
+			...(project.name === 'firefox' &&
+			process.env.PLAYGROUND_STAGING_FIREFOX_CHANNEL
+				? { channel: process.env.PLAYGROUND_STAGING_FIREFOX_CHANNEL }
+				: {}),
 		},
 	})),
 	webServer: {
