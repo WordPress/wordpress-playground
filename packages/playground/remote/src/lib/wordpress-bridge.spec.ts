@@ -5,7 +5,7 @@ vi.mock('virtual:remote-config', () => ({ buildVersion: 'new-release' }));
 
 type TestWorker = EventTarget & { state: string };
 
-describe('WordPress helper worker updates', () => {
+describe('WordPress bridge startup during worker updates', () => {
 	let registration: {
 		active: TestWorker | null;
 		installing: TestWorker | null;
@@ -71,7 +71,9 @@ describe('WordPress helper worker updates', () => {
 				})
 		);
 		const startup = import('./wordpress-bridge');
-		await vi.waitFor(() => expect(registration.update).toHaveBeenCalledOnce());
+		await vi.waitFor(() =>
+			expect(registration.update).toHaveBeenCalledOnce()
+		);
 		expect(postMessage).not.toHaveBeenCalled();
 		finishUpdate();
 		await vi.waitFor(() => expect(listen).toHaveBeenCalled());
@@ -101,7 +103,9 @@ describe('WordPress helper worker updates', () => {
 			new TypeError('Offline')
 		);
 		await import('./wordpress-bridge');
-		expect(navigator.serviceWorker.getRegistration).toHaveBeenCalledWith('/');
+		expect(navigator.serviceWorker.getRegistration).toHaveBeenCalledWith(
+			'/'
+		);
 		expect(postMessage).toHaveBeenCalledWith(
 			{ type: 'wordpress-bridge-ready', scope: 'test' },
 			'https://playground.test'
@@ -112,7 +116,9 @@ describe('WordPress helper worker updates', () => {
 		'does not report ready after a registration failure with a %s worker',
 		async (state) => {
 			const error = new TypeError('No installed worker');
-			vi.mocked(navigator.serviceWorker.register).mockRejectedValue(error);
+			vi.mocked(navigator.serviceWorker.register).mockRejectedValue(
+				error
+			);
 			if (state === 'missing') {
 				vi.mocked(
 					navigator.serviceWorker.getRegistration

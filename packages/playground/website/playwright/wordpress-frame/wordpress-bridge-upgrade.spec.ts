@@ -8,26 +8,26 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path';
 
-const sandbox = resolve(
+// These tests replace the same root worker loader while exercising upgrades.
+test.describe.configure({ mode: 'serial' });
+
+// Both hostnames serve the installed web root, including the root /sw.js loader.
+const webRoot = resolve(
 	__dirname,
-	'../../../../../dist/packages/playground/remote/wordpress-sandbox'
+	'../../../../../dist/packages/playground/website-preview'
 );
-const appDirectory = resolve(
-	__dirname,
-	'../../../../../dist/packages/playground/website'
-);
-const workerPath = resolve(sandbox, 'sw.js');
+const workerPath = resolve(webRoot, 'sw.js');
 const seedDocument = '__previous-wordpress-worker.html';
 const appSeedDocument = '__previous-wordpress-app.html';
-const previousHelper = getWordPressBridgePath('0'.repeat(40));
+const previousBridge = getWordPressBridgePath('0'.repeat(40));
 const expiredScript = appOrigin + '/assets/wordpress-bridge-expired.js';
 let deployedWorker: Buffer;
 
-test.describe('WordPress helper upgrades', { tag: '@storage' }, () => {
+test.describe('WordPress bridge upgrades', { tag: '@storage' }, () => {
 	test.beforeAll(async () => {
 		// Install a test worker representing release A before loading this test's
 		// app build (release B). For both /wordpress-bridge.html and A's versioned
-		// helper URL, it generates HTML naming a script B no longer serves.
+		// bridge URL, it generates HTML naming a script B no longer serves.
 		// Use the real /sw.js URL and options: changing the URL would force an
 		// update and hide the existing-registration case that returning users hit.
 		// Seed the worker itself, not CacheStorage.
@@ -39,7 +39,7 @@ self.addEventListener('install', event => event.waitUntil(self.skipWaiting()));
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', event => {
     const path = new URL(event.request.url).pathname;
-    if (path === '/wordpress-bridge.html' || path === ${JSON.stringify(previousHelper)}) {
+    if (path === '/wordpress-bridge.html' || path === ${JSON.stringify(previousBridge)}) {
         event.respondWith(new Response(${JSON.stringify(`<!doctype html><script type="module" src="${expiredScript}"></script>`)}, {
             headers: { 'Content-Type': 'text/html' }
         }));
@@ -49,22 +49,22 @@ self.addEventListener('fetch', event => {
 });`
 		);
 		await writeFile(
-			resolve(sandbox, seedDocument),
+			resolve(webRoot, seedDocument),
 			'<!doctype html><title>Previous WordPress worker seed</title>'
 		);
 		await writeFile(
-			resolve(appDirectory, appSeedDocument),
+			resolve(webRoot, appSeedDocument),
 			`<!doctype html><iframe src="${wordPressOrigin}/${seedDocument}"></iframe>`
 		);
 	});
 
 	test.afterAll(async () => {
 		await writeFile(workerPath, deployedWorker);
-		await rm(resolve(sandbox, seedDocument), { force: true });
-		await rm(resolve(appDirectory, appSeedDocument), { force: true });
+		await rm(resolve(webRoot, seedDocument), { force: true });
+		await rm(resolve(webRoot, appSeedDocument), { force: true });
 	});
 
-	test('a new app boots when the previous worker references a removed helper script', async ({
+	test('a new app boots when the previous worker references a removed bridge script', async ({
 		page,
 	}) => {
 		// Seed below the app origin so browsers use the same service-worker
@@ -101,7 +101,7 @@ self.addEventListener('fetch', event => {
 		await seed.waitForFunction(() =>
 			Boolean(navigator.serviceWorker.controller)
 		);
-		for (const path of ['/wordpress-bridge.html', previousHelper]) {
+		for (const path of ['/wordpress-bridge.html', previousBridge]) {
 			expect(
 				await seed.evaluate(
 					async (path) => (await fetch(path)).text(),
@@ -125,7 +125,7 @@ self.addEventListener('fetch', event => {
 			(window as any).playgroundSites
 				.getClient()
 				.writeFile(
-					'/wordpress/helper-upgrade.txt',
+					'/wordpress/bridge-upgrade.txt',
 					'current PHP connection'
 				)
 		);
@@ -146,14 +146,14 @@ self.addEventListener('fetch', event => {
 		await expect
 			.poll(() =>
 				frame.evaluate(async () =>
-					(await fetch('helper-upgrade.txt')).text()
+					(await fetch('bridge-upgrade.txt')).text()
 				)
 			)
 			.toBe('current PHP connection');
 		expect(expiredRequests).toBe(0);
 
 		// The active worker now belongs to the tested app build, release B.
-		// Release C represents another deployment after B. Its helper URL must
+		// Release C represents another deployment after B. Its bridge URL must
 		// reach the server, not receive HTML naming B's script, which C may remove.
 		const future = new URL(
 			getWordPressBridgePath('f'.repeat(40)),
@@ -166,3 +166,61 @@ self.addEventListener('fetch', event => {
 		expect((await response).fromServiceWorker()).toBe(false);
 	});
 });
+
+// A tab that was already open keeps its older WordPress bridge after the service
+// worker updates. Load a saved copy of that bridge, then check that today's worker
+// can still return both a PHP response and a static WordPress file through it.
+// Keep the fixture's message format unchanged so this test catches breaking changes.
+test(
+	'an older WordPress bridge still works with the current worker',
+	{ tag: '@storage' },
+	async ({ page }) => {
+		const fixture = (
+			await readFile(
+				resolve(__dirname, 'fixtures/wordpress-bridge-v1.html'),
+				'utf8'
+			)
+		).replace('__APP_ORIGIN__', appOrigin);
+		let bridgeRequests = 0;
+		await page.route('**/wordpress-bridge*.html?scope=*', (route) => {
+			bridgeRequests++;
+			return route.fulfill({ contentType: 'text/html', body: fixture });
+		});
+		await page.goto(appOrigin + '/?wp=6.9&php=8.3&storage=temp');
+		await page.waitForFunction(() =>
+			Boolean((window as any).playgroundSites)
+		);
+		await page.evaluate(() => (window as any).playgroundSites.isReady());
+		await page.evaluate(() =>
+			(window as any).playgroundSites
+				.getClient()
+				.writeFile('/wordpress/v1-bridge.txt', 'v1 PHP response')
+		);
+		const wordpress = page
+			.frameLocator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+			.frameLocator('#wp');
+		await expect(wordpress.locator('body')).not.toBeEmpty();
+		const element = await page
+			.frameLocator(
+				'#playground-viewport:visible,.playground-viewport:visible'
+			)
+			.locator('#wp')
+			.elementHandle();
+		const frame = (await element!.contentFrame())!;
+		await element!.dispose();
+		expect(
+			await frame.evaluate(async () =>
+				(await fetch('v1-bridge.txt')).text()
+			)
+		).toBe('v1 PHP response');
+		const response = await frame.evaluate(async () => {
+			const response = await fetch('wp-includes/css/dashicons.min.css');
+			return { status: response.status, body: await response.text() };
+		});
+		expect(response.status).toBe(200);
+		expect(response.body).toContain('@font-face');
+		expect(bridgeRequests).toBeGreaterThan(0);
+	}
+);
