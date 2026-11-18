@@ -3,7 +3,7 @@ import {
 	isWordPressBridgePath,
 } from './wordpress-bridge-path';
 
-describe('WordPress helper document paths', () => {
+describe('WordPress bridge document paths', () => {
 	it.each(['a'.repeat(40), '1793090000'])(
 		'uses a separate allowed path for build %s',
 		(version) => {
@@ -13,7 +13,7 @@ describe('WordPress helper document paths', () => {
 		}
 	);
 
-	it('keeps the legacy helper available', () => {
+	it('keeps the legacy bridge available', () => {
 		expect(isWordPressBridgePath('/wordpress-bridge.html')).toBe(true);
 	});
 
@@ -24,7 +24,7 @@ describe('WordPress helper document paths', () => {
 		'/wordpress-bridge-deadbeef.php',
 		'/wordpress-bridge-deadbeef.html/../api.html',
 		'/wordpress-bridge-%2e%2e.html',
-	])('does not map %s to the helper', (path) => {
+	])('does not map %s to the bridge', (path) => {
 		expect(isWordPressBridgePath(path)).toBe(false);
 	});
 });
