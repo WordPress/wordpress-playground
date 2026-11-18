@@ -1,4 +1,4 @@
-import { rm, readdir, readFile } from 'node:fs/promises';
+import { copyFile, rm, readdir, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 
 const packagesDirectory = 'packages';
@@ -31,7 +31,8 @@ const result = spawnSync(
 	{ stdio: 'inherit' }
 );
 
-process.exit(result.status ?? 1);
+if (result.status !== 0) process.exit(result.status ?? 1);
+await copyFile(outputFile, outputDirectory + '/index.d.cts');
 
 async function removeGeneratedDeclarations(directory) {
 	const declarationFiles = await findDeclarationFiles(directory);
@@ -77,7 +78,7 @@ async function findDeclarationFiles(directory) {
 			if (entry.isDirectory()) {
 				return findDeclarationFiles(entryPath);
 			}
-			return entry.name.endsWith('.d.ts') ? [entryPath] : [];
+			return /\.d\.(?:ts|cts)$/.test(entry.name) ? [entryPath] : [];
 		})
 	);
 	return files.flat();
