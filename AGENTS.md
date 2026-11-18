@@ -194,10 +194,13 @@ The core architecture uses an iframe-based isolation model:
 @php-wasm/universal (abstract interface)
 ```
 
-The client bounds iframe/API connection time and accepts early startup failures only
-from its remote iframe's window and origin. The remote's inline error handler must
-work even if its bootstrap module cannot load. Offline caches are optional for online
-downloads; preserve explicit HTTP 401/403 responses instead of replaying cached HTML.
+The client bounds iframe/API startup stalls and accepts lifecycle messages only from
+its remote iframe's window and origin. Trusted progress renews the budget; lazy-load
+deferral, storage-access recovery, and reload-required prompts preserve the pending
+startup call. Terminal errors hand retry to the embedding application. The remote's
+inline error handler must work even if its bootstrap module cannot load. Offline
+caches are optional for online downloads; preserve existing warm-cache fallback for
+all unsuccessful HTTP statuses rather than guessing whether a response is a challenge.
 
 **Key packages:**
 

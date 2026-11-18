@@ -78,6 +78,27 @@
 			window.__playgroundStartup = (() => {
 				let settled = false;
 				let stage = 'Loading Playground startup scripts';
+				let phase = 'bootstrap';
+				let clientHandlesRetry = false;
+				const onClientErrorHandled = (event) => {
+					if (
+						event.source !== window.parent ||
+						event.data?.type !==
+							'playground-runtime-startup-error-handled'
+					)
+						return;
+					clientHandlesRetry = true;
+					window.removeEventListener('message', onClientErrorHandled);
+					const button = document.getElementById(
+						'playground-startup-retry'
+					);
+					if (button) button.replaceWith(createParentRetryMessage());
+				};
+				window.addEventListener('message', onClientErrorHandled);
+				window.parent.postMessage(
+					{ type: 'playground-runtime-startup-started' },
+					'*'
+				);
 				const onScriptError = (event) => {
 					if (
 						event.target instanceof HTMLScriptElement &&
@@ -93,15 +114,29 @@
 				};
 				window.addEventListener('error', onScriptError, true);
 
-				function complete() {
+				function complete(keepRetryListener = false) {
 					settled = true;
 					window.removeEventListener('error', onScriptError, true);
+					if (!keepRetryListener)
+						window.removeEventListener(
+							'message',
+							onClientErrorHandled
+						);
 					document.body?.classList.remove('is-loading');
 				}
 
 				async function failed(error) {
 					if (settled) return;
-					complete();
+					// Reload-required is handled by the embedding application's existing prompt.
+					if (error?.message === 'playground-reload-required') {
+						complete();
+						return;
+					}
+					complete(true);
+					const recovery =
+						error?.name === 'NotSupportedError'
+							? 'storage-access'
+							: undefined;
 					const message = String(
 						error?.message ?? error ?? 'Unknown startup failure'
 					);
@@ -112,6 +147,7 @@
 							?.src || '';
 					const diagnostics = [
 						stage,
+						'Startup phase: ' + phase,
 						name + ': ' + message,
 						'Page: ' + location.origin + location.pathname,
 						'Startup script: ' + script,
@@ -123,6 +159,8 @@
 					window.parent.postMessage(
 						{
 							type: 'playground-runtime-startup-error',
+							phase,
+							recovery,
 							error: { name, message: stage + ': ' + message },
 						},
 						'*'
@@ -161,6 +199,13 @@
 					document.body.append(details);
 				}
 
+				function createParentRetryMessage() {
+					const message = document.createElement('p');
+					message.textContent =
+						'Reload the page containing this Playground to try again.';
+					return message;
+				}
+
 				function renderGenericErrorUI(error, diagnostics) {
 					const fragment = document.createDocumentFragment();
 
@@ -179,7 +224,10 @@
 					button.onclick = () => {
 						window.location.reload();
 					};
-					fragment.append(button);
+					button.id = 'playground-startup-retry';
+					fragment.append(
+						clientHandlesRetry ? createParentRetryMessage() : button
+					);
 
 					const reportIssues = document.createElement('p');
 					reportIssues.innerHTML = `
@@ -300,8 +348,9 @@
 				return {
 					complete,
 					failed,
-					setStage: (caption) => {
+					setStage: (caption, nextPhase) => {
 						stage = caption;
+						if (nextPhase) phase = nextPhase;
 					},
 				};
 			})();
@@ -319,6 +368,10 @@
 			}
 			try {
 				const { bootPlaygroundRemote } = await import('./src/index');
+				window.__playgroundStartup.setStage(
+					'Initializing Playground runtime',
+					'runtime-initialization'
+				);
 				window.playground = await bootPlaygroundRemote(
 					window.__playgroundStartup.setStage
 				);

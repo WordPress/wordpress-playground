@@ -60,8 +60,9 @@ export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
 	/**
-	 * Maximum time to load the iframe and connect its API, in milliseconds.
-	 * Defaults to 60000. PHP downloads and Blueprint execution are not timed out.
+	 * Maximum time without iframe/API startup progress, in milliseconds.
+	 * Defaults to 60000. Lazy-load deferral and user recovery prompts do not count.
+	 * PHP downloads and Blueprint execution after connection are not timed out.
 	 */
 	connectionTimeoutMs?: number;
 	/**
@@ -201,7 +202,7 @@ export interface PlaygroundAPIClient {
 export interface StartPlaygroundAPIOptions {
 	iframe: HTMLIFrameElement;
 	apiUrl: string;
-	/** Maximum time to load the iframe and connect its API. Defaults to 60000ms. */
+	/** Startup stall timeout. Defaults to 60000ms; excludes lazy-load deferral and user prompts. */
 	connectionTimeoutMs?: number;
 }
 
@@ -259,22 +260,21 @@ export async function startPlaygroundWeb(
 			: 'Preparing WordPress'
 	);
 
+	if (detailedProgressCaptions) {
+		progressTracker.setCaption('Connecting to Playground runtime');
+	}
 	const connectedPlayground = await loadIframe<PlaygroundClient>(
 		iframe,
 		remoteUrl,
 		options.connectionTimeoutMs
 	);
-	if (detailedProgressCaptions) {
-		progressTracker.setCaption('Connecting to Playground runtime');
-	}
 
 	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)
 		: new BlueprintsV1Handler(options as StartPlaygroundOptions);
 	const playground = await handler.bootPlayground(
-		iframe,
-		progressTracker,
-		connectedPlayground
+		connectedPlayground,
+		progressTracker
 	);
 
 	progressTracker.finish();
@@ -314,27 +314,73 @@ async function loadIframe<API>(
 	const remoteOrigin = new URL(url).origin;
 	const controller = new AbortController();
 	const { signal } = controller;
-	const onStartupError = (event: MessageEvent) => {
+	let timeout: ReturnType<typeof setTimeout> | undefined;
+	let recovery: 'storage-access' | 'reload-required' | undefined;
+	const pauseTimeout = () => clearTimeout(timeout);
+	const restartTimeout = () => {
+		pauseTimeout();
+		timeout = setTimeout(() => {
+			const error = new Error(
+				`Playground startup made no progress for ${connectionTimeoutMs}ms. Its page or startup scripts may be blocked: ${url}`
+			);
+			error.name = 'TimeoutError';
+			iframe.contentWindow?.postMessage(
+				{ type: 'playground-runtime-startup-error-handled' },
+				remoteOrigin
+			);
+			controller.abort(error);
+		}, connectionTimeoutMs);
+	};
+	const onFrameLoad = () => {
+		if (recovery === undefined) restartTimeout();
+	};
+	const onStartupMessage = (event: MessageEvent) => {
 		if (
 			event.source !== iframe.contentWindow ||
-			event.origin !== remoteOrigin ||
-			event.data?.type !== 'playground-runtime-startup-error' ||
-			typeof event.data.error?.message !== 'string'
+			event.origin !== remoteOrigin
 		)
 			return;
-		const error = new Error(event.data.error.message);
-		if (typeof event.data.error.name === 'string')
-			error.name = event.data.error.name;
-		controller.abort(error);
+		if (event.data?.type === 'playground-runtime-startup-started') {
+			recovery = undefined;
+			restartTimeout();
+		} else if (event.data?.type === 'playground-reload-required') {
+			// The application owns this reload prompt. Keep its current startup alive.
+			recovery = 'reload-required';
+			pauseTimeout();
+		} else if (
+			event.data?.type === 'playground-runtime-startup-progress' &&
+			typeof event.data.caption === 'string'
+		) {
+			if (recovery === undefined) restartTimeout();
+		} else if (
+			event.data?.type === 'playground-runtime-startup-error' &&
+			typeof event.data.error?.message === 'string'
+		) {
+			// A failed retirement already belongs to the application's reload prompt.
+			if (recovery === 'reload-required') return;
+			if (event.data.recovery === 'storage-access') {
+				// Permission prompts and user decisions have no connection deadline.
+				recovery = 'storage-access';
+				pauseTimeout();
+				return;
+			}
+			const error = new Error(event.data.error.message);
+			if (typeof event.data.error.name === 'string')
+				error.name = event.data.error.name;
+			if (typeof event.data.phase === 'string')
+				Object.assign(error, { phase: event.data.phase });
+			iframe.contentWindow!.postMessage(
+				{ type: 'playground-runtime-startup-error-handled' },
+				remoteOrigin
+			);
+			controller.abort(error);
+		}
 	};
-	context.addEventListener('message', onStartupError);
-	const timeout = setTimeout(() => {
-		const error = new Error(
-			`Playground did not connect within ${connectionTimeoutMs}ms. Its page or startup scripts may be blocked: ${url}`
-		);
-		error.name = 'TimeoutError';
-		controller.abort(error);
-	}, connectionTimeoutMs);
+	context.addEventListener('message', onStartupMessage);
+	iframe.addEventListener('load', onFrameLoad);
+	// Native lazy loading can defer navigation until the iframe approaches the viewport.
+	// Its load event starts the budget; eager navigations are bounded immediately.
+	if (iframe.loading !== 'lazy') restartTimeout();
 	try {
 		await new Promise<void>((resolve, reject) => {
 			const cleanup = () => {
@@ -357,8 +403,9 @@ async function loadIframe<API>(
 		await api.isConnected();
 		return api;
 	} finally {
-		clearTimeout(timeout);
-		context.removeEventListener('message', onStartupError);
+		pauseTimeout();
+		context.removeEventListener('message', onStartupMessage);
+		iframe.removeEventListener('load', onFrameLoad);
 	}
 }
 

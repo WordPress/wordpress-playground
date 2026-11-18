@@ -106,11 +106,8 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
 		return response;
 	}
 
-	// An online browser challenge must reach the document. Replaying a cached app
-	// hides the challenge and leaves subsequent worker and asset requests blocked.
-	if (response.status === 401 || response.status === 403) {
-		return response;
-	}
+	// Preserve offline availability for every unsuccessful HTTP status. A status
+	// alone cannot distinguish a challenge from an outage or proxy denial.
 
 	if (cachedResponse) {
 		return cachedResponse;

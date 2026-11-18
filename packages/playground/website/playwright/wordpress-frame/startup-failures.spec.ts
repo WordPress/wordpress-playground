@@ -17,7 +17,10 @@ type Failure =
 	| 'bootstrap-module'
 	| 'entry-document'
 	| 'cache-open'
-	| 'cache-read';
+	| 'cache-read'
+	| 'cache-write'
+	| 'cache-list'
+	| 'cache-delete';
 
 interface FailureServer {
 	appOrigin: string;
@@ -27,6 +30,14 @@ interface FailureServer {
 	entryStatus: number;
 	assetStatus: number;
 	assetRequests: number;
+	connectionTimeoutMs: number;
+	sharedVersionMismatch: boolean;
+	lazy: boolean;
+	spoofSibling: boolean;
+	foreignRedirect: boolean;
+	parentIsRenderer: boolean;
+	slowDedicatedStartup: boolean;
+	createLazyFrame: boolean;
 	blockedRequests: string[];
 }
 
@@ -60,12 +71,45 @@ const test = base.extend<{ failureServer: FailureServer }>({
 			entryStatus: 200,
 			assetStatus: 200,
 			assetRequests: 0,
+			connectionTimeoutMs: 20000,
+			sharedVersionMismatch: false,
+			lazy: false,
+			spoofSibling: false,
+			foreignRedirect: false,
+			parentIsRenderer: false,
+			slowDedicatedStartup: false,
+			createLazyFrame: false,
 			blockedRequests: [],
 		};
+		let workerScriptRequests = 0;
 		const app = express();
 		app.use(async (request, response, next) => {
 			response.set('Cache-Control', 'no-store');
 			response.set('Access-Control-Allow-Origin', '*');
+			if (
+				fixture.foreignRedirect &&
+				request.path === '/remote.html' &&
+				!request.query.afterForeign
+			) {
+				response.redirect(fixture.embedderOrigin + '/foreign.html');
+				return;
+			}
+			if (request.path === '/foreign.html') {
+				response.type('html').send(`<!doctype html><script>
+parent.postMessage({ type: 'playground-runtime-startup-error', error: { message: 'Spoofed failure' } }, '*');
+location.replace(${JSON.stringify(fixture.appOrigin + '/remote.html?afterForeign=1')});
+</script>`);
+				return;
+			}
+			if (
+				fixture.slowDedicatedStartup &&
+				((request.path === '/sw.js' && workerScriptRequests++ === 0) ||
+					request.path.includes(
+						'/playground-worker-endpoint-blueprints-'
+					))
+			) {
+				await new Promise((resolve) => setTimeout(resolve, 6000));
+			}
 			const blocked =
 				(fixture.failure === 'service-worker' &&
 					request.path === '/sw.js') ||
@@ -95,30 +139,60 @@ const test = base.extend<{ failureServer: FailureServer }>({
 				// Load the released SDK and real remote page from a different origin.
 				// Only HTTP responses and browser cache failures are injected; RPC is real.
 				response.type('html').send(`<!doctype html>
-<iframe id="playground"></iframe>
+${fixture.createLazyFrame ? '' : `<iframe id="playground" loading="${fixture.lazy ? 'lazy' : 'eager'}" style="width:100%;height:800px;${fixture.lazy ? 'margin-top:20000px' : ''}"></iframe>`}
+${fixture.spoofSibling ? `<iframe src="${fixture.appOrigin}/seed.html?spoof=1"></iframe>` : ''}
 <script type="module">
 import { startPlaygroundWeb } from ${JSON.stringify(
 					fixture.appOrigin + releaseBase + 'client/index.js'
 				)};
+if (${fixture.createLazyFrame}) {
+    const frame = document.createElement('iframe');
+    frame.id = 'playground';
+    frame.loading = 'lazy';
+    frame.style.cssText = 'width:100%;height:800px;margin-top:20000px';
+    document.body.append(frame);
+}
+window.IS_WASM_WORDPRESS = ${fixture.parentIsRenderer};
+window.spoofMessages = 0;
+window.addEventListener('message', event => {
+    if (event.data?.error?.message === 'Spoofed failure') window.spoofMessages++;
+});
+window.reloadRequired = false;
+window.startupErrors = [];
+window.addEventListener('message', event => {
+    if (event.source !== document.querySelector('#playground').contentWindow ||
+        event.origin !== ${JSON.stringify(fixture.appOrigin)}) return;
+    if (event.data?.type === 'playground-reload-required') window.reloadRequired = true;
+    if (event.data?.type === 'playground-runtime-startup-error') window.startupErrors.push(event.data);
+});
+window.startFixture = () => {
 window.startupResult = { state: 'pending' };
-startPlaygroundWeb({
+return startPlaygroundWeb({
     iframe: document.querySelector('iframe'),
     remoteUrl: ${JSON.stringify(fixture.appOrigin + '/remote.html')},
-    connectionTimeoutMs: ${fixture.failure === 'entry-document' ? 3000 : 20000},
+    connectionTimeoutMs: ${fixture.failure === 'entry-document' ? 3000 : fixture.connectionTimeoutMs},
+    ${fixture.sharedVersionMismatch ? "workerMode: 'shared', scope: 'review-mismatch', sharedWorkerVersion: 'current', sharedWorkerClientVersion: 'stale'," : ''}
     blueprint: { preferredVersions: { php: '8.3', wp: false } },
 }).then(
     () => window.startupResult = { state: 'resolved' },
     error => window.startupResult = {
-        state: 'rejected', name: error.name, message: error.message
+        state: 'rejected', name: error.name, message: error.message, phase: error.phase
     }
 );
+};
+void window.startFixture();
 </script>`);
 				return;
 			}
 			if (request.path === '/seed.html') {
 				response
 					.type('html')
-					.send('<!doctype html><title>Startup fixture</title>');
+					.send(
+						'<!doctype html><title>Startup fixture</title>' +
+							(request.query.spoof
+								? `<script>setInterval(() => parent.postMessage({ type: 'playground-runtime-startup-error', error: { message: 'Spoofed failure' } }, '*'), 10);</script>`
+								: '')
+					);
 				return;
 			}
 			if (request.path === releaseBase + 'cache-probe.js') {
@@ -155,6 +229,12 @@ startPlaygroundWeb({
 							contents = `caches.open = () => Promise.reject(new DOMException('Cache denied', 'SecurityError'));\n${contents}`;
 						} else if (fixture.failure === 'cache-read') {
 							contents = `Cache.prototype.match = () => Promise.reject(new DOMException('Cache read denied', 'SecurityError'));\n${contents}`;
+						} else if (fixture.failure === 'cache-write') {
+							contents = `Cache.prototype.put = () => Promise.reject(new DOMException('Cache full', 'QuotaExceededError'));\n${contents}`;
+						} else if (fixture.failure === 'cache-list') {
+							contents = `caches.keys = () => Promise.reject(new DOMException('Cache list denied', 'SecurityError'));\n${contents}`;
+						} else if (fixture.failure === 'cache-delete') {
+							contents = `caches.delete = () => Promise.reject(new DOMException('Cache delete denied', 'SecurityError'));\n${contents}`;
 						}
 					}
 					response
@@ -214,24 +294,24 @@ for (const failure of [
 		} else {
 			// A running remote reports its cause before the connection timeout.
 			expect(result.name).not.toBe('TimeoutError');
-			await expect(
-				page.frameLocator('#playground').getByLabel('Error details')
-			).toHaveValue(
-				new RegExp(
-					failure === 'bootstrap-module'
-						? 'startup script'
-						: 'worker',
-					'i'
-				)
+			expect(result.phase).toBe(
+				failure === 'bootstrap-module' ? 'bootstrap' : failure
 			);
+			expect(
+				await page
+					.frameLocator('#playground')
+					.getByLabel('Error details')
+					.inputValue()
+			).toContain(await page.evaluate(() => navigator.userAgent));
 		}
 	});
 }
 
-// Contract: explicit authorization failures stay visible online. An existing
-// offline document must not replace a 401/403 with a successful cached response.
-for (const status of [401, 403]) {
-	test(`a warm entry cache preserves an online HTTP ${status}`, async ({
+// Contract: preserve warm offline availability for every HTTP error status.
+// A proxy denial and a browser challenge can use the same status; status alone
+// cannot justify discarding a usable cached entry.
+for (const status of [401, 403, 503]) {
+	test(`a warm entry cache remains available after HTTP ${status}`, async ({
 		page,
 		failureServer,
 	}) => {
@@ -249,27 +329,212 @@ for (const status of [401, 403]) {
 			await page.evaluate(
 				async () => (await fetch('/remote.html')).status
 			)
+		).toBe(200);
+	});
+}
+
+for (const status of [401, 403, 503]) {
+	test(`a cold entry returns the original HTTP ${status}`, async ({
+		page,
+		failureServer,
+	}) => {
+		await registerAppWorker(page, failureServer);
+		failureServer.entryStatus = status;
+		expect(
+			await page.evaluate(
+				async () => (await fetch('/remote.html')).status
+			)
 		).toBe(status);
 	});
 }
 
-test('a warm entry cache still recovers from a transient server failure', async ({
+// Contract: the original startup call remains usable after user-driven recovery.
+// The remote document reloads independently of the embedding application's call.
+for (const action of ['storage-access', 'retry'] as const) {
+	test(`the original embedded startup recovers through ${action}`, async ({
+		page,
+		failureServer,
+	}) => {
+		failureServer.connectionTimeoutMs = 2000;
+		await page.addInitScript(
+			({ appOrigin, action }) => {
+				if (
+					window.location.origin !== appOrigin ||
+					!window.location.pathname.endsWith('/remote.html')
+				)
+					return;
+				const register = navigator.serviceWorker.register.bind(
+					navigator.serviceWorker
+				);
+				navigator.serviceWorker.register = (...args) => {
+					if (!sessionStorage.getItem('storage-recovered')) {
+						return Promise.reject(
+							new DOMException(
+								'Storage permission required',
+								'NotSupportedError'
+							)
+						);
+					}
+					return register(...args);
+				};
+				if (action === 'storage-access') {
+					navigator.permissions.query = async () =>
+						({ state: 'prompt' }) as PermissionStatus;
+					document.requestStorageAccess = async () => {
+						sessionStorage.setItem('storage-recovered', 'yes');
+					};
+				} else {
+					navigator.permissions.query = async () =>
+						({ state: 'granted' }) as PermissionStatus;
+				}
+			},
+			{ appOrigin: failureServer.appOrigin, action }
+		);
+		await page.goto(failureServer.embedderOrigin + '/embed.html');
+		const remote = page.frameLocator('#playground');
+		const button = remote.getByRole('button', {
+			name:
+				action === 'storage-access'
+					? 'Allow storage access'
+					: 'Try again',
+			exact: true,
+		});
+		await expect(button).toBeVisible();
+		// Wait longer than the configured stall budget while the user decides.
+		await page.waitForTimeout(2500);
+		expect(
+			await page.evaluate(() => (window as any).startupResult.state)
+		).toBe('pending');
+		if (action === 'retry')
+			await remote
+				.locator('body')
+				.evaluate(() =>
+					sessionStorage.setItem('storage-recovered', 'yes')
+				);
+		// Permission is fault-injected; exercise the real recovery handler without
+		// depending on the browser driver's cross-origin iframe input support.
+		await button.evaluate((element) => element.click());
+		await expect
+			.poll(
+				() => page.evaluate(() => (window as any).startupResult.state),
+				{ timeout: 30000 }
+			)
+			.toBe('resolved');
+	});
+}
+
+test('a shared version mismatch requests reload without reporting a boot failure', async ({
 	page,
 	failureServer,
 }) => {
-	await registerAppWorker(page, failureServer);
-	await page.evaluate(() => fetch('/remote.html'));
+	failureServer.sharedVersionMismatch = true;
+	failureServer.connectionTimeoutMs = 2000;
+	await page.goto(failureServer.appOrigin + '/embed.html');
 	await expect
-		.poll(() =>
-			page.evaluate(async () =>
-				Boolean(await caches.match('/remote.html'))
-			)
-		)
+		.poll(() => page.evaluate(() => (window as any).reloadRequired))
 		.toBe(true);
-	failureServer.entryStatus = 503;
-	expect(
-		await page.evaluate(async () => (await fetch('/remote.html')).status)
-	).toBe(200);
+	await page.waitForTimeout(2500);
+	expect(await page.evaluate(() => (window as any).startupResult.state)).toBe(
+		'pending'
+	);
+	expect(await page.evaluate(() => (window as any).startupErrors)).toEqual(
+		[]
+	);
+});
+
+test('the embedding application can retry a terminal failure with the same iframe', async ({
+	page,
+	failureServer,
+}) => {
+	failureServer.failure = 'service-worker';
+	await page.goto(failureServer.embedderOrigin + '/embed.html');
+	await expect
+		.poll(() => page.evaluate(() => (window as any).startupResult.state))
+		.toBe('rejected');
+	failureServer.failure = 'none';
+	await page.evaluate(() => {
+		void (window as any).startFixture();
+	});
+	await expect
+		.poll(() => page.evaluate(() => (window as any).startupResult.state), {
+			timeout: 30000,
+		})
+		.toBe('resolved');
+});
+
+for (const creation of ['HTML', 'JavaScript'] as const) {
+	test(`a lazy offscreen iframe created through ${creation} can start after the connection budget has elapsed`, async ({
+		page,
+		failureServer,
+	}) => {
+		failureServer.lazy = true;
+		failureServer.createLazyFrame = creation === 'JavaScript';
+		failureServer.connectionTimeoutMs = 2000;
+		await page.goto(failureServer.embedderOrigin + '/embed.html');
+		await page.waitForTimeout(2500);
+		expect(
+			await page.evaluate(() => (window as any).startupResult.state)
+		).toBe('pending');
+		await page.locator('#playground').scrollIntoViewIfNeeded();
+		await expect
+			.poll(
+				() => page.evaluate(() => (window as any).startupResult.state),
+				{
+					timeout: 30000,
+				}
+			)
+			.toBe('resolved');
+	});
+}
+
+test('dedicated startup progress renews the budget between slow worker scripts', async ({
+	page,
+	failureServer,
+}) => {
+	failureServer.slowDedicatedStartup = true;
+	// Each phase fits the stall budget, while their combined downloads exceed it.
+	// Leave room for worker compilation on slower CI machines.
+	failureServer.connectionTimeoutMs = 10000;
+	await page.goto(failureServer.embedderOrigin + '/embed.html');
+	await expect
+		.poll(() => page.evaluate(() => (window as any).startupResult), {
+			timeout: 30000,
+		})
+		.toMatchObject({ state: 'resolved' });
+});
+
+for (const sender of ['sibling', 'foreign-origin'] as const) {
+	test(`startup ignores a failure message from a ${sender} document`, async ({
+		page,
+		failureServer,
+	}) => {
+		failureServer.spoofSibling = sender === 'sibling';
+		failureServer.foreignRedirect = sender === 'foreign-origin';
+		await page.goto(failureServer.embedderOrigin + '/embed.html');
+		await expect
+			.poll(() => page.evaluate(() => (window as any).spoofMessages))
+			.toBeGreaterThan(0);
+		await expect
+			.poll(
+				() => page.evaluate(() => (window as any).startupResult.state),
+				{ timeout: 30000 }
+			)
+			.toBe('resolved');
+	});
+}
+
+test('a pre-worker initialization error is attributed after scripts loaded', async ({
+	page,
+	failureServer,
+}) => {
+	failureServer.parentIsRenderer = true;
+	await page.goto(failureServer.appOrigin + '/embed.html');
+	await expect
+		.poll(() => page.evaluate(() => (window as any).startupResult.state))
+		.toBe('rejected');
+	expect(await page.evaluate(() => (window as any).startupResult.phase)).toBe(
+		'runtime-initialization'
+	);
 });
 
 // A challenge fetched by the worker must not enter the release's asset cache.
@@ -299,7 +564,13 @@ test('a challenged asset fetched by the service worker can retry after clearance
 
 // Contract: offline caching is optional for online platform downloads. A browser
 // storage failure must not stop the worker before it tries the independent network.
-for (const failure of ['cache-open', 'cache-read'] as const) {
+for (const failure of [
+	'cache-open',
+	'cache-read',
+	'cache-write',
+	'cache-list',
+	'cache-delete',
+] as const) {
 	test(`platform assets load from HTTP after ${failure} fails`, async ({
 		page,
 		failureServer,
@@ -337,6 +608,7 @@ test('an embedded release can still boot PHP after connecting', async ({
 async function registerAppWorker(page: Page, fixture: FailureServer) {
 	await page.goto(fixture.appOrigin + '/seed.html');
 	await page.evaluate(async () => {
+		await caches.open('playground-cache-old-fixture');
 		await navigator.serviceWorker.register('/sw.js', {
 			type: 'module',
 			updateViaCache: 'none',

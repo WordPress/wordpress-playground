@@ -95,17 +95,22 @@ const query = new URL(document.location.href).searchParams;
  * to the embedding window: rendered WordPress does not receive that API here.
  */
 export async function bootPlaygroundRemote(
-	onStartupProgress?: (caption: string) => void
+	onStartupProgress?: (
+		caption: string,
+		phase?: 'service-worker' | 'php-worker'
+	) => void
 ) {
 	assertNotInfiniteLoadingLoop();
 	const sharedMode = query.get('shared-worker') === '1';
-	const reportStartupProgress = (caption: string) => {
-		onStartupProgress?.(caption);
-		if (sharedMode)
-			window.parent.postMessage(
-				{ type: 'playground-runtime-startup-progress', caption },
-				location.origin
-			);
+	const reportStartupProgress = (
+		caption: string,
+		phase?: 'service-worker' | 'php-worker'
+	) => {
+		onStartupProgress?.(caption, phase);
+		window.parent.postMessage(
+			{ type: 'playground-runtime-startup-progress', caption },
+			'*'
+		);
 	};
 
 	const hasProgressBar = query.has('progressbar');
@@ -131,7 +136,7 @@ export async function bootPlaygroundRemote(
 		}
 	}
 
-	reportStartupProgress('Registering service worker');
+	reportStartupProgress('Registering service worker', 'service-worker');
 	const registrationUrl = new URL(serviceWorkerUrl);
 	if (sharedMode) registrationUrl.searchParams.set('shared-worker', '1');
 	const registration = await sw.register(registrationUrl + '', {
@@ -175,7 +180,7 @@ export async function bootPlaygroundRemote(
 	}
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
-	reportStartupProgress('Starting PHP worker');
+	reportStartupProgress('Starting PHP worker', 'php-worker');
 
 	const sharedRuntime = sharedMode
 		? await connectSharedRuntime(

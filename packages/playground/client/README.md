@@ -22,10 +22,22 @@ console.log(response.text);
 
 Loading the client from `https://playground.wordpress.net/client/index.js` keeps it in sync with the remote Playground runtime. The client and the iframe communicate over an internal protocol, and backwards compatibility is guaranteed by serving a matching client and remote from the same deployment.
 
-Both startup functions reject if the iframe cannot connect its API within 60 seconds.
-Set `connectionTimeoutMs` to adjust that limit. The limit covers loading the iframe and
-connecting its API; PHP downloads and Blueprint execution can take longer. A remote
-that can run its startup error handler reports the original error immediately.
+Both startup functions reject after 60 seconds without iframe/API startup progress.
+Set `connectionTimeoutMs` to adjust this stall timeout. It includes service-worker and
+PHP-worker scripts, but ends when the control API connects; later PHP WASM downloads
+and Blueprint execution can take longer. Trusted shared-runtime progress renews the
+budget so retirement, saving, and connection phases can finish in sequence.
+
+For native lazy iframes, the budget starts when their document reports startup or
+loads, so offscreen deferral does not consume it. Storage-access recovery pauses
+it while the user decides; reloading the iframe resumes the original startup call.
+A reload-required message leaves the application's existing reload prompt in control.
+
+Other early startup errors reject the call with their original name/message, startup
+stage, and a `phase` identifier. The application owns retry after rejection: call the
+startup function again or reload the containing page. The iframe replaces its own
+retry button with that instruction when the client acknowledges the terminal error.
+Older clients that keep waiting retain the iframe's retry button.
 
 ## Embedding with separate WordPress origins
 

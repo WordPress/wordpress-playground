@@ -187,10 +187,14 @@ both root-origin documents still read the unchanged private file.
 
 `startup-failures.spec.ts` serves the installed release on isolated origins and injects
 HTTP challenges for entry HTML, bootstrap modules, service workers, and PHP workers.
-It checks SDK rejection and copyable diagnostics, preserves online 401/403 responses
-with a warm entry cache, and checks HTTP downloads when CacheStorage fails. Healthy
-PHP startup and cached fallback after a transient 503 are controls. These tests run
-in Chromium, Firefox, and WebKit as part of the normal deployment preview suite.
+It checks terminal startup rejection and diagnostic phases, recovery through storage
+permission and iframe reload, application retry, lazy loading, and reload-required
+handling. Same-origin sibling and foreign-origin documents cannot spoof startup
+errors. Warm caches retain their existing fallback for 401/403/503; cold entries
+preserve the original response. Fault-injected cache open/read/write/list/delete
+failures must not block HTTP downloads or worker activation. The tests simulate
+these failure conditions; they do not establish a naturally occurring browser fault.
+These tests run in Chromium, Firefox, and WebKit in the deployment preview suite.
 
 ## CI
 
