@@ -39,9 +39,47 @@ Le moyen le plus rapide de commencer est d'utiliser npx, qui ne nécessite pas d
 npx @wp-playground/cli@latest server --xdebug
 ```
 
-<!-- This starts WordPress on `http://127.0.0.1:9400` with Xdebug enabled. Now you connect a debugger. -->
+<!-- The CLI prints the WordPress URL after starting the server with Xdebug enabled. You can now connect a debugger. -->
 
-Cela démarre WordPress sur `http://127.0.0.1:9400` avec Xdebug activé. Maintenant, vous connectez un débogueur.
+La CLI affiche l'URL de WordPress après avoir démarré le serveur avec Xdebug activé. Vous pouvez maintenant connecter un débogueur.
+
+<!-- Before starting another example, stop the previous Playground server with `Ctrl+C` and disconnect its debugger. -->
+
+Avant de passer à un autre exemple, arrêtez le serveur Playground précédent avec `Ctrl+C` et déconnectez son débogueur.
+
+<!-- ## Create the sample plugin -->
+
+## Créer le plugin d'exemple
+
+<!-- Create a directory named `test-xdebug` and save the following code as `test-xdebug.php` inside it. Both walkthroughs use this plugin. -->
+
+Créez un dossier `test-xdebug` et enregistrez-y le code suivant dans un fichier nommé `test-xdebug.php`. Les deux procédures utilisent ce plugin.
+
+```PHP
+<?php
+/**
+ * Plugin Name: Simple Admin Message
+ * Description: Displays a simple message in the WordPress admin
+ * Version: 1.0
+ * Author: Playground Team
+ */
+
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Display admin notice
+function sam_display_admin_message() {
+    $message = 'Hello! This is a simple admin message.';
+    ?>
+    <div class="notice notice-info is-dismissible">
+        <p><?php _e($message, 'simple-admin-message'); ?></p>
+    </div>
+    <?php
+}
+add_action('admin_notices', 'sam_display_admin_message');
+```
 
 <!-- ## Starting with DevTools -->
 
@@ -77,47 +115,17 @@ Running a PHP script with Xdebug enabled...
 
 ![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
 
-<!-- For a more practical example, let's debug a plugin that has the following code: -->
+<!-- If you ran the previous command, close its DevTools window and stop the server with `Ctrl+C`. Run the following command from the `test-xdebug` directory. -->
 
-Pour un exemple plus pratique, déboguons un plugin qui contient le code suivant :
-
-```PHP
-<?php
-/**
- * Plugin Name: Simple Admin Message
- * Description: Displays a simple message in the WordPress admin
- * Version: 1.0
- * Author: Playground Team
- */
-
-// Prevent direct access
-if (!defined('ABSPATH')) {
-    exit;
-}
-
-// Display admin notice
-function sam_display_admin_message() {
-    $message = 'Hello! This is a simple admin message.';
-    ?>
-    <div class="notice notice-info is-dismissible">
-        <p><?php _e($message, 'simple-admin-message'); ?></p>
-    </div>
-    <?php
-}
-add_action('admin_notices', 'sam_display_admin_message');
-```
-
-<!-- In the folder where the plugin is located, let's run the command in our terminal: -->
-
-Dans le dossier où se trouve le plugin, exécutons la commande dans notre terminal :
+Si vous avez exécuté la commande précédente, fermez sa fenêtre DevTools et arrêtez le serveur avec `Ctrl+C`. Exécutez la commande suivante depuis le dossier `test-xdebug`.
 
 ```bash
 npx @wp-playground/cli@latest server --xdebug --experimental-devtools --auto-mount
 ```
 
-<!-- The Playground CLI automatically mounts and activates the plugin. Open the DevTools URL from the terminal and set a breakpoint inside `sam_display_admin_message()`. Open `http://127.0.0.1:9400/wp-admin/plugins.php` in your browser to hit the breakpoint. If WordPress asks you to sign in, use `admin` as the username and `password` as the password. -->
+<!-- The Playground CLI automatically mounts and activates the plugin. Open the DevTools URL from the terminal and set a breakpoint inside `sam_display_admin_message()`. Append `/wp-admin/plugins.php` to the WordPress URL printed by the CLI and open the resulting URL in your browser to hit the breakpoint. If WordPress asks you to sign in, use `admin` as the username and `password` as the password. -->
 
-La CLI de Playground monte et active automatiquement le plugin. Ouvrez l'URL de DevTools affichée dans le terminal et placez un point d'arrêt dans `sam_display_admin_message()`. Ouvrez `http://127.0.0.1:9400/wp-admin/plugins.php` dans votre navigateur pour déclencher le point d'arrêt. Si WordPress vous demande de vous connecter, utilisez `admin` comme identifiant et `password` comme mot de passe.
+La CLI de Playground monte et active automatiquement le plugin. Ouvrez l'URL de DevTools affichée dans le terminal et placez un point d'arrêt dans `sam_display_admin_message()`. Pour déclencher le point d'arrêt, ajoutez `/wp-admin/plugins.php` à l'URL de WordPress affichée par la CLI, puis ouvrez cette adresse dans votre navigateur. Si WordPress vous demande de vous connecter, utilisez `admin` comme identifiant et `password` comme mot de passe.
 
 ![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
 
@@ -125,9 +133,9 @@ La CLI de Playground monte et active automatiquement le plugin. Ouvrez l'URL de 
 
 ## Démarrer avec l'intégration IDE
 
-<!-- To debug the sample plugin in this guide with VS Code, use the `--experimental-unsafe-ide-integration=vscode` flag. For PhpStorm, use `--experimental-unsafe-ide-integration=phpstorm`. -->
+<!-- To debug the sample plugin with VS Code, use the `--experimental-unsafe-ide-integration=vscode` flag. For PhpStorm, open `test-xdebug` as a PhpStorm project first and make sure it contains an `.idea/` directory. In the command below, replace the VS Code flag with `--experimental-unsafe-ide-integration=phpstorm`. -->
 
-Pour déboguer le plugin d'exemple de ce guide avec VS Code, utilisez l'option `--experimental-unsafe-ide-integration=vscode`. Pour PhpStorm, utilisez `--experimental-unsafe-ide-integration=phpstorm`.
+Pour déboguer le plugin d'exemple avec VS Code, utilisez l'option `--experimental-unsafe-ide-integration=vscode`. Pour PhpStorm, ouvrez d'abord `test-xdebug` en tant que projet PhpStorm et vérifiez qu'il contient un dossier `.idea/`. Dans la commande ci-dessous, remplacez l'option de VS Code par `--experimental-unsafe-ide-integration=phpstorm`.
 
 <!-- To debug in VSCode you'll need the following prerequisites: -->
 
@@ -145,9 +153,9 @@ Exécutez la commande suivante depuis le dossier du plugin.
 npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration=vscode --auto-mount
 ```
 
-<!-- Start the **WP Playground CLI - Listen for Xdebug** configuration in your IDE and set a breakpoint inside `sam_display_admin_message()`. Open `http://127.0.0.1:9400/wp-admin/plugins.php` in your browser to hit the breakpoint. If WordPress asks you to sign in, use `admin` as the username and `password` as the password. -->
+<!-- Start the **WP Playground CLI - Listen for Xdebug** configuration in your IDE and set a breakpoint inside `sam_display_admin_message()`. Append `/wp-admin/plugins.php` to the WordPress URL printed by the CLI and open the resulting URL in your browser to hit the breakpoint. If WordPress asks you to sign in, use `admin` as the username and `password` as the password. -->
 
-Lancez la configuration **WP Playground CLI - Listen for Xdebug** dans votre IDE et placez un point d'arrêt dans `sam_display_admin_message()`. Ouvrez `http://127.0.0.1:9400/wp-admin/plugins.php` dans votre navigateur pour déclencher le point d'arrêt. Si WordPress vous demande de vous connecter, utilisez `admin` comme identifiant et `password` comme mot de passe.
+Lancez la configuration **WP Playground CLI - Listen for Xdebug** dans votre IDE et placez un point d'arrêt dans `sam_display_admin_message()`. Pour déclencher le point d'arrêt, ajoutez `/wp-admin/plugins.php` à l'URL de WordPress affichée par la CLI, puis ouvrez cette adresse dans votre navigateur. Si WordPress vous demande de vous connecter, utilisez `admin` comme identifiant et `password` comme mot de passe.
 
 ![Xdebug en action sur VSCode](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
 
