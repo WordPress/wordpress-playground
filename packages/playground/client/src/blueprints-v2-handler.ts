@@ -1,6 +1,5 @@
 import type { ProgressTracker } from '@php-wasm/progress';
 import { collectPhpLogs, logger } from '@php-wasm/logger';
-import { consumeAPI } from '@php-wasm/universal';
 import type { PHPWebExtension } from '@php-wasm/web';
 import {
 	compileBlueprintForExecution,
@@ -26,7 +25,7 @@ export class BlueprintsV2Handler {
 	}
 
 	async bootPlayground(
-		iframe: HTMLIFrameElement,
+		playground: PlaygroundClient,
 		progressTracker: ProgressTracker
 	) {
 		const {
@@ -50,10 +49,6 @@ export class BlueprintsV2Handler {
 
 		// Connect the Comlink API client to the remote worker,
 		// boot the playground, and run the blueprint steps.
-		const playground = consumeAPI<PlaygroundClient>(
-			iframe.contentWindow!,
-			iframe.ownerDocument!.defaultView!
-		) as PlaygroundClient;
 		await playground.isConnected();
 		if (!disableProgressBar) {
 			progressTracker.pipe(playground);

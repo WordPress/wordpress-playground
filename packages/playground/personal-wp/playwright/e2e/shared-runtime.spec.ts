@@ -57,6 +57,14 @@ test('asks a stale document to reload without retiring the active runtime', asyn
 	context,
 }) => {
 	let stale = false;
+	await context.addInitScript(() => {
+		(window as any).startupFailures = [];
+		window.addEventListener('message', (event) => {
+			if (event.data?.type === 'playground-runtime-startup-error') {
+				(window as any).startupFailures.push(event.data);
+			}
+		});
+	});
 	await context.route('**/personal-wp-version.json', async (route) => {
 		if (stale)
 			await route.fulfill({ json: { buildVersion: 'next-deployment' } });
@@ -72,11 +80,23 @@ test('asks a stale document to reload without retiring the active runtime', asyn
 	await expect(
 		second.getByRole('dialog', { name: 'My WordPress has been updated' })
 	).toBeVisible();
+	// A reload request must not also enter bootSiteClient's generic failure path.
+	await expect
+		.poll(() => second.evaluate(() => (window as any).startupFailures))
+		.toEqual([]);
+	await expect(
+		second
+			.getByRole('dialog')
+			.filter({ hasNotText: 'My WordPress has been updated' })
+	).toBeHidden();
 	expect(
 		await page.evaluate(() =>
 			(window as any).playground.readFileAsText('/memory-marker')
 		)
 	).toBe('still active');
+	expect(
+		await second.evaluate(() => (window as any).startupFailures)
+	).toEqual([]);
 	await expect(
 		page.getByRole('dialog', { name: 'My WordPress has been updated' })
 	).toBeHidden();

@@ -22,6 +22,13 @@ console.log(response.text);
 
 Loading the client from `https://playground.wordpress.net/client/index.js` keeps it in sync with the remote Playground runtime. The client and the iframe communicate over an internal protocol, and backwards compatibility is guaranteed by serving a matching client and remote from the same deployment.
 
+Early startup errors reported by the remote reject `startPlaygroundWeb()` and
+`startPlaygroundAPI()` with the original error name and message. Only messages from
+the expected iframe window and origin are accepted. Storage-access recovery and
+reload-required prompts preserve the pending call. After terminal rejection, the
+application owns retry: start again or reload the containing page. Older clients
+retain their in-frame retry control.
+
 ## Embedding with separate WordPress origins
 
 The WordPress-origin prototype keeps the app and SDK endpoints on the app origin.

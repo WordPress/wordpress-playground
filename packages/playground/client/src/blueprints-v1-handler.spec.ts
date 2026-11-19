@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PlaygroundClient } from '.';
 import type { ProgressTracker } from '@php-wasm/progress';
 import { BlueprintsV1Handler } from './blueprints-v1-handler';
 
@@ -19,7 +20,6 @@ const mocks = vi.hoisted(() => {
 		runBlueprintV1Steps: vi.fn(),
 		resolveRuntimeConfiguration: vi.fn(),
 		createBlueprintReflection: vi.fn(),
-		consumeAPI: vi.fn(),
 		collectPhpLogs: vi.fn(),
 	};
 });
@@ -27,10 +27,6 @@ const mocks = vi.hoisted(() => {
 vi.mock('@php-wasm/logger', () => ({
 	collectPhpLogs: mocks.collectPhpLogs,
 	logger: {},
-}));
-
-vi.mock('@php-wasm/universal', () => ({
-	consumeAPI: mocks.consumeAPI,
 }));
 
 vi.mock('.', () => ({
@@ -71,7 +67,6 @@ describe('BlueprintsV1Handler', () => {
 		mocks.createBlueprintReflection.mockResolvedValue({
 			getVersion: () => 1,
 		});
-		mocks.consumeAPI.mockReturnValue(mocks.playground);
 	});
 
 	afterEach(() => {
@@ -92,7 +87,7 @@ describe('BlueprintsV1Handler', () => {
 		});
 		expect(
 			await handler.bootPlayground(
-				createIframe(),
+				mocks.playground as unknown as PlaygroundClient,
 				createProgressTracker()
 			)
 		).toBe(mocks.playground);
@@ -110,7 +105,10 @@ describe('BlueprintsV1Handler', () => {
 			scope: 'site',
 		});
 		await expect(
-			handler.bootPlayground(createIframe(), createProgressTracker())
+			handler.bootPlayground(
+				mocks.playground as unknown as PlaygroundClient,
+				createProgressTracker()
+			)
 		).rejects.toBe(failure);
 		expect(
 			mocks.playground.finishSharedRuntimeInitialization
@@ -130,7 +128,10 @@ describe('BlueprintsV1Handler', () => {
 			},
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -150,7 +151,10 @@ describe('BlueprintsV1Handler', () => {
 			shouldInstallWordPress: false,
 		});
 
-		await handler.bootPlayground(iframe, progressTracker);
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			progressTracker
+		);
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -170,7 +174,10 @@ describe('BlueprintsV1Handler', () => {
 			disableProgressBar: true,
 		});
 
-		await handler.bootPlayground(iframe, progressTracker);
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			progressTracker
+		);
 
 		expect(progressTracker.pipe).not.toHaveBeenCalled();
 	});
@@ -200,7 +207,10 @@ describe('BlueprintsV1Handler', () => {
 			],
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -227,7 +237,10 @@ describe('BlueprintsV1Handler', () => {
 			wordpressInstallMode: 'do-not-attempt-installing',
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -252,7 +265,10 @@ describe('BlueprintsV1Handler', () => {
 		});
 
 		await expect(
-			handler.bootPlayground(iframe, createProgressTracker())
+			handler.bootPlayground(
+				mocks.playground as unknown as PlaygroundClient,
+				createProgressTracker()
+			)
 		).rejects.toThrow(
 			'Conflicting options: WordPress was requested, ' +
 				'but the Blueprint sets ' +
@@ -276,7 +292,10 @@ describe('BlueprintsV1Handler', () => {
 		});
 
 		await expect(
-			handler.bootPlayground(iframe, createProgressTracker())
+			handler.bootPlayground(
+				mocks.playground as unknown as PlaygroundClient,
+				createProgressTracker()
+			)
 		).rejects.toThrow(
 			'Conflicting options: WordPress was requested, ' +
 				'but the Blueprint sets ' +
@@ -301,7 +320,10 @@ describe('BlueprintsV1Handler', () => {
 			blueprint: {},
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -334,7 +356,10 @@ describe('BlueprintsV1Handler', () => {
 			},
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 
 		expect(mocks.playground.prefetchUpdateChecks).not.toHaveBeenCalled();
 
@@ -360,7 +385,10 @@ describe('BlueprintsV1Handler', () => {
 			},
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({

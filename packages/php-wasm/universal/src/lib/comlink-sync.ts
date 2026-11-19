@@ -920,7 +920,8 @@ export function proxy<T extends object>(obj: T): T & ProxyMarked {
 export function windowEndpoint(
 	w: PostMessageWithOrigin,
 	context: EventSource = globalThis,
-	targetOrigin = '*'
+	targetOrigin = '*',
+	signal?: AbortSignal
 ): Endpoint {
 	// The capture flag controls event order: capturing listeners run before bubbling listeners.
 	// Window messages do not bubble, but the browser still treats the same callback registered
@@ -945,7 +946,11 @@ export function windowEndpoint(
 				};
 				listeners.set(listener, filteredListener);
 			}
-			context.addEventListener(type, filteredListener, options);
+			context.addEventListener(
+				type,
+				filteredListener,
+				signal ? { ...options, signal } : options
+			);
 		},
 		removeEventListener: (type, listener, options) => {
 			const filteredListener = listeners.get(listener);

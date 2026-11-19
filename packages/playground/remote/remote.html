@@ -77,6 +77,22 @@
 		<script>
 			window.__playgroundStartup = (() => {
 				let settled = false;
+				let clientHandlesRetry = false;
+				const onClientErrorHandled = (event) => {
+					if (
+						event.source !== window.parent ||
+						event.data?.type !==
+							'playground-runtime-startup-error-handled'
+					)
+						return;
+					clientHandlesRetry = true;
+					window.removeEventListener('message', onClientErrorHandled);
+					const button = document.getElementById(
+						'playground-startup-retry'
+					);
+					if (button) button.replaceWith(createParentRetryMessage());
+				};
+				window.addEventListener('message', onClientErrorHandled);
 				const onScriptError = (event) => {
 					if (
 						event.target instanceof HTMLScriptElement &&
@@ -92,16 +108,45 @@
 				};
 				window.addEventListener('error', onScriptError, true);
 
-				function complete() {
+				function complete(keepRetryListener = false) {
 					settled = true;
 					window.removeEventListener('error', onScriptError, true);
+					if (!keepRetryListener)
+						window.removeEventListener(
+							'message',
+							onClientErrorHandled
+						);
 					document.body?.classList.remove('is-loading');
 				}
 
 				async function failed(error) {
 					if (settled) return;
-					complete();
+					// Reload-required is handled by the embedding application's existing prompt.
+					if (error?.message === 'playground-reload-required') {
+						complete();
+						return;
+					}
+					complete(true);
+					const recovery =
+						error?.name === 'NotSupportedError'
+							? 'storage-access'
+							: undefined;
+					const message = String(
+						error?.message ?? error ?? 'Unknown startup failure'
+					);
+					const name =
+						typeof error?.name === 'string' ? error.name : 'Error';
 					console.error(error);
+					// The embedder may hide its referrer. Send only startup diagnostics;
+					// the SDK validates this window and origin before accepting them.
+					window.parent.postMessage(
+						{
+							type: 'playground-runtime-startup-error',
+							recovery,
+							error: { name, message },
+						},
+						'*'
+					);
 					if (!document.body) {
 						await new Promise((resolve) =>
 							document.addEventListener(
@@ -114,11 +159,18 @@
 					document.body.className = 'has-error';
 					document.body.innerHTML = '';
 
-					if (error?.name === 'NotSupportedError') {
+					if (name === 'NotSupportedError') {
 						document.body.append(await renderStorageErrorUI());
 					} else {
 						document.body.append(renderGenericErrorUI(error));
 					}
+				}
+
+				function createParentRetryMessage() {
+					const message = document.createElement('p');
+					message.textContent =
+						'Reload the page containing this Playground to try again.';
+					return message;
 				}
 
 				function renderGenericErrorUI(error) {
@@ -139,7 +191,10 @@
 					button.onclick = () => {
 						window.location.reload();
 					};
-					fragment.append(button);
+					button.id = 'playground-startup-retry';
+					fragment.append(
+						clientHandlesRetry ? createParentRetryMessage() : button
+					);
 
 					const reportIssues = document.createElement('p');
 					reportIssues.innerHTML = `
