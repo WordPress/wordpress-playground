@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { PlaygroundClient } from '.';
 import type { ProgressTracker } from '@php-wasm/progress';
 import { BlueprintsV2Handler } from './blueprints-v2-handler';
 
@@ -15,7 +16,6 @@ const mocks = vi.hoisted(() => {
 		compileBlueprintForExecution: vi.fn(),
 		resolveBlueprintV2WordPressSource: vi.fn(),
 		resolveRuntimeConfiguration: vi.fn(),
-		consumeAPI: vi.fn(),
 		collectPhpLogs: vi.fn(),
 		compiledRun: vi.fn(),
 	};
@@ -24,10 +24,6 @@ const mocks = vi.hoisted(() => {
 vi.mock('@php-wasm/logger', () => ({
 	collectPhpLogs: mocks.collectPhpLogs,
 	logger: {},
-}));
-
-vi.mock('@php-wasm/universal', () => ({
-	consumeAPI: mocks.consumeAPI,
 }));
 
 vi.mock('@wp-playground/blueprints', () => ({
@@ -69,7 +65,6 @@ describe('BlueprintsV2Handler', () => {
 			intl: false,
 			networking: true,
 		});
-		mocks.consumeAPI.mockReturnValue(mocks.playground);
 	});
 
 	it('attaches a shared tab at the declared landing page without rerunning startup', async () => {
@@ -87,7 +82,10 @@ describe('BlueprintsV2Handler', () => {
 				},
 			},
 		});
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 		expect(mocks.playground.goTo).toHaveBeenCalledWith('/wp-admin/');
 		expect(mocks.compiledRun).not.toHaveBeenCalled();
 	});
@@ -129,7 +127,10 @@ describe('BlueprintsV2Handler', () => {
 			onClientConnected,
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 
 		expect(mocks.resolveRuntimeConfiguration).not.toHaveBeenCalled();
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
@@ -167,7 +168,10 @@ describe('BlueprintsV2Handler', () => {
 			blueprint,
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -191,7 +195,10 @@ describe('BlueprintsV2Handler', () => {
 			wordpressInstallMode: 'install-from-existing-files-if-needed',
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -217,7 +224,10 @@ describe('BlueprintsV2Handler', () => {
 			disableProgressBar: true,
 		});
 
-		await handler.bootPlayground(iframe, progressTracker);
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			progressTracker
+		);
 
 		expect(progressTracker.pipe).not.toHaveBeenCalled();
 	});
@@ -236,7 +246,10 @@ describe('BlueprintsV2Handler', () => {
 			blueprint,
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 
 		expect(mocks.resolveBlueprintV2WordPressSource).toHaveBeenCalledWith(
 			blueprint,
@@ -265,7 +278,10 @@ describe('BlueprintsV2Handler', () => {
 			wordpressInstallMode: 'install-from-existing-files-if-needed',
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -292,7 +308,10 @@ describe('BlueprintsV2Handler', () => {
 			wordpressInstallMode: 'download-and-install',
 		});
 
-		await handler.bootPlayground(iframe, createProgressTracker());
+		await handler.bootPlayground(
+			mocks.playground as unknown as PlaygroundClient,
+			createProgressTracker()
+		);
 
 		expect(mocks.playground.boot).toHaveBeenCalledWith(
 			expect.objectContaining({ blueprint: undefined })

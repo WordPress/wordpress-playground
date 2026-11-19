@@ -252,15 +252,21 @@ export async function startPlaygroundWeb(
 			: 'Preparing WordPress'
 	);
 
-	await loadIframe(iframe, remoteUrl);
 	if (detailedProgressCaptions) {
 		progressTracker.setCaption('Connecting to Playground runtime');
 	}
+	const connectedPlayground = await loadIframe<PlaygroundClient>(
+		iframe,
+		remoteUrl
+	);
 
 	const handler = useBlueprintV2Handler
 		? new BlueprintsV2Handler(options)
 		: new BlueprintsV1Handler(options as StartPlaygroundOptions);
-	const playground = await handler.bootPlayground(iframe, progressTracker);
+	const playground = await handler.bootPlayground(
+		connectedPlayground,
+		progressTracker
+	);
 
 	progressTracker.finish();
 
@@ -280,23 +286,69 @@ export async function startPlaygroundAPI(
 	allowStorageAccessByUserActivation(iframe);
 	const resolvedAPIUrl = new URL(apiUrl, remoteOrigin).toString();
 
-	await loadIframe(iframe, resolvedAPIUrl);
-
-	const api = consumeAPI<PlaygroundAPIClient>(
-		iframe.contentWindow!,
-		iframe.ownerDocument!.defaultView!
-	);
-	await api.isConnected();
+	const api = await loadIframe<PlaygroundAPIClient>(iframe, resolvedAPIUrl);
 	await api.isReady();
 
 	return api;
 }
 
-function loadIframe(iframe: HTMLIFrameElement, url: string): Promise<void> {
-	return new Promise((resolve) => {
-		iframe.addEventListener('load', () => resolve(), { once: true });
-		iframe.src = url;
-	});
+async function loadIframe<API>(iframe: HTMLIFrameElement, url: string) {
+	const context = iframe.ownerDocument.defaultView!;
+	const remoteOrigin = new URL(url).origin;
+	const controller = new AbortController();
+	const { signal } = controller;
+	let reloadRequired = false;
+	const onStartupMessage = (event: MessageEvent) => {
+		if (
+			event.source !== iframe.contentWindow ||
+			event.origin !== remoteOrigin
+		)
+			return;
+		if (event.data?.type === 'playground-reload-required') {
+			reloadRequired = true;
+		} else if (
+			event.data?.type === 'playground-runtime-startup-error' &&
+			typeof event.data.error?.message === 'string'
+		) {
+			if (reloadRequired || event.data.recovery === 'storage-access')
+				return;
+			const error = new Error(event.data.error.message);
+			if (typeof event.data.error.name === 'string')
+				error.name = event.data.error.name;
+			if (typeof event.data.phase === 'string')
+				Object.assign(error, { phase: event.data.phase });
+			iframe.contentWindow!.postMessage(
+				{ type: 'playground-runtime-startup-error-handled' },
+				remoteOrigin
+			);
+			controller.abort(error);
+		}
+	};
+	context.addEventListener('message', onStartupMessage);
+	try {
+		await new Promise<void>((resolve, reject) => {
+			const cleanup = () => {
+				iframe.removeEventListener('load', onLoad);
+				signal.removeEventListener('abort', onAbort);
+			};
+			const onLoad = () => {
+				cleanup();
+				resolve();
+			};
+			const onAbort = () => {
+				cleanup();
+				reject(signal.reason);
+			};
+			iframe.addEventListener('load', onLoad, { once: true });
+			signal.addEventListener('abort', onAbort, { once: true });
+			iframe.src = url;
+		});
+		const api = consumeAPI<API>(iframe.contentWindow!, context, signal);
+		await api.isConnected();
+		return api;
+	} finally {
+		context.removeEventListener('message', onStartupMessage);
+	}
 }
 
 async function shouldUseBlueprintV2Handler(
