@@ -71,67 +71,73 @@ if [ "$LOCK_HELD" = 0 ]; then
 fi
 PENDING_PURGE="$BACKUPS/pending-edge-purge"
 
-# Purge the edge cache for the recorded hostnames. Do not report
-# a complete deployment or rollback while old edge responses remain cached.
-# A purge without a domain clears only the site's primary domain, so name each host.
-purge_edge() {
+# Request a full purge for each recorded hostname before reporting success.
+# WP Cloud defaults to the primary domain when the request omits a hostname.
+purge_edge_domains() {
     [ "$LOCAL" != 1 ] || return 0
     if [ "$#" -eq 0 ]; then
         echo "No hostnames to purge." >&2
         return 1
     fi
     for host in "$@"; do
-        request_edge_purge "$host"
+        request_wp_cloud_edge_purge "$host"
     done
     echo "Edge cache purged for $*"
 }
 
-request_edge_purge() {
+request_wp_cloud_edge_purge() {
     local host="$1"
     shift
+    # WP Cloud purges the whole hostname when no purge_uris are supplied.
     curl --fail --silent --show-error --max-time 60 -X POST \
         -H "Auth: $ATOMIC_SITE_API_KEY" "$@" \
         "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge/$host" > /dev/null
 }
 
-verify_release_at_edge() {
+verify_release_startup_files() {
     [ "$LOCAL" != 1 ] || return 0
-    local origin="$1" host file path status started
+    local origin="$1" host release_file release_uri status purge_poll_started
     shift
-    local -a missing=() purge_args=()
-    for file in "$@"; do
-        path="/releases/$RELEASE_ID/$file"
-        if [ ! -f "$PUBLIC/$file" ]; then
-            echo "Refusing activation: the published release is missing $path." >&2
+    local -a paths_returning_404=() purge_uri_args=()
+    for release_file in "$@"; do
+        release_uri="/releases/$RELEASE_ID/$release_file"
+        # Purging cannot fix a file that never made it into the published release.
+        if [ ! -f "$PUBLIC/$release_file" ]; then
+            echo "Refusing activation: the published release is missing $release_uri." >&2
             return 1
         fi
-        status="$(release_asset_status "$origin$path")"
+        # Probe the browser's exact GET URL so we check the same cache entry.
+        status="$(get_edge_http_status "$origin$release_uri")"
         case "$status" in
             200) ;;
             404)
-                missing+=("$path")
-                purge_args+=(--data-urlencode "purge_uris[]=$path")
+                # A request made before publication can leave a cached 404 here.
+                paths_returning_404+=("$release_uri")
+                purge_uri_args+=(--data-urlencode "purge_uris[]=$release_uri")
                 ;;
             *)
-                echo "Refusing activation: $origin$path returned $status, expected 200." >&2
+                echo "Refusing activation: $origin$release_uri returned $status, expected 200." >&2
                 return 1
                 ;;
         esac
     done
-    [ "${#missing[@]}" -gt 0 ] || return 0
+    [ "${#paths_returning_404[@]}" -gt 0 ] || return 0
 
-    # Only purge new release URLs. Root files still point to the previous release.
-    echo "Purging cached 404s for $origin: ${missing[*]}"
+    # Limit the purge to the versioned URLs that returned 404 on this host. A
+    # full purge here could let the old deployment refill the root cache entries.
+    echo "Purging cached 404s for $origin: ${paths_returning_404[*]}"
     # shellcheck disable=SC2016 # PHP reads its own argument list.
     host="$("$SITE_PHP" -r 'echo parse_url( $argv[1], PHP_URL_HOST );' "$origin")"
-    request_edge_purge "$host" "${purge_args[@]}"
-    started=$SECONDS
-    for path in "${missing[@]}"; do
+    request_wp_cloud_edge_purge "$host" "${purge_uri_args[@]}"
+    # The API can return before the edge drops its cached 404. Wait for a 200
+    # before letting the root entry points send browsers to the new release.
+    purge_poll_started=$SECONDS
+    for release_uri in "${paths_returning_404[@]}"; do
         while :; do
-            status="$(release_asset_status "$origin$path")"
+            status="$(get_edge_http_status "$origin$release_uri")"
             [ "$status" != 200 ] || break
-            if [ "$status" != 404 ] || [ $((SECONDS - started)) -ge 60 ]; then
-                echo "Refusing activation: $origin$path returned $status after its edge purge." >&2
+            if [ "$status" != 404 ] || [ $((SECONDS - purge_poll_started)) -ge 60 ]; then
+                echo "Refusing activation: $origin$release_uri returned $status after its edge purge." >&2
                 return 1
             fi
             sleep 2
@@ -139,7 +145,7 @@ verify_release_at_edge() {
     done
 }
 
-release_asset_status() {
+get_edge_http_status() {
     curl --silent --show-error --max-time 15 --output /dev/null \
         --write-out '%{http_code}' "$1"
 }
@@ -159,7 +165,7 @@ finish_edge_purge() {
     local hosts
     hosts="$(cat "$PENDING_PURGE")"
     # shellcheck disable=SC2086 # One hostname per line.
-    purge_edge $hosts
+    purge_edge_domains $hosts
     rm "$PENDING_PURGE"
 }
 
@@ -271,15 +277,19 @@ cp "$DEPLOYMENT/custom-redirects-lib.php" "$PRIVATE/"
 for file in "$PRIVATE/"*.php; do
     "$SITE_PHP" -l "$file"
 done
+# Publish the files first, but keep the old root entry points live until the
+# startup URLs work through the edge. Each hostname has its own cached entries.
 mv "$STAGING" "$PUBLIC"
-verify_release_at_edge "$APP_ORIGIN" sw.js remote.html
-verify_release_at_edge "$WORDPRESS_ORIGIN" sw.js wordpress-bridge.html
+verify_release_startup_files "$APP_ORIGIN" sw.js remote.html
+verify_release_startup_files "$WORDPRESS_ORIGIN" sw.js wordpress-bridge.html
 
 # Replace the root entry files. release.json records both origins for later purges.
 prepare_edge_purge "" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
 status=0
 "$SITE_PHP" "$DEPLOYMENT/apply-update.php" activate \
     "$WEB_ROOT" "$BACKUPS" "$RELEASE_ID" "$RETENTION_DAYS" "$APP_ORIGIN" "$WORDPRESS_ORIGIN" || status=$?
+# Purge the domains after the root switch so a cache miss fetches the active
+# loader and entry pages. On activation failure, purge after restoring the old root.
 finish_edge_purge
 [ "$status" -eq 0 ] || exit "$status"
 
