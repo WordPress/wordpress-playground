@@ -61,6 +61,20 @@ By default, the CLI restricts access to local files for security reasons. If you
 npx @wp-playground/cli --blueprint=./my-blueprint.json --blueprint-may-read-adjacent-files server
 ```
 
+#### CLI options and Blueprint settings {#cli-overrides}
+
+For Blueprint v1, `--wp` and `--php` override the corresponding `preferredVersions` values, including when `--blueprint` loads a JSON file or ZIP bundle. Without a version flag, the Blueprint's value is used; if neither supplies a value, the CLI uses its default.
+
+```bash
+npx @wp-playground/cli@latest server --blueprint=./my-blueprint.zip --wp=6.4 --php=8.1 --login
+```
+
+`--login` enables automatic login only when the Blueprint omits `login`. An explicit Blueprint value, including `false`, takes precedence.
+
+PHP-only Blueprints (`preferredVersions.wp: false`) keep their declared settings and ignore `--wp`, `--php`, and `--login`.
+
+For Blueprint v2, `--php`, `--wp`, and `--login` fill missing runtime settings. Explicit `phpVersion`, `wordpressVersion`, and WordPress Playground login settings take precedence.
+
 ## Creating Blueprint Bundles
 
 ### Basic Structure

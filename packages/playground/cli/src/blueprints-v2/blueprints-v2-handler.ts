@@ -395,7 +395,7 @@ function applyCliOptionsToBlueprint(
 	const blueprint = { ...resolvedBlueprint } as any;
 
 	// TODO: Decide whether explicit CLI flags should override Blueprint v2
-	// runtime fields. For now, match the v1 CLI behavior: the Blueprint wins.
+	// runtime fields. For now, explicit Blueprint v2 settings take precedence.
 	if (blueprint.phpVersion === undefined) {
 		blueprint.phpVersion = args.php || RecommendedPHPVersion;
 	}

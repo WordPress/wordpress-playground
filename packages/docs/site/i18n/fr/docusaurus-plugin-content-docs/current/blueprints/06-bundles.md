@@ -161,6 +161,40 @@ npx @wp-playground/cli --blueprint=./my-blueprint.json --blueprint-may-read-adja
 ```
 -->
 
+#### Options de la CLI et paramètres du Blueprint {#cli-overrides}
+
+<!--
+#### CLI options and Blueprint settings {#cli-overrides}
+-->
+
+Avec les Blueprints v1, `--wp` et `--php` remplacent les valeurs correspondantes de `preferredVersions`, y compris lorsque `--blueprint` charge un fichier JSON ou un paquet ZIP. Sans option de version, la valeur du Blueprint est utilisée ; si aucun des deux ne fournit de valeur, la CLI utilise sa valeur par défaut.
+
+<!--
+For Blueprint v1, `--wp` and `--php` override the corresponding `preferredVersions` values, including when `--blueprint` loads a JSON file or ZIP bundle. Without a version flag, the Blueprint's value is used; if neither supplies a value, the CLI uses its default.
+-->
+
+```bash
+npx @wp-playground/cli@latest server --blueprint=./my-blueprint.zip --wp=6.4 --php=8.1 --login
+```
+
+`--login` active la connexion automatique uniquement lorsque le Blueprint ne définit pas `login`. Une valeur explicite dans le Blueprint, y compris `false`, est prioritaire.
+
+<!--
+`--login` enables automatic login only when the Blueprint omits `login`. An explicit Blueprint value, including `false`, takes precedence.
+-->
+
+Les Blueprints qui exécutent uniquement PHP (`preferredVersions.wp: false`) conservent leurs paramètres déclarés et ignorent `--wp`, `--php` et `--login`.
+
+<!--
+PHP-only Blueprints (`preferredVersions.wp: false`) keep their declared settings and ignore `--wp`, `--php`, and `--login`.
+-->
+
+Avec les Blueprints v2, `--php`, `--wp` et `--login` complètent les paramètres d’exécution manquants. Les valeurs explicites de `phpVersion`, de `wordpressVersion` et des paramètres de connexion de WordPress Playground sont prioritaires.
+
+<!--
+For Blueprint v2, `--php`, `--wp`, and `--login` fill missing runtime settings. Explicit `phpVersion`, `wordpressVersion`, and WordPress Playground login settings take precedence.
+-->
+
 ## Créer des paquets Blueprint
 
 <!--

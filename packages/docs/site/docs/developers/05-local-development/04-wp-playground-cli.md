@@ -141,6 +141,8 @@ CLI command loading a blueprint:
 npx @wp-playground/cli@latest server --blueprint=my-blueprint.json
 ```
 
+With Blueprint v1, you can combine `--blueprint` with `--wp` and `--php` to override the versions declared in the Blueprint. This also works with ZIP bundles. See [CLI options and Blueprint settings](/blueprints/bundles) for version precedence, login behavior, PHP-only Blueprints, and the different rules for Blueprint v2.
+
 ### Mounting folders manually
 
 Some projects have a specific structure that requires a custom configuration; for example, your repository contains all the files in the `/wp-content/` folder. So in this scenario, you can specify to the Playground CLI that it will mount your project from that folder using the `--mount` flag.

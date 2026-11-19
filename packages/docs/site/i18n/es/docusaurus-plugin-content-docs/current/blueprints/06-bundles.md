@@ -161,6 +161,40 @@ npx @wp-playground/cli --blueprint=./my-blueprint.json --blueprint-may-read-adja
 ```
 -->
 
+#### Opciones del CLI y ajustes del Blueprint {#cli-overrides}
+
+<!--
+#### CLI options and Blueprint settings {#cli-overrides}
+-->
+
+En los Blueprints v1, `--wp` y `--php` sustituyen los valores correspondientes de `preferredVersions`, incluso cuando `--blueprint` carga un archivo JSON o un paquete ZIP. Sin una opción de versión, se usa el valor del Blueprint; si ninguno de los dos proporciona un valor, el CLI usa su valor por defecto.
+
+<!--
+For Blueprint v1, `--wp` and `--php` override the corresponding `preferredVersions` values, including when `--blueprint` loads a JSON file or ZIP bundle. Without a version flag, the Blueprint's value is used; if neither supplies a value, the CLI uses its default.
+-->
+
+```bash
+npx @wp-playground/cli@latest server --blueprint=./my-blueprint.zip --wp=6.4 --php=8.1 --login
+```
+
+`--login` activa el inicio de sesión automático solo cuando el Blueprint omite `login`. Un valor explícito en el Blueprint, incluido `false`, tiene prioridad.
+
+<!--
+`--login` enables automatic login only when the Blueprint omits `login`. An explicit Blueprint value, including `false`, takes precedence.
+-->
+
+Los Blueprints que ejecutan solo PHP (`preferredVersions.wp: false`) conservan los ajustes declarados e ignoran `--wp`, `--php` y `--login`.
+
+<!--
+PHP-only Blueprints (`preferredVersions.wp: false`) keep their declared settings and ignore `--wp`, `--php`, and `--login`.
+-->
+
+En los Blueprints v2, `--php`, `--wp` y `--login` completan los ajustes de ejecución que faltan. Los valores explícitos de `phpVersion`, `wordpressVersion` y de los ajustes de inicio de sesión de WordPress Playground tienen prioridad.
+
+<!--
+For Blueprint v2, `--php`, `--wp`, and `--login` fill missing runtime settings. Explicit `phpVersion`, `wordpressVersion`, and WordPress Playground login settings take precedence.
+-->
+
 ## Crear paquetes de Blueprint
 
 <!--

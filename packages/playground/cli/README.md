@@ -274,6 +274,18 @@ To use a Blueprint, create a file (e.g., my-blueprint.json) and run the followin
 npx @wp-playground/cli@latest server --blueprint=./my-blueprint.json
 ```
 
+### CLI options and Blueprint settings
+
+For Blueprint v1, `--wp` and `--php` override the corresponding `preferredVersions` values, including when `--blueprint` loads a JSON file or ZIP bundle. Without a version flag, the Blueprint's value is used; if neither supplies a value, the CLI uses its default.
+
+```bash
+npx @wp-playground/cli@latest server --blueprint=./my-blueprint.json --wp=6.4 --php=8.1 --login
+```
+
+`--login` enables automatic login only when the Blueprint omits `login`. An explicit Blueprint value, including `false`, takes precedence.
+
+PHP-only Blueprints (`preferredVersions.wp: false`) keep their declared settings and ignore `--wp`, `--php`, and `--login`.
+
 Blueprint v2 declarations are routed to the native TypeScript v2 runner
 automatically.
 

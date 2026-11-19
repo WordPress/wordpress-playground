@@ -220,6 +220,12 @@ npx @wp-playground/cli@latest server --blueprint=my-blueprint.json
 ```
 
 <!--
+With Blueprint v1, you can combine `--blueprint` with `--wp` and `--php` to override the versions declared in the Blueprint. This also works with ZIP bundles. See [CLI options and Blueprint settings](/blueprints/bundles) for version precedence, login behavior, PHP-only Blueprints, and the different rules for Blueprint v2.
+-->
+
+Em Blueprints v1, você pode combinar `--blueprint` com `--wp` e `--php` para substituir as versões declaradas no Blueprint. Isso também funciona com pacotes ZIP. Consulte [Opções do CLI e configurações do Blueprint](/blueprints/bundles) para saber sobre a precedência das versões, o comportamento do acesso automático, os Blueprints que executam apenas PHP e as regras diferentes do Blueprint v2.
+
+<!--
 ### Mounting folders manually
 -->
 
