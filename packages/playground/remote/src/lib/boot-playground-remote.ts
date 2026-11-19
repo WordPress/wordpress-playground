@@ -1,4 +1,7 @@
-import { connectWordPressOrigin } from './connect-wordpress-origin';
+import {
+	connectWordPressOrigin,
+	listenForWordPressPopupRelay,
+} from './connect-wordpress-origin';
 import { wordPressSiteUrl, usesMultiReleaseDirectoryLayout } from './config';
 import type { MessageListener } from '@php-wasm/universal';
 import { streamToPort } from '@php-wasm/universal';
@@ -583,6 +586,9 @@ export async function bootPlaygroundRemote() {
 			if (wordPressSiteUrl !== origin) {
 				await connectWordPressOrigin(phpWorkerApi, options.scope!);
 			} else if (!sharedRuntime) {
+				if (options.scope) {
+					listenForWordPressPopupRelay(phpWorkerApi, options.scope);
+				}
 				// Dedicated runtimes retain the existing window relay.
 				navigator.serviceWorker.addEventListener(
 					'message',

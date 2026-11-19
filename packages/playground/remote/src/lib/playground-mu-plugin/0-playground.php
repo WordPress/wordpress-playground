@@ -230,7 +230,25 @@ function playground_legacy_preview_windows() {
 						}
 					},
 					set location(url) {
-						popup.location.href = url;
+						let targetUrl = url;
+						try {
+							const parsed = new URL(url, location.href);
+							const parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?>;
+							if (
+								parentOrigin &&
+								parentOrigin !== location.origin &&
+								parsed.origin === location.origin &&
+								parsed.pathname.startsWith('/scope:')
+							) {
+								targetUrl = new URL(
+									parsed.pathname + parsed.search + parsed.hash,
+									parentOrigin
+								).href;
+							}
+						} catch {
+							// Keep original URL on parse errors.
+						}
+						popup.location.href = targetUrl;
 					},
 				};
 			};
@@ -309,6 +327,154 @@ function playground_add_target_blank_to_external_links() {
 }
 add_action('wp_head', 'playground_add_target_blank_to_external_links');
 add_action('admin_head', 'playground_add_target_blank_to_external_links');
+
+/**
+ * Route same-scope new-tab links through the app-origin popup wrapper while
+ * preserving window.opener so cross-origin embedded Playgrounds can relay
+ * requests across Chrome's third-party storage partition boundary.
+ *
+ * External links are never rewritten and keep their original rel/noopener.
+ */
+function playground_handle_scoped_new_tab_links() {
+	if (empty($_SERVER['REQUEST_URI']) || (function_exists('wp_doing_ajax') && wp_doing_ajax()) || (function_exists('wp_doing_cron') && wp_doing_cron())) {
+		return;
+	}
+
+	?>
+	<script>
+		(function () {
+			if (window === window.top) {
+				return;
+			}
+			const scopeMatch = location.pathname.match(/^\/scope:([^/]+)(?:\/|$)/);
+			if (!scopeMatch) {
+				return;
+			}
+			const scopePrefix = '/scope:' + scopeMatch[1];
+			const parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || location.origin;
+
+			function isCrossOriginEmbedded() {
+				try {
+					return window.top.location.origin !== parentOrigin;
+				} catch {
+					return true;
+				}
+			}
+
+			function isNewTabTarget(target) {
+				if (!target) {
+					return false;
+				}
+				const normalized = target.trim().toLowerCase();
+				return (
+					normalized !== '' &&
+					normalized !== '_self' &&
+					normalized !== '_parent' &&
+					normalized !== '_top' &&
+					normalized !== 'wordpress-playground'
+				);
+			}
+
+			function toScopedPopupUrl(rawUrl) {
+				let parsed;
+				try {
+					parsed = new URL(rawUrl, location.href);
+				} catch {
+					return null;
+				}
+				const isSameScope =
+					parsed.origin === location.origin &&
+					(parsed.pathname === scopePrefix ||
+						parsed.pathname.startsWith(scopePrefix + '/'));
+				if (!isSameScope) {
+					return null;
+				}
+				if (parentOrigin !== location.origin) {
+					return new URL(
+						parsed.pathname + parsed.search + parsed.hash,
+						parentOrigin
+					).href;
+				}
+				if (!isCrossOriginEmbedded()) {
+					return null;
+				}
+				return new URL(
+					'/wordpress-popup.html#' + parsed.href,
+					parentOrigin
+				).href;
+			}
+
+			function stripNoopenerFeatures(features) {
+				if (typeof features !== 'string' || !features) {
+					return features;
+				}
+				return features
+					.split(',')
+					.map((part) => part.trim())
+					.filter((part) => {
+						const key = part.split('=')[0].trim().toLowerCase();
+						return key !== 'noopener' && key !== 'noreferrer';
+					})
+					.join(',');
+			}
+
+			document.addEventListener('click', (event) => {
+				if (
+					event.defaultPrevented ||
+					event.button !== 0 ||
+					event.metaKey ||
+					event.ctrlKey ||
+					event.shiftKey ||
+					event.altKey ||
+					!event.target?.closest
+				) {
+					return;
+				}
+				const anchor = event.target.closest('a[href]');
+				if (!anchor) {
+					return;
+				}
+				const target = anchor.getAttribute('target') || '';
+				if (!isNewTabTarget(target)) {
+					return;
+				}
+				const popupUrl = toScopedPopupUrl(anchor.href);
+				if (!popupUrl) {
+					return;
+				}
+				const popup = window.open(popupUrl, target);
+				if (popup) {
+					event.preventDefault();
+				}
+			});
+
+			const originalOpen = window.open;
+			window.open = function (url, target, features) {
+				if (typeof url === 'string' && url !== '') {
+					const effectiveTarget =
+						typeof target === 'string' && target !== ''
+							? target
+							: '_blank';
+					if (isNewTabTarget(effectiveTarget)) {
+						const popupUrl = toScopedPopupUrl(url);
+						if (popupUrl) {
+							return originalOpen.call(
+								window,
+								popupUrl,
+								effectiveTarget,
+								stripNoopenerFeatures(features)
+							);
+						}
+					}
+				}
+				return originalOpen.apply(window, arguments);
+			};
+		})();
+	</script>
+	<?php
+}
+add_action('wp_head', 'playground_handle_scoped_new_tab_links');
+add_action('admin_head', 'playground_handle_scoped_new_tab_links');
 
 /**
  * Report the WordPress URL so the app can update its address bar without reading this frame.
