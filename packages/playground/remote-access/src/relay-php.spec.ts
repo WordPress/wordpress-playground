@@ -4,7 +4,7 @@ import { mkdtemp, readFile, rm, writeFile } from 'fs/promises';
 import { createServer } from 'net';
 import { tmpdir } from 'os';
 import { delimiter, join } from 'path';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 describe.skipIf(!isPhpBinaryAvailable())('remote access relay.php', () => {
 	let server: ChildProcessWithoutNullStreams;
@@ -23,12 +23,21 @@ describe.skipIf(!isPhpBinaryAvailable())('remote access relay.php', () => {
 		expect(relay).toContain('random_int(1, 100)');
 		await writeFile(
 			join(documentRoot, 'relay.php'),
-			relay.replace('random_int(1, 100)', '1')
+			relay.replace('random_int(1, 100)', '1').replace(
+				'if ($relayAction !== null) {',
+				// Isolate housekeeping after a successful response from the real
+				// endpoints' own database requirements. Cleanup itself is unchanged.
+				`if ($relayAction === '__test_success') {
+    jsonResponse(['ok' => true]);
+} elseif ($relayAction !== null) {`
+			)
 		);
 		const port = await getAvailablePort();
 		relayUrl = `http://127.0.0.1:${port}/relay.php`;
 		server = spawn('php', ['-S', `127.0.0.1:${port}`, '-t', documentRoot], {
 			stdio: ['ignore', 'pipe', 'pipe'],
+			// Housekeeping must fail locally without connecting to a developer's DB.
+			env: { ...process.env, PLAYGROUND_RELAY_DB_HOST: '', DB_HOST: '' },
 		});
 		server.stderr.on('data', (chunk) => {
 			stderr += chunk.toString();
@@ -119,6 +128,15 @@ describe.skipIf(!isPhpBinaryAvailable())('remote access relay.php', () => {
 		expect(response.status).toBe(404);
 		await expect(response.json()).resolves.toEqual({ error: 'Not found' });
 		expect(stderr).not.toContain('relay error:');
+	});
+
+	it('preserves a successful response when housekeeping cannot reach the database', async () => {
+		const response = await fetch(`${relayUrl}?action=__test_success`);
+		expect(response.status).toBe(200);
+		await expect(response.json()).resolves.toEqual({ ok: true });
+		await vi.waitFor(() => {
+			expect(stderr).toContain('Remote access relay cleanup error:');
+		});
 	});
 });
 
