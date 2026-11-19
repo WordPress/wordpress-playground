@@ -365,6 +365,7 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 				...othersFor(state, siteId),
 				state,
 			}));
+			signal?.throwIfAborted();
 			const request: SiteAccessRequest = {
 				site: { siteId, name: site.name },
 				earlierSites: shown.earlier.map((id) =>
@@ -385,6 +386,7 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 				const abandon = () => asking.abort();
 				signal?.addEventListener('abort', abandon);
 				const ask = async () => {
+					asking.signal.throwIfAborted();
 					decision = await confirm(request, asking.signal);
 					return decision;
 				};

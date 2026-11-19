@@ -4,7 +4,11 @@ import type {
 	WebMCPToolDescriptor,
 	WebMCPUserInteractionHandler,
 } from '@wp-playground/remote';
-import type { ModelContextClient, ModelContextTool } from './webmcp';
+import type {
+	ModelContextClient,
+	ModelContextTool,
+	WebMCPConfig,
+} from './webmcp';
 import { registerWebMCPTools } from './webmcp';
 import {
 	startWebMCPSiteToolGateway,
@@ -61,6 +65,111 @@ describe('site tool gateway', () => {
 			expect(mutations).toHaveBeenCalledWith('route-a');
 		}
 	);
+
+	it('promotes an autosave through the save adapter', async () => {
+		const { sites, access, run, mutations } = await setUp();
+		sites[0].storage = 'opfs';
+		sites[0].persistence = 'autosave';
+		const permission = await access.request('a');
+		await expect(
+			run('playground_save_in_browser', { ...permission })
+		).resolves.toMatchObject({
+			success: true,
+			alreadySaved: false,
+		});
+		expect(mutations).toHaveBeenCalledWith('route-a');
+	});
+
+	it('reads every file range and listing entry within the response budget', async () => {
+		const { sites, access, client, run } = await setUp();
+		const permission = await access.request('a');
+		const contents = 'Line "\n🌻'.repeat(600);
+		vi.spyOn(client, 'readFileAsText').mockResolvedValue(contents);
+		// Exercise a fragmented first record and full records in subsequent pages.
+		sites[0].name = contents;
+		for (let i = 1; i < 30; i++) {
+			sites.push({
+				...sites[0],
+				id: String(i),
+				name: 'Site ' + i,
+				isActive: false,
+			});
+		}
+		let cursor: string | undefined;
+		let restored = '';
+		do {
+			const result = (await run('playground_read_file', {
+				...permission,
+				path: '/sample.txt',
+				cursor,
+			})) as {
+				contents: string;
+				nextCursor?: string;
+			};
+			expect(JSON.stringify(result).length).toBeLessThanOrEqual(1500);
+			restored += result.contents;
+			cursor = result.nextCursor;
+		} while (cursor);
+		expect(restored).toBe(contents);
+
+		const names: string[] = [];
+		let entry = '';
+		do {
+			const result = (await run('playground_list_sites', { cursor })) as {
+				sites?: { name: string }[];
+				fragment?: string;
+				lastFragment?: boolean;
+				nextCursor?: string;
+			};
+			expect(JSON.stringify(result).length).toBeLessThanOrEqual(1500);
+			if (result.sites) {
+				names.push(...result.sites.map((site) => site.name));
+			} else {
+				entry += result.fragment;
+				if (result.lastFragment) {
+					names.push(JSON.parse(entry).name);
+					entry = '';
+				}
+			}
+			cursor = result.nextCursor;
+		} while (cursor);
+		expect(names).toEqual(sites.map((s) => s.name));
+	});
+
+	it('limits one-shot output and retains the execution status', async () => {
+		const { access, client, run } = await setUp();
+		const permission = await access.request('a');
+		vi.spyOn(client, 'run').mockResolvedValue({
+			bytes: new Uint8Array(5000),
+			errors: '',
+			exitCode: 3,
+		} as Awaited<ReturnType<PlaygroundClient['run']>>);
+		const result = await run('playground_execute_php', {
+			...permission,
+			code: '<?php echo 1;',
+		});
+		expect(result).toMatchObject({
+			exitCode: 3,
+			truncated: true,
+			preview: expect.any(String),
+		});
+		expect(JSON.stringify(result).length).toBeLessThanOrEqual(1500);
+		expect(client.run).toHaveBeenCalledOnce();
+	});
+
+	it('keeps resolved site failures inside the untrusted content envelope', async () => {
+		const { callSiteTool, call } = await grantedSetUp();
+		const failure = {
+			error: 'Missing selection',
+			code: 'REQUIRED',
+			retryable: false,
+		};
+		call.mockResolvedValueOnce(failure);
+		await expect(callSiteTool({})).resolves.toMatchObject({
+			error: 'The site tool failed. See content.siteError.',
+			content: { siteError: failure },
+		});
+	});
 
 	it('pages the catalog and rebuilds a selected schema within the serialized limit', async () => {
 		const description = 'Quoted "title"\n'.repeat(12);
@@ -197,6 +306,20 @@ describe('site tool cancellation', () => {
 			error: expect.stringContaining('cancelled'),
 		});
 		expect(call).not.toHaveBeenCalled();
+	});
+
+	it('does not dispatch a built-in when cancelled during authorization', async () => {
+		const { run, access, client } = await setUp();
+		const permission = await access.request('a');
+		const controller = new AbortController();
+		const result = run(
+			'playground_read_file',
+			{ ...permission, path: '/sample.txt' },
+			{ signal: controller.signal }
+		);
+		controller.abort();
+		await expect(result).resolves.toHaveProperty('error');
+		expect(client.readFileAsText).not.toHaveBeenCalled();
 	});
 
 	it('forwards an in-flight abort using the same call ID', async () => {
@@ -358,8 +481,10 @@ async function setUp(
 		callWebMCPTool: call,
 		cancelWebMCPTool: cancel,
 		getCurrentURL: async () => '/',
+		readFileAsText: vi.fn(),
+		run: vi.fn(),
 	} as unknown as PlaygroundClient;
-	const sites = [
+	const sites: ReturnType<WebMCPConfig['list']> = [
 		{
 			id: 'a',
 			slug: 'route-a',
@@ -393,6 +518,7 @@ async function setUp(
 		modelClient?: ModelContextClient
 	) => tools.find((tool) => tool.name === name)!.execute(input, modelClient);
 	return {
+		sites,
 		client,
 		mutations,
 		tools,

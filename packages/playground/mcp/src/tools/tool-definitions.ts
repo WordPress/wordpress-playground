@@ -77,6 +77,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 			output (e.g. SELECT * without LIMIT). Keep output
 			under 50 KB to avoid filling the context window.`,
 		annotations: {
+			untrustedContentHint: true,
 			readOnlyHint: false,
 			destructiveHint: true,
 			consequentialHint: true,
@@ -335,6 +336,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 			contents. To explore subdirectories, call this tool
 			again with the subdirectory path.`,
 		annotations: {
+			untrustedContentHint: true,
 			readOnlyHint: true,
 			destructiveHint: false,
 			openWorldHint: true,

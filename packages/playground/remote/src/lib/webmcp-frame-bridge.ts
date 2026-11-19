@@ -75,6 +75,18 @@ export interface WebMCPFrameBridge {
 	cancelTool(callId: string): void;
 }
 
+interface PendingCall {
+	documentId?: string;
+	name: string;
+	resolve: (value: unknown) => void;
+	reject: (error: Error) => void;
+	timeout?: ReturnType<typeof setTimeout>;
+	remainingMs: number;
+	deadline: number;
+	interactions: number;
+	onUserInteraction?: WebMCPUserInteractionHandler;
+}
+
 /**
  * Mirrors the WordPress document's WebMCP tools into this frame and forwards
  * tool calls back into it.
@@ -95,16 +107,7 @@ export function createWebMCPFrameBridge(
 	let documentId: string | undefined;
 	let probeTimeout: ReturnType<typeof setTimeout> | null = null;
 	const listeners = new Set<(tools: WebMCPToolDescriptor[]) => void>();
-	const pendingCalls = new Map<
-		string,
-		{
-			documentId: string | undefined;
-			resolve: (value: unknown) => void;
-			reject: (error: Error) => void;
-			timeout: ReturnType<typeof setTimeout>;
-			onUserInteraction?: WebMCPUserInteractionHandler;
-		}
-	>();
+	const pendingCalls = new Map<string, PendingCall>();
 	/** Interaction IDs whose request is being handled, to refuse duplicates. */
 	const requestedInteractions = new Set<string>();
 	const pendingInteractions = new Map<
@@ -303,6 +306,11 @@ export function createWebMCPFrameBridge(
 			return;
 		}
 		requestedInteractions.add(interactionId);
+		// Human decision time does not consume the tool's remaining execution budget.
+		if (pending.interactions++ === 0) {
+			clearTimeout(pending.timeout);
+			pending.remainingMs = Math.max(0, pending.deadline - Date.now());
+		}
 		let started = false;
 		const runInSite = () =>
 			new Promise<unknown>((resolve, reject) => {
@@ -311,7 +319,7 @@ export function createWebMCPFrameBridge(
 					return;
 				}
 				started = true;
-				if (!pendingCalls.has(callId)) {
+				if (pendingCalls.get(callId) !== pending) {
 					reject(new Error('The tool call has already ended.'));
 					return;
 				}
@@ -347,7 +355,15 @@ export function createWebMCPFrameBridge(
 					}
 				}
 			)
-			.finally(() => requestedInteractions.delete(interactionId));
+			.finally(() => {
+				requestedInteractions.delete(interactionId);
+				if (
+					--pending.interactions === 0 &&
+					pendingCalls.get(callId) === pending
+				) {
+					startTimeout(callId, pending);
+				}
+			});
 	}
 
 	function resolveInteraction(data: {
@@ -443,23 +459,18 @@ export function createWebMCPFrameBridge(
 				);
 			}
 			return await new Promise<unknown>((resolve, reject) => {
-				const timeout = setTimeout(() => {
-					pendingCalls.delete(callId);
-					rejectCallInteractions(callId);
-					reject(
-						new Error(
-							`The WebMCP tool "${name}" did not respond within ` +
-								`${CALL_TIMEOUT_MS / 1000} seconds.`
-						)
-					);
-				}, CALL_TIMEOUT_MS);
-				pendingCalls.set(callId, {
+				const pending: PendingCall = {
+					name,
 					documentId,
 					resolve,
 					reject,
-					timeout,
 					onUserInteraction,
-				});
+					remainingMs: CALL_TIMEOUT_MS,
+					deadline: 0,
+					interactions: 0,
+				};
+				pendingCalls.set(callId, pending);
+				startTimeout(callId, pending);
 				postMessage({
 					type: CALL_TOOL,
 					callId,
@@ -469,26 +480,45 @@ export function createWebMCPFrameBridge(
 				});
 			});
 		},
-		cancelTool(callId) {
-			const pending = pendingCalls.get(callId);
-			if (!pending) {
-				return;
-			}
-			pendingCalls.delete(callId);
-			clearTimeout(pending.timeout);
-			rejectCallInteractions(callId);
-			postMessage({
-				type: CANCEL_TOOL,
-				callId,
-				...(pending.documentId
-					? { documentId: pending.documentId }
-					: {}),
-			});
-			pending.reject(
-				new DOMException('The tool call was cancelled.', 'AbortError')
-			);
-		},
+		cancelTool,
 	};
+
+	function startTimeout(callId: string, pending: PendingCall) {
+		pending.deadline = Date.now() + pending.remainingMs;
+		pending.timeout = setTimeout(
+			() =>
+				cancelTool(
+					callId,
+					new Error(
+						`The WebMCP tool "${pending.name}" did not respond within ` +
+							`${CALL_TIMEOUT_MS / 1000} seconds of execution. Check the site before retrying.`
+					)
+				),
+			pending.remainingMs
+		);
+	}
+
+	function cancelTool(
+		callId: string,
+		reason: Error = new DOMException(
+			'The tool call was cancelled.',
+			'AbortError'
+		)
+	) {
+		const pending = pendingCalls.get(callId);
+		if (!pending) {
+			return;
+		}
+		pendingCalls.delete(callId);
+		clearTimeout(pending.timeout);
+		rejectCallInteractions(callId);
+		postMessage({
+			type: CANCEL_TOOL,
+			callId,
+			...(pending.documentId ? { documentId: pending.documentId } : {}),
+		});
+		pending.reject(reason);
+	}
 }
 
 function notify(

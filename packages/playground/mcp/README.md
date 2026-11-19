@@ -101,6 +101,8 @@ await call('playground_read_file', { siteId, grant, path: '/wordpress/wp-config.
 - WebMCP embedders must return a stable `id` for each entry in `list()`. Playground uses `metadata.id` for grants and history across tabs and keeps the slug for navigation. Agents obtain the current ID from `playground_list_sites`.
 - Embedders that pass no `confirmSiteAccess` to `registerWebMCPTools()` get grants automatically only when `list()` returns exactly one site.
 
+Browser tools return at most 1,500 serialized characters. For site, file, and email listings, repeat the same call with its `nextCursor` as `cursor`. When a single entry exceeds the limit, concatenate its `fragment` values through `lastFragment` and parse the resulting JSON. For text files, append each page’s `contents`. A one-shot command with oversized output returns `truncated: true` and a preview. The result preserves the HTTP status or PHP exit code. Repeating a command executes it again.
+
 ### Tools registered by the WordPress site
 
 A plugin running inside Playground can register its own WebMCP tools:
@@ -141,7 +143,7 @@ Both return an envelope whose `content` field holds what the site wrote, next to
 }
 ```
 
-Results must be JSON-serializable. A site tool may call `requestUserInteraction()`; Playground relays it to the browser's own `requestUserInteraction()` while showing that the site is asking, and refuses it where the browser has none.
+Results must be JSON-serializable. Structured failures (`{ error: string }` or `{ isError: true }`) and thrown errors are returned inside `content.siteError` with a Playground-authored top-level error. When a site tool calls `requestUserInteraction()`, Playground relays the request to the browser and shows which site is asking. The tool’s execution timer pauses during the handoff. Browsers without a handoff callback receive a refusal.
 
 ### Tool lifetime
 

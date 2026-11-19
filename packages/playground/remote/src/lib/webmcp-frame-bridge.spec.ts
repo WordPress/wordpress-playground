@@ -84,40 +84,7 @@ describe('WebMCP frame cancellation', () => {
 // cancelled calls are refused independently of the WordPress document's own state.
 describe('WebMCP frame interaction relay', () => {
 	it("runs the site callback only through the requesting call's handler", async () => {
-		vi.useFakeTimers();
-		let receive!: (event: MessageEvent) => void;
-		const postMessage = vi.fn();
-		const contentWindow = { postMessage };
-		vi.stubGlobal('window', {
-			addEventListener: (type: string, listener: typeof receive) => {
-				if (type === 'message') receive = listener;
-			},
-		});
-		const frame = {
-			contentWindow,
-			addEventListener: vi.fn(),
-		} as unknown as HTMLIFrameElement;
-		const bridge = createWebMCPFrameBridge(frame);
-		const deliver = (data: Record<string, unknown>) =>
-			receive({
-				source: contentWindow,
-				origin: 'https://wordpress.test',
-				data,
-			} as unknown as MessageEvent);
-		deliver({
-			type: 'playground-webmcp-tools-changed',
-			documentId: 'doc',
-			tools: [{ name: 'site_tool', description: '' }],
-		});
-		const request = (callId: string, interactionId: string) =>
-			deliver({
-				type: 'playground-webmcp-interaction-request',
-				documentId: 'doc',
-				callId,
-				interactionId,
-			});
-		const sent = () => postMessage.mock.calls.map(([message]) => message);
-
+		const { bridge, deliver, request, sent } = setupInteractionRelay();
 		const handled = bridge.callTool(
 			'site_tool',
 			{},
@@ -208,7 +175,74 @@ describe('WebMCP frame interaction relay', () => {
 		await expect(siteResult).rejects.toThrow();
 		bridge.cancelTool('without-handler');
 	});
+
+	it('pauses the execution deadline during a user handoff and cancels on timeout', async () => {
+		const { bridge, deliver, request, sent } = setupInteractionRelay();
+		const handled = bridge.callTool('site_tool', {}, 'call', async (run) =>
+			run()
+		);
+		const timedOut = expect(handled).rejects.toThrow(
+			'60 seconds of execution'
+		);
+		await vi.advanceTimersByTimeAsync(10000);
+		request('call', 'interaction');
+		await vi.advanceTimersByTimeAsync(90000);
+		const cancellation = {
+			type: 'playground-webmcp-cancel-tool',
+			documentId: 'doc',
+			callId: 'call',
+		};
+		expect(sent()).not.toContainEqual(cancellation);
+		deliver({
+			type: 'playground-webmcp-interaction-result',
+			documentId: 'doc',
+			interactionId: 'interaction',
+			resultJson: 'true',
+		});
+		await vi.advanceTimersByTimeAsync(49999);
+		expect(sent()).not.toContainEqual(cancellation);
+		await vi.advanceTimersByTimeAsync(1);
+		await timedOut;
+		expect(sent()).toContainEqual(cancellation);
+	});
 });
+
+function setupInteractionRelay() {
+	vi.useFakeTimers();
+	let receive!: (event: MessageEvent) => void;
+	const postMessage = vi.fn();
+	const contentWindow = { postMessage };
+	vi.stubGlobal('window', {
+		addEventListener: (type: string, listener: typeof receive) => {
+			if (type === 'message') receive = listener;
+		},
+	});
+	const frame = {
+		contentWindow,
+		addEventListener: vi.fn(),
+	} as unknown as HTMLIFrameElement;
+	const bridge = createWebMCPFrameBridge(frame);
+	const deliver = (data: Record<string, unknown>) =>
+		receive({
+			source: contentWindow,
+			origin: 'https://wordpress.test',
+			data,
+		} as unknown as MessageEvent);
+	deliver({
+		type: 'playground-webmcp-tools-changed',
+		documentId: 'doc',
+		tools: [{ name: 'site_tool', description: '' }],
+	});
+	const request = (callId: string, interactionId: string) =>
+		deliver({
+			type: 'playground-webmcp-interaction-request',
+			documentId: 'doc',
+			callId,
+			interactionId,
+		});
+	const sent = () => postMessage.mock.calls.map(([message]) => message);
+	return { bridge, deliver, request, sent };
+}
 
 // Execute the injected JavaScript itself: its per-call controller lives in the
 // WordPress document, independently of the remote bridge's pending-call map. A site's

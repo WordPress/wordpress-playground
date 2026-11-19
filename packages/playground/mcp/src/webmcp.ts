@@ -20,6 +20,38 @@ import type { PlaygroundBridgeConfig } from './bridge-client';
 import type { SiteAccess, SiteAccessOptions } from './webmcp-site-access';
 import { createSiteAccess } from './webmcp-site-access';
 import { createSiteToolGatewayTools } from './webmcp-site-tools';
+import {
+	boundedResponse,
+	filePage,
+	listPage,
+	withCursor,
+} from './webmcp-response';
+
+const cursorParam = {
+	name: 'cursor',
+	type: 'string' as const,
+	description: 'Continue the same read with its returned nextCursor.',
+	required: false,
+};
+
+const listFields: Record<string, string> = {
+	playground_list_files: 'files',
+	playground_list_emails: 'emails',
+};
+
+// Browser tool descriptions and continuation parameters are independent of the desktop MCP server.
+const webDescriptions: Record<string, string> = {
+	playground_execute_php:
+		'Run PHP inside the selected WordPress site when its HTTP API cannot provide the data or action. Include the opening <?php tag and load /wordpress/wp-load.php to use WordPress. Check exitCode and errors. Large output is returned as a truncated preview.',
+	playground_request:
+		'Make an authenticated HTTP request to the selected site to work with WordPress content or abilities, or inspect HTTP behavior. Check httpStatusCode. Select only needed fields and page large collections. Large responses are returned as a truncated preview.',
+	playground_read_file:
+		'Read a text file from the selected site. Append each page of contents using nextCursor until the file is complete.',
+	playground_list_files:
+		'List files and directories immediately inside a directory when exploring the site. Continue with nextCursor. Join any fragments of an oversized entry before parsing its JSON.',
+	playground_list_emails:
+		'Read captured WordPress emails in send order to verify delivery attempts or find a message. Continue with nextCursor. Join any fragments of an oversized email before parsing its JSON.',
+};
 
 const siteToolDefinitions = getSiteToolDefinitions();
 const siteAccessToolDefinitions = getWebMCPSiteAccessToolDefinitions();
@@ -27,7 +59,10 @@ const siteAccessToolDefinitions = getWebMCPSiteAccessToolDefinitions();
 export interface WebMCPConfig extends PlaygroundBridgeConfig {
 	/** Stable site identities for grants; slugs are used only for routing. */
 	list(): Array<
-		ReturnType<PlaygroundBridgeConfig['list']>[number] & { id: string }
+		ReturnType<PlaygroundBridgeConfig['list']>[number] & {
+			id: string;
+			persistence?: 'autosave' | 'explicit';
+		}
 	>;
 	rename(newName: string, siteSlug?: string): Promise<void>;
 	saveInBrowser(
@@ -143,10 +178,13 @@ export async function registerWebMCPTools(config: WebMCPConfig): Promise<void> {
 	const tools: ModelContextTool[] = Object.entries(toolDefinitions).map(
 		([name, def]) => ({
 			name,
-			description: def.description,
+			description: webDescriptions[name] ?? def.description,
 			inputSchema: paramsToJsonSchema([
 				...siteAccessParams,
 				...def.params,
+				...(name === 'playground_read_file' || listFields[name]
+					? [cursorParam]
+					: []),
 			]),
 			annotations: def.annotations,
 			execute: async (input, client) => {
@@ -158,23 +196,39 @@ export async function registerWebMCPTools(config: WebMCPConfig): Promise<void> {
 							error: `No executor for "${name}"`,
 						};
 					}
-					const { siteId, grant, ...toolInput } = input;
+					const { siteId, grant, cursor, ...toolInput } = input;
 					const playground = await siteAccess.authorize(
 						String(siteId ?? ''),
 						String(grant ?? '')
 					);
+					client?.signal?.throwIfAborted();
 					siteAccess.recordCall({
 						siteId: String(siteId),
 						tool: name,
 						input: toolInput,
 					});
 					const adapter = createToolClient(playground);
+					client?.signal?.throwIfAborted();
 					const result = await executor(
 						adapter,
 						toolInput,
 						client?.signal
 					);
 					client?.signal?.throwIfAborted();
+					if (name === 'playground_read_file') {
+						return filePage(
+							(result as { contents: string }).contents,
+							cursor
+						);
+					}
+					const field = listFields[name];
+					if (field) {
+						return listPage(
+							(result as Record<string, unknown[]>)[field],
+							field,
+							cursor
+						);
+					}
 					return result;
 				} catch (error) {
 					return {
@@ -192,7 +246,14 @@ export async function registerWebMCPTools(config: WebMCPConfig): Promise<void> {
 
 	const results = await Promise.allSettled(
 		tools.map(async (tool) => {
-			await modelContext.registerTool(tool, { signal });
+			await modelContext.registerTool(
+				{
+					...tool,
+					execute: async (input, client) =>
+						boundedResponse(await tool.execute(input, client)),
+				},
+				{ signal }
+			);
 		})
 	);
 	if (signal.aborted) {
@@ -320,21 +381,25 @@ function createSiteManagementTools(
 	return [
 		{
 			name: 'playground_list_sites',
-			description: listDef.description,
-			inputSchema: paramsToJsonSchema(listDef.params),
+			description:
+				'Find available Playground sites and their IDs before requesting access. Continue with nextCursor. Join any fragments of an oversized entry before parsing its JSON.',
+			inputSchema: paramsToJsonSchema([...listDef.params, cursorParam]),
 			annotations: { ...listDef.annotations, untrustedContentHint: true },
-			execute: async (_input, client) => {
+			execute: async (input, client) => {
 				try {
 					client?.signal?.throwIfAborted();
-					return {
-						connectedTabs: 1,
-						sites: config.list().map((s) => ({
+					return listPage(
+						config.list().map((s) => ({
 							siteId: s.id,
 							name: s.name,
 							storage: formatStorageLabel(s.storage),
 							isActive: s.isActive,
 						})),
-					};
+						'sites',
+						input['cursor'],
+						(content, next) =>
+							withCursor({ connectedTabs: 1, ...content }, next)
+					);
 				} catch (error) {
 					return {
 						error: `${listDef.errorPrefix}: ${stringifyError(error)}`,
@@ -364,16 +429,9 @@ function createSiteManagementTools(
 						tool: 'playground_save_in_browser',
 					});
 					const site = getSite(config, siteId);
-					const storage = formatStorageLabel(site.storage);
-					if (storage !== 'temporary') {
-						return {
-							success: true,
-							alreadySaved: true,
-							siteId,
-							name: site.name,
-							storage,
-						};
-					}
+					const alreadySaved =
+						formatStorageLabel(site.storage) !== 'temporary' &&
+						site.persistence !== 'autosave';
 					// Storage operations do not currently expose an interrupt API.
 					const saved = await config.saveInBrowser(
 						undefined,
@@ -382,7 +440,7 @@ function createSiteManagementTools(
 					client?.signal?.throwIfAborted();
 					return {
 						success: true,
-						alreadySaved: false,
+						alreadySaved,
 						siteId,
 						name: site.name ?? saved.slug,
 						storage: formatStorageLabel(saved.storage),

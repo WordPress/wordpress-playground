@@ -87,6 +87,16 @@ describe('site access grants', () => {
 		}
 	});
 
+	it('skips confirmation when the caller aborts during the registry read', async () => {
+		const confirm = vi.fn(async () => 'allow' as const);
+		const tab = createBrowser().openTab([site('a', true)], confirm);
+		const controller = new AbortController();
+		const request = tab.access.request('a', { signal: controller.signal });
+		controller.abort();
+		await expect(request).rejects.toMatchObject({ name: 'AbortError' });
+		expect(confirm).not.toHaveBeenCalled();
+	});
+
 	it('are not issued for abandoned requests', async () => {
 		const controller = new AbortController();
 		const tab = createBrowser().openTab([site('a', true)], async () => {
