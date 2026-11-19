@@ -8,7 +8,7 @@ import {
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { getWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path';
 
-// These tests replace the same root worker loader while exercising upgrades.
+// These tests replace the same root worker while exercising upgrades.
 test.describe.configure({ mode: 'serial' });
 
 // Both hostnames serve the installed web root, including the root /sw.js worker.

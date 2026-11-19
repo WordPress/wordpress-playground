@@ -46,14 +46,6 @@ for (const assetBase of ['/releases/next-release/', '/assets/']) {
 			} else if (request.url === '/sw.js') {
 				response.setHeader('Content-Type', 'text/javascript');
 				response.end(
-					`import ${JSON.stringify(activeRelease + 'sw.js')};`
-				);
-			} else if (
-				request.url === releaseA + 'sw.js' ||
-				request.url === releaseB + 'sw.js'
-			) {
-				response.setHeader('Content-Type', 'text/javascript');
-				response.end(
 					worker
 						.replaceAll(previewAppOrigin, origin)
 						.replaceAll(releaseA, activeRelease)

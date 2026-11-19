@@ -21,7 +21,7 @@ afterEach(() => {
 });
 
 // Contract: readiness requires a real manifest result and both successful workers.
-// Error pages also lack release imports, so status handling can independently
+// Error pages also lack release paths, so status handling can independently
 // regress from body matching and incorrectly finish a rollback rehearsal.
 it.each([429, 500, 503])(
 	'retries HTTP %s instead of declaring the baseline ready',

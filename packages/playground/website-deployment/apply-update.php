@@ -184,7 +184,6 @@ function activate( $root, $backups, $release, $retention, $app_origin, $wordpres
 	$public  = "$root/releases/$release";
 	$private = "$root/.playground-releases/$release";
 	$sources = array(
-		'sw.js'                => "$public/sw.js",
 		'custom-redirects.php' => "$private/public-entry.php",
 		'__wp__/index.php'     => __DIR__ . '/__wp__/index.php',
 	);
@@ -196,6 +195,7 @@ function activate( $root, $backups, $release, $retention, $app_origin, $wordpres
 			$sources[ $path ] = $file->getPathname();
 		}
 	}
+	$sources['sw.js'] = "$public/sw.js";
 	$next = array(
 		'release'         => $release,
 		'previousRelease' => $manifest['release'] ?? null,

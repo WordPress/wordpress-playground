@@ -30,6 +30,7 @@ info() { echo "INFO  $1"; }
 request() {
     local url="$1"
     shift
+    : > "$WORK/body"
     STATUS="$(curl --silent --show-error --max-time 60 --path-as-is \
         --dump-header "$WORK/headers" --output "$WORK/body" \
         --write-out '%{http_code}' "$@" "$url")" || STATUS=000
@@ -67,11 +68,12 @@ report_caching() {
 # The edge cache purge returns before every edge node drops its old copies, so
 # root files can name the previous release for a short time after a deployment.
 if [ -n "$EXPECTED_RELEASE" ]; then
-    worker_base="\"/releases/$EXPECTED_RELEASE/\""
+    # Matches the worker and the loader that older releases installed at /sw.js.
+    worker_base="\"/releases/$EXPECTED_RELEASE/"
     started=$SECONDS
     until curl --silent --max-time 30 "$APP/release.json" | grep -qF "\"release\":\"$EXPECTED_RELEASE\"" &&
-        curl --fail --silent --max-time 30 "$APP/sw.js" -o "$WORK/worker" && grep -qF "$worker_base" "$WORK/worker" &&
-        curl --fail --silent --max-time 30 "$WORDPRESS/sw.js" -o "$WORK/worker" && grep -qF "$worker_base" "$WORK/worker"; do
+        curl --silent --max-time 30 "$APP/sw.js" -o "$WORK/worker" && grep -qF "$worker_base" "$WORK/worker" &&
+        curl --silent --max-time 30 "$WORDPRESS/sw.js" -o "$WORK/worker" && grep -qF "$worker_base" "$WORK/worker"; do
         if [ $((SECONDS - started)) -ge "${PLAYGROUND_CHECK_WAIT:-300}" ]; then
             break
         fi
@@ -100,13 +102,12 @@ BASE="/releases/$RELEASE"
 for host in "$APP" "$WORDPRESS"; do
     request "$host/sw.js"
     expect_status 200 "$host/sw.js"
-    cp "$WORK/body" "$WORK/root-worker"
+    expect_body "\"$BASE/" "$host/sw.js names the active release"
     report_caching "$host/sw.js"
     request "$host$BASE/sw.js"
     expect_status 200 "$host$BASE/sw.js"
     expect_type 'javascript' "$host$BASE/sw.js"
     expect_static "$host$BASE/sw.js"
-    if cmp -s "$WORK/root-worker" "$WORK/body"; then pass "$host/sw.js matches the active worker"; else fail "$host/sw.js differs from the active worker"; fi
 done
 
 # App entry pages. Pages needing no-store stay PHP-served; others are root copies.

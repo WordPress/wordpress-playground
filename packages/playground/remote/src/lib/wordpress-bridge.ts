@@ -48,8 +48,8 @@ try {
 		type: 'module',
 		updateViaCache: 'none',
 	});
-	// register() can reuse this loader URL's existing registration without checking
-	// its imported app worker. Finish that check before selecting the worker to wait for.
+	// register() can reuse this URL's existing registration without checking for
+	// a new worker. Finish that check before selecting the worker to wait for.
 	await registration.update();
 } catch (error) {
 	// Keep offline startup working with an installed worker, as the app's own
