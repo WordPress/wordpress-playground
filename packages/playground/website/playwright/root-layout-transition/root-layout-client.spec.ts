@@ -126,6 +126,8 @@ test('an old root-only layout client keeps working after a deployment', async ({
 			expect
 				.soft(await createOldBridge(tab, wordPressOrigin, commit))
 				.toBe('ready');
+			// The tab booted before the deployment; it must still load WordPress pages.
+			await expectUsable(tab, wordPressOrigin, 'open old tab');
 		});
 
 		// WebKit's old app worker cannot serve its cached entry pages when their fetch
@@ -153,6 +155,7 @@ test('an old root-only layout client keeps working after a deployment', async ({
 				`/releases/${release}/`
 			);
 			expect(await wordPressRequest(page, wordPressOrigin)).toBe(true);
+			await expectUsable(page, wordPressOrigin, 'returning visitor');
 		});
 	} finally {
 		for (const context of contexts) await context.close();
@@ -332,6 +335,34 @@ function createOldBridge(
 		},
 		{ wordPressOrigin, buildVersion }
 	);
+}
+
+/**
+ * Check that the site is usable, not just reachable: WordPress rendered the front
+ * page, the WordPress frame navigates to the dashboard through the bridge, and the
+ * app shows no startup error. Attach a screenshot of each for review.
+ */
+async function expectUsable(
+	page: Page,
+	wordPressOrigin: string,
+	label: string
+) {
+	const isWordPress = (frame: Frame) =>
+		frame.url().startsWith(`${wordPressOrigin}/scope:`);
+	const frame = await waitForFrame(page, isWordPress);
+	await expect(frame.locator('body')).toContainText('My WordPress Website');
+	await frame.goto(new URL('wp-admin/', frame.url()).href);
+	const admin = await waitForFrame(
+		page,
+		(candidate) =>
+			isWordPress(candidate) && candidate.url().includes('/wp-admin/')
+	);
+	await expect(admin.locator('#wpadminbar')).toBeVisible();
+	await expect(admin.locator('#wpbody')).toContainText('Dashboard');
+	await expect(page.getByText(/did not start|went wrong/i)).toHaveCount(0);
+	const path = test.info().outputPath(`${label.replaceAll(' ', '-')}.png`);
+	await page.screenshot({ path });
+	await test.info().attach(label, { path, contentType: 'image/png' });
 }
 
 /** Request PHP-generated JSON from the WordPress frame, through its bridge. */
