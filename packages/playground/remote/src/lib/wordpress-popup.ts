@@ -7,6 +7,7 @@ const PARTITION_PROBE_CHANNEL_NAME = 'playground-partition-probe';
 const OPENER_PROBE_TIMEOUT_MS = 150;
 const BROADCAST_ECHO_WAIT_MS = 50;
 const BRIDGE_READY_TIMEOUT_MS = 15000;
+const PENDING_REQUEST_TIMEOUT_MS = 30000;
 
 type PartitionProbeResult = {
 	openerRemote: Window | null;
@@ -36,20 +37,25 @@ type PartitionProbeResult = {
  * neither the hosting domain nor URL parameters enable it.
  */
 export function bootWordPressPopup({ allowLoopbackNetwork = false } = {}) {
-	const target = getURLScope(new URL(location.href))
-		? new URL(
-				location.pathname + location.search + location.hash,
-				wordPressSiteUrl
-			)
-		: new URL(location.hash.substring(1), wordPressSiteUrl);
-	const scope = getURLScope(target);
-	if (target.origin !== wordPressSiteUrl || !scope) {
-		throw new Error('The popup URL must name a scoped WordPress page.');
-	}
+	const isHashPopupRoute = !getURLScope(new URL(location.href));
+	const target = resolvePopupTarget();
+	const scope = getURLScope(target)!;
 	const frame = document.querySelector('#wp') as HTMLIFrameElement;
 	// Only a trusted application entry point opts in; URL parameters cannot enable it.
 	if (allowLoopbackNetwork) {
 		frame.allow = `loopback-network ${wordPressSiteUrl}`;
+	}
+	if (isHashPopupRoute && typeof window !== 'undefined') {
+		window.addEventListener('hashchange', () => {
+			try {
+				const nextTarget = resolvePopupTarget();
+				if (getURLScope(nextTarget) === scope) {
+					frame.src = nextTarget.href;
+				}
+			} catch {
+				// Ignore invalid hash updates.
+			}
+		});
 	}
 	const openerCandidates = getOpenerCandidates();
 	if (openerCandidates.length === 0) {
@@ -62,6 +68,19 @@ export function bootWordPressPopup({ allowLoopbackNetwork = false } = {}) {
 		scope,
 		openerCandidates
 	);
+}
+
+function resolvePopupTarget(): URL {
+	const target = getURLScope(new URL(location.href))
+		? new URL(
+				location.pathname + location.search + location.hash,
+				wordPressSiteUrl
+			)
+		: new URL(location.hash.substring(1), wordPressSiteUrl);
+	if (target.origin !== wordPressSiteUrl || !getURLScope(target)) {
+		throw new Error('The popup URL must name a scoped WordPress page.');
+	}
+	return target;
 }
 
 function getOpenerCandidates(): Window[] {
@@ -426,7 +445,10 @@ async function attachSingleOriginBridge(openerRemote: Window, scope: string) {
 			)
 		),
 	]);
-	const pendingSources = new Map<number, ServiceWorker>();
+	const pendingSources = new Map<
+		number,
+		{ source: ServiceWorker; timeout: ReturnType<typeof setTimeout> }
+	>();
 
 	navigator.serviceWorker.addEventListener('message', (event) => {
 		if (event.data?.scope !== scope || !event.source) {
@@ -439,7 +461,15 @@ async function attachSingleOriginBridge(openerRemote: Window, scope: string) {
 			);
 			return;
 		}
-		pendingSources.set(event.data.requestId, source);
+		const requestId = event.data.requestId as number;
+		const existing = pendingSources.get(requestId);
+		if (existing) {
+			clearTimeout(existing.timeout);
+		}
+		const timeout = setTimeout(() => {
+			pendingSources.delete(requestId);
+		}, PENDING_REQUEST_TIMEOUT_MS);
+		pendingSources.set(requestId, { source, timeout });
 		openerRemote.postMessage(
 			{
 				...event.data,
@@ -459,15 +489,16 @@ async function attachSingleOriginBridge(openerRemote: Window, scope: string) {
 			return;
 		}
 		const { requestId, response } = event.data;
-		const source = pendingSources.get(requestId);
-		if (!source) {
+		const pending = pendingSources.get(requestId);
+		if (!pending) {
 			return;
 		}
+		clearTimeout(pending.timeout);
 		pendingSources.delete(requestId);
 		if (response?.bodyPort) {
 			response.bodyPort = streamToPort(portToStream(response.bodyPort));
 		}
-		source.postMessage(
+		pending.source.postMessage(
 			responseTo(requestId, response),
 			response?.bodyPort ? [response.bodyPort] : []
 		);

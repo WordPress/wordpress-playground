@@ -589,77 +589,81 @@ export async function bootPlaygroundRemote() {
 
 			if (wordPressSiteUrl !== origin) {
 				await connectWordPressOrigin(phpWorkerApi, options.scope!);
-			} else if (!sharedRuntime) {
+			} else {
 				if (options.scope) {
 					listenForWordPressPopupRelay(phpWorkerApi, options.scope);
 				}
-				// Dedicated runtimes retain the existing window relay.
-				navigator.serviceWorker.addEventListener(
-					'message',
-					async function onMessage(event) {
-						/**
-						 * Ignore events meant for other PHP instances to
-						 * avoid handling the same event twice.
-						 *
-						 * This is important because the service worker posts the
-						 * same message to all application instances across all browser tabs.
-						 */
-						if (
-							options.scope &&
-							event.data.scope !== options.scope
-						) {
-							return;
-						}
-
-						const args = event.data.args || [];
-						const method = event.data
-							.method as keyof PlaygroundWorkerEndpoint;
-
-						if (method === 'request') {
-							const streamedResponse = await (
-								phpWorkerApi.requestStreamed as any
-							)(...args);
-							const httpStatusCode =
-								await streamedResponse.httpStatusCode;
-							const headers = await streamedResponse.headers;
-
+				if (!sharedRuntime) {
+					// Dedicated runtimes retain the existing window relay.
+					navigator.serviceWorker.addEventListener(
+						'message',
+						async function onMessage(event) {
 							/**
-							 * ReadableStreams are transferable, but cannot be
-							 * transferred to the service worker.
+							 * Ignore events meant for other PHP instances to
+							 * avoid handling the same event twice.
 							 *
-							 * In Chrome, ServiceWorker.postMessage() silently drops the entire
-							 * message when the transfer list contains a ReadableStream.
-							 * The call succeeds and the stream detaches from the sender,
-							 * but the message never arrives at the service worker.
-							 *
-							 * To work around this, we bridge the body stream via a MessagePort.
-							 *
-							 * See:
-							 * * https://github.com/whatwg/streams/issues/1063
-							 * * https://github.com/whatwg/streams/issues/276
-							 * * https://groups.google.com/a/chromium.org/g/chromium-discuss/c/90Esr_dE6U4
+							 * This is important because the service worker posts the
+							 * same message to all application instances across all browser tabs.
 							 */
-							const bodyPort = streamToPort(
-								streamedResponse.stdout
-							);
-							(event.source! as ServiceWorker).postMessage(
-								responseTo(event.data.requestId, {
-									httpStatusCode,
-									headers,
-									bodyPort,
-								}),
-								[bodyPort]
-							);
-						} else {
-							const result = await (
-								phpWorkerApi[method] as (...args: any[]) => any
-							)(...args);
-							event.source!.postMessage(
-								responseTo(event.data.requestId, result)
-							);
+							if (
+								options.scope &&
+								event.data.scope !== options.scope
+							) {
+								return;
+							}
+
+							const args = event.data.args || [];
+							const method = event.data
+								.method as keyof PlaygroundWorkerEndpoint;
+
+							if (method === 'request') {
+								const streamedResponse = await (
+									phpWorkerApi.requestStreamed as any
+								)(...args);
+								const httpStatusCode =
+									await streamedResponse.httpStatusCode;
+								const headers = await streamedResponse.headers;
+
+								/**
+								 * ReadableStreams are transferable, but cannot be
+								 * transferred to the service worker.
+								 *
+								 * In Chrome, ServiceWorker.postMessage() silently drops the entire
+								 * message when the transfer list contains a ReadableStream.
+								 * The call succeeds and the stream detaches from the sender,
+								 * but the message never arrives at the service worker.
+								 *
+								 * To work around this, we bridge the body stream via a MessagePort.
+								 *
+								 * See:
+								 * * https://github.com/whatwg/streams/issues/1063
+								 * * https://github.com/whatwg/streams/issues/276
+								 * * https://groups.google.com/a/chromium.org/g/chromium-discuss/c/90Esr_dE6U4
+								 */
+								const bodyPort = streamToPort(
+									streamedResponse.stdout
+								);
+								(event.source! as ServiceWorker).postMessage(
+									responseTo(event.data.requestId, {
+										httpStatusCode,
+										headers,
+										bodyPort,
+									}),
+									[bodyPort]
+								);
+							} else {
+								const result = await (
+									phpWorkerApi[method] as (
+										...args: any[]
+									) => any
+								)(...args);
+								event.source!.postMessage(
+									responseTo(event.data.requestId, result)
+								);
+							}
 						}
-					}
-				);
+					);
+				}
 			}
 			sw.startMessages();
 
@@ -910,18 +914,22 @@ function getOrigin(url: string) {
 }
 
 /**
- * Return true when remote.html runs inside a cross-origin top-level frame.
+ * Return true when remote.html has any cross-origin ancestor frame.
  *
- * Non-embedded Playground renders remote.html inside a same-origin iframe on
- * the app host, so window.top.location.origin matches window.location.origin.
- * Cross-origin embeds throw SecurityError when reading window.top.location.
+ * Chrome partitions storage whenever any ancestor in the frame chain is
+ * cross-site (including A -> B -> A embeds), so inspect every ancestor frame
+ * rather than only window.top.
  */
 function isCrossOriginEmbedded(): boolean {
 	try {
-		return (
-			window.top !== window &&
-			window.top?.location.origin !== window.location.origin
-		);
+		let current: Window = window;
+		while (current !== current.parent) {
+			current = current.parent;
+			if (current.location.origin !== window.location.origin) {
+				return true;
+			}
+		}
+		return false;
 	} catch {
 		return true;
 	}

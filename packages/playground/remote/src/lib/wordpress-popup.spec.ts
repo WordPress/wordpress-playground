@@ -320,9 +320,10 @@ describe('WordPress popup cross-partition opener bridge', () => {
 			'location',
 			new URL('https://playground.wordpress.net/scope:same/sample-page/')
 		);
+		const createElement = vi.fn();
 		vi.stubGlobal('document', {
 			querySelector: () => frame,
-			createElement: vi.fn(),
+			createElement,
 			body: { append: (el: unknown) => appended.push(el) },
 		});
 		vi.stubGlobal('window', {
@@ -373,6 +374,7 @@ describe('WordPress popup cross-partition opener bridge', () => {
 				'https://wpsandbox.wordpress.net/scope:same/sample-page/'
 			);
 		});
+		expect(createElement).not.toHaveBeenCalled();
 		expect(appended).toHaveLength(0);
 	});
 });
