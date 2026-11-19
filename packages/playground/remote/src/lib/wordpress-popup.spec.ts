@@ -261,6 +261,33 @@ describe('WordPress popup cross-partition opener bridge', () => {
 			'https://wpsandbox.wordpress.net',
 			[]
 		);
+
+		(openerRemote as { closed: boolean }).closed = true;
+		dispatchMessage({
+			origin: 'https://wpsandbox.wordpress.net',
+			source: bridgeIframe.contentWindow as unknown as MessageEventSource,
+			data: {
+				type: 'wordpress-bridge-request',
+				scope: 'embedded',
+				requestId: 43,
+				method: 'request',
+				args: [
+					{
+						url: 'https://wpsandbox.wordpress.net/scope:embedded/sample-page/',
+					},
+				],
+			},
+		});
+
+		expect(bridgePostMessage).toHaveBeenCalledWith(
+			expect.objectContaining({
+				type: 'wordpress-bridge-response',
+				scope: 'embedded',
+				requestId: 43,
+				response: expect.objectContaining({ httpStatusCode: 503 }),
+			}),
+			'https://wpsandbox.wordpress.net'
+		);
 	});
 
 	it('skips creating a duplicate bridge when opener shares the same partition', async () => {

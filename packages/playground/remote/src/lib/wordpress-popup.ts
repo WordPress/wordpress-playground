@@ -4,7 +4,7 @@ import { responseTo } from '@php-wasm/web-service-worker';
 import { playgroundOrigin, wordPressSiteUrl } from './config';
 
 const PARTITION_PROBE_CHANNEL_NAME = 'playground-partition-probe';
-const OPENER_PROBE_TIMEOUT_MS = 300;
+const OPENER_PROBE_TIMEOUT_MS = 150;
 const BROADCAST_ECHO_WAIT_MS = 50;
 const BRIDGE_READY_TIMEOUT_MS = 15000;
 
@@ -12,7 +12,6 @@ type PartitionProbeResult = {
 	openerRemote: Window | null;
 	bridgeUrl: string | null;
 	isSamePartition: boolean;
-	hasLocalBridge: boolean;
 };
 
 /**
@@ -101,11 +100,7 @@ async function connectCrossPartitionBridgeAndLoad(
 		if (!probe.openerRemote || probe.isSamePartition) {
 			return;
 		}
-		if (probe.hasLocalBridge) {
-			watchForBridgeTakeover(probe.openerRemote, scope, probe.bridgeUrl);
-			return;
-		}
-		await attachCrossPartitionBridge(
+		await acquireBridgeOrQueueTakeover(
 			probe.openerRemote,
 			scope,
 			probe.bridgeUrl
@@ -130,7 +125,6 @@ function probeOpenerPartition(
 		let openerRemote: Window | null = null;
 		let bridgeUrl: string | null = null;
 		let isSamePartition = false;
-		let hasLocalBridge = false;
 		let settled = false;
 		let echoTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -152,7 +146,6 @@ function probeOpenerPartition(
 				openerRemote,
 				bridgeUrl,
 				isSamePartition,
-				hasLocalBridge,
 			});
 		};
 
@@ -171,7 +164,7 @@ function probeOpenerPartition(
 				typeof event.data.bridgeUrl === 'string'
 					? event.data.bridgeUrl
 					: null;
-			if (isSamePartition || hasLocalBridge || !channel) {
+			if (isSamePartition || !channel) {
 				finish();
 				return;
 			}
@@ -182,27 +175,14 @@ function probeOpenerPartition(
 		if (channel) {
 			channel.addEventListener('message', (event: MessageEvent) => {
 				if (
-					event.data?.scope !== scope ||
-					event.data?.probeId !== probeId
-				) {
-					return;
-				}
-				if (
-					event.data.type === 'wordpress-popup-partition-probe-echo'
+					event.data?.type ===
+						'wordpress-popup-partition-probe-echo' &&
+					event.data?.scope === scope &&
+					event.data?.probeId === probeId
 				) {
 					isSamePartition = true;
 					if (openerRemote) finish();
-				} else if (
-					event.data.type === 'wordpress-popup-local-bridge-ack'
-				) {
-					hasLocalBridge = true;
-					if (openerRemote) finish();
 				}
-			});
-			channel.postMessage({
-				type: 'wordpress-popup-local-bridge-probe',
-				scope,
-				probeId,
 			});
 		}
 
@@ -226,40 +206,69 @@ function probeOpenerPartition(
 	});
 }
 
-function watchForBridgeTakeover(
+/**
+ * Ensure at most one popup tab per (partition, scope) attaches a bridge.
+ *
+ * Web Locks are partitioned identically to Service Workers and are released
+ * automatically by the browser if the holding tab closes or crashes. If
+ * another popup tab already holds the lock, this tab loads immediately using
+ * that bridge and queues for atomic takeover when the holder exits.
+ */
+async function acquireBridgeOrQueueTakeover(
 	openerRemote: Window,
 	scope: string,
 	bridgeUrl: string | null
 ) {
-	if (typeof BroadcastChannel !== 'function') {
+	const locks = typeof navigator !== 'undefined' ? navigator.locks : null;
+	if (!locks || typeof locks.request !== 'function') {
+		await attachCrossPartitionBridge(openerRemote, scope, bridgeUrl);
 		return;
 	}
-	const channel = new BroadcastChannel(PARTITION_PROBE_CHANNEL_NAME);
-	channel.addEventListener('message', async (event: MessageEvent) => {
-		if (
-			event.data?.type !== 'wordpress-popup-bridge-closed' ||
-			event.data?.scope !== scope
-		) {
-			return;
-		}
-		if (openerRemote.closed) {
-			channel.close();
-			return;
-		}
-		channel.close();
-		const probe = await probeOpenerPartition(scope, [openerRemote]);
-		if (
-			probe.openerRemote &&
-			!probe.isSamePartition &&
-			!probe.hasLocalBridge
-		) {
-			await attachCrossPartitionBridge(
-				probe.openerRemote,
-				scope,
-				probe.bridgeUrl ?? bridgeUrl
-			);
-		}
+
+	const lockName = `playground-popup-bridge:${scope}`;
+	let acquiredNow = false;
+	await new Promise<void>((resolve, reject) => {
+		void locks
+			.request(lockName, { ifAvailable: true }, async (lock) => {
+				if (!lock) {
+					resolve();
+					return;
+				}
+				acquiredNow = true;
+				try {
+					await attachCrossPartitionBridge(
+						openerRemote,
+						scope,
+						bridgeUrl
+					);
+					resolve();
+				} catch (error) {
+					reject(error);
+					return;
+				}
+				// Hold the exclusive lock for the lifetime of this popup tab.
+				await new Promise<void>(() => {});
+			})
+			.catch(reject);
 	});
+
+	if (!acquiredNow) {
+		// Another popup tab in this partition already owns the bridge. Queue
+		// for atomic takeover if that tab closes while this tab stays open.
+		void locks
+			.request(lockName, async () => {
+				if (openerRemote.closed) {
+					return;
+				}
+				await attachCrossPartitionBridge(
+					openerRemote,
+					scope,
+					bridgeUrl
+				);
+				await new Promise<void>(() => {});
+			})
+			.catch(() => {});
+	}
 }
 
 async function attachCrossPartitionBridge(
@@ -275,7 +284,6 @@ async function attachCrossPartitionBridge(
 	} else {
 		await attachSingleOriginBridge(openerRemote, scope);
 	}
-	announceLocalBridge(scope);
 }
 
 function isValidBridgeUrl(bridgeUrl: string | null, scope: string): boolean {
@@ -291,6 +299,16 @@ function isValidBridgeUrl(bridgeUrl: string | null, scope: string): boolean {
 	} catch {
 		return false;
 	}
+}
+
+function closedOpenerResponse() {
+	return {
+		httpStatusCode: 503,
+		headers: { 'content-type': ['text/plain; charset=utf-8'] },
+		bytes: new TextEncoder().encode(
+			'This Playground session has been closed.'
+		),
+	};
 }
 
 async function attachSplitOriginBridge(
@@ -325,6 +343,15 @@ async function attachSplitOriginBridge(
 					return;
 				}
 				if (openerRemote.closed) {
+					bridge.contentWindow?.postMessage(
+						{
+							type: 'wordpress-bridge-response',
+							scope,
+							requestId: event.data.requestId,
+							response: closedOpenerResponse(),
+						},
+						wordPressSiteUrl
+					);
 					return;
 				}
 				openerRemote.postMessage(
@@ -343,13 +370,16 @@ async function attachSplitOriginBridge(
 				event.data?.type === 'wordpress-popup-bridge-response' &&
 				event.data.scope === scope
 			) {
+				if (!bridge.contentWindow) {
+					return;
+				}
 				const { requestId, response } = event.data;
 				if (response?.bodyPort) {
 					response.bodyPort = streamToPort(
 						portToStream(response.bodyPort)
 					);
 				}
-				bridge.contentWindow?.postMessage(
+				bridge.contentWindow.postMessage(
 					{
 						type: 'wordpress-bridge-response',
 						scope,
@@ -371,18 +401,45 @@ async function attachSingleOriginBridge(openerRemote: Window, scope: string) {
 	if (!navigator.serviceWorker) {
 		return;
 	}
-	await navigator.serviceWorker.ready;
+	try {
+		await navigator.serviceWorker.register(
+			new URL('/sw.js', location.origin),
+			{
+				type: 'module',
+				updateViaCache: 'none',
+			}
+		);
+	} catch {
+		// Fall through to waiting for an already-installed worker.
+	}
+	await Promise.race([
+		navigator.serviceWorker.ready,
+		new Promise<never>((_, reject) =>
+			setTimeout(
+				() =>
+					reject(
+						new Error(
+							'WordPress popup service worker did not start.'
+						)
+					),
+				BRIDGE_READY_TIMEOUT_MS
+			)
+		),
+	]);
 	const pendingSources = new Map<number, ServiceWorker>();
 
 	navigator.serviceWorker.addEventListener('message', (event) => {
-		if (
-			event.data?.scope !== scope ||
-			!event.source ||
-			openerRemote.closed
-		) {
+		if (event.data?.scope !== scope || !event.source) {
 			return;
 		}
-		pendingSources.set(event.data.requestId, event.source as ServiceWorker);
+		const source = event.source as ServiceWorker;
+		if (openerRemote.closed) {
+			source.postMessage(
+				responseTo(event.data.requestId, closedOpenerResponse())
+			);
+			return;
+		}
+		pendingSources.set(event.data.requestId, source);
 		openerRemote.postMessage(
 			{
 				...event.data,
@@ -414,32 +471,5 @@ async function attachSingleOriginBridge(openerRemote: Window, scope: string) {
 			responseTo(requestId, response),
 			response?.bodyPort ? [response.bodyPort] : []
 		);
-	});
-}
-
-function announceLocalBridge(scope: string) {
-	if (typeof BroadcastChannel !== 'function') {
-		return;
-	}
-	const channel = new BroadcastChannel(PARTITION_PROBE_CHANNEL_NAME);
-	channel.addEventListener('message', (event: MessageEvent) => {
-		if (
-			event.data?.type === 'wordpress-popup-local-bridge-probe' &&
-			event.data?.scope === scope &&
-			typeof event.data?.probeId === 'string'
-		) {
-			channel.postMessage({
-				type: 'wordpress-popup-local-bridge-ack',
-				scope,
-				probeId: event.data.probeId,
-			});
-		}
-	});
-	window.addEventListener('pagehide', () => {
-		channel.postMessage({
-			type: 'wordpress-popup-bridge-closed',
-			scope,
-		});
-		channel.close();
 	});
 }

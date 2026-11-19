@@ -428,7 +428,7 @@ function playground_handle_scoped_new_tab_links() {
 					return;
 				}
 				const anchor = event.target.closest('a[href]');
-				if (!anchor) {
+				if (!anchor || anchor.hasAttribute('download')) {
 					return;
 				}
 				const target = anchor.getAttribute('target') || '';
@@ -447,13 +447,14 @@ function playground_handle_scoped_new_tab_links() {
 
 			const originalOpen = window.open;
 			window.open = function (url, target, features) {
-				if (typeof url === 'string' && url !== '') {
+				const rawUrl = url instanceof URL ? url.href : url;
+				if (typeof rawUrl === 'string' && rawUrl !== '') {
 					const effectiveTarget =
 						typeof target === 'string' && target !== ''
 							? target
 							: '_blank';
 					if (isNewTabTarget(effectiveTarget)) {
-						const popupUrl = toScopedPopupUrl(url);
+						const popupUrl = toScopedPopupUrl(rawUrl);
 						if (popupUrl) {
 							return originalOpen.call(
 								window,
