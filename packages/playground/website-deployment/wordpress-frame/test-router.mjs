@@ -283,6 +283,8 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 	);
 	await mkdir(join(failedOldRelease, 'files'), { recursive: true });
 	await writeFile(join(failedOldRelease, 'public-entry.php'), '<?php');
+	// Its MIME map is complete, so only the leftover entry marks it as never live.
+	await writeFile(join(failedOldRelease, 'mime-types.php'), liveMimeMap);
 	await writeFile(
 		join(failedOldRelease, 'files/never-live-NeVr1234.js'),
 		'never live'

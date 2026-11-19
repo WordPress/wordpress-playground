@@ -121,13 +121,19 @@ test('an old root-only layout client keeps working after a deployment', async ({
 		);
 		phase = 'current';
 
+		// The open tab's failures must not skip the returning visitor, which shows the
+		// cached-boot result. Record them, and fail the test once both scenarios ran.
+		let openTabFailure: unknown;
 		await test.step('an open old tab creates its bridge after the deployment', async () => {
-			// Soft: still check the returning visitor when an open tab fails.
 			expect
 				.soft(await createOldBridge(tab, wordPressOrigin, commit))
 				.toBe('ready');
 			// The tab booted before the deployment; it must still load WordPress pages.
-			await expectUsable(tab, wordPressOrigin, 'open old tab');
+			try {
+				await expectUsable(tab, wordPressOrigin, 'open old tab');
+			} catch (error) {
+				openTabFailure = error;
+			}
 		});
 
 		// WebKit's old app worker cannot serve its cached entry pages when their fetch
@@ -138,25 +144,28 @@ test('an old root-only layout client keeps working after a deployment', async ({
 				description:
 					'The old build cannot boot from its cache in WebKit, so only the open tab is checked.',
 			});
-			return;
+		} else {
+			await test.step('a returning visitor boots the cached old app after the deployment', async () => {
+				faults.workerImport = true;
+				faults.entryOutageUntil = Date.now() + 3000;
+				const page = await contexts[1].newPage();
+				await page
+					.goto(`${appOrigin}/?storage=temp`)
+					.catch(() => undefined);
+				const remote = await waitForFrame(page, (frame) =>
+					frame.url().includes('/remote.html')
+				);
+				// Precondition: the old build booted. Otherwise this step tests nothing.
+				expect(await remote.content()).not.toContain(
+					`/releases/${release}/`
+				);
+				expect(await wordPressRequest(page, wordPressOrigin)).toBe(
+					true
+				);
+				await expectUsable(page, wordPressOrigin, 'returning visitor');
+			});
 		}
-		await test.step('a returning visitor boots the cached old app after the deployment', async () => {
-			faults.workerImport = true;
-			faults.entryOutageUntil = Date.now() + 3000;
-			const page = await contexts[1].newPage();
-			await page
-				.goto(`${appOrigin}/?storage=temp`)
-				.catch(() => undefined);
-			const remote = await waitForFrame(page, (frame) =>
-				frame.url().includes('/remote.html')
-			);
-			// Precondition: the old build booted. Otherwise this step tests nothing.
-			expect(await remote.content()).not.toContain(
-				`/releases/${release}/`
-			);
-			expect(await wordPressRequest(page, wordPressOrigin)).toBe(true);
-			await expectUsable(page, wordPressOrigin, 'returning visitor');
-		});
+		if (openTabFailure) throw openTabFailure;
 	} finally {
 		for (const context of contexts) await context.close();
 		await new Promise((resolve) => server.close(resolve));

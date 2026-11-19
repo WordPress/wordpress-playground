@@ -336,9 +336,10 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
  * Find a file kept from a release of the old root-only layout.
  *
  * For example, a WordPress worker installed by the November 10 build still generates
- * bridge HTML loading /wordpress-bridge-Cmo7aZBy.js from the app host. apply-update.php
- * indexes such paths from the private release directories of that layout: only hashed
- * scripts, styles, WebAssembly and extension files, never HTML, SVG or PHP. The usual
+ * bridge HTML loading /wordpress-bridge-Cmo7aZBy.js from the app host, and an old
+ * remote.html loads its own /assets/wordpress-<hash>.js if its worker cache lacks it.
+ * apply-update.php indexes every such hashed path from the private release directories
+ * of that layout: scripts, styles, WebAssembly and extension files, never HTML, SVG or PHP. The usual
  * MIME, CORS and cache headers then apply. Unindexed paths stay 404.
  *
  * @param string $path Requested URL path.

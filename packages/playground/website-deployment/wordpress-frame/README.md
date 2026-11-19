@@ -182,11 +182,14 @@ to the new loader, which chooses its role by origin.
 
 ### Files for clients from the root-only layout
 
-Builds from that layout still run in some browsers after later deployments. An open tab
+The root-only layout is how every build was deployed before release directories: all files at
+the web root, served through PHP from the active build only. Builds from that layout still
+run in some browsers after later deployments. An open tab
 or an app worker's cached entry page can start an old `remote.html`. Until its update
 succeeds, the old WordPress worker answers its own bridge URL with HTML loading that build's
-self-contained `/wordpress-bridge-<hash>.js` from the app host. Old apps also lazily load
-their own root `/assets/` files. No public release contains these URLs, so after a
+self-contained `/wordpress-bridge-<hash>.js` from the app host. Old apps also load their
+own `/assets/` files, such as `/assets/wordpress-<hash>.js` for `remote.html`, whenever their
+worker cache lacks them. No public release contains these URLs, so after a
 deployment the bridge failed with a 404 that browsers report as a missing
 `Access-Control-Allow-Origin` header, then "WordPress request transport did not start".
 
@@ -197,8 +200,8 @@ Each activation of the current installer indexes them in the private
 previous installer wrote each release's `mime-types.php`, then its `public-entry.php`, and
 activation moved that entry to the web root. A directory is indexed only when its MIME map
 is non-empty and its entry is gone: a failed upload still has its entry, and an install that
-stopped earlier has neither. Only Vite-hashed root scripts and hashed `/assets/` scripts, styles,
-WebAssembly and extension files are listed. HTML, SVG, XML and PHP stay private, as do
+stopped earlier has neither. Every Vite-hashed root script and every hashed `/assets/` script,
+style, WebAssembly and extension file of those builds is listed, not only bridge scripts. HTML, SVG, XML and PHP stay private, as do
 links and any hashed path whose bytes differ between builds.
 
 For missing app-host paths, `custom-redirects-lib.php` serves indexed files with the usual
