@@ -245,10 +245,7 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 	// PHP endpoints never enter the public tree, where Nginx would run them.
 	await assert.rejects(stat(join(webRoot, 'releases/A/status.php')));
 	await stat(join(webRoot, '.playground-releases/A/files/status.php'));
-	assert.equal(
-		await readFile(join(webRoot, 'sw.js'), 'utf8'),
-		'import "/releases/A/sw.js";\n'
-	);
+	assert.equal(await readFile(join(webRoot, 'sw.js'), 'utf8'), '// worker A');
 	assert.equal(
 		JSON.parse(await readFile(join(webRoot, 'release.json'), 'utf8'))
 			.release,
@@ -446,7 +443,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	);
 	assert.equal(
 		await readFile(join(backups, 'B/sw.js'), 'utf8'),
-		'import "/releases/A/sw.js";\n'
+		'// worker A'
 	);
 	await assert.rejects(
 		install('B', await makeBuild('B')),

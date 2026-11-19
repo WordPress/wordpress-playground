@@ -56,7 +56,7 @@ function getWorkerUrl(): string {
 }
 
 // A worker controls only paths below its own URL, so static releases register the
-// root /sw.js loader, which imports this release's worker.
+// active worker at /sw.js.
 export const serviceWorkerUrl = new URL(
 	usesMultiReleaseDirectoryLayout ? '/sw.js' : serviceWorkerPath,
 	origin

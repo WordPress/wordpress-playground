@@ -82,16 +82,16 @@ it.each(['app', 'WordPress'])(
 	}
 );
 
-it('waits until both worker loaders and the manifest name the new release', async () => {
+it('waits until both workers and the manifest name the new release', async () => {
 	queuePoll(
 		Response.json({ release: 'B' }),
-		new Response('import "/releases/A/sw.js";'),
-		new Response('import "/releases/B/sw.js";')
+		new Response('const base = "/releases/A/";'),
+		new Response('const base = "/releases/B/";')
 	);
 	queuePoll(
 		Response.json({ release: 'B' }),
-		new Response('import "/releases/B/sw.js";'),
-		new Response('import "/releases/B/sw.js";')
+		new Response('const base = "/releases/B/";'),
+		new Response('const base = "/releases/B/";')
 	);
 	let finished = false;
 	const ready = waitForEdge(appOrigin, wordPressOrigin, 'B').then(() => {

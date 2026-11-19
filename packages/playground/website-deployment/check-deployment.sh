@@ -67,11 +67,11 @@ report_caching() {
 # The edge cache purge returns before every edge node drops its old copies, so
 # root files can name the previous release for a short time after a deployment.
 if [ -n "$EXPECTED_RELEASE" ]; then
-    loader="import \"/releases/$EXPECTED_RELEASE/sw.js\";"
+    worker_base="\"/releases/$EXPECTED_RELEASE/\""
     started=$SECONDS
     until curl --silent --max-time 30 "$APP/release.json" | grep -qF "\"release\":\"$EXPECTED_RELEASE\"" &&
-        curl --silent --max-time 30 "$APP/sw.js" | grep -qF "$loader" &&
-        curl --silent --max-time 30 "$WORDPRESS/sw.js" | grep -qF "$loader"; do
+        curl --fail --silent --max-time 30 "$APP/sw.js" -o "$WORK/worker" && grep -qF "$worker_base" "$WORK/worker" &&
+        curl --fail --silent --max-time 30 "$WORDPRESS/sw.js" -o "$WORK/worker" && grep -qF "$worker_base" "$WORK/worker"; do
         if [ $((SECONDS - started)) -ge "${PLAYGROUND_CHECK_WAIT:-300}" ]; then
             break
         fi
@@ -95,17 +95,18 @@ if [ -n "$EXPECTED_RELEASE" ] && [ "$RELEASE" != "$EXPECTED_RELEASE" ]; then
 fi
 BASE="/releases/$RELEASE"
 
-# Both hosts load the active release's worker through the root loader. Nginx lets
+# Both hosts load the active release's worker at /sw.js. Nginx lets
 # the edge cache it for a year, so this also shows the deployment purged both hosts.
 for host in "$APP" "$WORDPRESS"; do
     request "$host/sw.js"
     expect_status 200 "$host/sw.js"
-    expect_body "import \"$BASE/sw.js\";" "$host/sw.js imports the active release's worker"
+    cp "$WORK/body" "$WORK/root-worker"
     report_caching "$host/sw.js"
     request "$host$BASE/sw.js"
     expect_status 200 "$host$BASE/sw.js"
     expect_type 'javascript' "$host$BASE/sw.js"
     expect_static "$host$BASE/sw.js"
+    if cmp -s "$WORK/root-worker" "$WORK/body"; then pass "$host/sw.js matches the active worker"; else fail "$host/sw.js differs from the active worker"; fi
 done
 
 # App entry pages. Pages needing no-store stay PHP-served; others are root copies.

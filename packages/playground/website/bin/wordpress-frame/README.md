@@ -75,8 +75,8 @@ every page that production publishes. See the
   A child WordPress frame cannot use an existing parent API connection. The root
   HTTP server never serves scoped WordPress responses.
 - Public scripts, PHP WASM, and WordPress downloads use release URLs, which both
-  hosts serve. The app and WordPress hosts each register the root `/sw.js` loader,
-  which imports that release's worker; it chooses its role by origin.
+  hosts serve. The app and WordPress hosts each register the root `/sw.js` worker,
+  which chooses its role by origin.
   The root keeps its existing on-demand asset cache, shared by every PHP worker.
   Eager offline prefetch is disabled. Root-origin scoped subresource requests return 404
   for sandbox sites. Each runtime explicitly rejects its app-origin HTTP route,

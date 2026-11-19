@@ -177,7 +177,7 @@ The previous layout served every file through PHP from a hidden release. The
 first deployment of this layout adds the public release, root copies, and root
 `/sw.js` next to it and replaces `custom-redirects.php`; the old hidden releases
 stay in place. Browsers update their existing `/sw.js` registrations on both hosts
-to the new loader, which chooses its role by origin. Tabs opened before the switch
+to the active worker, which chooses its role by origin. Tabs opened before the switch
 can no longer load their old root `/assets/` chunks, as with any earlier deployment.
 
 ## Verify and roll back

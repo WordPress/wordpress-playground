@@ -33,7 +33,7 @@ import { portToStream, streamToPort } from '@php-wasm/universal';
 import { buildVersion } from 'virtual:remote-config';
 
 const scope = new URL(location.href).searchParams.get('scope');
-// The host serves /sw.js as a same-origin loader for the app's public worker.
+// The host serves /sw.js as the active release worker.
 // Keep this URL literal: the service worker also bundles this bridge for offline HTML.
 const workerUrl = new URL('/sw.js', location.origin);
 // PRE_SANDBOX_CDN_COMPAT: introduced by #4526, before release directories, when

@@ -11,7 +11,7 @@ import { getWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge
 // These tests replace the same root worker loader while exercising upgrades.
 test.describe.configure({ mode: 'serial' });
 
-// Both hostnames serve the installed web root, including the root /sw.js loader.
+// Both hostnames serve the installed web root, including the root /sw.js worker.
 const webRoot = resolve(
 	__dirname,
 	'../../../../../dist/packages/playground/website-preview'

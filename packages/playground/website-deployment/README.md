@@ -39,7 +39,7 @@ The main deployment workflow runs `deploy-website.sh` with
 unique `PLAYGROUND_RELEASE_ID`, builds the website for those values, uploads the
 build and this directory over SSH, and runs the single `apply-update.sh` script. `apply-update.sh` checks both hosts and the build, installs the public and
 private release directories, backs up the root files it replaces, replaces the PHP
-entry, copies the entry pages, and installs the root `/sw.js` loader before purging
+entry, copies the entry pages, and installs the root `/sw.js` worker before purging
 the edge. Its PHP steps live in `apply-update.php`, which receives values only as
 arguments. See the [two-host deployment guide](wordpress-frame/README.md)
 for required WP Cloud settings, the Nginx preflight checks, and rollback.
@@ -112,7 +112,7 @@ If bundled Firefox cannot launch locally, set
 
 WP Cloud's edge cache purge clears only the primary domain unless a domain is
 named, so `apply-update.sh` purges each hostname. Nginx lets the edge cache `.js`
-files, including the root `/sw.js` loader, for a year, so both purges are needed.
+files, including the root `/sw.js` worker, for a year, so both purges are needed.
 The purge returns before every edge node drops its copies; the checks wait for both
 hosts' root files to name the new release.
 

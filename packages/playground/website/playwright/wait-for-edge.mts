@@ -76,5 +76,5 @@ export async function waitForEdge(
 function servesRelease(text: string, release: string, baseline?: string) {
 	return release === 'trunk'
 		? text === baseline
-		: text.includes(`import "/releases/${release}/sw.js";`);
+		: text.includes(`"/releases/${release}/"`);
 }
