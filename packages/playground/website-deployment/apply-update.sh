@@ -81,11 +81,67 @@ purge_edge() {
         return 1
     fi
     for host in "$@"; do
-        curl --fail --silent --show-error --max-time 60 -X POST \
-            -H "Auth: $ATOMIC_SITE_API_KEY" \
-            "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge/$host" > /dev/null
+        request_edge_purge "$host"
     done
     echo "Edge cache purged for $*"
+}
+
+request_edge_purge() {
+    local host="$1"
+    shift
+    curl --fail --silent --show-error --max-time 60 -X POST \
+        -H "Auth: $ATOMIC_SITE_API_KEY" "$@" \
+        "$SITE_API_BASE/edge-cache/$ATOMIC_SITE_ID/purge/$host" > /dev/null
+}
+
+verify_release_at_edge() {
+    [ "$LOCAL" != 1 ] || return 0
+    local origin="$1" host file path status started
+    shift
+    local -a missing=() purge_args=()
+    for file in "$@"; do
+        path="/releases/$RELEASE_ID/$file"
+        if [ ! -f "$PUBLIC/$file" ]; then
+            echo "Refusing activation: the published release is missing $path." >&2
+            return 1
+        fi
+        status="$(release_asset_status "$origin$path")"
+        case "$status" in
+            200) ;;
+            404)
+                missing+=("$path")
+                purge_args+=(--data-urlencode "purge_uris[]=$path")
+                ;;
+            *)
+                echo "Refusing activation: $origin$path returned $status, expected 200." >&2
+                return 1
+                ;;
+        esac
+    done
+    [ "${#missing[@]}" -gt 0 ] || return 0
+
+    # Only purge new release URLs. Root files still point to the previous release.
+    echo "Purging cached 404s for $origin: ${missing[*]}"
+    # shellcheck disable=SC2016 # PHP reads its own argument list.
+    host="$("$SITE_PHP" -r 'echo parse_url( $argv[1], PHP_URL_HOST );' "$origin")"
+    request_edge_purge "$host" "${purge_args[@]}"
+    started=$SECONDS
+    for path in "${missing[@]}"; do
+        while :; do
+            status="$(release_asset_status "$origin$path")"
+            [ "$status" != 200 ] || break
+            if [ "$status" != 404 ] || [ $((SECONDS - started)) -ge 60 ]; then
+                echo "Refusing activation: $origin$path returned $status after its edge purge." >&2
+                return 1
+            fi
+            sleep 2
+        done
+    done
+}
+
+release_asset_status() {
+    curl --silent --show-error --max-time 15 --output /dev/null \
+        --write-out '%{http_code}' "$1"
 }
 
 prepare_edge_purge() {
@@ -216,6 +272,8 @@ for file in "$PRIVATE/"*.php; do
     "$SITE_PHP" -l "$file"
 done
 mv "$STAGING" "$PUBLIC"
+verify_release_at_edge "$APP_ORIGIN" sw.js remote.html
+verify_release_at_edge "$WORDPRESS_ORIGIN" sw.js wordpress-bridge.html
 
 # Replace the root entry files. release.json records both origins for later purges.
 prepare_edge_purge "" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"

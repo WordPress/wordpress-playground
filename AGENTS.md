@@ -131,6 +131,9 @@ The self-hosting download is built separately without release paths or productio
 origins.
 Nginx serves existing files on both hostnames; `custom-redirects.php` handles only
 missing paths. Inactive releases expire after 30 days (configurable), protecting active and previous releases.
+Before switching root files, the installer checks the new versioned startup URLs
+through both hosts. A 404 triggers a purge of only the affected release URLs and
+a bounded wait for HTTP 200. The full domain purges still run after activation.
 `release.json` inventories owned root files; activation failures and manual rollback restore
 replaced/deleted files and remove newly introduced ones with the same installer.
 Cleanup failures retain lifecycle metadata for retry; prune runs only after both hosts
