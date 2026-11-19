@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
 	Button,
 	Notice,
@@ -8,11 +8,6 @@ import type { AgentSiteAccessActions, AgentSiteAccessSnapshot } from './types';
 import { formatAgentSite } from './format';
 import css from './style.module.css';
 
-/**
- * Lists what AI agents can do in this browser and lets the user revoke it.
- * Grants and the site history are shared by every tab; the call log is this
- * tab's.
- */
 export function AgentAccessPanel({
 	access,
 	snapshot,
@@ -22,7 +17,7 @@ export function AgentAccessPanel({
 }) {
 	const [error, setError] = useState<string>();
 	if (!access || !snapshot) {
-		return <Text>AI agent access is not available in this browser.</Text>;
+		return <Text>Agent access is unavailable in this browser.</Text>;
 	}
 	const run = (action: () => Promise<void>) => {
 		setError(undefined);
@@ -30,98 +25,133 @@ export function AgentAccessPanel({
 			setError(e instanceof Error ? e.message : String(e))
 		);
 	};
-	const isEmpty =
-		snapshot.grants.length === 0 &&
-		snapshot.earlierSites.length === 0 &&
-		snapshot.calls.length === 0;
-
+	const { grants, earlierSites, calls } = snapshot;
+	const siteNames = new Map(
+		earlierSites.map((site) => [
+			site.siteId,
+			formatAgentSite(site, earlierSites),
+		])
+	);
 	return (
-		<div className={css.panel}>
+		<div className={css['panel']}>
 			{(snapshot.error || error) && (
 				<Notice status="error" isDismissible={false}>
 					{snapshot.error ?? error}
 				</Notice>
 			)}
-			{isEmpty && !snapshot.error && (
-				<Text>No AI agent has used a site in this session.</Text>
-			)}
-			{snapshot.grants.length > 0 && (
-				<section className={css.section}>
-					<h3>Sites an agent can use</h3>
-					<ul className={css.list}>
-						{snapshot.grants.map((grant) => (
-							<li key={grant.grantId} className={css.item}>
-								<div className={css.details}>
-									<span>{formatAgentSite(grant.site)}</span>
-									<span className={css.meta}>
-										{grant.inThisTab
-											? 'This tab'
-											: 'Another tab'}
-										{' · expires '}
-										{formatTime(grant.expiresAt)}
-										{grant.crossSiteWith.length > 0 &&
-											` · shared with ${grant.crossSiteWith
-												.map(formatAgentSite)
-												.join(', ')}`}
-									</span>
-								</div>
-								<Button
-									variant="secondary"
-									size="compact"
-									onClick={() =>
-										run(() => access.revoke(grant.grantId))
-									}
-								>
-									Revoke
-								</Button>
-							</li>
-						))}
-					</ul>
+			{!snapshot.error && (
+				<section>
+					<h3 className={css['heading']}>Active access</h3>
+					{grants.length === 0 ? (
+						<Text>No sites are open to agents.</Text>
+					) : (
+						<ul className={css['list']}>
+							{grants.map((grant) => (
+								<li key={grant.grantId} className={css['item']}>
+									<div className={css['details']}>
+										<strong>
+											{formatAgentSite(
+												grant.site,
+												earlierSites
+											)}
+										</strong>
+										<span className={css['meta']}>
+											{grant.inThisTab
+												? 'This tab'
+												: 'Another tab'}{' '}
+											· Expires{' '}
+											{formatTime(grant.expiresAt)}
+										</span>
+										{grant.crossSiteWith.length > 0 && (
+											<span className={css['meta']}>
+												Shared with{' '}
+												{grant.crossSiteWith
+													.map((site) =>
+														formatAgentSite(
+															site,
+															earlierSites
+														)
+													)
+													.join(', ')}
+											</span>
+										)}
+									</div>
+									<Button
+										variant="secondary"
+										size="compact"
+										aria-label={`Revoke access to ${formatAgentSite(grant.site, earlierSites)} in ${grant.inThisTab ? 'this tab' : 'another tab'}`}
+										onClick={() =>
+											run(() =>
+												access.revoke(grant.grantId)
+											)
+										}
+									>
+										Revoke
+									</Button>
+								</li>
+							))}
+						</ul>
+					)}
 				</section>
 			)}
-			{snapshot.earlierSites.length > 0 && (
-				<section className={css.section}>
-					<h3>Used in this session</h3>
-					<ul className={css.list}>
-						{snapshot.earlierSites.map((site) => (
-							<li key={site.siteId} className={css.details}>
-								<span>{formatAgentSite(site)}</span>
-								<span className={css.meta}>
+			{earlierSites.length > 0 && (
+				<details className={css['disclosure']}>
+					<summary>
+						Site history{' '}
+						<span className={css['meta']}>
+							({earlierSites.length})
+						</span>
+					</summary>
+					<ul className={css['list']}>
+						{earlierSites.map((site) => (
+							<li key={site.siteId} className={css['item']}>
+								<span>
+									{formatAgentSite(site, earlierSites)}
+								</span>
+								<span className={css['meta']}>
 									Last used {formatTime(site.lastUsedAt)}
 								</span>
 							</li>
 						))}
 					</ul>
-				</section>
+				</details>
 			)}
-			{snapshot.calls.length > 0 && (
-				<section className={css.section}>
-					<h3>Recent agent actions in this tab</h3>
-					<ul className={css.list}>
-						{snapshot.calls.map((call, index) => (
-							<li key={index} className={css.details}>
-								<span>
-									{call.tool} · {call.siteId}
-								</span>
-								<span className={css.meta}>
-									{formatTime(call.at)}
-									{call.summary && ` · ${call.summary}`}
-								</span>
+			{calls.length > 0 && (
+				<details className={css['disclosure']}>
+					<summary>
+						Actions in this tab{' '}
+						<span className={css['meta']}>({calls.length})</span>
+					</summary>
+					<ol className={css['list']}>
+						{calls.map((call, index) => (
+							<li key={index} className={css['item']}>
+								<div className={css['details']}>
+									<code>{call.tool}</code>
+									<span className={css['meta']}>
+										{siteNames.get(call.siteId) ??
+											call.siteId}{' '}
+										· {formatTime(call.at)}
+									</span>
+									{call.summary && (
+										<code className={css['meta']}>
+											{call.summary}
+										</code>
+									)}
+								</div>
 							</li>
 						))}
-					</ul>
-				</section>
+					</ol>
+				</details>
 			)}
-			{(!isEmpty || snapshot.error) && (
-				<div>
-					<Button
-						variant="secondary"
-						isDestructive
-						onClick={() => run(() => access.endSession())}
-					>
-						End agent session
-					</Button>
-				</div>
+			{(grants.length + earlierSites.length + calls.length > 0 ||
+				snapshot.error) && (
+				<Button
+					variant="tertiary"
+					isDestructive
+					onClick={() => run(() => access.endSession())}
+				>
+					End agent session
+				</Button>
 			)}
 		</div>
 	);

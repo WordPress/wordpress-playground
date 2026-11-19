@@ -61,6 +61,7 @@ startListening({
 				}
 				return [
 					{
+						id: site.metadata.id,
 						slug: PERSONAL_WP_MCP_SITE_SLUG,
 						name: site.metadata.name,
 						storage:
@@ -138,6 +139,7 @@ startListening({
 				return site
 					? [
 							{
+								id: site.metadata.id,
 								slug: PERSONAL_WP_MCP_SITE_SLUG,
 								name: site.metadata.name,
 								storage: site.metadata.storage,

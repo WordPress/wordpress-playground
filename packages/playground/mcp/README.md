@@ -98,6 +98,7 @@ await call('playground_read_file', { siteId, grant, path: '/wordpress/wp-config.
 - The grant decides which site a call reaches. Tools never fall back to the active site, and they act only while their site is the current one; `playground_switch_site` switches to a site the agent has a grant for.
 - A grant expires after 30 minutes without use and after 4 hours at most. Deleting the site or ending the agent session revokes it.
 - If the agent used another site earlier in the session, in any tab, the user is warned that information may move between the sites. The user can revoke the other grants or, when the agent gives a reason, allow cross-site work.
+- WebMCP embedders must return a stable `id` for each entry in `list()`. Playground uses `metadata.id` for grants and history across tabs and keeps the slug for navigation. Agents obtain the current ID from `playground_list_sites`.
 - Embedders that pass no `confirmSiteAccess` to `registerWebMCPTools()` get grants automatically only when `list()` returns exactly one site.
 
 ### Tools registered by the WordPress site
@@ -178,9 +179,12 @@ add_action( 'login_head', function () {
 ### Reading the tools
 
 ```js
-const { content } = await call('playground_list_site_tools', { siteId, grant });
+const page = await call('playground_list_site_tools', { siteId, grant });
+const schema = await call('playground_list_site_tools', { siteId, grant, tool: 'create_order' });
 await call('playground_call_site_tool', { siteId, grant, tool: 'create_order', arguments: { sku: 'X' } });
 ```
+
+Discovery pages contain tool names and descriptions. Pass the returned `nextCursor` as `cursor` with the same selection to continue. A single oversized catalog entry or schema arrives as JSON text in `content.fragment`. Concatenate fragments through `content.lastFragment` before parsing. Each gateway response fits in 1,500 serialized characters. An oversized tool result or site error returns a preview with `truncated: true`; retrying a mutating tool to read more would run it again.
 
 WebMCP is a draft, so this needs a browser that implements it: Chrome behind `chrome://flags/#enable-webmcp-testing`, or an extension that provides `document.modelContext` itself. Playground registers into whichever it finds and registers nothing when there is none. An embedder can still reach the site's tools through `PlaygroundClient.onWebMCPToolsChanged()` and `callWebMCPTool()` regardless of browser support.
 

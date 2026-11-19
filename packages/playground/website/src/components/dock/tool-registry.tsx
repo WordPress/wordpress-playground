@@ -169,8 +169,7 @@ const definitions = [
 		icon: <Icon icon={shield} size={24} />,
 		group: 'developer',
 		title: 'AI agent access',
-		description:
-			'Review which Playgrounds AI agents can use in this browser, and revoke access.',
+		description: 'Manage agent permissions across browser tabs.',
 		layout: 'default',
 		Panel: AgentAccessTool,
 		panelClassName: `${css.tabContents} ${css.toolTabContents}`,

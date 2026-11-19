@@ -164,7 +164,10 @@ test.describe('WebMCP site tool gateway', () => {
 		expect(greeting.description).toBe(
 			'Greets someone using the WordPress site name.'
 		);
-		expect(greeting.inputSchema.required).toEqual(['name']);
+		const schema = await run('playground_list_site_tools', {
+			tool: greeting.name,
+		});
+		expect(schema.content.inputSchema.required).toEqual(['name']);
 
 		// Calling it executes inside the WordPress document.
 		const result = await run('playground_call_site_tool', {

@@ -6,7 +6,10 @@ import type {
 } from '@wp-playground/remote';
 import type { ModelContextClient, ModelContextTool } from './webmcp';
 import { registerWebMCPTools } from './webmcp';
-import { startWebMCPSiteToolGateway } from './webmcp-site-tools';
+import {
+	startWebMCPSiteToolGateway,
+	startWebMCPSiteToolMirror,
+} from './webmcp-site-tools';
 import { createSiteAccess } from './webmcp-site-access';
 import { createSiteAccessRegistry } from './webmcp-site-access-registry';
 import { createMemorySiteAccessStore } from '../tests/unit/memory-site-access-store';
@@ -34,6 +37,125 @@ describe('site tool gateway', () => {
 		await expect(
 			run('playground_get_current_url', { siteId: 'a', grant: 'x' })
 		).resolves.toMatchObject({ error: expect.stringContaining('grant') });
+	});
+
+	it.each(['playground_save_in_browser', 'playground_rename_site'])(
+		'only runs %s with a live grant for the selected site',
+		async (tool) => {
+			const { run, access, mutations, tools } = await setUp();
+			const input = { siteId: 'a', newName: 'Renamed' };
+			expect(
+				tools.find((t) => t.name === tool)?.inputSchema?.['required']
+			).toEqual(expect.arrayContaining(['siteId', 'grant']));
+			await expect(run(tool, input)).resolves.toHaveProperty('error');
+			expect(mutations).not.toHaveBeenCalled();
+			const { grant } = await access.request('a');
+			await expect(run(tool, { ...input, grant })).resolves.toMatchObject(
+				{ success: true, siteId: 'a' }
+			);
+			await access.revoke(access.getSnapshot().grants[0].grantId);
+			await expect(
+				run(tool, { ...input, grant })
+			).resolves.toHaveProperty('error');
+			expect(mutations).toHaveBeenCalledTimes(1);
+			expect(mutations).toHaveBeenCalledWith('route-a');
+		}
+	);
+
+	it('pages the catalog and rebuilds a selected schema within the serialized limit', async () => {
+		const description = 'Quoted "title"\n'.repeat(12);
+		const schema = { type: 'object', description: description.repeat(30) };
+		const descriptors = Array.from({ length: 25 }, (_, i) => ({
+			name: 'tool_' + i,
+			description,
+			inputSchema: schema,
+		}));
+		const { access, run } = await setUp(descriptors);
+		const { grant } = await access.request('a');
+		const pages = async (tool?: string) => {
+			let cursor: string | undefined;
+			const content = [];
+			do {
+				const page = (await run('playground_list_site_tools', {
+					siteId: 'a',
+					grant,
+					tool,
+					cursor,
+				})) as {
+					content: {
+						tools?: WebMCPToolDescriptor[];
+						fragment?: string;
+					};
+					nextCursor?: string;
+				};
+				expect(JSON.stringify(page).length).toBeLessThanOrEqual(1500);
+				content.push(page.content);
+				cursor = page.nextCursor;
+			} while (cursor);
+			return content;
+		};
+		const catalog = await pages();
+		expect(catalog.length).toBeGreaterThan(1);
+		expect(catalog.flatMap((page) => page.tools)).toEqual(
+			descriptors.map(({ name, description }) => ({ name, description }))
+		);
+		const chunks = await pages('tool_4');
+		expect(
+			JSON.parse(chunks.map((page) => page.fragment).join(''))
+		).toEqual(schema);
+	});
+
+	it('can finish an oversized catalog entry and continue to the next tool', async () => {
+		const large = {
+			name: 'first',
+			description: 'Long description. '.repeat(300),
+		};
+		const next = { name: 'second', description: 'Another tool.' };
+		const { access, run } = await setUp([large, next]);
+		const { grant } = await access.request('a');
+		let serialized = '';
+		let cursor: string | undefined;
+		let finishedEntry = false;
+		do {
+			const page = (await run('playground_list_site_tools', {
+				siteId: 'a',
+				grant,
+				cursor,
+			})) as {
+				content: {
+					fragment?: string;
+					lastFragment?: boolean;
+					tools?: WebMCPToolDescriptor[];
+				};
+				nextCursor?: string;
+			};
+			expect(JSON.stringify(page).length).toBeLessThanOrEqual(1500);
+			if (page.content.tools) {
+				expect(finishedEntry).toBe(true);
+				expect(page.content.tools).toEqual([next]);
+			} else {
+				serialized += page.content.fragment;
+				finishedEntry = !!page.content.lastFragment;
+			}
+			cursor = page.nextCursor;
+		} while (cursor);
+		expect(JSON.parse(serialized)).toEqual(large);
+	});
+
+	it('bounds escaped results and errors and identifies partial output', async () => {
+		const { callSiteTool, call } = await grantedSetUp();
+		const text = '\n"'.repeat(3000);
+		call.mockResolvedValueOnce({ text }).mockRejectedValueOnce(
+			new Error(text)
+		);
+		for (const key of ['result', 'siteError']) {
+			const response = await callSiteTool({});
+			expect(response).toMatchObject({
+				truncated: true,
+				content: { [key]: expect.any(String) },
+			});
+			expect(JSON.stringify(response).length).toBeLessThanOrEqual(1500);
+		}
 	});
 
 	it('wraps site-written content in the envelope', async () => {
@@ -66,6 +188,17 @@ describe('site tool gateway', () => {
 // completed calls release their listener. The independent abort event can
 // otherwise be dropped by the gateway or leak into a later execution.
 describe('site tool cancellation', () => {
+	it('does not dispatch after cancellation during authorization', async () => {
+		const { callSiteTool, call } = await grantedSetUp();
+		const controller = new AbortController();
+		const result = callSiteTool({ signal: controller.signal });
+		controller.abort();
+		await expect(result).resolves.toMatchObject({
+			error: expect.stringContaining('cancelled'),
+		});
+		expect(call).not.toHaveBeenCalled();
+	});
+
 	it('forwards an in-flight abort using the same call ID', async () => {
 		const { callSiteTool, call, cancel, finish } = await grantedSetUp();
 		const controller = new AbortController();
@@ -97,6 +230,23 @@ describe('site tool cancellation', () => {
 // requestUserInteraction(), and is refused without it. The browser client and
 // the site's request arrive independently.
 describe('site tool user interaction', () => {
+	it('forwards a mirrored tool’s interaction to the browser', async () => {
+		const { client, tools, call } = await setUp();
+		const runInSite = vi.fn(async () => 'confirmed');
+		call.mockImplementationOnce(async (_name, _args, _id, interact) =>
+			interact!(runInSite)
+		);
+		const mirror = startWebMCPSiteToolMirror(client);
+		const browser = {
+			requestUserInteraction: vi.fn(async (callback) => callback()),
+		};
+		const tool = tools.find((t) => t.name === 'site_tool')!;
+		await expect(tool.execute({}, browser)).resolves.toBe('confirmed');
+		expect(browser.requestUserInteraction).toHaveBeenCalledOnce();
+		expect(runInSite).toHaveBeenCalledOnce();
+		mirror.stop();
+	});
+
 	it('runs only through the browser and is refused otherwise', async () => {
 		const { callSiteTool, call, finish, access } = await grantedSetUp();
 		const runInSite = vi.fn(async () => 'confirmed');
@@ -170,7 +320,11 @@ async function grantedSetUp() {
 	};
 }
 
-async function setUp() {
+async function setUp(
+	descriptors: WebMCPToolDescriptor[] = [
+		{ name: 'site_tool', description: 'A site tool.' },
+	]
+) {
 	const tools: ModelContextTool[] = [];
 	vi.stubGlobal('document', {
 		modelContext: {
@@ -198,7 +352,7 @@ async function setUp() {
 		onWebMCPToolsChanged: async (
 			listener: (tools: WebMCPToolDescriptor[]) => void
 		) => {
-			listener([{ name: 'site_tool', description: 'A site tool.' }]);
+			listener(descriptors);
 			return () => {};
 		},
 		callWebMCPTool: call,
@@ -206,7 +360,13 @@ async function setUp() {
 		getCurrentURL: async () => '/',
 	} as unknown as PlaygroundClient;
 	const sites = [
-		{ slug: 'a', name: 'Site a', isActive: true, storage: 'opfs' },
+		{
+			id: 'a',
+			slug: 'route-a',
+			name: 'Site a',
+			isActive: true,
+			storage: 'temporary',
+		},
 	];
 	const access = createSiteAccess({
 		listSites: () => sites,
@@ -214,11 +374,17 @@ async function setUp() {
 		registry: createMemoryRegistry(),
 	});
 	startWebMCPSiteToolGateway(client);
+	const mutations = vi.fn(async (slug?: string) => ({
+		slug: slug ?? '',
+		storage: 'opfs',
+	}));
 	await registerWebMCPTools({
 		list: () => sites,
 		getClient: () => client,
-		rename: vi.fn(),
-		saveInBrowser: vi.fn(),
+		rename: async (_newName, slug) => {
+			await mutations(slug);
+		},
+		saveInBrowser: (_name, slug) => mutations(slug),
 		siteAccess: access,
 	});
 	const run = (
@@ -227,6 +393,8 @@ async function setUp() {
 		modelClient?: ModelContextClient
 	) => tools.find((tool) => tool.name === name)!.execute(input, modelClient);
 	return {
+		client,
+		mutations,
 		tools,
 		run,
 		call,

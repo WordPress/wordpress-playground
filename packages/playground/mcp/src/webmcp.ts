@@ -25,6 +25,15 @@ const siteToolDefinitions = getSiteToolDefinitions();
 const siteAccessToolDefinitions = getWebMCPSiteAccessToolDefinitions();
 
 export interface WebMCPConfig extends PlaygroundBridgeConfig {
+	/** Stable site identities for grants; slugs are used only for routing. */
+	list(): Array<
+		ReturnType<PlaygroundBridgeConfig['list']>[number] & { id: string }
+	>;
+	rename(newName: string, siteSlug?: string): Promise<void>;
+	saveInBrowser(
+		name?: string,
+		siteSlug?: string
+	): ReturnType<PlaygroundBridgeConfig['saveInBrowser']>;
 	/**
 	 * Grants agent access to sites. Created from this config when omitted, so
 	 * pass one to show its state in the UI.
@@ -36,7 +45,7 @@ export interface WebMCPConfig extends PlaygroundBridgeConfig {
 	 */
 	confirmSiteAccess?: SiteAccessOptions['confirm'];
 	/** Makes another site current. Enables `playground_switch_site`. */
-	switchSite?(siteId: string): Promise<void>;
+	switchSite?(slug: string): Promise<void>;
 }
 
 // -- WebMCP type declarations --
@@ -85,12 +94,7 @@ let registrationController: AbortController | null = null;
 /** Creates the site access controller `registerWebMCPTools()` would create. */
 export function createWebMCPSiteAccess(config: WebMCPConfig): SiteAccess {
 	return createSiteAccess({
-		listSites: () =>
-			config.list().map(({ slug, name, isActive }) => ({
-				slug,
-				name,
-				isActive,
-			})),
+		listSites: config.list.bind(config),
 		getActiveClient: () => {
 			try {
 				return config.getClient();
@@ -103,13 +107,16 @@ export function createWebMCPSiteAccess(config: WebMCPConfig): SiteAccess {
 	});
 }
 
-function getActiveSite(config: PlaygroundBridgeConfig) {
-	const sites = config.list();
-	const active = sites.find((s) => s.isActive);
-	if (!active) {
-		throw new Error('No active Playground site');
+function getSite(config: WebMCPConfig, siteId: string, requireActive = true) {
+	const site = config
+		.list()
+		.find((s) => s.id === siteId && (!requireActive || s.isActive));
+	if (!site) {
+		throw new Error(
+			'The selected site changed. List sites and request access again.'
+		);
 	}
-	return active;
+	return site;
 }
 
 /**
@@ -179,7 +186,7 @@ export async function registerWebMCPTools(config: WebMCPConfig): Promise<void> {
 	);
 
 	// Site management tools
-	tools.push(...createSiteManagementTools(config));
+	tools.push(...createSiteManagementTools(config, siteAccess));
 	tools.push(...createSiteAccessTools(config, siteAccess));
 	tools.push(...createSiteToolGatewayTools(siteAccess));
 
@@ -287,7 +294,8 @@ function createSiteAccessTools(
 						siteId,
 						String(input['grant'] ?? '')
 					);
-					await switchSite(siteId);
+					client?.signal?.throwIfAborted();
+					await switchSite(getSite(config, siteId, false).slug);
 					return { success: true, siteId };
 				} catch (error) {
 					return {
@@ -301,7 +309,8 @@ function createSiteAccessTools(
 }
 
 function createSiteManagementTools(
-	config: PlaygroundBridgeConfig
+	config: WebMCPConfig,
+	siteAccess: SiteAccess
 ): ModelContextTool[] {
 	const listDef = siteToolDefinitions['playground_list_sites'];
 	const saveDef = siteToolDefinitions['playground_save_in_browser'];
@@ -313,14 +322,14 @@ function createSiteManagementTools(
 			name: 'playground_list_sites',
 			description: listDef.description,
 			inputSchema: paramsToJsonSchema(listDef.params),
-			annotations: listDef.annotations,
+			annotations: { ...listDef.annotations, untrustedContentHint: true },
 			execute: async (_input, client) => {
 				try {
 					client?.signal?.throwIfAborted();
 					return {
 						connectedTabs: 1,
 						sites: config.list().map((s) => ({
-							siteId: s.slug,
+							siteId: s.id,
 							name: s.name,
 							storage: formatStorageLabel(s.storage),
 							isActive: s.isActive,
@@ -336,29 +345,45 @@ function createSiteManagementTools(
 		{
 			name: 'playground_save_in_browser',
 			description: saveDef.description,
-			inputSchema: paramsToJsonSchema(saveDef.params),
-			annotations: saveDef.annotations,
-			execute: async (_input, client) => {
+			inputSchema: paramsToJsonSchema([
+				...siteAccessParams,
+				...saveDef.params,
+			]),
+			annotations: { ...saveDef.annotations, untrustedContentHint: true },
+			execute: async (input, client) => {
 				try {
 					client?.signal?.throwIfAborted();
-					const site = getActiveSite(config);
+					const siteId = String(input['siteId'] ?? '');
+					await siteAccess.authorize(
+						siteId,
+						String(input['grant'] ?? '')
+					);
+					client?.signal?.throwIfAborted();
+					siteAccess.recordCall({
+						siteId,
+						tool: 'playground_save_in_browser',
+					});
+					const site = getSite(config, siteId);
 					const storage = formatStorageLabel(site.storage);
 					if (storage !== 'temporary') {
 						return {
 							success: true,
 							alreadySaved: true,
-							siteId: site.slug,
+							siteId,
 							name: site.name,
 							storage,
 						};
 					}
 					// Storage operations do not currently expose an interrupt API.
-					const saved = await config.saveInBrowser();
+					const saved = await config.saveInBrowser(
+						undefined,
+						site.slug
+					);
 					client?.signal?.throwIfAborted();
 					return {
 						success: true,
 						alreadySaved: false,
-						siteId: saved.slug,
+						siteId,
 						name: site.name ?? saved.slug,
 						storage: formatStorageLabel(saved.storage),
 					};
@@ -372,19 +397,32 @@ function createSiteManagementTools(
 		{
 			name: 'playground_rename_site',
 			description: renameDef.description,
-			inputSchema: paramsToJsonSchema(renameDef.params),
+			inputSchema: paramsToJsonSchema([
+				...siteAccessParams,
+				...renameDef.params,
+			]),
 			annotations: renameDef.annotations,
 			execute: async (input, client) => {
 				try {
 					client?.signal?.throwIfAborted();
 					const newName = input['newName'] as string;
-					const sites = config.list();
-					const activeSite = sites.find((s) => s.isActive);
-					await config.rename(newName);
+					const siteId = String(input['siteId'] ?? '');
+					await siteAccess.authorize(
+						siteId,
+						String(input['grant'] ?? '')
+					);
+					client?.signal?.throwIfAborted();
+					siteAccess.recordCall({
+						siteId,
+						tool: 'playground_rename_site',
+						input: { newName },
+					});
+					const site = getSite(config, siteId);
+					await config.rename(newName, site.slug);
 					client?.signal?.throwIfAborted();
 					return {
 						success: true,
-						siteId: activeSite?.slug,
+						siteId,
 						newName,
 					};
 				} catch (error) {

@@ -133,8 +133,7 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 		const proxy = startWebMCPSiteToolMirror({
 			onWebMCPToolsChanged: async (listener) =>
 				bridge.subscribe(listener),
-			callWebMCPTool: async (name, args, callId) =>
-				bridge.callTool(name, args, callId),
+			callWebMCPTool: (...args) => bridge.callTool(...args),
 			cancelWebMCPTool: async (callId) => bridge.cancelTool(callId),
 		});
 		return () => {

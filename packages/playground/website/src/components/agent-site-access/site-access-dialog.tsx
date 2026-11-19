@@ -13,7 +13,7 @@ export function SiteAccessDialog() {
 	}
 	return (
 		<Modal
-			title="Allow an AI agent to use this Playground?"
+			title="Allow agent access?"
 			onRequestClose={() => agentSiteAccessPrompt.answer('deny')}
 		>
 			<SiteAccessDialogContent

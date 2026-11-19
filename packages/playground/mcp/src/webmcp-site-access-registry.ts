@@ -34,6 +34,8 @@ export interface SiteAccessState {
 	grants: Record<string, SiteAccessGrantRecord>;
 	/** When an agent last used each site, keyed by site ID. */
 	history: Record<string, number>;
+	/** Last known display names for sites opened in other tabs. */
+	siteNames?: Record<string, string>;
 }
 
 export interface SiteAccessRegistry {
@@ -251,7 +253,12 @@ function isValidState(value: unknown): value is SiteAccessState {
 	if (
 		!isRecord(value) ||
 		!isRecord(value['grants']) ||
-		!isRecord(value['history'])
+		!isRecord(value['history']) ||
+		(value['siteNames'] !== undefined &&
+			(!isRecord(value['siteNames']) ||
+				!Object.values(value['siteNames']).every(
+					(name) => typeof name === 'string'
+				)))
 	) {
 		return false;
 	}
@@ -296,6 +303,7 @@ function prune(state: SiteAccessState, time: number) {
 	for (const [siteId, usedAt] of Object.entries(state.history)) {
 		if (time - usedAt > HISTORY_LIFETIME_MS) {
 			delete state.history[siteId];
+			delete state.siteNames?.[siteId];
 		}
 	}
 }

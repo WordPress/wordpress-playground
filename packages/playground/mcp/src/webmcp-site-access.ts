@@ -29,14 +29,14 @@ const MAX_LOGGED_CALLS = 100;
 const MAX_CALL_SUMMARY_LENGTH = 200;
 
 export interface SiteAccessSite {
-	slug: string;
+	id: string;
 	name: string;
 	isActive: boolean;
 }
 
 export interface SiteAccessSiteRef {
 	siteId: string;
-	/** Known only for sites this tab can list. */
+	/** Current local name or the last name recorded by the approving tab. */
 	name?: string;
 }
 
@@ -223,11 +223,14 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 	}
 
 	function findSite(siteId: string) {
-		return options.listSites().find((site) => site.slug === siteId);
+		return options.listSites().find((site) => site.id === siteId);
 	}
 
-	function describeSite(siteId: string): SiteAccessSiteRef {
-		const name = findSite(siteId)?.name;
+	function describeSite(
+		siteId: string,
+		state?: SiteAccessState
+	): SiteAccessSiteRef {
+		const name = findSite(siteId)?.name ?? state?.siteNames?.[siteId];
 		return name === undefined ? { siteId } : { siteId, name };
 	}
 
@@ -332,7 +335,7 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 			...base,
 			grants: Object.values(state.grants).map((grant) => ({
 				grantId: grant.grantId,
-				site: describeSite(grant.siteId),
+				site: describeSite(grant.siteId, state),
 				inThisTab: grant.tabId === tabId,
 				expiresAt: Math.min(
 					grant.lastUsedAt + GRANT_IDLE_TIMEOUT_MS,
@@ -341,11 +344,11 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 				crossSiteWith: grant.crossSiteGrantIds
 					.map((grantId) => state.grants[grantId]?.siteId)
 					.filter((id): id is string => !!id)
-					.map(describeSite),
+					.map((id) => describeSite(id, state)),
 			})),
 			earlierSites: Object.entries(state.history).map(
 				([siteId, lastUsedAt]) => ({
-					...describeSite(siteId),
+					...describeSite(siteId, state),
 					lastUsedAt,
 				})
 			),
@@ -358,13 +361,18 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 			if (!site) {
 				throw new SiteAccessError(ERRORS.unknownSite);
 			}
-			const shown = await update((state) => othersFor(state, siteId));
+			const shown = await update((state) => ({
+				...othersFor(state, siteId),
+				state,
+			}));
 			const request: SiteAccessRequest = {
 				site: { siteId, name: site.name },
-				earlierSites: shown.earlier.map(describeSite),
+				earlierSites: shown.earlier.map((id) =>
+					describeSite(id, shown.state)
+				),
 				sitesWithAccess: [
 					...new Set(shown.grants.map((grant) => grant.siteId)),
-				].map(describeSite),
+				].map((id) => describeSite(id, shown.state)),
 				...(reason ? { reason } : {}),
 			};
 			const confirm = options.confirm;
@@ -408,6 +416,9 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 			const grantId = crypto.randomUUID();
 			const token = createToken();
 			const createdAt = await update((state) => {
+				if (!findSite(siteId) || signal?.aborted) {
+					throw new SiteAccessError(ERRORS.changed);
+				}
 				const current = othersFor(state, siteId);
 				const shownGrantIds = shown.grants.map((g) => g.grantId);
 				if (
@@ -436,6 +447,7 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 					lastUsedAt: time,
 					crossSiteGrantIds,
 				};
+				(state.siteNames ??= {})[siteId] = site.name;
 				state.history[siteId] = time;
 				return time;
 			});
@@ -474,9 +486,7 @@ export function createSiteAccess(options: SiteAccessOptions): SiteAccess {
 		},
 
 		async sitesChanged() {
-			const siteIds = new Set(
-				options.listSites().map((site) => site.slug)
-			);
+			const siteIds = new Set(options.listSites().map((site) => site.id));
 			const removed = [...tokens.values()].filter(
 				(entry) => !siteIds.has(entry.siteId)
 			);

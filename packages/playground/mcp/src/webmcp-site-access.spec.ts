@@ -138,6 +138,50 @@ describe('cross-site access', () => {
 		);
 	});
 
+	it.each([
+		{ secondId: 'new-site', needsWarning: true },
+		{ secondId: 'saved-site', needsWarning: false },
+	])(
+		'compares the site identity across tabs ($secondId)',
+		async ({ secondId, needsWarning }) => {
+			const browser = createBrowser();
+			const first = browser.openTab(
+				[site('same-slug', true, 'saved-site')],
+				async () => 'allow'
+			);
+			const confirm = vi.fn(
+				async (
+					request: SiteAccessRequest
+				): Promise<SiteAccessDecision> =>
+					request.sitesWithAccess.length
+						? 'allow-revoke-others'
+						: 'allow'
+			);
+			const second = browser.openTab(
+				[site('same-slug', true, secondId)],
+				confirm
+			);
+			const { grant } = await first.access.request('saved-site');
+			await second.access.request(secondId);
+			const others = needsWarning
+				? [{ siteId: 'saved-site', name: 'Site same-slug' }]
+				: [];
+			expect(confirm.mock.calls[0][0]).toMatchObject({
+				earlierSites: others,
+				sitesWithAccess: others,
+			});
+			if (needsWarning) {
+				await expect(
+					first.access.authorize('saved-site', grant)
+				).rejects.toThrow('revoked');
+			} else {
+				await expect(
+					first.access.authorize('saved-site', grant)
+				).resolves.toBe(first.clients.get('same-slug'));
+			}
+		}
+	);
+
 	it('keeps both grants only with a reason', async () => {
 		const browser = createBrowser();
 		const decide = vi.fn<
@@ -187,8 +231,8 @@ describe('cross-site access', () => {
 	});
 });
 
-function site(slug: string, isActive = false): SiteAccessSite {
-	return { slug, name: `Site ${slug}`, isActive };
+function site(slug: string, isActive = false, id = slug) {
+	return { id, slug, name: `Site ${slug}`, isActive };
 }
 
 /** Tabs of one browser profile sharing storage and a clock. */
@@ -202,7 +246,7 @@ function createBrowser() {
 			time += ms;
 		},
 		openTab(
-			sites: SiteAccessSite[],
+			sites: Array<SiteAccessSite & { slug: string }>,
 			confirm?: (
 				request: SiteAccessRequest
 			) => Promise<SiteAccessDecision>
