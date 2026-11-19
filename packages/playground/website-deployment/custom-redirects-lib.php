@@ -100,6 +100,9 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		0 === strcasecmp( $request_host, parse_url( $wordpress_origin, PHP_URL_HOST ) )
 	) {
 		if ( $is_scoped_navigation ) {
+			// Safari can open a WordPress link in a new tab outside the service
+			// worker's control. The app page recreates the iframe so it can
+			// reconnect to the site running in the browser.
 			header( 'Cache-Control: no-store' );
 			header( 'A8C-Edge-Cache: no-cache' );
 			header( 'Location: ' . $app_origin . $_SERVER['REQUEST_URI'], true, 302 );
@@ -120,7 +123,8 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		}
 		http_response_code( 404 );
 		if ( str_starts_with( $original_requested_path, '/scope:' ) ) {
-			// A top-level navigation to the same URL redirects to the app.
+			// Keep this 404 out of the edge cache so it cannot mask the
+			// new-tab redirect for a top-level GET to the same URL.
 			header( 'Content-Type: text/plain; charset=utf-8' );
 			echo 'This browser could not connect to the Playground site. Open it in Playground and try again.';
 		} else {
@@ -131,6 +135,7 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 
 	if ( null !== $app_origin && str_starts_with( $original_requested_path, '/scope:' ) ) {
 		if ( ! $is_scoped_navigation ) {
+			// A top-level GET here needs the app wrapper, so keep this 404 uncached too.
 			http_response_code( 404 );
 			exit;
 		}
