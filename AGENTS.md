@@ -328,6 +328,10 @@ remain available.
 - **E2E tests**: Playwright for website testing
 - **Always fix failing tests**: Never skip failing tests; fix the code to make tests pass
 
+Legacy WordPress browser failures save per-version traces, screenshots, frame URLs,
+console errors, and failed requests under `.context/legacy-wp-boot/` before teardown.
+CI uploads these with the dev-server log; the isolated retry keeps separate artifacts.
+
 #### Test-value gate
 
 Tests are maintenance code. Do not add one merely because production code

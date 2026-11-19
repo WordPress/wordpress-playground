@@ -762,6 +762,16 @@ jobs:
                   done
             - name: Test legacy WordPress version boot
               run: node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs
+            - uses: actions/upload-artifact@v4
+              if: ${{ failure() }}
+              with:
+                  name: legacy-wordpress-boot-failures
+                  path: |
+                      .context/legacy-wp-boot/
+                      /tmp/playground-dev.log
+                  include-hidden-files: true
+                  if-no-files-found: ignore
+                  retention-days: 7
 
     # Redis extension tests - verifies the php-redis extension loads
     # and provides the expected API, and can connect to a real Redis server.

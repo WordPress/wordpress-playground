@@ -25,7 +25,9 @@
  * Usage: node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs
  */
 import { spawnSync } from 'node:child_process';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { joinPaths } from '../../../php-wasm/util/src/lib/paths.ts';
 
 import { chromium } from 'playwright';
 
@@ -90,6 +92,7 @@ const WP_VERSIONS = [
 const PORT = 5400;
 const TIMEOUT_S = 120;
 const results = [];
+const PHASES = ['front', 'post', 'admin', 'newPost', 'plugin', 'logout'];
 
 /**
  * Finds the WordPress content frame (the one whose URL contains "scope:")
@@ -423,13 +426,27 @@ const MATRIX = WP_ONLY
 /**
  * Captures browser console errors so timeout failures can report context.
  */
-function captureConsoleErrors(page, consoleErrors) {
+function captureConsoleErrors(page, consoleErrors, networkErrors) {
 	page.on('console', (msg) => {
 		if (msg.type() === 'error')
 			consoleErrors.push(msg.text().slice(0, 300));
 	});
 	page.on('pageerror', (error) => {
 		consoleErrors.push(error.message.slice(0, 300));
+	});
+	page.on('requestfailed', (request) => {
+		networkErrors.push({
+			url: request.url(),
+			error: request.failure()?.errorText,
+		});
+	});
+	page.on('response', (response) => {
+		if (response.status() >= 400) {
+			networkErrors.push({
+				url: response.url(),
+				status: response.status(),
+			});
+		}
 	});
 }
 
@@ -474,9 +491,15 @@ for (const { wp, php } of MATRIX) {
 	// versions' patched files and scopes bleed into later ones and
 	// the test becomes non-deterministic.
 	let context = await browser.newContext();
+	await context.tracing.start({
+		screenshots: true,
+		snapshots: true,
+		sources: true,
+	});
 	let page = await context.newPage();
 	let consoleErrors = [];
-	captureConsoleErrors(page, consoleErrors);
+	let networkErrors = [];
+	captureConsoleErrors(page, consoleErrors, networkErrors);
 
 	let frontStatus = null;
 	let adminStatus = null;
@@ -494,12 +517,31 @@ for (const { wp, php } of MATRIX) {
 		// --- Phase 1: Front page ---
 		let wp1 = await waitForWPFrame(page, TIMEOUT_S);
 		if (!wp1 && shouldRetryFrontPageBoot(consoleErrors)) {
+			await saveFailureArtifacts(
+				page,
+				context,
+				wp,
+				php,
+				process.env.LEGACY_BOOT_RETRY
+					? 'retry-before-boot-retry'
+					: 'initial-before-boot-retry',
+				{
+					consoleErrors,
+					networkErrors,
+				}
+			);
 			await page.close();
 			await context.close();
 			context = await browser.newContext();
+			await context.tracing.start({
+				screenshots: true,
+				snapshots: true,
+				sources: true,
+			});
 			page = await context.newPage();
 			consoleErrors = [];
-			captureConsoleErrors(page, consoleErrors);
+			networkErrors = [];
+			captureConsoleErrors(page, consoleErrors, networkErrors);
 			await page.goto(url, {
 				timeout: 180_000,
 				waitUntil: 'domcontentloaded',
@@ -819,7 +861,10 @@ echo $wp_env['db']['type'] === 'sqlite'
 					TIMEOUT_S
 				);
 				if (!wp4) {
-					pluginStatus = { status: 'TIMEOUT' };
+					pluginStatus = {
+						status: 'TIMEOUT',
+						detail: 'Navigation to /wp-admin/plugins.php did not produce a WordPress page',
+					};
 				} else {
 					// Target Hello Dolly specifically. Clicking the first
 					// Activate link can land on Akismet's setup page on modern
@@ -859,7 +904,9 @@ echo $wp_env['db']['type'] === 'sqlite'
 						if (!wp4b || wp4b.timedOut) {
 							pluginStatus = {
 								status: 'TIMEOUT',
-								detail: getPluginActivationTimeoutDetail(wp4b),
+								detail:
+									'Plugin activation did not produce a result; ' +
+									getPluginActivationTimeoutDetail(wp4b),
 							};
 						} else {
 							const error = findPHPError(wp4b.body);
@@ -993,7 +1040,7 @@ echo $wp_env['db']['type'] === 'sqlite'
 	];
 	console.log(parts.join(' '));
 
-	results.push({
+	const result = {
 		wp,
 		php,
 		front: frontStatus,
@@ -1002,14 +1049,29 @@ echo $wp_env['db']['type'] === 'sqlite'
 		newPost: newPostStatus,
 		plugin: pluginStatus,
 		logout: logoutStatus,
-	});
+	};
+	results.push(result);
+	const failed = PHASES.some(
+		(phase) =>
+			result[phase] && !isPass(result[phase]) && !isSkip(result[phase])
+	);
+	if (failed) {
+		await saveFailureArtifacts(
+			page,
+			context,
+			wp,
+			php,
+			process.env.LEGACY_BOOT_RETRY ? 'retry' : 'initial',
+			{ result, consoleErrors, networkErrors }
+		);
+	} else {
+		await context.tracing.stop();
+	}
 	await page.close();
 	await context.close();
 }
 
 await browser.close();
-
-const PHASES = ['front', 'post', 'admin', 'newPost', 'plugin', 'logout'];
 
 function isPass(status) {
 	return status.status === 'OK' || status.status === 'PARTIAL';
@@ -1119,4 +1181,44 @@ function isRetryableStatus(status) {
 		text.includes('WebWorker failed to load') ||
 		text.includes('One or more database tables are unavailable')
 	);
+}
+
+/** Preserve the browser state before the failing page/context is destroyed. */
+async function saveFailureArtifacts(
+	page,
+	context,
+	wp,
+	php,
+	label,
+	diagnostics
+) {
+	const directory = '.context/legacy-wp-boot';
+	const prefix = joinPaths(directory, `wp-${wp}-php-${php}-${label}`);
+	try {
+		await mkdir(directory, { recursive: true });
+		await writeFile(
+			prefix + '.json',
+			JSON.stringify(
+				{
+					...diagnostics,
+					browserVersion: context.browser()?.version(),
+					nodeVersion: process.version,
+					platform: process.platform,
+					frames: page.frames().map((frame) => frame.url()),
+				},
+				null,
+				2
+			)
+		);
+		await page.screenshot({ path: prefix + '.png', timeout: 10000 });
+	} catch (error) {
+		console.error(`Could not save failure diagnostics: ${error.message}`);
+	}
+	// A screenshot failure must not prevent saving the trace or mask the test result.
+	try {
+		await context.tracing.stop({ path: prefix + '.zip' });
+		console.log(`Failure artifacts: ${prefix}.{json,png,zip}`);
+	} catch (error) {
+		console.error(`Could not save failure trace: ${error.message}`);
+	}
 }
