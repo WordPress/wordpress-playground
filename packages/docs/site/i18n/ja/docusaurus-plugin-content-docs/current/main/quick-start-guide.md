@@ -20,10 +20,10 @@ import TOCInline from '@theme/TOCInline';
 
 <TOCInline toc={toc} />
 
-このページでは、それぞれの手順を解説します。視覚的に学習したい方は、こちらの動画をご覧ください。
+このページでは、それぞれの項目について順を追って説明します。また、視覚的に理解したいという方のために、動画も用意しました。動画内のインターフェースには「Dock」が導入される以前の仕様が含まれている箇所があります。現在のUIについては、以下の手順（テキスト）を参照してください。
 
 <!--
-This page will guide you through each of these. Oh, and if you're a visual learner – here's a video:
+This page will guide you through each of these. Oh, and if you're a visual learner – here's a video. Some interface details in the video predate the Dock; follow the written steps below for the current UI.
  -->
 
 <iframe width="752" height="423.2" title="Getting started with WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe>
@@ -34,35 +34,31 @@ This page will guide you through each of these. Oh, and if you're a visual learn
 ## Start a new WordPress site
  -->
 
-[playground.wordpress.net の公式デモ](https://playground.wordpress.net/)にアクセスするたびに、新しい WordPress サイトが作成されます。
+[playground.wordpress.net](https://playground.wordpress.net/) の公式デモを開いて、ブラウザ上で WordPress を起動しましょう。
 
 <!--
-Every time you visit the [official demo on playground.wordpress.net](https://playground.wordpress.net/), you get a fresh WordPress site.
+Open the [official demo on playground.wordpress.net](https://playground.wordpress.net/) to start WordPress in your browser.
  -->
 
-その後、ページを作成したり、プラグインやテーマをアップロードしたり、独自のサイトをインポートしたり、通常の WordPress で行うほとんどの操作を実行できます。
+ページの作成、プラグインのアップロード、テーマのインストール、コンテンツのインポートなど、一般的な WordPress サイトで行えることのほとんどが可能です。
 
 <!--
-You can then create pages, upload plugins, themes, import your own site, and do most things you would do on a regular WordPress.
+You can create pages, upload plugins, install themes, import content, and do most things you would do on a regular WordPress site.
  -->
 
-始めるのはとても簡単です !
+ブラウザストレージが利用可能な場合、新しい Playground は自動的に保存されます。ドック（Dock）内の「Your Playgrounds」から、最近の自動保存データを最大5件まで確認できます。ページを更新した際にデータが破棄されるような環境が必要な場合は、`?storage=temp` を指定してPlaygroundを開いてください。
 
 <!--
-It's that easy to start!
- -->
-
-サイト全体はブラウザ内に保存されており、タブを閉じると削除されます。最初からやり直したい場合は、ページを更新してください。
-
-<!--
-The entire site lives in your browser and is scraped when you close the tab. Want to start over? Just refresh the page!
+When browser storage is available, new Playgrounds are autosaved. You can find
+up to five recent autosaves in **Your Playgrounds** from the Dock. If you need a
+site that is discarded on refresh, open Playground with `?storage=temp`.
  -->
 
 <div class="callout callout-info">
 
 **WordPress Playground はプライベートです**
 
-作成したものはすべてブラウザ内に保存され、他の場所には**送信されません**。完成したら、サイトを zip ファイルとしてエクスポートできます。または、ページを更新して最初からやり直すこともできます。
+Playground は、お使いのブラウザ上でローカルに動作します。**GitHub へエクスポート**といった操作を選択しない限り、サイトがアップロードされることはありません。作業が完了したら、Playground を永続的に保存したり、ZIP 形式でエクスポートしたり、あるいは「新しい Playground 」から最初からやり直したりすることができます。
 
 </div>
 
@@ -71,7 +67,10 @@ The entire site lives in your browser and is scraped when you close the tab. Wan
 
 **WordPress Playground is private**
 
-Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over!
+The Playground runs locally in your browser. It does not upload your site
+unless you choose an action such as **Export to GitHub**. Once you're finished,
+you can store the Playground permanently, export it as a ZIP, or start over
+from **New Playground**.
 
 </div>
  -->
@@ -142,73 +141,92 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
 This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
-## サイトを保存する
+## ブラウザストレージにプレイグラウンドを保存する
 
 <!--
-## Save your site
+## Store a Playground in browser storage
  -->
 
-WordPress Playground サイトを 1 回のブラウザ セッションよりも長く保存するには、`.zip` ファイルとしてエクスポートできます。
+Dock 内の**自動保存済み**または**未保存**というステータスをクリックして**永続的に保存**を開き、**ブラウザストレージに保存**を選択します。
 
 <!--
-To keep your WordPress Playground site for longer than a single browser session, you can export it as a `.zip` file.
+Click the **Autosaved** or **Unsaved** status in the Dock to open **Store
+permanently**, then choose **Save in browser storage**.
  -->
 
-1. Playground サイト マネージャー パネルを開きます。
+![The Store permanently pane with browser storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-browser.webp)
 
 <!--
-1. Open the Playground site manager panel:
+![The Store permanently pane with browser storage selected](/img/dock/store-permanently-browser.webp)
  -->
 
-![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
-
-2. 追加アクションメニューの「.zip としてダウンロード」ボタンを使用します。
+保存されたブラウザ上の Playground は、**Your Playgrounds**に表示されます。自動保存されたものもそこに表示されますが、Playground では直近の自動保存データを最大5つまで保持します。自動保存の保持期間を超えて残しておきたい場合は、その Playground を永続的に保存してください。
 
 <!--
-2. Use the "Download as .zip" button in the additional actions menu
+A saved browser Playground appears in **Your Playgrounds**. Autosaves also
+appear there, but Playground keeps up to five recent autosaves. Store a
+Playground permanently when you want to keep it beyond the autosave lifecycle.
  -->
 
-![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
-
-エクスポートされたファイルには、構築したサイト全体が含まれています。 PHP と SQLite をサポートするサーバーであればどこでもホストできます。 WordPress のコアファイル、プラグイン、テーマ、その他サイトに追加したすべてのファイルが含まれています。
+ブラウザのストレージは引き続きブラウザに属します。後で移動、アーカイブ、または復元できるファイルが必要な場合は、ZIP をエクスポートします。
 
 <!--
-The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
+Browser storage still belongs to the browser. Export a ZIP when you need a file you can move, archive, or restore later.
  -->
 
-SQLite データベースファイルもエクスポートに含まれており、`wp-content/database/.ht.sqlite`にあります。ドットで始まるファイルは、ほとんどのオペレーティングシステムでデフォルトで非表示になっているため、ファイルマネージャーで「隠しファイルを表示する」オプションを有効にする必要がある場合があります。
+## ポータブル ZIP をエクスポートする
 
 <!--
-The SQLite database file is also included in the export, you'll find it `wp-content/database/.ht.sqlite`. Keep in mind that files starting with a dot are hidden by default on most operating systems so you might need to enable the "Show hidden files" option in your file manager.
+## Export a portable ZIP
  -->
 
-## 保存したサイトを復元する
+Dockから**エクスポート**を開き、**.zipとしてダウンロード**を使用します。
 
 <!--
-## Restore a saved site
+Open **Export** from the Dock and use **Download as .zip**.
  -->
 
-Playground ダッシュボードパネルの「.zip からインポート」ボタンを使用して、保存したサイトを復元できます。
+![The Export pane with ZIP, setup link, and GitHub options](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-export-playground.webp)
 
 <!--
-You can restore the saved site using the "Import from .zip" button in the Playground dashboard panel:
+![The Export pane with ZIP, setup link, and GitHub options](/img/dock/dock-export-playground.webp)
  -->
+
+エクスポートされたファイルには、現在のファイル、データベース、プラグイン、テーマ、アップロード済みデータ、および編集内容が含まれています。このファイルは、Playground で復元するか、PHP と SQLite に対応したサーバー上でホストすることができます。
 
 <!--
-1. Open the Playground dashboard panel:
+The exported file contains the current files, database, plugins, themes, uploads, and edits. You can restore it in Playground or host it on a server that supports PHP and SQLite.
  -->
 
-1. Playground ダッシュボードパネルを開きます:
-
-![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
+SQLite データベースは `wp-content/database/` ディレクトリ内に格納されています。このディレクトリに `db-path.php` が存在する場合、そのファイルはランダム化されたサブディレクトリ内にあるデータベースへのパスを返します。古いサイトでは、`wp-content/database/.ht.sqlite` というファイルが使用されています。サイトをコピーする際は、`database` ディレクトリ全体をまとめて扱うようにしてください。ドットで始まるファイルは、ほとんどのオペレーティングシステムにおいてデフォルトで非表示となっているため、ファイルマネージャーの設定で隠しファイルを表示するよう変更する必要があるかもしれません。
 
 <!--
-1. Use the "Import .zip" button at the end of the "Start a new Playground" section
+The SQLite database is included in `wp-content/database/`. When this directory contains `db-path.php`, that file returns the database path inside a randomized subdirectory. Older sites use `wp-content/database/.ht.sqlite`. Keep the whole `database` directory together when copying a site. Files starting with a dot are hidden by default on most operating systems, so you may need to enable hidden files in your file manager.
  -->
 
-1. 「Start a new Playground」セクションの最後にある「Import .zip」ボタンを使用します
+## ZIP を復元する
 
-![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
+<!--
+## Restore a ZIP
+ -->
+
+Dock から**New Playground**を開き、**Import zip**を選択して、ZIP ファイルを選びます。
+
+<!--
+Open **New Playground** from the Dock, choose **Import zip**, and select the ZIP file.
+ -->
+
+![The New Playground pane with Import zip selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
+
+<!--
+![The New Playground pane with Import zip selected](/img/dock/dock-new-playground-import-zip.webp)
+ -->
+
+これにより、ZIP 内のファイルとデータベースが新しい Playground に復元されます。
+
+<!--
+This restores the files and database from the ZIP into a new Playground.
+ -->
 
 ## 特定の WordPress または PHP バージョンを使用する
 
@@ -216,13 +234,17 @@ You can restore the saved site using the "Import from .zip" button in the Playgr
 ## Use a specific WordPress or PHP version
  -->
 
-WordPress または PHP のバージョンを変更する最も迅速な方法は、[公式デモサイト](https://playground.wordpress.net/)の設定パネルを使用することです:
+Dock から**サイト設定**を開き、WordPress、PHP、言語、マルチサイト、ネットワークに関するオプションを選択します。
 
 <!--
-The quickest way to change the version of WordPress or PHP is by using the settings panel on the [official demo site](https://playground.wordpress.net/):
+Open **Site Settings** from the Dock to choose WordPress, PHP, language, multisite, and networking options.
  -->
 
-![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
+![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
+
+<!--
+![The Site Settings pane](/img/dock/dock-site-settings.webp)
+ -->
 
 <div class="callout callout-info">
 
@@ -251,19 +273,31 @@ You can also use the `wp` and `php` [query parameters](/developers/apis/query-ap
 - https://playground.wordpress.net/?wp=6.5
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
-  This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
+- https://playground.wordpress.net/?php=next
+
+これは[Query API](/developers/apis/query-api/)と呼ばれており、詳細については[こちら](/developers/apis/query-api/)で確認できます。
+
+<!--
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
+ -->
+
+`php=next` を使用すると、php-src 開発ブランチからビルドされた次期 PHP バージョンをプレビューできます。例として、[PHP 8.6 機能プレビュー](https://playground.wordpress.net/php-8-6.html)をご覧ください。
+
+<!--
+Use `php=next` to preview the next PHP version built from the php-src development branch. For example, see the [PHP 8.6 feature preview](https://playground.wordpress.net/php-8-6.html).
+ -->
+
+デモのコンテンツ準備の詳細については、[デモのコンテンツ提供ガイド](/guides/providing-content-for-your-demo)を参照してください。
 
 <!--
 To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
  -->
 
-デモのコンテンツ準備の詳細については、[デモのコンテンツ提供ガイド](/guides/providing-content-for-your-demo)を参照してください。
-
 <div class="callout callout-info">
 
 **メジャーバージョンのみ**
 
-`wp=6.2` や `php=8.1` のようなメジャーバージョンを指定すると、そのバージョンラインの最新リリースが期待されます。ただし、古いマイナーバージョンを指定することはできないため、`wp=6.1.2` や `php=7.4.9` は動作しません。
+`wp=6.2` や `php=8.1` のようにメジャーバージョンを指定すると、その系列における最新のリリースが取得されます。ただし、古いマイナーバージョンを指定することはできないため、`wp=6.1.2` や `php=7.4.9` といった指定は機能しません。なお、`latest` や `next` といった汎用的なエイリアスは例外です。
 
 </div>
 
@@ -272,7 +306,7 @@ To learn more about preparing content for demos, see the [providing content for 
 
 **Major versions only**
 
-You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work.
+You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work. Generic aliases like `latest` and `next` are exceptions.
 
 </div>
  -->
@@ -295,10 +329,10 @@ You can import a WordPress export file by uploading a WXR file in [/wp-admin/](h
 You can also use [JSON Blueprints](/blueprints). See [getting started with Blueprints](/blueprints/getting-started) to learn more.
  -->
 
-これは上記のインポート機能とは異なります。インポート機能は、データベースを含むサイト全体をエクスポートします。このインポート機能は、 WXR ファイルを既存のサイトにインポートします。
+これは、Playground ZIP を復元する場合とは異なります。WXR ファイルは、WordPress のコンテンツを既存のサイトにインポートするものです。一方、Playground ZIP は、ファイルとデータベースを新しい Playground に復元するものです。
 
 <!--
-This is different from the import feature described above. The import feature exports the entire site, including the database. This import feature imports a WXR file into an existing site.
+This is different from restoring a Playground ZIP. A WXR file imports WordPress content into an existing site. A Playground ZIP restores files and the database into a new Playground.
  -->
 
 ## WordPress Playground でアプリを構築する
@@ -307,14 +341,14 @@ This is different from the import feature described above. The import feature ex
 ## Build apps with WordPress Playground
  -->
 
-WordPress Playground はプログラム可能なので、[WordPress アプリを構築](/developers/build-your-first-app)したり、プラグインのデモを設定したり、さらには設定不要の[ローカル開発環境](/developers/local-development/)として使用したりすることもできます。
+WordPress Playground はプログラム可能であり、[WordPress アプリの構築](/developers/build-your-first-app)やプラグインのデモ環境のセットアップができるほか、セットアップ不要の[ローカル開発環境](/developers/local-development/)として利用することも可能です。
 
 <!--
-WordPress Playground is programmable, which means you can [build WordPress apps](/developers/build-your-first-app), setup plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
+WordPress Playground is programmable, which means you can [build WordPress apps](https://developer.wordpress.org/playground/developers/build-an-app/), set up plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
  -->
 
-WordPress Playground を使用した開発の詳細については、[開発クイック スタート](/developers/build-your-first-app) セクションをご覧ください。
+WordPress Playground を活用した開発について詳しくは、[開発クイックスタート](/developers/build-your-first-app/) のセクションをご覧ください。
 
 <!--
-To learn more about developing with WordPress Playground, check out the [development quick start](/developers/build-your-first-app) section.
+To learn more about developing with WordPress Playground, check out the [development quick start](https://developer.wordpress.org/playground/developers/build-an-app/) section.
  -->
