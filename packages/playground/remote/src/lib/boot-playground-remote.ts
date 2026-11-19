@@ -576,11 +576,15 @@ export async function bootPlaygroundRemote() {
 		 * already have a direct service-worker connection and need no window relay.
 		 */
 		async boot(options) {
+			const bootOptions = {
+				...options,
+				isCrossOriginEmbedded: isCrossOriginEmbedded(),
+			};
 			if (sharedRuntime) {
 				runStartupBlueprint =
-					await sharedRuntime.api.beginSharedBoot(options);
+					await sharedRuntime.api.beginSharedBoot(bootOptions);
 			} else {
-				await phpWorkerApi.boot(options);
+				await phpWorkerApi.boot(bootOptions);
 			}
 
 			if (wordPressSiteUrl !== origin) {
@@ -903,6 +907,24 @@ async function captureSiteThumbnailFromWordPress({
 
 function getOrigin(url: string) {
 	return new URL(url, 'https://example.com').origin;
+}
+
+/**
+ * Return true when remote.html runs inside a cross-origin top-level frame.
+ *
+ * Non-embedded Playground renders remote.html inside a same-origin iframe on
+ * the app host, so window.top.location.origin matches window.location.origin.
+ * Cross-origin embeds throw SecurityError when reading window.top.location.
+ */
+function isCrossOriginEmbedded(): boolean {
+	try {
+		return (
+			window.top !== window &&
+			window.top?.location.origin !== window.location.origin
+		);
+	} catch {
+		return true;
+	}
 }
 
 /**

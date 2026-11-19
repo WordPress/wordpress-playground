@@ -104,6 +104,11 @@ export type WorkerBootOptions = {
 	 * the document root. Similar to Nginx's `alias` directive.
 	 */
 	pathAliases?: PathAlias[];
+	/**
+	 * True when remote.html runs inside a cross-origin parent frame, where
+	 * third-party storage partitioning isolates its service worker from new tabs.
+	 */
+	isCrossOriginEmbedded?: boolean;
 };
 
 /** @inheritDoc PHPClient */
@@ -196,6 +201,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		withNetworking,
 		phpVersion,
 		pathAliases,
+		isCrossOriginEmbedded,
 		onProgress,
 	}: {
 		siteUrl: string;
@@ -206,6 +212,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		withNetworking: boolean;
 		phpVersion: AllPHPVersion;
 		pathAliases?: PathAlias[];
+		isCrossOriginEmbedded?: boolean;
 		onProgress?: (caption: string) => void;
 	}) {
 		const phpIniEntries: Record<string, string> = {
@@ -314,6 +321,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 					php.defineConstant(
 						'PLAYGROUND_PARENT_ORIGIN',
 						playgroundOrigin
+					);
+				}
+				if (isCrossOriginEmbedded) {
+					php.defineConstant(
+						'PLAYGROUND_IS_CROSS_ORIGIN_EMBED',
+						true
 					);
 				}
 				/**

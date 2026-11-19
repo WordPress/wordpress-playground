@@ -231,6 +231,7 @@ function playground_legacy_preview_windows() {
 					},
 					set location(url) {
 						let targetUrl = url;
+						<?php if (defined('PLAYGROUND_IS_CROSS_ORIGIN_EMBED') && PLAYGROUND_IS_CROSS_ORIGIN_EMBED) : ?>
 						try {
 							const parsed = new URL(url, location.href);
 							const parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?>;
@@ -248,6 +249,7 @@ function playground_legacy_preview_windows() {
 						} catch {
 							// Keep original URL on parse errors.
 						}
+						<?php endif; ?>
 						popup.location.href = targetUrl;
 					},
 				};
@@ -336,7 +338,13 @@ add_action('admin_head', 'playground_add_target_blank_to_external_links');
  * External links are never rewritten and keep their original rel/noopener.
  */
 function playground_handle_scoped_new_tab_links() {
-	if (empty($_SERVER['REQUEST_URI']) || (function_exists('wp_doing_ajax') && wp_doing_ajax()) || (function_exists('wp_doing_cron') && wp_doing_cron())) {
+	if (
+		!defined('PLAYGROUND_IS_CROSS_ORIGIN_EMBED') ||
+		!PLAYGROUND_IS_CROSS_ORIGIN_EMBED ||
+		empty($_SERVER['REQUEST_URI']) ||
+		(function_exists('wp_doing_ajax') && wp_doing_ajax()) ||
+		(function_exists('wp_doing_cron') && wp_doing_cron())
+	) {
 		return;
 	}
 
@@ -352,14 +360,6 @@ function playground_handle_scoped_new_tab_links() {
 			}
 			const scopePrefix = '/scope:' + scopeMatch[1];
 			const parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || location.origin;
-
-			function isCrossOriginEmbedded() {
-				try {
-					return window.top.location.origin !== parentOrigin;
-				} catch {
-					return true;
-				}
-			}
 
 			function isNewTabTarget(target) {
 				if (!target) {
@@ -394,9 +394,6 @@ function playground_handle_scoped_new_tab_links() {
 						parsed.pathname + parsed.search + parsed.hash,
 						parentOrigin
 					).href;
-				}
-				if (!isCrossOriginEmbedded()) {
-					return null;
 				}
 				return new URL(
 					'/wordpress-popup.html#' + parsed.href,
