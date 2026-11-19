@@ -145,8 +145,6 @@ fi
 # Every page must stop itself on the wrong origin, and links must stay in the build.
 "$SITE_PHP" "$DEPLOYMENT/apply-update.php" check-build \
     "$BUILD" "$APP_ORIGIN" "$WORDPRESS_ORIGIN"
-# Restored files for older clients must match their reviewed bytes and free root names.
-"$SITE_PHP" "$DEPLOYMENT/apply-update.php" check-compatibility-assets "$WEB_ROOT"
 
 PROBE=''
 HIDDEN_PROBE=''

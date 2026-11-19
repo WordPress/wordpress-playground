@@ -23,7 +23,6 @@ import {
 	writeFile,
 	utimes,
 } from 'node:fs/promises';
-import { createHash } from 'node:crypto';
 import { createServer } from 'node:net';
 import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -87,13 +86,12 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 			root = webRoot,
 			snapshots = backups,
 			environment = {},
-			installer = deployment,
 		} = {}
 	) =>
 		run(
 			'bash',
 			[
-				join(installer, 'apply-update.sh'),
+				join(deployment, 'apply-update.sh'),
 				...origins,
 				upload,
 				root,
@@ -228,61 +226,6 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 			failure(`${name} links outside the build`)
 		);
 	}
-	// Contract: restored files for old clients install only with their reviewed bytes,
-	// at free root-level script names, so an inventory edit cannot publish other files.
-	const compatibilityAssets = JSON.parse(
-		await readFile(
-			join(deployment, 'compatibility-assets/inventory.json'),
-			'utf8'
-		)
-	).assets;
-	assert.ok(compatibilityAssets.length > 0);
-	const [restored] = compatibilityAssets;
-	const variant = join(temporary, 'compatibility-variant');
-	const withInventory = async (change) => {
-		await rm(variant, { recursive: true, force: true });
-		await cp(deployment, variant, { recursive: true });
-		await change(join(variant, 'compatibility-assets'));
-		return variant;
-	};
-	const setAssets = (assets) => async (directory) =>
-		writeFile(
-			join(directory, 'inventory.json'),
-			JSON.stringify({ assets })
-		);
-	for (const [change, message] of [
-		[
-			async (directory) =>
-				writeFile(join(directory, 'files', restored.path), 'altered'),
-			'does not match its reviewed hash',
-		],
-		[
-			setAssets([{ ...restored, path: '../outside.js' }]),
-			'invalid compatibility asset entry',
-		],
-		[
-			setAssets([{ ...restored, path: 'remote.html' }]),
-			'invalid compatibility asset entry',
-		],
-		[
-			setAssets([{ ...restored, path: 'sw.js' }]),
-			'collides with a root file',
-		],
-		[setAssets([restored, restored]), 'name each path once'],
-	]) {
-		await assert.rejects(
-			install('A', await makeBuild('A'), {
-				installer: await withInventory(change),
-			}),
-			failure(message)
-		);
-	}
-	await writeFile(join(webRoot, restored.path), 'unrelated root file');
-	await assert.rejects(
-		install('A', await makeBuild('A')),
-		failure('already exists in the web root with other contents')
-	);
-	await assert.rejects(stat(join(webRoot, '.playground-releases/A')));
 	await rm(webRoot, { recursive: true });
 	await mkdir(webRoot);
 
@@ -295,6 +238,50 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 		await stat(upload);
 		await assert.rejects(stat(join(webRoot, '.playground-releases/A')));
 	}
+
+	// Releases of the old root-only layout stay private in release.XXXXXXXX/files/.
+	// Only hashed scripts, styles, WebAssembly and extension files may be served from
+	// them. A failed upload kept its public-entry.php and never went live.
+	const oldRelease = join(webRoot, '.playground-releases/release.Old00001');
+	const oldFiles = {
+		'wordpress-bridge-Cmo7aZBy.js': 'old bridge',
+		'assets/chunk-AbCd1234.js': 'old chunk',
+		'assets/php_8_3-WaSm1234.wasm': 'old wasm',
+		'assets/style-CsS_1234.css': 'old style',
+		'assets/shared-ShAr1234.js': 'same bytes',
+		'assets/conflict-CoNf1234.js': 'first bytes',
+		'remote.html': 'old remote',
+		'old-endpoint.php': '<?php echo "old endpoint ran";',
+		'assets/icon-SvGs1234.svg': '<svg/>',
+		'shared-playground-worker.js': 'unhashed',
+	};
+	for (const [name, content] of Object.entries(oldFiles)) {
+		await mkdir(dirname(join(oldRelease, 'files', name)), {
+			recursive: true,
+		});
+		await writeFile(join(oldRelease, 'files', name), content);
+	}
+	await symlink(
+		join(temporary, 'outside.txt'),
+		join(oldRelease, 'files/assets/escape-LiNk1234.js')
+	);
+	const laterOldRelease = join(
+		webRoot,
+		'.playground-releases/release.Old00002/files/assets'
+	);
+	await mkdir(laterOldRelease, { recursive: true });
+	await writeFile(join(laterOldRelease, 'shared-ShAr1234.js'), 'same bytes');
+	await writeFile(join(laterOldRelease, 'conflict-CoNf1234.js'), 'other');
+	const failedOldRelease = join(
+		webRoot,
+		'.playground-releases/release.Failed01'
+	);
+	await mkdir(join(failedOldRelease, 'files'), { recursive: true });
+	await writeFile(join(failedOldRelease, 'public-entry.php'), '<?php');
+	await writeFile(
+		join(failedOldRelease, 'files/never-live-NeVr1234.js'),
+		'never live'
+	);
 
 	const first = await makeBuild('A');
 	await symlink('main.js', join(first, 'assets/alias.js'));
@@ -366,21 +353,55 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 			assert.equal((await request(path, host)).status, 200, path);
 		}
 	}
-	// Restored scripts keep their original root URLs and exact reviewed bytes.
-	const expectRestoredAssets = async () => {
-		for (const { path, sha256 } of compatibilityAssets) {
-			const response = await request('/' + path, app);
+	await assert.rejects(readFile(phpCalls)); // No static request reached PHP.
+
+	// Contract: old clients still load the exact files their build requested, from the
+	// app host, with script MIME and CORS headers; nothing else in those releases is served.
+	const expectPreReleaseAssets = async () => {
+		for (const [path, content, type] of [
+			['/wordpress-bridge-Cmo7aZBy.js', 'old bridge', /javascript/],
+			['/assets/chunk-AbCd1234.js', 'old chunk', /javascript/],
+			['/assets/php_8_3-WaSm1234.wasm', 'old wasm', /wasm/],
+			['/assets/style-CsS_1234.css', 'old style', /css/],
+			['/assets/shared-ShAr1234.js', 'same bytes', /javascript/],
+		]) {
+			const response = await request(path, app);
 			assert.equal(response.status, 200, path);
-			const bytes = Buffer.from(await response.arrayBuffer());
+			assert.match(response.headers.get('content-type'), type, path);
 			assert.equal(
-				createHash('sha256').update(bytes).digest('hex'),
-				sha256,
+				response.headers.get('access-control-allow-origin'),
+				'*',
+				path
+			);
+			assert.equal(await response.text(), content, path);
+		}
+		for (const [path, host] of [
+			['/wordpress-bridge-Cmo7aZBy.js', wordpress],
+			['/old-endpoint.php', app],
+			['/assets/icon-SvGs1234.svg', app],
+			['/shared-playground-worker.js', app],
+			['/assets/escape-LiNk1234.js', app],
+			['/assets/conflict-CoNf1234.js', app],
+			['/never-live-NeVr1234.js', app],
+			['/assets/%2e%2e/old-endpoint.php', app],
+			['/assets/../wordpress-bridge-Cmo7aZBy.js', app],
+		]) {
+			const response = await request(path, host);
+			assert.notEqual(response.status, 200, path);
+			assert.doesNotMatch(
+				await response.text(),
+				/old endpoint ran/,
 				path
 			);
 		}
 	};
-	await expectRestoredAssets();
-	await assert.rejects(readFile(phpCalls)); // No static request reached PHP.
+	await expectPreReleaseAssets();
+	// The index is private, beside the release directories Nginx already denies.
+	assert.equal(
+		(await request('/.playground-releases/pre-release-assets.php', app))
+			.status,
+		403
+	);
 
 	// The app host's missing paths keep the existing handler: no-store entry pages,
 	// native endpoints from the private directory, redirects, and SDK CORS.
@@ -506,7 +527,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		await (await request('/remote.html', app)).text(),
 		/remote B$/
 	);
-	await expectRestoredAssets();
+	await expectPreReleaseAssets();
 	assert.equal(
 		await (await request('/releases/A/assets/main.js', app)).text(),
 		'main A'
@@ -565,7 +586,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		await readFile(join(webRoot, 'obsolete/page.html'), 'utf8'),
 		/obsolete$/
 	);
-	await expectRestoredAssets();
+	await expectPreReleaseAssets();
 	// Activation resets lifecycle metadata even when the subsequent purge fails.
 	assert.equal(
 		JSON.parse(await readFile(retiredMetadata, 'utf8')).inactiveSince,
@@ -799,8 +820,6 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	await assert.rejects(stat(join(backups, 'pending-edge-purge')));
 	await assert.rejects(stat(join(webRoot, 'release.json')));
 	await retryPurge(); // Retrying a completed purge is harmless and never rolls back again.
-	// Old clients still need their scripts after returning to the original layout.
-	await expectRestoredAssets();
 
 	// Untracked release retention: a prior active release without lifecycle metadata
 	// must survive activation and later pruning, even when its files look expired.

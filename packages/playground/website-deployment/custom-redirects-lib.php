@@ -211,6 +211,15 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		}
 	}
 
+	// PRE_RELEASE_ASSET_INDEX_COMPAT: clients from the root-only layout request their
+	// own hashed root scripts and /assets/ files, which no public release contains.
+	if ( false === $resolved_path && null !== $build_directory ) {
+		$pre_release_asset = playground_find_pre_release_asset( $served_path );
+		if ( false !== $pre_release_asset ) {
+			list( $directory, $resolved_path ) = $pre_release_asset;
+		}
+	}
+
 	if ( false === $resolved_path && playground_is_my_wordpress_net_request() ) {
 		$served_path = '/index.html';
 		$resolved_path = playground_resolve_my_wordpress_net_index_fallback();
@@ -321,6 +330,37 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		playground_serve_static_file( $resolved_path );
 		die();
 	}
+}
+
+/**
+ * Find a file kept from a release of the old root-only layout.
+ *
+ * For example, a WordPress worker installed by the November 10 build still generates
+ * bridge HTML loading /wordpress-bridge-Cmo7aZBy.js from the app host. apply-update.php
+ * indexes such paths from the private release directories of that layout: only hashed
+ * scripts, styles, WebAssembly and extension files, never HTML, SVG or PHP. The usual
+ * MIME, CORS and cache headers then apply. Unindexed paths stay 404.
+ *
+ * @param string $path Requested URL path.
+ * @return array|false The release's files directory and the resolved file, or false.
+ */
+function playground_find_pre_release_asset( $path ) {
+	// This file runs from .playground-releases/<id>/, next to the installer's index.
+	$releases = dirname( __DIR__ );
+	$index    = "$releases/pre-release-assets.php";
+	if ( ! is_file( $index ) ) {
+		return false;
+	}
+	$release = ( require $index )['paths'][ $path ] ?? null;
+	if ( null === $release ) {
+		return false;
+	}
+	$directory = realpath( "$releases/$release/files" );
+	$resolved  = false === $directory ? false : realpath( $directory . $path );
+	if ( false === $resolved || ! str_starts_with( $resolved, "$directory/" ) || ! is_file( $resolved ) ) {
+		return false;
+	}
+	return array( $directory, $resolved );
 }
 
 /**

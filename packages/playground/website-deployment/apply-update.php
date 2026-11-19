@@ -15,7 +15,6 @@ $commands = array(
 	'with-lock'          => 'with_deployment_lock',
 	'check-origins'       => 'check_origins',
 	'check-build'         => 'check_build',
-	'check-compatibility-assets' => 'check_compatibility_assets',
 	'write-private-files' => 'write_private_files',
 	'activate'            => 'activate',
 	'rollback'            => 'rollback',
@@ -124,74 +123,6 @@ function check_build( $build, $app_origin, $wordpress_origin ) {
 }
 
 /**
- * Refuse an invalid compatibility inventory before the upload touches the web root.
- *
- * activate() repeats these checks with the release's root files before installing.
- */
-function check_compatibility_assets( $root ) {
-	$manifest = is_file( "$root/release.json" ) ? read_json( "$root/release.json" ) : array();
-	compatibility_assets( $root, owned_root_files( $manifest ) );
-}
-
-/**
- * Check, and optionally install, the reviewed files listed in compatibility-assets/.
- *
- * PRE_RELEASE_BRIDGE_SCRIPT_COMPAT: a WordPress worker from the root-only layout
- * generates bridge HTML naming its own app-origin /wordpress-bridge-<hash>.js. Each
- * later deployment removed that script, so an old app paired with that worker could
- * not start its bridge. Each entry restores one exact file at its original root URL;
- * Nginx serves it with the same MIME type and CORS headers as other static scripts.
- *
- * These files are not owned by any release. Activation, rollback and pruning never
- * remove them, so they survive later deployments and rollbacks. Only root-level .js
- * names are accepted. A name used by another root file, a source differing from its
- * reviewed hash, or an existing target with other bytes, a link or a directory refuses
- * the deployment before root files change. Remove a file only by deleting its entry
- * and then the file on the server.
- *
- * @param string   $root     Web root.
- * @param string[] $reserved Root paths that releases or the installer own.
- * @param bool     $install  Install missing files after checking every entry.
- */
-function compatibility_assets( $root, $reserved, $install = false ) {
-	$directory = __DIR__ . '/compatibility-assets';
-	$assets    = read_json( "$directory/inventory.json" )['assets'];
-	$paths     = array_column( $assets, 'path' );
-	if ( count( $paths ) !== count( $assets ) || count( array_unique( $paths ) ) !== count( $paths ) ) {
-		refuse( 'compatibility assets must name each path once.' );
-	}
-	foreach ( $assets as $asset ) {
-		$path = $asset['path'];
-		$hash = $asset['sha256'] ?? '';
-		if ( ! is_string( $path ) || ! preg_match( '/\A[A-Za-z0-9][A-Za-z0-9_-]*\.js\z/', $path ) ||
-			! is_string( $hash ) || ! preg_match( '/\A[0-9a-f]{64}\z/', $hash )
-		) {
-			refuse( 'invalid compatibility asset entry: ' . json_encode( $asset ) );
-		}
-		if ( in_array( $path, $reserved, true ) ) {
-			refuse( "compatibility asset $path collides with a root file." );
-		}
-		$source = "$directory/files/$path";
-		if ( is_link( $source ) || ! is_file( $source ) || hash_file( 'sha256', $source ) !== $hash ) {
-			refuse( "compatibility asset $path does not match its reviewed hash." );
-		}
-		$target = "$root/$path";
-		if ( is_link( $target ) || ( file_exists( $target ) &&
-			( ! is_file( $target ) || hash_file( 'sha256', $target ) !== $hash ) )
-		) {
-			refuse( "$path already exists in the web root with other contents." );
-		}
-	}
-	if ( $install ) {
-		foreach ( $paths as $path ) {
-			if ( ! file_exists( "$root/$path" ) ) {
-				install_file( "$root/$path", "$directory/files/$path" );
-			}
-		}
-	}
-}
-
-/**
  * Write the release's private PHP: MIME map, native endpoints, and request entry.
  *
  * PHP endpoints leave the public release because Nginx would run them on both
@@ -246,6 +177,7 @@ function activate( $root, $backups, $release, $retention, $app_origin, $wordpres
 	retention_seconds( $retention );
 	require_release_id( $release );
 	require_once __DIR__ . '/custom-redirects-lib.php';
+	index_pre_release_assets( $root );
 	// PRE_RELEASE_ROOT_COMPAT: a first install or old root-only production layout has no manifest.
 	// Snapshot its entry files too, so the first deployment can be rolled back.
 	$manifest = is_file( "$root/release.json" ) ? read_json( "$root/release.json" ) : array();
@@ -266,9 +198,6 @@ function activate( $root, $backups, $release, $retention, $app_origin, $wordpres
 	}
 	write_file( "$private/root-sw.js", 'import ' . json_encode( "/releases/$release/sw.js", JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR ) . ";\n" );
 	$sources['sw.js'] = "$private/root-sw.js";
-	// Check before any root change; install below, before the root files change.
-	$reserved = array_merge( $owned, array_keys( $sources ), array( 'release.json' ) );
-	compatibility_assets( $root, $reserved );
 	$next = array(
 		'release'         => $release,
 		'previousRelease' => $manifest['release'] ?? null,
@@ -298,8 +227,6 @@ function activate( $root, $backups, $release, $retention, $app_origin, $wordpres
 		}
 	}
 	write_file( "$backup/inventory.json", json_encode( $inventory, JSON_THROW_ON_ERROR ) );
-	// Additive and outside the snapshot: a failed activation keeps them, as later ones would.
-	compatibility_assets( $root, $reserved, true );
 	record_activation( $root, $manifest['release'] ?? null, $release );
 	try {
 		foreach ( array_diff( $owned, array_keys( $sources ) ) as $path ) {
@@ -313,6 +240,80 @@ function activate( $root, $backups, $release, $retention, $app_origin, $wordpres
 		throw new RuntimeException( 'Activation failed; previous root files restored.', 0, $error );
 	}
 	echo "Activated release $release; root snapshot: $backup\n";
+}
+
+/**
+ * Index the files that clients from the old root-only layout may still request.
+ *
+ * PRE_RELEASE_ASSET_INDEX_COMPAT: the previous installer kept each build privately in
+ * .playground-releases/release.XXXXXXXX/files/. Activation moved that build's
+ * public-entry.php to the web root, so a release still holding it never went live.
+ * Old tabs and WordPress workers keep requesting those builds' root URLs, such as
+ * /wordpress-bridge-<hash>.js or /assets/<name>-<hash>.wasm, which no public release has.
+ *
+ * Index only Vite-hashed root scripts and hashed /assets/ scripts, styles, WebAssembly
+ * and extension files: never HTML, SVG, XML or PHP, which could run with the app
+ * origin's authority or bypass page origin checks. Links are skipped. A path whose bytes
+ * differ between builds is left out. custom-redirects-lib.php serves only indexed paths.
+ * Those directories no longer change, so the index is rebuilt only when their set changes.
+ */
+function index_pre_release_assets( $root ) {
+	$releases = "$root/.playground-releases";
+	$index    = "$releases/pre-release-assets.php";
+	$sources  = array();
+	foreach ( glob( "$releases/release.*", GLOB_ONLYDIR ) ?: array() as $release ) {
+		if ( preg_match( '/\Arelease\.[A-Za-z0-9]{8}\z/', basename( $release ) ) &&
+			! is_link( $release ) && is_dir( "$release/files" ) &&
+			! file_exists( "$release/public-entry.php" ) && ! file_exists( "$release/release.json" )
+		) {
+			$sources[] = basename( $release );
+		}
+	}
+	sort( $sources );
+	if ( is_file( $index ) && ( require $index )['releases'] === $sources ) {
+		return;
+	}
+	$pattern   = '~\A(?:/[A-Za-z0-9_.-]+-[A-Za-z0-9_-]{8}\.js|' .
+		'/assets/(?:[A-Za-z0-9_.-]+/)*[A-Za-z0-9_.-]+-[A-Za-z0-9_-]{8}\.(?:js|css|wasm|so|dat))\z~';
+	$paths     = array();
+	$hashes    = array();
+	$conflicts = array();
+	foreach ( $sources as $name ) {
+		$files      = "$releases/$name/files";
+		$candidates = glob( "$files/*.js" ) ?: array();
+		if ( is_dir( "$files/assets" ) && ! is_link( "$files/assets" ) ) {
+			foreach ( new RecursiveIteratorIterator( new RecursiveDirectoryIterator( "$files/assets", FilesystemIterator::SKIP_DOTS ) ) as $file ) {
+				$candidates[] = $file->getPathname();
+			}
+		}
+		foreach ( $candidates as $file ) {
+			$path = substr( $file, strlen( $files ) );
+			if ( is_link( $file ) || ! is_file( $file ) || ! preg_match( $pattern, $path ) ) {
+				continue;
+			}
+			if ( ! isset( $paths[ $path ] ) ) {
+				$paths[ $path ] = $name;
+				continue;
+			}
+			// Hashed names should never repeat with other bytes; serve neither if they do.
+			$first = "$releases/{$paths[ $path ]}/files$path";
+			$hashes[ $path ] ??= hash_file( 'sha256', $first );
+			if ( filesize( $first ) !== filesize( $file ) || hash_file( 'sha256', $file ) !== $hashes[ $path ] ) {
+				$conflicts[ $path ] = true;
+			}
+		}
+	}
+	$paths = array_diff_key( $paths, $conflicts );
+	write_file(
+		$index,
+		"<?php\nreturn " . var_export( array( 'releases' => $sources, 'paths' => $paths ), true ) . ";\n"
+	);
+	printf(
+		"Indexed %d files from %d releases of the root-only layout; left out %d conflicting paths.\n",
+		count( $paths ),
+		count( $sources ),
+		count( $conflicts )
+	);
 }
 
 /**

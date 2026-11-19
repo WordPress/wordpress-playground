@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { createHash } from 'node:crypto';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import {
@@ -223,94 +222,5 @@ test(
 		expect(response.status).toBe(200);
 		expect(response.body).toContain('@font-face');
 		expect(bridgeRequests).toBeGreaterThan(0);
-	}
-);
-
-// A WordPress worker installed before release directories answers its own bridge URL
-// with HTML naming its build's root script on the app host, such as
-// /wordpress-bridge-Cmo7aZBy.js. Deployments removed those scripts, so an old app paired
-// with that worker could not start. The installer restores their exact bytes. Load one
-// as that worker's HTML did: cross-origin from the sandbox, from the installed web root.
-test(
-	'a bridge script restored for a pre-release WordPress worker still connects',
-	{ tag: '@storage' },
-	async ({ page }) => {
-		const { assets } = JSON.parse(
-			await readFile(
-				resolve(
-					__dirname,
-					'../../../website-deployment/compatibility-assets/inventory.json'
-				),
-				'utf8'
-			)
-		);
-		for (const { path, sha256 } of assets) {
-			const response = await page.request.get(`${appOrigin}/${path}`);
-			expect(response.status(), path).toBe(200);
-			expect(response.headers()['content-type'], path).toMatch(
-				/javascript/
-			);
-			expect(
-				response.headers()['access-control-allow-origin'],
-				path
-			).toBe('*');
-			expect(
-				createHash('sha256')
-					.update(await response.body())
-					.digest('hex'),
-				path
-			).toBe(sha256);
-		}
-		const script = `${appOrigin}/wordpress-bridge-Cmo7aZBy.js`;
-		// Fetch the HTML that worker generated over HTTP from the sandbox host. A mocked
-		// document response would fail Chromium's local-network check for the script.
-		const fixture = '__restored-bridge.html';
-		await writeFile(
-			resolve(webRoot, fixture),
-			`<!doctype html><title>WordPress request transport</title><script type="module" src=${JSON.stringify(script)}></script>`
-		);
-		try {
-			await page.route('**/wordpress-bridge*.html?scope=*', (route) =>
-				route.continue({
-					url:
-						`${wordPressOrigin}/${fixture}` +
-						new URL(route.request().url()).search,
-				})
-			);
-			const scriptResponse = page.waitForResponse(script);
-			await page.goto(appOrigin + '/?wp=6.9&php=8.3&storage=temp');
-			await page.waitForFunction(() =>
-				Boolean((window as any).playgroundSites)
-			);
-			await page.evaluate(() =>
-				(window as any).playgroundSites.isReady()
-			);
-			expect((await scriptResponse).status()).toBe(200);
-			await page.evaluate(() =>
-				(window as any).playgroundSites
-					.getClient()
-					.writeFile(
-						'/wordpress/restored-bridge.txt',
-						'restored bridge'
-					)
-			);
-			const element = await page
-				.frameLocator(
-					'#playground-viewport:visible,.playground-viewport:visible'
-				)
-				.locator('#wp')
-				.elementHandle();
-			const frame = (await element!.contentFrame())!;
-			await element!.dispose();
-			await expect
-				.poll(() =>
-					frame.evaluate(async () =>
-						(await fetch('restored-bridge.txt')).text()
-					)
-				)
-				.toBe('restored bridge');
-		} finally {
-			await rm(resolve(webRoot, fixture), { force: true });
-		}
 	}
 );

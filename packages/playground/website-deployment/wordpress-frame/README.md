@@ -1,6 +1,6 @@
 # Two-host deployment on WP Cloud
 
-Updated as of **2026-11-18**, for PR #4613 and the restored bridge scripts. Recheck this guide when changing the
+Updated as of **2026-11-18**, for PR #4613 and the root-only layout's asset index. Recheck this guide when changing the
 installer, browser worker protocol, or WP Cloud routing; the implementation is
 the source of truth for exact behavior.
 
@@ -111,8 +111,7 @@ PLAYGROUND_RELEASE_ID=<id> ~/website-deployment/apply-update.sh \
 1. Rejects non-canonical origins, matching hostnames, a missing entry document,
    a build made for another release path, and any app page without its origin
    check (the sandbox origin for `wordpress-bridge.html`, the app origin otherwise).
-   Rejects restored bridge scripts whose bytes or root names do not match their
-   inventory. Checks both public hosts and Nginx's hidden-path deny rule.
+   Checks both public hosts and Nginx's hidden-path deny rule.
 2. Records the release in its private lifecycle metadata, so retention also removes
    an upload that fails before activation. Moves the build into
    `/srv/htdocs/.playground-releases/.staging-<id>/`, which the probes verified, then:
@@ -122,8 +121,6 @@ PLAYGROUND_RELEASE_ID=<id> ~/website-deployment/apply-update.sh \
 3. Renames the staging directory to `/srv/htdocs/releases/<id>/`.
 4. Records the complete root inventory and backs up every affected existing file under
    `~/website-backups/<id>/`, including files being removed. Records newly added files as absent.
-   Installs any missing [restored bridge scripts](#restored-bridge-scripts-for-older-clients),
-   which are outside this inventory.
 5. Replaces the root `custom-redirects.php`, copies the release's entry pages to
    the web root, writes a root `/sw.js` that imports `/releases/<id>/sw.js`, and
    writes `release.json` naming the release, previous release, installation time and owned root files.
@@ -143,7 +140,8 @@ cannot cause the next activation to inherit an expired inactivity timestamp. Cle
 public assets, private PHP, any leftover staging directory and corresponding backups after successful activation and its edge purge. Deletion failures stop cleanup; lifecycle metadata is kept or restored so the next deployment can retry. Cleanup failures are reported after
 the purge so they cannot leave stale entry responses cached.
 Older tabs may need to reload after expiry. Directories created before the installer
-recorded lifecycle metadata need an operator audit; the installer does not guess their ages.
+recorded lifecycle metadata are never pruned: the root-only layout's releases still serve
+older clients (see below).
 
 The app worker caches its own release's assets and leaves other releases' downloads to
 HTTP. This prevents WebKit from aborting a new release's download when the old worker is
@@ -180,32 +178,36 @@ The previous layout served every file through PHP from a hidden release. The
 first deployment of this layout adds the public release, root copies, and root
 `/sw.js` next to it and replaces `custom-redirects.php`; the old hidden releases
 stay in place. Browsers update their existing `/sw.js` registrations on both hosts
-to the new loader, which chooses its role by origin. Tabs opened before the switch
-can no longer load their old root `/assets/` chunks, as with any earlier deployment.
+to the new loader, which chooses its role by origin.
 
-### Restored bridge scripts for older clients
+### Files for clients from the root-only layout
 
-Until its update succeeds, a WordPress worker from that layout answers its own bridge
-URL itself. Its generated HTML loads that build's self-contained app-origin script,
-such as `/wordpress-bridge-Cmo7aZBy.js`. Every later deployment removed those scripts.
-An old `remote.html` can still start after a deployment, for example when its app
-worker falls back to cached entry pages during a network failure. If the WordPress
-worker update also fails, the bridge script request fails. Browsers report that 404 as a
-missing `Access-Control-Allow-Origin` header, then "WordPress request transport did not start".
+Builds from that layout still run in some browsers after later deployments. An open tab
+or an app worker's cached entry page can start an old `remote.html`. Until its update
+succeeds, the old WordPress worker answers its own bridge URL with HTML loading that build's
+self-contained `/wordpress-bridge-<hash>.js` from the app host. Old apps also lazily load
+their own root `/assets/` files. No public release contains these URLs, so after a
+deployment the bridge failed with a 404 that browsers report as a missing
+`Access-Control-Allow-Origin` header, then "WordPress request transport did not start".
 
-`../compatibility-assets/inventory.json` lists the exact scripts every production
-build of that layout served, with the commit, deployment run and artifact digest each
-was recovered from. The installer checks each SHA-256 and installs the files at their
-original root URLs, where Nginx serves them like other static scripts: JavaScript MIME
-type and `Access-Control-Allow-Origin: *`. The scripts import nothing else. Only
-root-level `.js` names are accepted; the installer refuses names that releases use and
-existing files with different bytes. No release owns these files, so later deployments,
-rollbacks and pruning leave them in place. They are not redirects: an unknown hashed
-script still returns 404.
+The previous installer kept every build privately in
+`/srv/htdocs/.playground-releases/release.XXXXXXXX/files/`, and those directories remain.
+Each activation of the current installer indexes them in the private
+`.playground-releases/pre-release-assets.php`. Only builds that went live are indexed: the
+previous installer moved a live build's `public-entry.php` to the web root, so a failed
+upload still has it. Only Vite-hashed root scripts and hashed `/assets/` scripts, styles,
+WebAssembly and extension files are listed. HTML, SVG, XML and PHP stay private, as do
+links and any hashed path whose bytes differ between builds.
 
-To add a file, recover its original bytes from a trusted build artifact or the server's
-private release copy and record their provenance. Never generate them from a new build.
-To retire one, remove its entry, deploy, then delete the file from the web root.
+For missing app-host paths, `custom-redirects-lib.php` serves indexed files with the usual
+MIME type, `Access-Control-Allow-Origin: *` and edge caching. Other paths still return 404;
+nothing redirects to current files. The sandbox host serves none of them, because old
+workers name the app host. The index is rebuilt only when the set of old releases
+changes, since their files no longer change.
+
+Do not delete these release directories while clients from that layout are supported.
+Releases installed before this index lack the fallback, so rolling back to one of them
+also removes it until the next deployment.
 
 ## Verify and roll back
 
@@ -264,8 +266,8 @@ WordPress bridges remain reachable.
 
 When a release is vulnerable, first activate or restore a known-safe release, then
 remove the vulnerable ID from both `releases/` and `.playground-releases/` and its
-backup, and purge the edge cache. A vulnerable restored bridge script is removed the
-same way: delete its inventory entry, deploy, then delete the root file and purge. Do not wait for retention. This removes server
+backup, and purge the edge cache. For a vulnerable build of the root-only layout,
+delete its `release.XXXXXXXX` directory, deploy so the index is rebuilt, then purge. Do not wait for retention. This removes server
 copies; it cannot recall already loaded documents or browser caches. A fix may also
 need a worker-driven forced reload for open tabs. Retention is not revocation.
 
