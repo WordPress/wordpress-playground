@@ -372,7 +372,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	// Exercise the PHP boundary directly; the static/Nginx boundary has its own checks.
 	for (const [path, status] of [
 		['/outside.txt', 403],
-		['/missing.js', 404],
+		['/error.php?status=404', 404],
 		['/error.php?status=400', 400],
 		['/error.php?status=500', 500],
 	]) {
@@ -384,6 +384,26 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 
 	for (const path of ['/../outside.txt', '/%2e%2e/outside.txt'])
 		assert.equal((await request(path, app)).status, 403, path);
+
+	for (const host of [app, wordpress]) {
+		for (const method of ['GET', 'HEAD', 'POST']) {
+			const response = await request('/missing.js', host, {}, method);
+			assert.equal(response.status, 404);
+			if (method === 'POST') {
+				assert.equal(
+					response.headers.get('a8c-edge-cache'),
+					'no-cache'
+				);
+				assert.equal(response.headers.get('cache-control'), 'no-store');
+			} else {
+				assert.equal(response.headers.get('a8c-edge-cache'), 'cache');
+				assert.equal(
+					response.headers.get('cache-control'),
+					'public, max-age=0, s-maxage=60'
+				);
+			}
+		}
+	}
 
 	// The WordPress host runs no app handler or endpoint. Old clients' versioned
 	// bridge URLs receive the active release's bridge.
@@ -406,11 +426,12 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		/wrapper A$/
 	);
 	for (const host of [app, wordpress]) {
-		assert.equal(
-			(await request(scoped, host, { 'Sec-Fetch-Dest': 'iframe' }))
-				.status,
-			404
-		);
+		const iframe = await request(scoped, host, {
+			'Sec-Fetch-Dest': 'iframe',
+		});
+		assert.equal(iframe.status, 404);
+		assert.equal(iframe.headers.get('a8c-edge-cache'), 'no-cache');
+		assert.equal(iframe.headers.get('cache-control'), 'no-store');
 		assert.equal(
 			(await request(scoped, host, navigation, 'POST')).status,
 			404

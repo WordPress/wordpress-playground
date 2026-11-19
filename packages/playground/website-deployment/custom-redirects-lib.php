@@ -45,11 +45,19 @@ function playground_is_static_file_needing_special_treatment( $path ) {
  * @param string|null $php_directory Private directory holding the release's PHP endpoints.
  */
 function playground_handle_request( $build_directory = null, $wordpress_origin = null, $app_origin = null, $php_directory = null ) {
+	$cacheable_not_found = false;
 	// Endpoints and range handling can fail after setting cacheable headers.
 	// Check the final status before output. PHP has only one header callback;
 	// native endpoints must not replace this callback.
-	header_register_callback( function () {
-		if ( http_response_code() >= 400 ) {
+	header_register_callback( function () use ( &$cacheable_not_found ) {
+		$status = http_response_code();
+		if (
+			404 === $status && $cacheable_not_found &&
+			in_array( $_SERVER['REQUEST_METHOD'], array( 'GET', 'HEAD' ), true )
+		) {
+			header( 'A8C-Edge-Cache: cache' );
+			header( 'Cache-Control: public, max-age=0, s-maxage=60' );
+		} elseif ( $status >= 400 ) {
 			header( 'A8C-Edge-Cache: no-cache' );
 			header( 'Cache-Control: no-store' );
 		}
@@ -112,8 +120,11 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		}
 		http_response_code( 404 );
 		if ( str_starts_with( $original_requested_path, '/scope:' ) ) {
+			// A top-level navigation to the same URL redirects to the app.
 			header( 'Content-Type: text/plain; charset=utf-8' );
 			echo 'This browser could not connect to the Playground site. Open it in Playground and try again.';
+		} else {
+			$cacheable_not_found = true;
 		}
 		exit;
 	}
@@ -220,6 +231,7 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 
 	if ( false === $resolved_path ) {
 		$log( "File not found: '$resolved_path'" );
+		$cacheable_not_found = $may_edge_cache;
 		http_response_code( 404 );
 		die();
 	}
