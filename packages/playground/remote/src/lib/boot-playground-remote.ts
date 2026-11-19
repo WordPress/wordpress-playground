@@ -98,11 +98,10 @@ export async function bootPlaygroundRemote() {
 	assertNotInfiniteLoadingLoop();
 	const sharedMode = query.get('shared-worker') === '1';
 	const reportStartupProgress = (caption: string) => {
-		if (sharedMode)
-			window.parent.postMessage(
-				{ type: 'playground-runtime-startup-progress', caption },
-				location.origin
-			);
+		window.parent.postMessage(
+			{ type: 'playground-runtime-startup-progress', caption },
+			'*'
+		);
 	};
 
 	const hasProgressBar = query.has('progressbar');
@@ -128,7 +127,7 @@ export async function bootPlaygroundRemote() {
 		}
 	}
 
-	reportStartupProgress('Starting WordPress runtime');
+	reportStartupProgress('Registering service worker');
 	const registrationUrl = new URL(serviceWorkerUrl);
 	if (sharedMode) registrationUrl.searchParams.set('shared-worker', '1');
 	const registration = await sw.register(registrationUrl + '', {
@@ -172,6 +171,7 @@ export async function bootPlaygroundRemote() {
 	}
 
 	const workerUrl = new URL(getWorkerUrl(), origin) + '';
+	reportStartupProgress('Starting PHP worker');
 
 	const sharedRuntime = sharedMode
 		? await connectSharedRuntime(

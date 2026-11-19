@@ -9,16 +9,25 @@ import {
 	wordPressOrigin as previewWordPressOrigin,
 } from '../../bin/wordpress-frame/origins.mjs';
 
-type Failure = 'none' | 'service-worker' | 'php-worker' | 'bootstrap-module';
+type Failure =
+	| 'none'
+	| 'service-worker'
+	| 'php-worker'
+	| 'bootstrap-module'
+	| 'entry-document';
 
 interface FailureServer {
 	appOrigin: string;
 	embedderOrigin: string;
 	releaseBase: string;
 	failure: Failure;
+	connectionTimeoutMs: number;
 	sharedVersionMismatch: boolean;
+	lazy: boolean;
 	spoofSibling: boolean;
 	foreignRedirect: boolean;
+	slowDedicatedStartup: boolean;
+	createLazyFrame: boolean;
 	blockedRequests: string[];
 }
 
@@ -49,11 +58,16 @@ const test = base.extend<{ failureServer: FailureServer }>({
 			embedderOrigin: '',
 			releaseBase,
 			failure: 'none',
+			connectionTimeoutMs: 20000,
 			sharedVersionMismatch: false,
+			lazy: false,
 			spoofSibling: false,
 			foreignRedirect: false,
+			slowDedicatedStartup: false,
+			createLazyFrame: false,
 			blockedRequests: [],
 		};
+		let workerScriptRequests = 0;
 		const app = express();
 		app.use(async (request, response, next) => {
 			response.set('Cache-Control', 'no-store');
@@ -73,6 +87,15 @@ location.replace(${JSON.stringify(fixture.appOrigin + '/remote.html?afterForeign
 </script>`);
 				return;
 			}
+			if (
+				fixture.slowDedicatedStartup &&
+				((request.path === '/sw.js' && workerScriptRequests++ === 0) ||
+					request.path.includes(
+						'/playground-worker-endpoint-blueprints-'
+					))
+			) {
+				await new Promise((resolve) => setTimeout(resolve, 6000));
+			}
 			const blocked =
 				(fixture.failure === 'service-worker' &&
 					request.path === '/sw.js') ||
@@ -82,7 +105,9 @@ location.replace(${JSON.stringify(fixture.appOrigin + '/remote.html?afterForeign
 						'/playground-worker-endpoint-blueprints-'
 					)) ||
 				(fixture.failure === 'bootstrap-module' &&
-					request.path === bootstrapPath);
+					request.path === bootstrapPath) ||
+				(fixture.failure === 'entry-document' &&
+					request.path === '/remote.html');
 			if (blocked) {
 				fixture.blockedRequests.push(request.path);
 				response
@@ -97,12 +122,19 @@ location.replace(${JSON.stringify(fixture.appOrigin + '/remote.html?afterForeign
 				// Load the released SDK and real remote page from a different origin.
 				// HTTP responses and permission APIs are fault-injected; the SDK and RPC are real.
 				response.type('html').send(`<!doctype html>
-<iframe id="playground" style="width:100%;height:800px"></iframe>
+${fixture.createLazyFrame ? '' : `<iframe id="playground" loading="${fixture.lazy ? 'lazy' : 'eager'}" style="width:100%;height:800px;${fixture.lazy ? 'margin-top:20000px' : ''}"></iframe>`}
 ${fixture.spoofSibling ? `<iframe src="${fixture.appOrigin}/seed.html?spoof=1"></iframe>` : ''}
 <script type="module">
 import { startPlaygroundWeb } from ${JSON.stringify(
 					fixture.appOrigin + releaseBase + 'client/index.js'
 				)};
+if (${fixture.createLazyFrame}) {
+    const frame = document.createElement('iframe');
+    frame.id = 'playground';
+    frame.loading = 'lazy';
+    frame.style.cssText = 'width:100%;height:800px;margin-top:20000px';
+    document.body.append(frame);
+}
 window.IS_WASM_WORDPRESS = false;
 window.spoofMessages = 0;
 window.addEventListener('message', event => {
@@ -121,6 +153,7 @@ window.startupResult = { state: 'pending' };
 return startPlaygroundWeb({
     iframe: document.querySelector('iframe'),
     remoteUrl: ${JSON.stringify(fixture.appOrigin + '/remote.html')},
+    connectionTimeoutMs: ${fixture.failure === 'entry-document' ? 3000 : fixture.connectionTimeoutMs},
     ${fixture.sharedVersionMismatch ? "workerMode: 'shared', scope: 'review-mismatch', sharedWorkerVersion: 'current', sharedWorkerClientVersion: 'stale'," : ''}
     blueprint: { preferredVersions: { php: '8.3', wp: false } },
 }).then(
@@ -197,6 +230,7 @@ for (const failure of [
 	'service-worker',
 	'php-worker',
 	'bootstrap-module',
+	'entry-document',
 ] as const) {
 	test(`an embedded release rejects startup when ${failure} is challenged`, async ({
 		page,
@@ -213,7 +247,12 @@ for (const failure of [
 		expect(failureServer.blockedRequests.length).toBeGreaterThan(0);
 		const result = await page.evaluate(() => (window as any).startupResult);
 		expect(result.message).toBeTruthy();
-		expect(result.name).not.toBe('TimeoutError');
+		if (failure === 'entry-document') {
+			expect(result.name).toBe('TimeoutError');
+		} else {
+			// A running remote reports its cause before the connection timeout.
+			expect(result.name).not.toBe('TimeoutError');
+		}
 	});
 }
 
@@ -224,6 +263,7 @@ for (const action of ['storage-access', 'retry'] as const) {
 		page,
 		failureServer,
 	}) => {
+		failureServer.connectionTimeoutMs = 2000;
 		await page.addInitScript(
 			({ appOrigin, action }) => {
 				if (
@@ -268,6 +308,8 @@ for (const action of ['storage-access', 'retry'] as const) {
 			exact: true,
 		});
 		await expect(button).toBeVisible();
+		// Wait longer than the configured stall budget while the user decides.
+		await page.waitForTimeout(2500);
 		expect(
 			await page.evaluate(() => (window as any).startupResult.state)
 		).toBe('pending');
@@ -294,10 +336,12 @@ test('a shared version mismatch requests reload without reporting a boot failure
 	failureServer,
 }) => {
 	failureServer.sharedVersionMismatch = true;
+	failureServer.connectionTimeoutMs = 2000;
 	await page.goto(failureServer.appOrigin + '/embed.html');
 	await expect
 		.poll(() => page.evaluate(() => (window as any).reloadRequired))
 		.toBe(true);
+	await page.waitForTimeout(2500);
 	expect(await page.evaluate(() => (window as any).startupResult.state)).toBe(
 		'pending'
 	);
@@ -324,6 +368,47 @@ test('the embedding application can retry a terminal failure with the same ifram
 			timeout: 30000,
 		})
 		.toBe('resolved');
+});
+
+for (const creation of ['HTML', 'JavaScript'] as const) {
+	test(`a lazy offscreen iframe created through ${creation} can start after the connection budget has elapsed`, async ({
+		page,
+		failureServer,
+	}) => {
+		failureServer.lazy = true;
+		failureServer.createLazyFrame = creation === 'JavaScript';
+		failureServer.connectionTimeoutMs = 2000;
+		await page.goto(failureServer.embedderOrigin + '/embed.html');
+		await page.waitForTimeout(2500);
+		expect(
+			await page.evaluate(() => (window as any).startupResult.state)
+		).toBe('pending');
+		await page.locator('#playground').scrollIntoViewIfNeeded();
+		await expect
+			.poll(
+				() => page.evaluate(() => (window as any).startupResult.state),
+				{
+					timeout: 30000,
+				}
+			)
+			.toBe('resolved');
+	});
+}
+
+test('dedicated startup progress renews the budget between slow worker scripts', async ({
+	page,
+	failureServer,
+}) => {
+	failureServer.slowDedicatedStartup = true;
+	// Each phase fits the stall budget, while their combined downloads exceed it.
+	// Leave room for worker compilation on slower CI machines.
+	failureServer.connectionTimeoutMs = 10000;
+	await page.goto(failureServer.embedderOrigin + '/embed.html');
+	await expect
+		.poll(() => page.evaluate(() => (window as any).startupResult), {
+			timeout: 30000,
+		})
+		.toMatchObject({ state: 'resolved' });
 });
 
 for (const sender of ['sibling', 'foreign-origin'] as const) {

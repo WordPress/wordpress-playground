@@ -149,13 +149,16 @@ describe('startPlaygroundAPI', () => {
 	});
 });
 
-// Terminal failures reject startup; recoverable prompts keep the same call usable.
+// Contract: connection deadlines apply to stalls, while explicit user recovery
+// and trusted startup progress keep the original call alive. Message filtering
+// and the iframe's separate load lifecycle can regress independently.
 describe('iframe startup lifecycle', () => {
 	beforeEach(() => vi.useFakeTimers());
 	afterEach(() => {
 		vi.useRealTimers();
 		vi.clearAllMocks();
 	});
+
 	it('resumes the original startup after storage access and an iframe reload', async () => {
 		const fixture = await pendingStartup();
 		fixture.send({
@@ -166,23 +169,25 @@ describe('iframe startup lifecycle', () => {
 				message: 'Storage permission required',
 			},
 		});
-		await vi.advanceTimersByTimeAsync(0);
+		await vi.advanceTimersByTimeAsync(120000);
 		expect(fixture.state()).toBe('pending');
 		fixture.iframe.dispatchEvent(new Event('load'));
-		await vi.advanceTimersByTimeAsync(0);
+		await vi.advanceTimersByTimeAsync(2000);
 		expect(fixture.state()).toBe('pending');
 		fixture.send({ type: 'playground-runtime-startup-started' });
 		fixture.connect();
 		await expect(fixture.result).resolves.toBeDefined();
 	});
+
 	it('leaves a reload-required flow waiting for the application reload', async () => {
 		const fixture = await pendingStartup();
 		fixture.send({ type: 'playground-reload-required', ready: true });
-		await vi.advanceTimersByTimeAsync(0);
+		await vi.advanceTimersByTimeAsync(120000);
 		expect(fixture.state()).toBe('pending');
 		fixture.connect();
 		await fixture.result;
 	});
+
 	it('keeps a failed retirement in the existing reload flow', async () => {
 		const fixture = await pendingStartup();
 		fixture.send({ type: 'playground-reload-required', ready: false });
@@ -193,11 +198,46 @@ describe('iframe startup lifecycle', () => {
 				message: 'Failed to save previous runtime',
 			},
 		});
-		await vi.advanceTimersByTimeAsync(0);
+		await vi.advanceTimersByTimeAsync(120000);
 		expect(fixture.state()).toBe('pending');
 		fixture.connect();
 		await fixture.result;
 	});
+
+	it('allows shared startup phases to take longer than one stall budget together', async () => {
+		const fixture = await pendingStartup();
+		for (const caption of [
+			'Checking previous runtime',
+			'Saving WordPress',
+			'Connecting runtime',
+		]) {
+			await vi.advanceTimersByTimeAsync(900);
+			fixture.send({
+				type: 'playground-runtime-startup-progress',
+				caption,
+			});
+		}
+		expect(fixture.state()).toBe('pending');
+		fixture.connect();
+		await fixture.result;
+	});
+
+	it('times out when startup progress stops', async () => {
+		const fixture = await pendingStartup();
+		fixture.send({
+			type: 'playground-runtime-startup-progress',
+			caption: 'Connecting runtime',
+		});
+		await vi.advanceTimersByTimeAsync(1000);
+		await expect(fixture.result).rejects.toMatchObject({
+			name: 'TimeoutError',
+		});
+		expect(fixture.iframe.contentWindow!.postMessage).toHaveBeenCalledWith(
+			{ type: 'playground-runtime-startup-error-handled' },
+			'http://localhost'
+		);
+	});
+
 	it.each(['source', 'origin'] as const)(
 		'ignores startup errors from the wrong %s',
 		async (field) => {
@@ -215,7 +255,58 @@ describe('iframe startup lifecycle', () => {
 			await fixture.result;
 		}
 	);
-	it('does not abort an established connection on later errors', async () => {
+
+	it.each(
+		(['source', 'origin'] as const).flatMap((wrong) =>
+			[
+				{
+					type: 'playground-runtime-startup-progress',
+					caption: 'Spoofed progress',
+				},
+				{ type: 'playground-runtime-startup-started' },
+				{ type: 'playground-reload-required', ready: true },
+				{
+					type: 'playground-runtime-startup-error',
+					recovery: 'storage-access',
+					error: { message: 'Spoofed recovery' },
+				},
+			].map((data) => ({ wrong, data, type: data.type }))
+		)
+	)(
+		'ignores $type from the wrong $wrong when enforcing the deadline',
+		async ({ wrong, data }) => {
+			const fixture = await pendingStartup();
+			await vi.advanceTimersByTimeAsync(900);
+			fixture.send(data, wrong);
+			await vi.advanceTimersByTimeAsync(100);
+			await expect(fixture.result).rejects.toMatchObject({
+				name: 'TimeoutError',
+			});
+		}
+	);
+
+	it('does not spend the connection budget waiting for a lazy iframe to load', async () => {
+		const fixture = await pendingStartup({
+			autoLoad: false,
+			loading: 'lazy',
+		});
+		await vi.advanceTimersByTimeAsync(120000);
+		expect(fixture.state()).toBe('pending');
+		fixture.iframe.dispatchEvent(new Event('load'));
+		await vi.advanceTimersByTimeAsync(0);
+		fixture.connect();
+		await fixture.result;
+	});
+
+	it('still bounds an eager iframe navigation that never loads', async () => {
+		const fixture = await pendingStartup({ autoLoad: false });
+		await vi.advanceTimersByTimeAsync(1000);
+		await expect(fixture.result).rejects.toMatchObject({
+			name: 'TimeoutError',
+		});
+	});
+
+	it('does not abort an established connection on later errors or timer expiry', async () => {
 		const fixture = await pendingStartup();
 		fixture.connect();
 		await fixture.result;
@@ -226,9 +317,10 @@ describe('iframe startup lifecycle', () => {
 			type: 'playground-runtime-startup-error',
 			error: { message: 'Late error' },
 		});
-		await vi.advanceTimersByTimeAsync(0);
+		await vi.advanceTimersByTimeAsync(120000);
 		expect(signal.aborted).toBe(false);
 	});
+
 	it('acknowledges a terminal error so the iframe can hand retry to the application', async () => {
 		const fixture = await pendingStartup();
 		fixture.send({
@@ -268,6 +360,7 @@ async function pendingStartup(
 	const result = startPlaygroundAPI({
 		iframe,
 		apiUrl: 'http://localhost/api.html',
+		connectionTimeoutMs: 1000,
 	});
 	let state = 'pending';
 	void result.then(

@@ -93,6 +93,10 @@
 					if (button) button.replaceWith(createParentRetryMessage());
 				};
 				window.addEventListener('message', onClientErrorHandled);
+				window.parent.postMessage(
+					{ type: 'playground-runtime-startup-started' },
+					'*'
+				);
 				const onScriptError = (event) => {
 					if (
 						event.target instanceof HTMLScriptElement &&
