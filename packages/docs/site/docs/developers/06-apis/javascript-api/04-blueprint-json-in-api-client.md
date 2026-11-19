@@ -25,7 +25,7 @@ const client = await startPlaygroundWeb({
 	remoteUrl: `https://playground.wordpress.net/remote.html`,
 	blueprint: {
 		preferredVersions: {
-			wp: '6.3',
+			wp: 'latest',
 			php: '8.3',
 		},
 		steps: [
