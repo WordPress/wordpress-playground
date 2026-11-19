@@ -236,6 +236,19 @@
 				"playground-wordpress-builds:validate-static-documents"
 			]
 		},
+		"build:root-layout-client": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website/bin/wordpress-frame/build-root-layout-client.mjs"
+			}
+		},
+		"e2e:root-layout-transition": {
+			"executor": "nx:run-commands",
+			"dependsOn": ["build:root-layout-client"],
+			"options": {
+				"command": "npx playwright test --config=packages/playground/website/playwright/playwright.root-layout-transition.config.ts"
+			}
+		},
 		"test:wordpress-frame-router": {
 			"executor": "nx:run-commands",
 			"options": {

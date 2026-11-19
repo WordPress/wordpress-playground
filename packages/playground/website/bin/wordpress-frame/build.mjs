@@ -3,11 +3,13 @@
  *
  * The preview and the deployment upgrade tests serve the installed web roots, so
  * they exercise the same public release directories, root copies, and PHP entry
- * as WP Cloud. Both roots start empty, as on a fresh host. The upgrade tests use
- * another port, so it is built with that pair of origins as production is.
+ * as WP Cloud. Like production, each root starts with one private release of the
+ * root-only layout that preceded release directories, holding only a fixture bridge
+ * script that old WordPress workers request. The upgrade tests use another port, so
+ * it is built with that pair of origins as production is.
  */
 import { build } from 'vite';
-import { cp, mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { appOrigin, wordPressOrigin } from './origins.mjs';
@@ -54,6 +56,14 @@ for (const [webRoot, origins] of [
 	for (const directory of [webRoot, `${webRoot}-backups`]) {
 		await rm(directory, { recursive: true, force: true });
 	}
+	// The previous installer kept each live build in release.XXXXXXXX/files/.
+	const rootLayoutRelease = `${webRoot}/.playground-releases/release.Fixture1/files`;
+	await mkdir(rootLayoutRelease, { recursive: true });
+	await cp(
+		'packages/playground/website/playwright/wordpress-frame/fixtures/root-layout-release',
+		rootLayoutRelease,
+		{ recursive: true }
+	);
 	// The installer moves its upload into place.
 	const copy = await mkdtemp(
 		'dist/packages/playground/wordpress-frame-install-'

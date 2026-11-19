@@ -224,3 +224,67 @@ test(
 		expect(bridgeRequests).toBeGreaterThan(0);
 	}
 );
+
+// A WordPress worker from the root-only production layout answers its own bridge URL
+// with HTML naming its build's root script on the app host. No public release has
+// that script; the router serves it from the private release of that layout, which
+// the preview build seeds with a fixture. Load it as that worker's HTML did:
+// cross-origin from the sandbox, through the installer's index and the router.
+test(
+	'a root-only layout bridge script loads from its private release',
+	{ tag: '@storage' },
+	async ({ page }) => {
+		const script = `${appOrigin}/wordpress-bridge-RootOld1.js`;
+		const response = await page.request.get(script);
+		expect(response.status()).toBe(200);
+		expect(response.headers()['content-type']).toMatch(/javascript/);
+		expect(response.headers()['access-control-allow-origin']).toBe('*');
+		// Fetch that worker's HTML over HTTP from the sandbox host. A mocked document
+		// response would fail Chromium's local-network check for the script.
+		const fixture = '__root-layout-bridge.html';
+		await writeFile(
+			resolve(webRoot, fixture),
+			`<!doctype html><title>WordPress request transport</title><script type="module" src=${JSON.stringify(script)}></script>`
+		);
+		try {
+			await page.route('**/wordpress-bridge*.html?scope=*', (route) =>
+				route.continue({
+					url:
+						`${wordPressOrigin}/${fixture}` +
+						new URL(route.request().url()).search,
+				})
+			);
+			const scriptResponse = page.waitForResponse(script);
+			await page.goto(appOrigin + '/?wp=6.9&php=8.3&storage=temp');
+			await page.waitForFunction(() =>
+				Boolean((window as any).playgroundSites)
+			);
+			await page.evaluate(() =>
+				(window as any).playgroundSites.isReady()
+			);
+			expect((await scriptResponse).status()).toBe(200);
+			await page.evaluate(() =>
+				(window as any).playgroundSites
+					.getClient()
+					.writeFile('/wordpress/root-layout.txt', 'root-only layout')
+			);
+			const element = await page
+				.frameLocator(
+					'#playground-viewport:visible,.playground-viewport:visible'
+				)
+				.locator('#wp')
+				.elementHandle();
+			const frame = (await element!.contentFrame())!;
+			await element!.dispose();
+			await expect
+				.poll(() =>
+					frame.evaluate(async () =>
+						(await fetch('root-layout.txt')).text()
+					)
+				)
+				.toBe('root-only layout');
+		} finally {
+			await rm(resolve(webRoot, fixture), { force: true });
+		}
+	}
+);

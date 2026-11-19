@@ -209,6 +209,20 @@ Do not delete these release directories while clients from that layout are suppo
 Releases installed before this index lack the fallback, so rolling back to one of them
 also removes it until the next deployment.
 
+Three tests cover this, from cheapest to most faithful:
+
+- `test:wordpress-frame-router` installs fixture releases of that layout and checks which
+  files are served, with which headers, and which never are.
+- The preview build seeds one such release with a fixture bridge script. A browser test in
+  `wordpress-bridge-upgrade.spec.ts` loads it as an old worker's HTML would, cross-origin
+  from the sandbox, and sends WordPress requests through it. It runs with the normal suite.
+- The opt-in `e2e:root-layout-transition` target uses a real build from before release
+  directories. It installs that build with its own installer, opens it, installs the current
+  release, and checks that the old client still creates its bridge and reaches PHP.
+  `build:root-layout-client` makes that build once, about 10–15 minutes, and reuses it from
+  `dist/`. Nothing is committed. Run `build:wordpress-frame` first. To see the original
+  failure, set `PLAYGROUND_TRANSITION_INSTALLER` to an older `website-deployment` directory.
+
 ## Verify and roll back
 
 The HTTP contract test runs `apply-update.sh` against a temporary web root and
