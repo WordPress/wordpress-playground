@@ -9,7 +9,7 @@
  * it is built with that pair of origins as production is.
  */
 import { build } from 'vite';
-import { cp, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { appOrigin, wordPressOrigin } from './origins.mjs';
@@ -63,6 +63,11 @@ for (const [webRoot, origins] of [
 		'packages/playground/website/playwright/wordpress-frame/fixtures/root-layout-release',
 		rootLayoutRelease,
 		{ recursive: true }
+	);
+	// A completed install wrote its MIME map; activation moved its public-entry.php away.
+	await writeFile(
+		`${rootLayoutRelease}/../mime-types.php`,
+		'<?php\n$mime_types = array();\n'
 	);
 	// The installer moves its upload into place.
 	const copy = await mkdtemp(

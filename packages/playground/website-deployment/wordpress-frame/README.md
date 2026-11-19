@@ -193,9 +193,11 @@ deployment the bridge failed with a 404 that browsers report as a missing
 The previous installer kept every build privately in
 `/srv/htdocs/.playground-releases/release.XXXXXXXX/files/`, and those directories remain.
 Each activation of the current installer indexes them in the private
-`.playground-releases/pre-release-assets.php`. Only builds that went live are indexed: the
-previous installer moved a live build's `public-entry.php` to the web root, so a failed
-upload still has it. Only Vite-hashed root scripts and hashed `/assets/` scripts, styles,
+`.playground-releases/pre-release-assets.php`. Only builds that went live are indexed. The
+previous installer wrote each release's `mime-types.php`, then its `public-entry.php`, and
+activation moved that entry to the web root. A directory is indexed only when its MIME map
+is non-empty and its entry is gone: a failed upload still has its entry, and an install that
+stopped earlier has neither. Only Vite-hashed root scripts and hashed `/assets/` scripts, styles,
 WebAssembly and extension files are listed. HTML, SVG, XML and PHP stay private, as do
 links and any hashed path whose bytes differ between builds.
 

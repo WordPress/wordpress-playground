@@ -247,7 +247,8 @@ function activate( $root, $backups, $release, $retention, $app_origin, $wordpres
  *
  * PRE_RELEASE_ASSET_INDEX_COMPAT: the previous installer kept each build privately in
  * .playground-releases/release.XXXXXXXX/files/. Activation moved that build's
- * public-entry.php to the web root, so a release still holding it never went live.
+ * public-entry.php to the web root. Only a completed install, with a non-empty MIME map,
+ * that no longer holds its entry went live; other directories are not indexed.
  * Old tabs and WordPress workers keep requesting those builds' root URLs, such as
  * /wordpress-bridge-<hash>.js or /assets/<name>-<hash>.wasm, which no public release has.
  *
@@ -262,8 +263,12 @@ function index_pre_release_assets( $root ) {
 	$index    = "$releases/pre-release-assets.php";
 	$sources  = array();
 	foreach ( glob( "$releases/release.*", GLOB_ONLYDIR ) ?: array() as $release ) {
+		// That installer wrote mime-types.php, then public-entry.php, stopping at any
+		// failure. Shell redirection created each file before writing it, so an install
+		// that stopped earlier has an empty or missing MIME map and no entry either.
 		if ( preg_match( '/\Arelease\.[A-Za-z0-9]{8}\z/', basename( $release ) ) &&
 			! is_link( $release ) && is_dir( "$release/files" ) &&
+			is_file( "$release/mime-types.php" ) && filesize( "$release/mime-types.php" ) > 0 &&
 			! file_exists( "$release/public-entry.php" ) && ! file_exists( "$release/release.json" )
 		) {
 			$sources[] = basename( $release );

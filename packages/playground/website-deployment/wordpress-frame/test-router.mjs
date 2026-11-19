@@ -241,7 +241,9 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 
 	// Releases of the old root-only layout stay private in release.XXXXXXXX/files/.
 	// Only hashed scripts, styles, WebAssembly and extension files may be served from
-	// them. A failed upload kept its public-entry.php and never went live.
+	// them, and only from builds that went live. That installer wrote mime-types.php,
+	// then public-entry.php, which activation moved to the web root.
+	const liveMimeMap = '<?php\n$mime_types = array();\n';
 	const oldRelease = join(webRoot, '.playground-releases/release.Old00001');
 	const oldFiles = {
 		'wordpress-bridge-Cmo7aZBy.js': 'old bridge',
@@ -261,6 +263,7 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 		});
 		await writeFile(join(oldRelease, 'files', name), content);
 	}
+	await writeFile(join(oldRelease, 'mime-types.php'), liveMimeMap);
 	await symlink(
 		join(temporary, 'outside.txt'),
 		join(oldRelease, 'files/assets/escape-LiNk1234.js')
@@ -272,6 +275,8 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 	await mkdir(laterOldRelease, { recursive: true });
 	await writeFile(join(laterOldRelease, 'shared-ShAr1234.js'), 'same bytes');
 	await writeFile(join(laterOldRelease, 'conflict-CoNf1234.js'), 'other');
+	await writeFile(join(laterOldRelease, '../../mime-types.php'), liveMimeMap);
+	// A failed upload kept the public-entry.php that activation would have moved.
 	const failedOldRelease = join(
 		webRoot,
 		'.playground-releases/release.Failed01'
@@ -281,6 +286,18 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 	await writeFile(
 		join(failedOldRelease, 'files/never-live-NeVr1234.js'),
 		'never live'
+	);
+	// An install that stopped before its MIME map was written has no public-entry.php
+	// either. Shell redirection had already created mime-types.php, empty.
+	const unfinishedOldRelease = join(
+		webRoot,
+		'.playground-releases/release.Incomp01'
+	);
+	await mkdir(join(unfinishedOldRelease, 'files'), { recursive: true });
+	await writeFile(join(unfinishedOldRelease, 'mime-types.php'), '');
+	await writeFile(
+		join(unfinishedOldRelease, 'files/never-finished-InCo1234.js'),
+		'never finished'
 	);
 
 	const first = await makeBuild('A');
@@ -383,6 +400,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 			['/assets/escape-LiNk1234.js', app],
 			['/assets/conflict-CoNf1234.js', app],
 			['/never-live-NeVr1234.js', app],
+			['/never-finished-InCo1234.js', app],
 			['/assets/%2e%2e/old-endpoint.php', app],
 			['/assets/../wordpress-bridge-Cmo7aZBy.js', app],
 		]) {
