@@ -6,6 +6,7 @@ import schema from '../../blueprints/public/blueprint-schema.json';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { decodeBlueprintHash } from '../src/lib/state/url/decode-blueprint-hash';
+import { getRemoteUrl } from '../src/lib/config';
 
 // Use parent dir of the /builder/ dir, reasoning that it is
 // the web app root. This works for:
@@ -497,12 +498,25 @@ const getCompletions = async (editor, session, pos, prefix, callback) => {
 };
 
 let errorTag;
+
+/**
+ * Renders an error in the error iframe.
+ *
+ * @param {unknown} error The error to display.
+ */
 const showError = (error) => {
 	console.error(error);
 	if (!errorTag) {
 		errorTag = document.getElementById('error-output');
 	}
-	const errDoc = `<head><style>body{ color: red; font-family: monospace; } pre{ white-space: pre-wrap; } p{ margin: 0.25rem; }</style></head><body>${error}</body>`;
+	// The error message is untrusted: schema errors quote the Blueprint, which
+	// comes from the URL fragment. Build the body as a detached DOM node and
+	// read `outerHTML` back rather than interpolating the raw string, so the
+	// DOM escapes the message for us and nothing in it can turn into HTML or
+	// script inside the iframe.
+	const pre = document.createElement('pre');
+	pre.textContent = String(error);
+	const errDoc = `<head><style>body{ color: red; font-family: monospace; } pre{ white-space: pre-wrap; } p{ margin: 0.25rem; }</style></head><body>${pre.outerHTML}</body>`;
 	errorTag.setAttribute('srcdoc', errDoc);
 };
 const clearError = (error) => {
@@ -532,6 +546,10 @@ function getCurrentBlueprint(editor) {
 }
 
 let lastRun = 0;
+/**
+ * Runs the edited Blueprint against this website's runtime.
+ * Only the latest run may update the error document.
+ */
 const runBlueprint = async (editor) => {
 	const currentRun = ++lastRun;
 	// Trash the old iframe and create a new one
@@ -557,7 +575,7 @@ const runBlueprint = async (editor) => {
 		const blueprintCopy = JSON.parse(blueprintString);
 		await startPlaygroundWeb({
 			iframe: playgroundIframe,
-			remoteUrl: 'remote.html',
+			remoteUrl: getRemoteUrl().href,
 			blueprint: blueprintCopy,
 			corsProxy: corsProxyUrl,
 		});

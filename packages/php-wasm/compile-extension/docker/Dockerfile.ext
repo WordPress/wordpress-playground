@@ -48,6 +48,32 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	cd /root/php-src && \
 	emmake make install
 
+# Force external extensions to allocate through PHP's stable _emalloc() symbol.
+#
+# An external extension is compiled independently from the PHP.wasm runtime it
+# will later be loaded into, so every symbol it calls must resolve to an entry
+# point the runtime is guaranteed to export. emalloc() is a macro: when the
+# requested size is a compile-time constant, HAVE_BUILTIN_CONSTANT_P (a wrapper
+# around __builtin_constant_p) lets it route the call to a size-specialized fast
+# path such as _emalloc_64() or _emalloc_256(). Those per-size symbols are an
+# internal detail of one specific build's allocator (generated from
+# zend_alloc_sizes.h), not part of the ABI we promise to external extensions, so
+# an extension bound to them could fail to link against a different runtime.
+#
+# Undefining HAVE_BUILTIN_CONSTANT_P disables that shortcut for extension builds,
+# so emalloc(CONST) always compiles to a call to the single, stable _emalloc()
+# entry point instead. The trailing grep fails the build if the header ever stops
+# matching, so this can never silently no-op. tests/fixtures/external-abi
+# exercises this by allocating constant sizes and loading against a fresh runtime.
+RUN if ! grep -Fqx '#undef HAVE_BUILTIN_CONSTANT_P' \
+	/usr/local/include/php/Zend/zend_alloc.h; then \
+	/root/replace.sh \
+		's/#include "zend_alloc_sizes.h"/#include "zend_alloc_sizes.h"\n#undef HAVE_BUILTIN_CONSTANT_P/' \
+		/usr/local/include/php/Zend/zend_alloc.h; \
+	fi && \
+	grep -Fqx '#undef HAVE_BUILTIN_CONSTANT_P' \
+		/usr/local/include/php/Zend/zend_alloc.h
+
 RUN mkdir -p /usr/local/include/php/ext/standard && \
 	if [ -f /root/php-src/ext/standard/php_smart_string.h ]; then \
 		cp /root/php-src/ext/standard/*.h /usr/local/include/php/ext/standard/; \

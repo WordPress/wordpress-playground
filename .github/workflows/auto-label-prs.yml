@@ -1,30 +1,35 @@
 name: Auto-label PRs
 
-# PR labeling has two parts:
+# Applies the repository's PR labels in a single flow:
 #
-#   1. `paths` job — runs actions/labeler against .github/labeler.yml to
-#      apply [Aspect], [Focus], [Feature], and [Type] Documentation
-#      labels. These have no count limit and a wide refactor can match
-#      many of them legitimately.
+#   - [Aspect] / [Focus] / [Feature] / [Type] Documentation — from path globs.
+#     No count limit; a wide refactor can match many of them legitimately.
+#   - [Package][...] — ranks packages by total lines changed (additions +
+#     deletions, file count as tiebreaker) and applies at most the top 3.
+#     Without this cap a cross-cutting change gets a wall of package labels.
+#   - [Type] — from the PR title's conventional-commit prefix (fix:/feat:/
+#     perf:/docs:), applied only when the signal is unambiguous. refactor:/
+#     chore:/test: are skipped because they have no clean target label.
 #
-#   2. `package-and-type` job — applies the `[Package][...]` labels and
-#      a single inferred `[Type]` label. This one needs custom logic:
+# WHY this is bespoke instead of actions/labeler + a second github-script job:
+# both of those list a PR's changed files via GitHub's pulls.listFiles API,
+# which makes GitHub generate the full PR diff. That request times out ("Sorry,
+# this diff is taking too long to generate") on PRs with heavy binary churn
+# (recompiled PHP.wasm builds), failing this required check and blocking merges.
+# Instead we list changed files with `git diff` (size-independent — it compares
+# tree hashes and never serializes blob content). One `git diff --numstat` feeds
+# every label set, so there is one labeling flow, not two.
 #
-#        - [Package]: ranks packages by total lines changed
-#          (additions + deletions, file count as tiebreaker) and applies
-#          at most the top 3. Without this cap, a cross-cutting change
-#          ends up with a wall of package labels and the signal is lost.
+# The labeling logic AND the label rules (which globs/prefixes map to which
+# labels) — plus their unit tests — live in packages/meta/src/pr-labels/*.mjs.
+# This workflow only gathers the PR facts and invokes
+# packages/meta/bin/label-pr.mjs, which reads nothing on its own (no config
+# file, no event payload) and gets everything via env.
 #
-#        - [Type]: parses the PR title's conventional-commit prefix
-#          (fix:/feat:/perf:) and applies one matching label only when
-#          the signal is unambiguous. We skip refactor:/chore:/test:
-#          because they have no clean target label.
-#
-# History note: an earlier version used GitHub Models (actions/ai-inference)
-# to suggest labels from PR title + body + paths. That returned 403
-# because GitHub Models access in Actions is gated by an org-level toggle
-# we can't flip. Path + PR-title heuristics cover the structured labels
-# without any external service.
+# History note: an earlier version used GitHub Models (actions/ai-inference) to
+# suggest labels. It returned 403 because GitHub Models access in Actions is
+# gated by an org-level toggle we can't flip. Path + PR-title heuristics cover
+# the structured labels without any external service.
 
 on:
     pull_request_target:
@@ -35,139 +40,53 @@ on:
 permissions: {}
 
 jobs:
-    paths:
+    label:
         if: github.repository == 'WordPress/wordpress-playground'
         runs-on: ubuntu-latest
         timeout-minutes: 10
         permissions:
-            contents: read # Required for actions/labeler to read the configuration file.
+            contents: read # Required for actions/checkout to read the repo.
             pull-requests: write # Required to apply labels to pull requests.
         steps:
-            # Pinned to a commit SHA, not a tag: this job runs with
+            # Actions are pinned to commit SHAs, not tags: this job runs with
             # pull-requests:write, so a moved tag would be a supply-chain
-            # foothold. Bump deliberately when upgrading.
-            - uses: actions/labeler@8558fd74291d67161a8a78ce36a881fa63b766a9 # v5.0.0
+            # foothold. Bump deliberately when upgrading. `git diff` runs no PR
+            # code — it only reads paths and line counts — so reading the fork
+            # head is safe.
+            - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
               with:
-                  configuration-path: .github/labeler.yml
-                  sync-labels: false
-
-    package-and-type:
-        if: github.repository == 'WordPress/wordpress-playground'
-        runs-on: ubuntu-latest
-        timeout-minutes: 10
-        permissions:
-            pull-requests: write # Required to apply labels to pull requests.
-        steps:
-            - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
-              with:
-                  script: |
-                      // Path prefix → [Package][...] label. Order matters: the
-                      // first matching prefix wins, so longer / more specific
-                      // prefixes must come before shorter ones (e.g. `web-service-worker`
-                      // before `web`).
-                      const PACKAGE_RULES = [
-                          ['packages/php-wasm/cli-util/',          '[Package][@php-wasm] CLI-Util'],
-                          ['packages/php-wasm/cli/',               '[Package][@php-wasm] CLI'],
-                          ['packages/php-wasm/compile/',           '[Package][@php-wasm] Compile'],
-                          ['packages/php-wasm/fs-journal/',        '[Package][@php-wasm] FS Journal'],
-                          ['packages/php-wasm/logger/',            '[Package][@php-wasm] Logger'],
-                          ['packages/php-wasm/node/',              '[Package][@php-wasm] Node'],
-                          ['packages/php-wasm/progress/',          '[Package][@php-wasm] Progress'],
-                          ['packages/php-wasm/scopes/',            '[Package][@php-wasm] Scopes'],
-                          ['packages/php-wasm/stream-compression/','[Package][@php-wasm] Stream Compression'],
-                          ['packages/php-wasm/universal/',         '[Package][@php-wasm] Universal'],
-                          ['packages/php-wasm/util/',              '[Package][@php-wasm] Util'],
-                          ['packages/php-wasm/web-service-worker/','[Package][@php-wasm] Web'],
-                          ['packages/php-wasm/web/',               '[Package][@php-wasm] Web'],
-                          ['packages/php-wasm/xdebug-bridge/',     '[Package][@php-wasm] Xdebug Bridge'],
-                          ['packages/playground/blueprints/',      '[Package][@wp-playground] Blueprints'],
-                          ['packages/playground/cli/',             '[Package][@wp-playground] CLI'],
-                          ['packages/playground/client/',          '[Package][@wp-playground] Client'],
-                          ['packages/playground/common/',          '[Package][@wp-playground] Common'],
-                          ['packages/playground/components/',      '[Package][@wp-playground] Components'],
-                          ['packages/playground/php-cors-proxy/',  '[Package][@wp-playground] CORS Proxy'],
-                          ['packages/playground/remote/',          '[Package][@wp-playground] Remote'],
-                          ['packages/playground/storage/',         '[Package][@wp-playground] Storage'],
-                          ['packages/playground/sync/',            '[Package][@wp-playground] Sync'],
-                          ['packages/playground/website-extras/',  '[Package][@wp-playground] Website'],
-                          ['packages/playground/website/',         '[Package][@wp-playground] Website'],
-                          ['packages/playground/wordpress-builds/','[Package][@wp-playground] WordPress Builds'],
-                          ['packages/playground/wordpress/',       '[Package][@wp-playground] WordPress'],
-                      ];
-
-                      // Conventional-commit prefix → [Type] label. Only entries
-                      // with an unambiguous target label are listed; refactor /
-                      // chore / test / build / ci are intentionally absent.
-                      const TYPE_RULES = [
-                          [/^fix(\(|:)/i,      '[Type] Bug'],
-                          [/^feat(ure)?(\(|:)/i, '[Type] Enhancement'],
-                          [/^perf(\(|:)/i,     '[Type] Performance'],
-                          [/^docs(\(|:)/i,     '[Type] Documentation'],
-                      ];
-
-                      const pr = context.payload.pull_request;
-
-                      // Very large PRs (e.g. recompiled WASM binaries) make
-                      // GitHub's diff generation time out, so listFiles returns
-                      // 422 "Sorry, this diff is taking too long to generate."
-                      // That failure is persistent for such PRs — retrying just
-                      // loads their servers without helping. Package/type labels
-                      // are cosmetic, so skip them rather than fail the job.
-                      let files;
-                      try {
-                          files = await github.paginate(
-                              github.rest.pulls.listFiles,
-                              { owner: context.repo.owner, repo: context.repo.repo, pull_number: pr.number, per_page: 100 }
-                          );
-                      } catch (err) {
-                          const status = err?.status;
-                          const message = err?.message ?? String(err);
-
-                          if (status !== 422 || !/diff is taking too long to generate/i.test(message)) {
-                              throw err;
-                          }
-
-                          core.warning(
-                              `Could not list PR files (status ${status}): ${message}. ` +
-                              `Skipping package/type labeling for this PR.`
-                          );
-                          return;
-                      }
-
-                      // Tally lines + file count per package label.
-                      const stats = new Map();
-                      for (const f of files) {
-                          const rule = PACKAGE_RULES.find(([prefix]) => f.filename.startsWith(prefix));
-                          if (!rule) continue;
-                          const label = rule[1];
-                          const lines = (f.additions || 0) + (f.deletions || 0);
-                          const cur = stats.get(label) || { lines: 0, files: 0 };
-                          stats.set(label, { lines: cur.lines + lines, files: cur.files + 1 });
-                      }
-
-                      // Rank: lines desc, then file count desc, then label name
-                      // for stable output.
-                      const topPackages = [...stats.entries()]
-                          .sort(([a, sa], [b, sb]) =>
-                              sb.lines - sa.lines ||
-                              sb.files - sa.files ||
-                              a.localeCompare(b)
-                          )
-                          .slice(0, 3)
-                          .map(([label]) => label);
-
-                      const labels = [...topPackages];
-                      const titleMatch = TYPE_RULES.find(([re]) => re.test(pr.title));
-                      if (titleMatch) labels.push(titleMatch[1]);
-
-                      core.info(`PR title: ${pr.title}`);
-                      core.info(`Package stats: ${JSON.stringify([...stats])}`);
-                      core.info(`Applying labels: ${JSON.stringify(labels)}`);
-
-                      if (labels.length === 0) return;
-                      await github.rest.issues.addLabels({
-                          owner: context.repo.owner,
-                          repo: context.repo.repo,
-                          issue_number: pr.number,
-                          labels,
-                      });
+                  # Minimal fetch for `git diff base...head` (three-dot, see
+                  # git-numstat.mjs). It needs the merge-base of the base and
+                  # head, plus the blobs of the files that actually changed —
+                  # nothing else.
+                  #   fetch-depth: 0  — full COMMIT+TREE graph so the merge-base
+                  #     is present. A stale PR's merge-base can be far back, so a
+                  #     fixed shallow depth would break the diff.
+                  #   filter: blob:none — blobless partial clone: skip every
+                  #     historical blob (this repo commits huge PHP.wasm/
+                  #     WordPress binaries across all history) and let git lazily
+                  #     fetch only the changed blobs the diff reads.
+                  #   sparse-checkout — materialize only the label scripts this
+                  #     job runs, so checkout doesn't pull HEAD's big binaries
+                  #     into the working tree either. The diff reads the object
+                  #     DB, not the tree, so this doesn't affect it.
+                  fetch-depth: 0
+                  filter: blob:none
+                  sparse-checkout: packages/meta
+            # Install the label modules' dependencies from their own
+            # package.json + lockfile. Scoped to that dir, so it does not touch
+            # the repo's workspaces. --ignore-scripts: this job has
+            # pull-requests:write and the deps need no lifecycle scripts, so
+            # don't run any (defense-in-depth against a supply-chain foothold).
+            - name: Install label matcher dependencies
+              run: npm ci --no-audit --no-fund --ignore-scripts --prefix packages/meta/src/pr-labels
+            - name: Apply labels
+              run: node packages/meta/bin/label-pr.mjs
+              env:
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+                  # Passed as env (not interpolated into the shell), so an
+                  # attacker-controlled title can't inject commands.
+                  PR_TITLE: ${{ github.event.pull_request.title }}
+                  GITHUB_REPOSITORY: ${{ github.repository }}
+                  GITHUB_TOKEN: ${{ github.token }}

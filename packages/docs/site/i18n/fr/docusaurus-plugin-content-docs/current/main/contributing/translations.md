@@ -174,7 +174,7 @@ As a guideline, a language should be made publicly available in the switcher onl
 -   [About Playground](https://wordpress.github.io/wordpress-playground/about)
 -   [Guides](https://wordpress.github.io/wordpress-playground/guides)
 -   [Contributing](https://wordpress.github.io/wordpress-playground/contributing)
--   [Links and Resources](https://wordpress.github.io/wordpress-playground/resources)
+-   [Links and Resources](https://wordpress.github.io/wordpress-playground/links-and-resources)
 -->
 
 ### Rendre une langue publiquement disponible dans le sélecteur de langue
@@ -188,7 +188,7 @@ Nous recommandons d'ajouter une langue au sélecteur uniquement lorsqu'une parti
 - [À propos de Playground](https://wordpress.github.io/wordpress-playground/about)
 - [Guides](https://wordpress.github.io/wordpress-playground/guides)
 - [Contribuer](https://wordpress.github.io/wordpress-playground/contributing)
-- [Liens et ressources](https://wordpress.github.io/wordpress-playground/resources)
+- [Liens et ressources](https://wordpress.github.io/wordpress-playground/links-and-resources)
 
 <!--
 All languages are available once the i18n setup for a language is complete and the correct file structure is in place under `i18n`.

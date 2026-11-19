@@ -11,6 +11,14 @@ export interface PHPRequestEndEvent {
 }
 
 /**
+ * Emitted by a filesystem owner when a request using its filesystem through
+ * PROXYFS ends.
+ */
+export interface PHPProxyFSRequestEndEvent {
+	type: 'proxyfs.request.end';
+}
+
+/**
  * Represents an error event related to the PHP request.
  */
 export interface PHPRequestErrorEvent {
@@ -48,6 +56,7 @@ export interface PHPFilesystemWriteEvent {
  */
 export type PHPEvent =
 	| PHPRequestEndEvent
+	| PHPProxyFSRequestEndEvent
 	| PHPRequestErrorEvent
 	| PHPRuntimeInitializedEvent
 	| PHPRuntimeBeforeExitEvent
@@ -167,6 +176,17 @@ export interface PHPRunOptions {
 	 * The code snippet to eval instead of a php file.
 	 */
 	code?: string;
+
+	/**
+	 * Run on the primary PHP instance instead of any pooled instance.
+	 *
+	 * Pooled instances see shared paths through a proxy filesystem whose
+	 * node cache is not invalidated when the primary deletes a file. A job
+	 * that spans several runs and rewrites its own state files must stay on
+	 * the primary so every run sees the same filesystem. The run waits for
+	 * the primary to become free.
+	 */
+	usePrimaryPhp?: boolean;
 }
 
 /**

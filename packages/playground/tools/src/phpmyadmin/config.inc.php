@@ -16,6 +16,11 @@ $cfg['VersionCheck'] = false;
 $cfg['ShowCreateDb'] = false;
 $cfg['ShowChgPassword'] = false;
 
+// Split-origin popups keep phpMyAdmin in a WordPress iframe. Its frame-busting
+// script must not try to replace the app-origin wrapper; the iframe's sandbox
+// and the browser's origin checks still prevent access to app documents/storage.
+$cfg['AllowThirdPartyFraming'] = defined('PLAYGROUND_PARENT_ORIGIN');
+
 // Cookie authentication secret.
 $cfg['blowfish_secret'] = 'r/g+J#&)L2&p!z5gUS)d(vEU#KAynq#g';
 

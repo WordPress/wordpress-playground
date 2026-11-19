@@ -1547,7 +1547,7 @@ export function declareFileLockManagerTests({
 				};
 				const exclusiveLockAppearsToBeReleased =
 					await remoteProcessApi2.lockWholeFile(
-						TEST_FILE2_URL.pathname,
+						TEST_FILE1_URL.pathname,
 						lockToConfirmExclusiveLockRelease
 					);
 				expect(exclusiveLockAppearsToBeReleased).toBe(true);

@@ -1,8 +1,13 @@
 /**
- * Listens for pointer presses in the host document and every same-origin iframe.
+ * Listen for pointer presses in the host and any iframe documents the browser lets us read.
  *
- * Events inside WordPress do not bubble through Playground's nested iframes, so
- * document-level outside-click behavior must subscribe at every document layer.
+ * A press inside WordPress cannot bubble into the app. WordPress sends a message to
+ * remote.html, which dispatches a new press on its #wp iframe element. Observe that
+ * press here and skip the original event in documents marked with an active relay.
+ *
+ * Keep native listeners for unmarked documents, such as plain HTML or editor frames
+ * without a confirmed relay. Still visit children of marked documents: the marker
+ * covers only that document's presses. Unreadable frames need their own working relay.
  */
 export function listenForPointerDownAcrossIframes(
 	listener: (event: PointerEvent) => void
@@ -22,12 +27,25 @@ export function listenForPointerDownAcrossIframes(
 		Array.from(documents).forEach(stopListeningInDocument);
 	};
 
+	function onPointerDown(event: Event) {
+		// WordPress adds the marker only after remote.html confirms it can receive presses.
+		// Check on each event: that reply may arrive after we attach this listener.
+		const targetDocument = event.currentTarget as Document;
+		if (
+			!targetDocument.documentElement.hasAttribute(
+				'data-playground-pointer-relay'
+			)
+		) {
+			listener(event as PointerEvent);
+		}
+	}
+
 	function listenInDocument(targetDocument: Document) {
 		if (documents.has(targetDocument)) {
 			return;
 		}
 		documents.add(targetDocument);
-		targetDocument.addEventListener('pointerdown', listener, true);
+		targetDocument.addEventListener('pointerdown', onPointerDown, true);
 
 		targetDocument.querySelectorAll('iframe').forEach(listenInFrame);
 		const observer = new MutationObserver((records) => {
@@ -51,7 +69,7 @@ export function listenForPointerDownAcrossIframes(
 		if (!documents.delete(targetDocument)) {
 			return;
 		}
-		targetDocument.removeEventListener('pointerdown', listener, true);
+		targetDocument.removeEventListener('pointerdown', onPointerDown, true);
 		observers.get(targetDocument)?.disconnect();
 		observers.delete(targetDocument);
 		targetDocument.querySelectorAll('iframe').forEach(stopListeningInFrame);

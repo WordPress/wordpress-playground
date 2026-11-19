@@ -1,0 +1,431 @@
+/**
+ * SCSS Variables.
+ *
+ * Please use variables from this sheet to ensure consistency across the UI.
+ * Don't add to this sheet unless you're pretty sure the value will be reused in many places.
+ * For example, don't add rules to this sheet that affect block visuals. It's purely for UI.
+ */
+/**
+ * Colors
+ */
+/**
+ * Fonts & basic variables.
+ */
+/**
+ * Typography
+ */
+/**
+ * Grid System.
+ * https://make.wordpress.org/design/2019/10/31/proposal-a-consistent-spacing-system-for-wordpress/
+ */
+/**
+ * Radius scale.
+ */
+/**
+ * Elevation scale.
+ */
+/**
+ * Dimensions.
+ */
+/**
+ * Mobile specific styles
+ */
+/**
+ * Editor styles.
+ */
+/**
+ * Block & Editor UI.
+ */
+/**
+ * Block paddings.
+ */
+/**
+ * React Native specific.
+ * These variables do not appear to be used anywhere else.
+ */
+.components-popover__content:has(.dataviews-media-field__attached-to) {
+  margin-bottom: 96px;
+}
+
+.components-popover__content:has(.dataviews-media-field__attached-to):has(.components-form-token-field__suggestions-list) {
+  margin-bottom: 0;
+}
+
+.components-popover__content:has(.dataviews-media-field__attached-to) .components-form-token-field__suggestions-list {
+  height: 96px;
+  max-height: none;
+}
+
+/**
+ * Typography
+ */
+/**
+ * Breakpoints & Media Queries
+ */
+/**
+*  Converts a hex value into the rgb equivalent.
+*
+* @param {string} hex - the hexadecimal value to convert
+* @return {string} comma separated rgb values
+*/
+/**
+ * Long content fade mixin
+ *
+ * Creates a fading overlay to signify that the content is longer
+ * than the space allows.
+ */
+/**
+ * Breakpoint mixins
+ */
+/**
+ * Focus styles.
+ */
+/**
+ * Standard focus rings for the WordPress Design System.
+ *
+ * Apply `outset-ring__focus` inside the relevant pseudo-class at the call site,
+ * e.g. `&:focus { @include outset-ring__focus(); }`.
+ */
+/**
+ * Applies editor left position to the selector passed as argument
+ */
+/**
+ * Styles that are reused verbatim in a few places
+ */
+/**
+ * Allows users to opt-out of animations via OS-level preferences.
+ */
+/**
+ * Reset default styles for JavaScript UI based pages.
+ * This is a WP-admin agnostic reset
+ */
+/**
+ * Reset the WP Admin page styles for Gutenberg-like pages.
+ */
+/**
+ * Creates a checkerboard pattern background to indicate transparency.
+ * @param {String} $size - The size of the squares in the checkerboard pattern. Default is 12px.
+ */
+.media-author-field__avatar {
+  flex-shrink: 0;
+  overflow: hidden;
+  width: 24px;
+  height: 24px;
+  align-items: center;
+  justify-content: left;
+  display: flex;
+}
+
+.media-author-field__avatar img {
+  width: 16px;
+  height: 16px;
+  -o-object-fit: cover;
+  object-fit: cover;
+  opacity: 1;
+  border-radius: 100%;
+}
+
+@media not (prefers-reduced-motion) {
+  .media-author-field__avatar.is-loading img, .media-author-field__avatar.is-loaded img {
+    transition: opacity 0.1s linear;
+  }
+}
+.media-author-field__avatar.is-loading img {
+  opacity: 0;
+}
+
+.media-author-field__avatar.is-loaded img {
+  opacity: 1;
+}
+
+.media-author-field__icon {
+  display: flex;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.media-author-field__icon svg {
+  margin-left: -4px;
+  fill: currentColor;
+}
+
+.media-author-field__name {
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.dataviews-view-table .dataviews-media-field__filename,
+.dataviews-view-grid .dataviews-media-field__filename,
+.dataviews-view-list .dataviews-media-field__filename {
+  display: inline-block;
+  max-inline-size: 15ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: top;
+}
+
+.dataviews-media-field__media-thumbnail {
+  display: flex;
+  align-items: center;
+  position: relative;
+  height: 100%;
+}
+
+@media not (prefers-reduced-motion) {
+  .dataviews-media-field__media-thumbnail.is-loading img, .dataviews-media-field__media-thumbnail.is-loaded img {
+    transition: opacity 0.1s linear;
+  }
+}
+.dataviews-media-field__media-thumbnail.is-loading img {
+  opacity: 0;
+}
+
+.dataviews-media-field__media-thumbnail.is-loaded img {
+  opacity: 1;
+}
+
+.dataviews-media-field__media-thumbnail--image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  -o-object-fit: cover;
+  object-fit: cover;
+}
+
+.dataviews-media-field__media-thumbnail__stack {
+  color: #757575;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+}
+
+.dataviews-media-field__media-thumbnail--icon {
+  color: #757575;
+  fill: currentColor;
+}
+
+.dataviews-media-field__media-thumbnail__filename {
+  box-sizing: border-box;
+  text-align: center;
+  padding: 0 16px;
+  width: 100%;
+  container-type: inline-size;
+  font-family: -apple-system, system-ui, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  font-weight: var(--wpds-typography-font-weight-default, 400);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.dataviews-media-field__media-thumbnail__filename__truncate {
+  margin-top: 4px;
+}
+
+@container (max-width: 90px) {
+  .dataviews-media-field__media-thumbnail__filename__truncate {
+    display: none !important;
+  }
+}
+/**
+ * SCSS Variables.
+ *
+ * Please use variables from this sheet to ensure consistency across the UI.
+ * Don't add to this sheet unless you're pretty sure the value will be reused in many places.
+ * For example, don't add rules to this sheet that affect block visuals. It's purely for UI.
+ */
+/**
+ * Colors
+ */
+/**
+ * Fonts & basic variables.
+ */
+/**
+ * Typography
+ */
+/**
+ * Grid System.
+ * https://make.wordpress.org/design/2019/10/31/proposal-a-consistent-spacing-system-for-wordpress/
+ */
+/**
+ * Radius scale.
+ */
+/**
+ * Elevation scale.
+ */
+/**
+ * Dimensions.
+ */
+/**
+ * Mobile specific styles
+ */
+/**
+ * Editor styles.
+ */
+/**
+ * Block & Editor UI.
+ */
+/**
+ * Block paddings.
+ */
+/**
+ * React Native specific.
+ * These variables do not appear to be used anywhere else.
+ */
+/**
+ * Typography
+ */
+/**
+ * Breakpoints & Media Queries
+ */
+/**
+*  Converts a hex value into the rgb equivalent.
+*
+* @param {string} hex - the hexadecimal value to convert
+* @return {string} comma separated rgb values
+*/
+/**
+ * Long content fade mixin
+ *
+ * Creates a fading overlay to signify that the content is longer
+ * than the space allows.
+ */
+/**
+ * Breakpoint mixins
+ */
+/**
+ * Focus styles.
+ */
+/**
+ * Standard focus rings for the WordPress Design System.
+ *
+ * Apply `outset-ring__focus` inside the relevant pseudo-class at the call site,
+ * e.g. `&:focus { @include outset-ring__focus(); }`.
+ */
+/**
+ * Applies editor left position to the selector passed as argument
+ */
+/**
+ * Styles that are reused verbatim in a few places
+ */
+/**
+ * Allows users to opt-out of animations via OS-level preferences.
+ */
+/**
+ * Reset default styles for JavaScript UI based pages.
+ * This is a WP-admin agnostic reset
+ */
+/**
+ * Reset the WP Admin page styles for Gutenberg-like pages.
+ */
+/**
+ * Creates a checkerboard pattern background to indicate transparency.
+ * @param {String} $size - The size of the squares in the checkerboard pattern. Default is 12px.
+ */
+.media-upload-modal .components-modal__header {
+  padding-bottom: 8px;
+}
+.media-upload-modal .components-modal__frame.is-full-screen .components-modal__content {
+  margin-bottom: 0;
+}
+.media-upload-modal .components-modal__content {
+  padding: 0;
+}
+.media-upload-modal .dataviews-picker-wrapper > .dataviews__view-actions {
+  padding-top: 8px;
+}
+.media-upload-modal .media-upload-modal__footer {
+  position: sticky;
+  bottom: 0;
+  background-color: inherit;
+  z-index: 2;
+}
+.media-upload-modal .media-upload-modal__footer.is-uploading .dataviews-picker-footer__bulk-selection {
+  visibility: hidden;
+}
+.media-upload-modal .media-upload-modal__footer .dataviews-footer {
+  position: static;
+  z-index: auto;
+}
+.media-upload-modal .media-upload-modal__upload-status {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: var(--wp-dataviews-color-background, #fff);
+  left: 24px;
+  top: 1px;
+  bottom: 1px;
+  z-index: 1;
+}
+.media-upload-modal .media-upload-modal__upload-status .components-spinner {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.media-upload-modal__snackbar {
+  position: fixed;
+  bottom: var(--wpds-dimension-size-md, 32px);
+  left: 0;
+  right: 0;
+  padding-inline: 16px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+.media-upload-modal__snackbar .components-snackbar {
+  margin-inline: auto;
+}
+.media-upload-modal__snackbar {
+  z-index: 200000;
+}
+.media-upload-modal__snackbar > div {
+  transform: none !important;
+  transform-origin: 0 !important;
+}
+
+.media-upload-modal__upload-status__popover .components-popover__content {
+  width: 320px;
+}
+.media-upload-modal__upload-status__popover .media-upload-modal__upload-status__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+.media-upload-modal__upload-status__popover .media-upload-modal__upload-status__header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
+}
+.media-upload-modal__upload-status__popover .media-upload-modal__upload-status__list {
+  max-height: 200px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0 0 4px;
+  list-style: none;
+}
+.media-upload-modal__upload-status__popover .media-upload-modal__upload-status__item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 0;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 16px;
+}
+.media-upload-modal__upload-status__popover .media-upload-modal__upload-status__item .components-spinner {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+.media-upload-modal__upload-status__popover .media-upload-modal__upload-status__filename {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+  font-size: 12px;
+}

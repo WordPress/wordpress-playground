@@ -1,5 +1,7 @@
 import React, {
+	forwardRef,
 	useEffect,
+	useImperativeHandle,
 	useMemo,
 	useRef,
 	useState,
@@ -13,10 +15,11 @@ import styles from './file-explorer.module.css';
 import {
 	FilePickerTree,
 	type FilePickerTreeHandle,
+	type PathBadge,
 } from '@wp-playground/components';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 import { logger } from '@php-wasm/logger';
-import { basename, dirname } from '@php-wasm/util';
+import { basename, dirname, isParentOf } from '@php-wasm/util';
 import { BinaryFilePreview } from '@wp-playground/components';
 import {
 	seemsLikeBinary,
@@ -49,29 +52,64 @@ export type FileExplorerSidebarProps = {
 	showBinaryPreviewHeader?: boolean;
 	dockPresentation?: boolean;
 	useWordPressTooltips?: boolean;
+	/** Badges to render next to specific paths in the file tree, keyed by absolute path. */
+	pathBadges?: Record<string, PathBadge>;
+	/** See `FilePickerTreeProps.onMountFromGit`. */
+	onMountFromGit?: (kind: 'plugin' | 'theme', parentPath: string) => void;
+	/** See `FilePickerTreeProps.onPathRenamed`. */
+	onPathRenamed?: (oldPath: string, newPath: string) => void | Promise<void>;
+};
+
+export type FileExplorerSidebarHandle = {
+	/** Re-fetches a folder's children, e.g. after writing files outside the tree's own UI. */
+	refreshPath: (path: string) => Promise<void>;
+	/** Expands, selects, and scrolls an externally created path into view. */
+	revealPath: (path: string) => Promise<void>;
 };
 
 /**
  * Renders the file explorer and opens selected files in the editor preview area.
  */
-export function FileExplorerSidebar({
-	filesystem,
-	currentPath,
-	selectedDirPath,
-	setSelectedDirPath,
-	onFileOpened,
-	onSelectionCleared,
-	onShowMessage,
-	documentRoot,
-	readOnly = false,
-	title = 'Files',
-	mobileSubsectionTitle,
-	showBinaryPreviewHeader = true,
-	dockPresentation = false,
-	useWordPressTooltips = false,
-}: FileExplorerSidebarProps) {
+export const FileExplorerSidebar = forwardRef<
+	FileExplorerSidebarHandle,
+	FileExplorerSidebarProps
+>(function FileExplorerSidebar(
+	{
+		filesystem,
+		currentPath,
+		selectedDirPath,
+		setSelectedDirPath,
+		onFileOpened,
+		onSelectionCleared,
+		onShowMessage,
+		documentRoot,
+		readOnly = false,
+		title = 'Files',
+		mobileSubsectionTitle,
+		showBinaryPreviewHeader = true,
+		dockPresentation = false,
+		useWordPressTooltips = false,
+		pathBadges,
+		onMountFromGit,
+		onPathRenamed,
+	},
+	ref
+) {
 	const treeRef = useRef<FilePickerTreeHandle | null>(null);
 	const uploadInputRef = useRef<HTMLInputElement | null>(null);
+
+	useImperativeHandle(
+		ref,
+		() => ({
+			refreshPath: async (path: string) => {
+				await treeRef.current?.refresh(path);
+			},
+			revealPath: async (path: string) => {
+				await treeRef.current?.revealPath(path);
+			},
+		}),
+		[]
+	);
 
 	const treeInitialPath = useMemo(() => {
 		return currentPath
@@ -89,14 +127,37 @@ export function FileExplorerSidebar({
 		if (!currentPath || !treeRef.current) {
 			return;
 		}
-		setSelectedDirPath(dirname(currentPath));
-		treeRef.current.focusPath(currentPath, {
-			select: true,
-			domFocus: false,
-			notify: false,
-		});
-		void treeRef.current.expandToPath(currentPath);
-	}, [currentPath, setSelectedDirPath]);
+		let cancelled = false;
+		const tree = treeRef.current;
+		const syncCurrentPathSelection = async () => {
+			// Blueprint steps may have created folders after the tree first loaded.
+			const parents: string[] = [];
+			for (
+				let parent = dirname(currentPath);
+				parent === documentRoot || isParentOf(documentRoot, parent);
+				parent = dirname(parent)
+			) {
+				parents.unshift(parent);
+				if (parent === documentRoot) break;
+			}
+			for (const parent of parents) {
+				await tree.refresh(parent);
+				if (cancelled) return;
+			}
+			await tree.expandToPath(currentPath);
+			if (cancelled) return;
+			setSelectedDirPath(dirname(currentPath));
+			tree.focusPath(currentPath, {
+				select: true,
+				domFocus: false,
+				notify: false,
+			});
+		};
+		void syncCurrentPathSelection();
+		return () => {
+			cancelled = true;
+		};
+	}, [currentPath, documentRoot, setSelectedDirPath]);
 
 	/**
 	 * Opens a selected file as editable text, binary preview, or too-large notice.
@@ -398,6 +459,9 @@ export function FileExplorerSidebar({
 					filesystem={filesystem}
 					root={documentRoot}
 					initialSelectedPath={treeInitialPath}
+					pathBadges={pathBadges}
+					onMountFromGit={onMountFromGit}
+					onPathRenamed={onPathRenamed}
 					onSelect={async (path) => {
 						if (!path) {
 							setSelectedDirPath(documentRoot);
@@ -424,7 +488,7 @@ export function FileExplorerSidebar({
 			</div>
 		</div>
 	);
-}
+});
 
 function FileActionTooltip({
 	label,

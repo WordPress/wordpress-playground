@@ -136,14 +136,14 @@ Playground can be combined with different APIs to create amazing tools. The poss
 
 You can [use WordPress Playground in Node.js](/developers/local-development/php-wasm-node) to create new tools. The [@php-wasm/node package](https://npmjs.org/@php-wasm/node), which ships the PHP WebAssembly runtime, is the package used for [https://playground.wordpress.net/](https://playground.wordpress.net/), for example.
 
-Another interesting app built on top of Playground is **Translate Live** (see [example](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) which, in combination with Open AI provides a WordPress translations tool “in place” where translations can be seen and modified in their real context (see example). Read more about this tool at [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
+Another interesting app built on top of Playground is **Translate Live** (see [example](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) which, in combination with OpenAI provides a WordPress translations tool “in place” where translations can be seen and modified in their real context (see example). Read more about this tool at [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 -->
 
 Playground se puede combinar con diferentes APIs para crear herramientas increíbles. Las posibilidades son infinitas.
 
 Puedes [usar WordPress Playground en Node.js](/developers/local-development/php-wasm-node) para crear nuevas herramientas. El paquete [@php-wasm/node](https://npmjs.org/@php-wasm/node), que incluye el runtime de PHP WebAssembly, es por ejemplo, el paquete utilizado para [https://playground.wordpress.net/](https://playground.wordpress.net/).
 
-Otra aplicación interesante construida sobre Playground es **Translate Live** (ver [ejemplo](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) que, en combinación con Open AI, proporciona una herramienta de traducción de WordPress "in situ" donde las traducciones se pueden ver y modificar en su contexto real (ver ejemplo). Lee más sobre esta herramienta en [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
+Otra aplicación interesante construida sobre Playground es **Translate Live** (ver [ejemplo](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) que, en combinación con OpenAI, proporciona una herramienta de traducción de WordPress "in situ" donde las traducciones se pueden ver y modificar en su contexto real (ver ejemplo). Lee más sobre esta herramienta en [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 
 <!--
 ## Work offline and as a native app

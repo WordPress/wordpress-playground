@@ -6,7 +6,7 @@ const outputDirectory = 'dist/packages/playground/client';
 const outputFile = `${outputDirectory}/index.d.ts`;
 const entryPoint = 'packages/playground/client/src/index.ts';
 const tsconfig = 'packages/playground/client/tsconfig.lib.json';
-const externalPackageNames = ['ajv'];
+const externalPackageNames = ['ajv', 'postal-mime'];
 
 await removeGeneratedDeclarations(outputDirectory);
 

@@ -1,4 +1,6 @@
-import type { PHP, PHPRequest } from '@php-wasm/universal';
+import { PHP } from '@php-wasm/universal';
+import type { PHPRequest } from '@php-wasm/universal';
+import { vi } from 'vitest';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
 	getSqliteDriverModule,
@@ -90,5 +92,45 @@ describe('Blueprint step login', () => {
 			url: '/nonce-test.php',
 		});
 		expect(response.text).toBe('1');
+	});
+});
+
+describe('Blueprint step login ordering', () => {
+	let php: PHP;
+	beforeEach(async () => {
+		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
+	});
+
+	afterEach(() => {
+		php.exit();
+		vi.restoreAllMocks();
+	});
+
+	it('should not resolve before defineConstant has finished', async () => {
+		let finishDefineConstant: () => void = () => {};
+		const defineConstant = vi.spyOn(php, 'defineConstant');
+		defineConstant.mockImplementation(
+			() =>
+				new Promise<void>((resolve) => {
+					finishDefineConstant = resolve;
+				})
+		);
+
+		let loginSettled = false;
+		const loginPromise = login(php, { username: 'editor' }).then(() => {
+			loginSettled = true;
+		});
+
+		// Let any promise continuations run.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		expect(defineConstant).toHaveBeenCalledWith(
+			'PLAYGROUND_AUTO_LOGIN_AS_USER',
+			'editor'
+		);
+		expect(loginSettled).toBe(false);
+
+		finishDefineConstant();
+		await loginPromise;
+		expect(loginSettled).toBe(true);
 	});
 });

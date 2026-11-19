@@ -184,10 +184,13 @@ export type CodeEditorProps = {
 	code: string;
 	onChange: (next: string) => void;
 	currentPath: string | null;
+	language?: LanguageSupport;
 	className?: string;
 	onSaveShortcut?: () => void;
 	readOnly?: boolean;
 	additionalExtensions?: Extension[];
+	cursorPosition?: number | null;
+	onCursorPositionApplied?: () => void;
 };
 
 export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
@@ -196,10 +199,13 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			code,
 			onChange,
 			currentPath,
+			language,
 			className,
 			onSaveShortcut,
 			readOnly = false,
 			additionalExtensions,
+			cursorPosition = null,
+			onCursorPositionApplied,
 		},
 		ref
 	) {
@@ -234,17 +240,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 				if (!viewRef.current) {
 					return;
 				}
-				const clampedPos = Math.min(
-					pos,
-					viewRef.current.state.doc.length
-				);
-				const selection = EditorSelection.create([
-					EditorSelection.range(clampedPos, clampedPos),
-				]);
-				viewRef.current.dispatch({
-					selection,
-					scrollIntoView: true,
-				});
+				setEditorCursorPosition(viewRef.current, pos);
 			},
 		}));
 
@@ -277,7 +273,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 					rectangularSelection(),
 					crosshairCursor(),
 					clickBelowContentExtension,
-					languageCompartmentRef.current.of(php()),
+					languageCompartmentRef.current.of(language ?? php()),
 					editableCompartmentRef.current.of(
 						EditorView.editable.of(!readOnly)
 					),
@@ -358,7 +354,24 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 
 		useEffect(() => {
 			const view = viewRef.current;
+			if (!view || cursorPosition === null) {
+				return;
+			}
+			setEditorCursorPosition(view, cursorPosition);
+			view.focus();
+			onCursorPositionApplied?.();
+		}, [code, cursorPosition, onCursorPositionApplied]);
+
+		useEffect(() => {
+			const view = viewRef.current;
 			if (!view) {
+				return;
+			}
+			if (language) {
+				view.dispatch({
+					effects:
+						languageCompartmentRef.current.reconfigure(language),
+				});
 				return;
 			}
 
@@ -389,7 +402,7 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 			return () => {
 				cancelled = true;
 			};
-		}, [currentPath]);
+		}, [currentPath, language]);
 
 		useEffect(() => {
 			const view = viewRef.current;
@@ -423,3 +436,16 @@ export const CodeEditor = forwardRef<CodeEditorHandle, CodeEditorProps>(
 );
 
 CodeEditor.displayName = 'CodeEditor';
+
+function setEditorCursorPosition(view: EditorView, pos: number) {
+	const clampedPos = Math.max(0, Math.min(pos, view.state.doc.length));
+	const selection = EditorSelection.create([
+		EditorSelection.range(clampedPos, clampedPos),
+	]);
+	view.dispatch({
+		selection,
+		effects: EditorView.scrollIntoView(clampedPos, {
+			y: 'center',
+		}),
+	});
+}

@@ -56,9 +56,9 @@ export class WebsitePage {
 		);
 	}
 
+	/** Exercise real startup URLs without injecting a sandbox opt-in for tests. */
 	async goto(url: string, options?: any) {
-		const originalGoto = this.page.goto.bind(this.page);
-		const response = await originalGoto(url, options);
+		const response = await this.page.goto(url, options);
 		await this.waitForNestedIframes();
 		return response;
 	}
@@ -117,6 +117,22 @@ export class WebsitePage {
 		const dock = this.page.getByRole('navigation', {
 			name: 'Playground tools',
 		});
+		const developerTools = dock.getByRole('group', {
+			name: 'Developer tools',
+			includeHidden: true,
+		});
+		if (
+			await developerTools
+				.getByRole('button', { name: toolName, includeHidden: true })
+				.count()
+		) {
+			const toggle = dock.getByRole('button', {
+				name: 'Dev Tools',
+				exact: true,
+			});
+			if ((await toggle.getAttribute('aria-expanded')) !== 'true')
+				await toggle.click();
+		}
 		const tool = dock.getByRole('button', { name: toolName });
 		if ((await tool.getAttribute('aria-pressed')) !== 'true') {
 			await tool.click();

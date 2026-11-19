@@ -11,6 +11,9 @@ export interface ToolAnnotations {
 	destructiveHint?: boolean;
 	idempotentHint?: boolean;
 	openWorldHint?: boolean;
+	consequentialHint?: boolean;
+	untrustedContentHint?: boolean;
+	debugging?: boolean;
 }
 
 export type ToolParamType =
@@ -76,6 +79,8 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: true,
+			consequentialHint: true,
+			debugging: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -161,6 +166,9 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: false,
+			consequentialHint: true,
+			untrustedContentHint: true,
+			debugging: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -266,6 +274,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: true,
 			destructiveHint: false,
+			untrustedContentHint: true,
 			openWorldHint: true,
 		},
 		params: [
@@ -297,6 +306,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: true,
+			consequentialHint: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -377,6 +387,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: true,
+			consequentialHint: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -403,6 +414,7 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 		annotations: {
 			readOnlyHint: false,
 			destructiveHint: true,
+			consequentialHint: true,
 			idempotentHint: false,
 			openWorldHint: true,
 		},
@@ -442,6 +454,32 @@ export const toolDefinitions: Record<string, ToolDefinition> = {
 				required: true,
 			},
 		],
+	},
+	playground_list_emails: {
+		title: 'List Captured Emails',
+		errorPrefix: 'Error listing emails',
+		description: `List every email the WordPress site has sent
+			so far. Playground has no mail server. Each
+			message WordPress attempts to send (password
+			resets, comment notifications, wp_mail() calls…)
+			is captured instead of being delivered. Use this
+			tool to read those messages, e.g. to verify that
+			a plugin sent an email or to retrieve a
+			confirmation link.
+
+			Returns the full inbox in send order. Each entry
+			contains the from/to/CC addresses, subject, date,
+			text and HTML bodies, and attachment metadata
+			(file name, MIME type, size). Attachment contents
+			are not included.`,
+		annotations: {
+			readOnlyHint: true,
+			destructiveHint: false,
+			untrustedContentHint: true,
+			debugging: true,
+			openWorldHint: true,
+		},
+		params: [],
 	},
 };
 
@@ -599,6 +637,7 @@ export function paramsToJsonSchema(
 	const schema: Record<string, unknown> = {
 		type: 'object',
 		properties,
+		additionalProperties: false,
 	};
 	if (required.length > 0) {
 		schema['required'] = required;

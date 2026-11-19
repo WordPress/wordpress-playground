@@ -13,6 +13,10 @@
  * remote device still needs to open a direct WebRTC data channel and the host
  * device must approve the two-digit verification code before any WordPress
  * requests or backup data can flow.
+ *
+ * That approval only binds the right device if the host role is authenticated,
+ * so host-side signaling requires a secret token issued once at session
+ * creation and never carried in the share URL.
  */
 
 define('SESSION_TIMEOUT_MS', 5 * 60 * 1000);
@@ -25,6 +29,7 @@ define('MAX_SIGNAL_ID_BYTES', 64);
 define('MAX_GUEST_ID_BYTES', 36);
 define('MAX_SIGNAL_SDP_BYTES', 4096);
 define('MAX_SIGNAL_ICE_CANDIDATE_BYTES', 1024);
+define('HOST_TOKEN_HEADER', 'HTTP_X_PLAYGROUND_HOST_TOKEN');
 define('SESSIONS_TABLE', 'playground_remote_access_sessions');
 define('SIGNALS_TABLE', 'playground_remote_access_signals');
 define('GUESTS_TABLE', 'playground_remote_access_guests');
@@ -137,16 +142,19 @@ function handleCreateSession(): void {
     for ($i = 0; $i < 10; $i++) {
         $sessionId = generateUuid();
         $accessCode = generateAccessCode();
+        $hostToken = generateHostToken();
         $now = nowMs();
 
-        if (!insertSession($sessionId, $accessCode, $now)) {
+        if (!insertSession($sessionId, $accessCode, $hostToken, $now)) {
             continue;
         }
 
+        // The only response that ever carries the host token.
         jsonResponse([
             'sessionId' => $sessionId,
             'shareUrl' => buildShareUrl($sessionId),
             'accessCode' => $accessCode,
+            'hostToken' => $hostToken,
         ]);
         return;
     }
@@ -226,10 +234,18 @@ function handlePostSignal(string $sessionId): void {
         jsonResponse(['error' => 'Invalid signal'], 400);
         return;
     }
+    if ($from === 'host' && !hasHostToken()) {
+        jsonResponse(['error' => 'Missing host token'], 401);
+        return;
+    }
 
     $session = getSession($sessionId);
     if (!$session) {
         jsonResponse(['error' => 'Session not found'], 404);
+        return;
+    }
+    if ($from === 'host' && !isHostTokenValid($session)) {
+        jsonResponse(['error' => 'Invalid host token'], 403);
         return;
     }
 
@@ -281,11 +297,19 @@ function handlePollSignal(string $sessionId): void {
         jsonResponse(['error' => 'Invalid signal recipient'], 400);
         return;
     }
+    if ($to === 'host' && !hasHostToken()) {
+        jsonResponse(['error' => 'Missing host token'], 401);
+        return;
+    }
 
     $now = nowMs();
     $session = getSession($sessionId);
     if (!$session) {
         jsonResponse(['error' => 'Session not found'], 404);
+        return;
+    }
+    if ($to === 'host' && !isHostTokenValid($session)) {
+        jsonResponse(['error' => 'Invalid host token'], 403);
         return;
     }
     refreshHostState($session, $now);
@@ -324,6 +348,19 @@ function handlePollSignal(string $sessionId): void {
 }
 
 function handleClose(string $sessionId): void {
+    if (!hasHostToken()) {
+        jsonResponse(['error' => 'Missing host token'], 401);
+        return;
+    }
+    $session = getSession($sessionId);
+    if (!$session) {
+        jsonResponse(['error' => 'Session not found'], 404);
+        return;
+    }
+    if (!isHostTokenValid($session)) {
+        jsonResponse(['error' => 'Invalid host token'], 403);
+        return;
+    }
     setHostConnected($sessionId, false);
     jsonResponse(['ok' => true]);
 }
@@ -440,6 +477,7 @@ function isBoundedString($value, int $minBytes, int $maxBytes): bool {
 function insertSession(
     string $sessionId,
     string $accessCode,
+    string $hostToken,
     int $now
 ): bool {
     $stmt = db()->prepare(
@@ -447,20 +485,22 @@ function insertSession(
             (
                 session_id,
                 access_code,
+                host_token,
                 created_at_ms,
                 last_activity_ms,
                 last_host_seen_at_ms,
                 host_connected
             )
-         VALUES (?, ?, ?, ?, 0, 0)'
+         VALUES (?, ?, ?, ?, ?, 0, 0)'
     );
     try {
         $createdAt = (string) $now;
         $lastActivity = (string) $now;
         $stmt->bind_param(
-            'ssss',
+            'sssss',
             $sessionId,
             $accessCode,
+            $hostToken,
             $createdAt,
             $lastActivity
         );
@@ -479,6 +519,7 @@ function getSession(string $sessionId): ?array {
         'SELECT
             session_id,
             access_code,
+            host_token,
             created_at_ms,
             last_activity_ms,
             last_host_seen_at_ms,
@@ -819,6 +860,37 @@ function isHostAlive(array $session, int $now): bool {
         $now - $lastHostSeenAt < HOST_DEAD_AFTER_MS;
 }
 
+/**
+ * Reports whether the request carries a host token at all.
+ *
+ * Checked before the session lookup so host-role requests without one are
+ * rejected without touching session state.
+ *
+ * @return bool True when the host token header is present and non-empty.
+ */
+function hasHostToken(): bool {
+    $token = $_SERVER[HOST_TOKEN_HEADER] ?? '';
+    return is_string($token) && $token !== '';
+}
+
+/**
+ * Reports whether the request proves it is the host that created the session.
+ *
+ * A session stored without a token, which happens for rows that predate the
+ * column, never matches.
+ *
+ * @param array $session Session row, including its `host_token` column.
+ * @return bool True when the request's host token matches the session's.
+ */
+function isHostTokenValid(array $session): bool {
+    $expected = (string) ($session['host_token'] ?? '');
+    $provided = $_SERVER[HOST_TOKEN_HEADER] ?? '';
+    if ($expected === '' || !is_string($provided) || $provided === '') {
+        return false;
+    }
+    return hash_equals($expected, $provided);
+}
+
 function isValidSignal(string $from, string $to, string $type): bool {
     return in_array($from, ['host', 'guest'], true) &&
         in_array($to, ['host', 'guest'], true) &&
@@ -865,6 +937,15 @@ function generateAccessCode(): string {
     return substr($digits, 0, 3) . '-' . substr($digits, 3, 3);
 }
 
+/**
+ * Generates the secret that authenticates the host role for one session.
+ *
+ * @return string A 64-character hex token.
+ */
+function generateHostToken(): string {
+    return bin2hex(random_bytes(32));
+}
+
 function generateUuid(): string {
     $data = random_bytes(16);
     $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
@@ -895,5 +976,5 @@ function setCorsHeaders(): void {
         }
     }
     header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type');
+    header('Access-Control-Allow-Headers: Content-Type, X-Playground-Host-Token');
 }

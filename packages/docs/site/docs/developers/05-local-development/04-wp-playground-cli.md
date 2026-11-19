@@ -205,11 +205,11 @@ Mount before WP install: /wordpress ->
 The database location depends on what you mount:
 
 - **Auto-mounting wp-content or full WordPress**:
-    - Database: `<your-local-project>/wp-content/database/.ht.sqlite`
+    - Database directory: `<your-local-project>/wp-content/database/`
     - ✅ **Persisted locally** in your project folder
 
 - **Auto-mounting plugin/theme only**:
-    - Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
+    - Database directory: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/`
     - ⚠️ **Lost when server stops** (temp directories are cleaned up)
 
 - **Custom mounts**: Database location follows your mount configuration
@@ -254,7 +254,7 @@ project directory.
 The database location depends on your configuration:
 
 - **Default (automatic persistence)**:
-    - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite`
+    - Database directory: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/`
     - **Persisted automatically** between sessions
 - **Full WordPress directory or explicit `/wordpress` mount**:
     - Database: Follows the mounted WordPress directory

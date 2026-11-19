@@ -111,7 +111,7 @@ Visit these links to learn more about the (endless) possibilities of Blueprints:
 -   [Introduction to WordPress Playground](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
 -   Embed a pre-configured WordPress site in your website using the [WordPress Playground Block](https://wordpress.org/plugins/interactive-code-block/).
 -   [Blueprints examples](/blueprints/examples)
--   [Demos and apps built with Blueprints](/resources#apps-built-with-wordpress-playground)
+-   [Demos and apps built with Blueprints](/links-and-resources#apps-built-with-wordpress-playground)
 
 -->
 
@@ -124,6 +124,6 @@ Visit these links to learn more about the (endless) possibilities of Blueprints:
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের ভূমিকা](https://developer.wordpress.org/news/2024/04/05/introduction-to-playground-running-wordpress-in-the-browser/)
 - [ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্লক](https://wordpress.org/plugins/interactive-code-block/) ব্যবহার করে আপনার ওয়েবসাইটে একটি প্রি-কনফিগার করা ওয়ার্ডপ্রেস সাইট এম্বেড করুন।
 - [ব্লুপ্রিন্টের উদাহরণ](/blueprints/examples)
-- [ব্লুপ্রিন্ট দিয়ে তৈরি ডেমো এবং অ্যাপ](/resources#apps-built-with-wordpress-playground)
+- [ব্লুপ্রিন্ট দিয়ে তৈরি ডেমো এবং অ্যাপ](/links-and-resources#apps-built-with-wordpress-playground)
 
 </div>

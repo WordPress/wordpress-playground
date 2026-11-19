@@ -7,6 +7,7 @@ import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
 import { SiteToolPanels } from './site-tool-panels';
 
 vi.mock('../../../lib/state/redux/store', () => ({
+	selectActiveSiteError: vi.fn(),
 	useAppDispatch: () => vi.fn(),
 	useAppSelector: () => false,
 }));
@@ -27,6 +28,7 @@ vi.mock('../../blueprint-editor/SiteBlueprintBundleEditor', () => ({
 	}) => (
 		<div data-testid="blueprint" data-dock-presentation={dockPresentation}>
 			Blueprint editor
+			<input aria-label="Blueprint draft" defaultValue="initial draft" />
 		</div>
 	),
 }));
@@ -39,6 +41,10 @@ vi.mock('../site-settings-form/active-site-settings-form', () => ({
 
 vi.mock('../site-database-panel', () => ({
 	SiteDatabasePanel: () => <div data-testid="database">Database tools</div>,
+}));
+
+vi.mock('../site-terminal-panel', () => ({
+	SiteTerminalPanel: () => <div data-testid="terminal">Terminal</div>,
 }));
 
 vi.mock('../../log-modal', () => ({
@@ -94,14 +100,31 @@ describe('SiteToolPanels', () => {
 
 		const database = findTool('database');
 		expect(database.closest('[hidden]')).toBeNull();
-		for (const name of ['settings', 'files', 'blueprint', 'logs']) {
+		for (const name of [
+			'settings',
+			'files',
+			'blueprint',
+			'terminal',
+			'logs',
+		]) {
 			expect(findOptionalTool(name)).toBeNull();
 		}
 
-		await renderPanels('logs', playground);
+		await renderPanels('terminal', playground);
 		expect(findTool('database')).toBe(database);
 		expect(database.closest('[hidden]')).not.toBeNull();
-		expect(findTool('logs').closest('[hidden]')).toBeNull();
+		expect(findTool('terminal').closest('[hidden]')).toBeNull();
+	});
+
+	it('retains an editor draft when all tools close and the editor reopens', async () => {
+		await renderPanels('blueprint', playground);
+		const input = container.querySelector('input')!;
+		input.value = 'unsaved changes';
+		await renderPanels(null, playground);
+		expect(input.closest('[hidden]')).not.toBeNull();
+		await renderPanels('blueprint', playground);
+		expect(container.querySelector('input')).toBe(input);
+		expect(input.value).toBe('unsaved changes');
 	});
 
 	it('enables the Blueprint editor Dock presentation', async () => {
@@ -117,6 +140,54 @@ describe('SiteToolPanels', () => {
 
 		expect(container.querySelector('[role="status"]')?.textContent).toBe(
 			'Playground files are still loading…'
+		);
+	});
+
+	it('retries a failed file lookup without replacing the Playground client', async () => {
+		const getDocumentRoot = vi
+			.fn()
+			.mockImplementationOnce(() =>
+				Promise.reject(new Error('Worker unavailable'))
+			)
+			.mockImplementationOnce(() => Promise.resolve('/wordpress'));
+		const client = {
+			get documentRoot() {
+				return getDocumentRoot();
+			},
+		} as PlaygroundClient;
+
+		await renderPanels('files', client);
+		expect(findOptionalTool('files')).toBeNull();
+		expect(container.textContent).toContain(
+			'Could not load Playground files.'
+		);
+		const retry = Array.from(container.querySelectorAll('button')).find(
+			(button) => button.textContent === 'Retry'
+		)!;
+		await act(async () => retry.click());
+
+		expect(getDocumentRoot).toHaveBeenCalledTimes(2);
+		expect(findTool('files')).not.toBeNull();
+		expect(container.textContent).not.toContain(
+			'Could not load Playground files.'
+		);
+	});
+
+	it('ignores a failed lookup from a replaced client', async () => {
+		let rejectRoot!: (error: Error) => void;
+		const oldClient = {
+			documentRoot: new Promise<string>((_, reject) => {
+				rejectRoot = reject;
+			}),
+		} as PlaygroundClient;
+		await renderPanels('files', oldClient);
+		await renderPanels('files', playground);
+
+		await act(async () => rejectRoot(new Error('Old worker stopped')));
+
+		expect(findTool('files')).not.toBeNull();
+		expect(container.textContent).not.toContain(
+			'Could not load Playground files.'
 		);
 	});
 

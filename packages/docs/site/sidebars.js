@@ -48,6 +48,7 @@ const sidebars = {
 						'main/guides/php-code-snippets',
 						'main/guides/php-frameworks',
 						'main/guides/agent-skill-wp-playground',
+						'main/guides/ai-assistants-mcp',
 						'main/guides/wordpress-native-ios-app',
 						'main/guides/for-plugin-developers',
 						'main/guides/for-theme-developers',
@@ -75,6 +76,7 @@ const sidebars = {
 						'main/contributing/contributor-badge',
 						'main/contributing/contributor-day-table-lead',
 						'main/contributing/documentation',
+						'main/contributing/github-ui',
 						'main/contributing/translations',
 					],
 				},
@@ -162,6 +164,7 @@ const sidebars = {
 					items: [
 						'developers/xdebug/introduction',
 						'developers/xdebug/getting-started',
+						'developers/xdebug/trace-and-profile',
 					],
 				},
 				{

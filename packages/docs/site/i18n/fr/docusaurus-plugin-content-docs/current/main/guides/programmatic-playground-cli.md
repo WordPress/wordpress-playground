@@ -64,11 +64,10 @@ You can provide a blueprint in two ways: either as an object literal directly pa
 Vous pouvez fournir un blueprint de deux façons : soit comme un objet littéral passé directement à la propriété `blueprint`, soit comme une chaîne contenant le chemin vers un fichier `.json` externe.
 
 ```TypeScript
-import { runCLI, RunCLIServer } from "@wp-playground/cli";
+import { runCLI } from "@wp-playground/cli";
+import type { RunCLIServer } from "@wp-playground/cli";
 
-const cliServer: RunCLIServer;
-
-cliServer = await runCLI({
+const cliServer: RunCLIServer = await runCLI({
   command: 'server',
   wp: 'latest',
   blueprint: {
@@ -126,7 +125,7 @@ Vous pouvez monter des répertoires locaux de manière programmatique avec `runC
 ```TypeScript
 import { runCLI } from "@wp-playground/cli";
 
-cliServer = await runCLI({
+const cliServer = await runCLI({
   command: 'server',
   login: true,
   'mount-before-install': [
@@ -151,11 +150,10 @@ You can combine mounting parts of the project with blueprints, for example:
 Vous pouvez combiner le montage de parties du projet avec des blueprints, par exemple :
 
 ```TypeScript
-import { runCLI, RunCLIServer } from "@wp-playground/cli";
+import { runCLI } from "@wp-playground/cli";
+import type { RunCLIServer } from "@wp-playground/cli";
 
-const cliServer: RunCLIServer;
-
-cliServer = await runCLI({
+const cliServer: RunCLIServer = await runCLI({
     command: 'server',
     php: '8.3',
     wp: 'latest',
@@ -197,14 +195,16 @@ L’API programmatique est idéale pour les tests automatisés. Voici un exemple
 
 ```TypeScript
 import { describe, test, expect, afterEach } from 'vitest';
-import { runCLI, RunCLIServer } from "@wp-playground/cli";
+import { runCLI } from "@wp-playground/cli";
+import type { RunCLIServer } from "@wp-playground/cli";
 
 describe('My Plugin Tests', () => {
-  const cliServer: RunCLIServer;
+  let cliServer: RunCLIServer | undefined;
 
   afterEach(async () => {
     if (cliServer) {
       await cliServer[Symbol.asyncDispose]();
+      cliServer = undefined;
     }
   });
 
@@ -233,12 +233,13 @@ describe('My Plugin Tests', () => {
     expect(response.status).toBe(200);
     const html = await response.text();
     expect(html).toContain('My Plugin');
-  });
+  }, 30_000);
 
   test('plugin settings page loads', async () => {
     cliServer = await runCLI({
       command: 'server',
       login: true, // Auto-login as admin
+      internalCookieStore: true, // Preserve login cookies across Node.js fetch requests.
       mount: [
         {
           hostPath: './my-plugin',
@@ -262,7 +263,10 @@ describe('My Plugin Tests', () => {
     const response = await fetch(settingsUrl);
 
     expect(response.status).toBe(200);
-  });
+    expect(response.url).toBe(settingsUrl.href);
+    const html = await response.text();
+    expect(html).toContain('My Plugin');
+  }, 30_000);
 });
 ```
 
@@ -273,8 +277,11 @@ describe('My Plugin Tests', () => {
 ### Tester avec différentes versions WordPress/PHP
 
 ```TypeScript
+import { test, expect } from 'vitest';
+import { runCLI } from "@wp-playground/cli";
+
 test('plugin works with WordPress 6.4 and PHP 8.3', async () => {
-  cliServer = await runCLI({
+  const cliServer = await runCLI({
     command: 'server',
     php: '8.3',
     wp: '6.4',
@@ -294,11 +301,15 @@ test('plugin works with WordPress 6.4 and PHP 8.3', async () => {
     }
   });
 
-  const homeUrl = new URL('/', cliServer.serverUrl);
-  const response = await fetch(homeUrl);
+  try {
+    const homeUrl = new URL('/', cliServer.serverUrl);
+    const response = await fetch(homeUrl);
 
-  expect(response.status).toBe(200);
-});
+    expect(response.status).toBe(200);
+  } finally {
+    await cliServer[Symbol.asyncDispose]();
+  }
+}, 30_000);
 ```
 
 <!--
