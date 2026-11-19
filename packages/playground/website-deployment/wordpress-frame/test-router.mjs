@@ -23,6 +23,7 @@ import {
 	writeFile,
 	utimes,
 } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:net';
 import { request as httpRequest } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -86,12 +87,13 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 			root = webRoot,
 			snapshots = backups,
 			environment = {},
+			installer = deployment,
 		} = {}
 	) =>
 		run(
 			'bash',
 			[
-				join(deployment, 'apply-update.sh'),
+				join(installer, 'apply-update.sh'),
 				...origins,
 				upload,
 				root,
@@ -226,6 +228,61 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 			failure(`${name} links outside the build`)
 		);
 	}
+	// Contract: restored files for old clients install only with their reviewed bytes,
+	// at free root-level script names, so an inventory edit cannot publish other files.
+	const compatibilityAssets = JSON.parse(
+		await readFile(
+			join(deployment, 'compatibility-assets/inventory.json'),
+			'utf8'
+		)
+	).assets;
+	assert.ok(compatibilityAssets.length > 0);
+	const [restored] = compatibilityAssets;
+	const variant = join(temporary, 'compatibility-variant');
+	const withInventory = async (change) => {
+		await rm(variant, { recursive: true, force: true });
+		await cp(deployment, variant, { recursive: true });
+		await change(join(variant, 'compatibility-assets'));
+		return variant;
+	};
+	const setAssets = (assets) => async (directory) =>
+		writeFile(
+			join(directory, 'inventory.json'),
+			JSON.stringify({ assets })
+		);
+	for (const [change, message] of [
+		[
+			async (directory) =>
+				writeFile(join(directory, 'files', restored.path), 'altered'),
+			'does not match its reviewed hash',
+		],
+		[
+			setAssets([{ ...restored, path: '../outside.js' }]),
+			'invalid compatibility asset entry',
+		],
+		[
+			setAssets([{ ...restored, path: 'remote.html' }]),
+			'invalid compatibility asset entry',
+		],
+		[
+			setAssets([{ ...restored, path: 'sw.js' }]),
+			'collides with a root file',
+		],
+		[setAssets([restored, restored]), 'name each path once'],
+	]) {
+		await assert.rejects(
+			install('A', await makeBuild('A'), {
+				installer: await withInventory(change),
+			}),
+			failure(message)
+		);
+	}
+	await writeFile(join(webRoot, restored.path), 'unrelated root file');
+	await assert.rejects(
+		install('A', await makeBuild('A')),
+		failure('already exists in the web root with other contents')
+	);
+	await assert.rejects(stat(join(webRoot, '.playground-releases/A')));
 	await rm(webRoot, { recursive: true });
 	await mkdir(webRoot);
 
@@ -309,6 +366,20 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 			assert.equal((await request(path, host)).status, 200, path);
 		}
 	}
+	// Restored scripts keep their original root URLs and exact reviewed bytes.
+	const expectRestoredAssets = async () => {
+		for (const { path, sha256 } of compatibilityAssets) {
+			const response = await request('/' + path, app);
+			assert.equal(response.status, 200, path);
+			const bytes = Buffer.from(await response.arrayBuffer());
+			assert.equal(
+				createHash('sha256').update(bytes).digest('hex'),
+				sha256,
+				path
+			);
+		}
+	};
+	await expectRestoredAssets();
 	await assert.rejects(readFile(phpCalls)); // No static request reached PHP.
 
 	// The app host's missing paths keep the existing handler: no-store entry pages,
@@ -435,6 +506,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		await (await request('/remote.html', app)).text(),
 		/remote B$/
 	);
+	await expectRestoredAssets();
 	assert.equal(
 		await (await request('/releases/A/assets/main.js', app)).text(),
 		'main A'
@@ -493,6 +565,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		await readFile(join(webRoot, 'obsolete/page.html'), 'utf8'),
 		/obsolete$/
 	);
+	await expectRestoredAssets();
 	// Activation resets lifecycle metadata even when the subsequent purge fails.
 	assert.equal(
 		JSON.parse(await readFile(retiredMetadata, 'utf8')).inactiveSince,
@@ -726,6 +799,8 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	await assert.rejects(stat(join(backups, 'pending-edge-purge')));
 	await assert.rejects(stat(join(webRoot, 'release.json')));
 	await retryPurge(); // Retrying a completed purge is harmless and never rolls back again.
+	// Old clients still need their scripts after returning to the original layout.
+	await expectRestoredAssets();
 
 	// Untracked release retention: a prior active release without lifecycle metadata
 	// must survive activation and later pruning, even when its files look expired.

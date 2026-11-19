@@ -1,6 +1,6 @@
 # Two-host deployment on WP Cloud
 
-Updated as of **2026-11-17**, for PR #4613. Recheck this guide when changing the
+Updated as of **2026-11-18**, for PR #4613 and the restored bridge scripts. Recheck this guide when changing the
 installer, browser worker protocol, or WP Cloud routing; the implementation is
 the source of truth for exact behavior.
 
@@ -111,7 +111,8 @@ PLAYGROUND_RELEASE_ID=<id> ~/website-deployment/apply-update.sh \
 1. Rejects non-canonical origins, matching hostnames, a missing entry document,
    a build made for another release path, and any app page without its origin
    check (the sandbox origin for `wordpress-bridge.html`, the app origin otherwise).
-   Checks both public hosts and Nginx's hidden-path deny rule.
+   Rejects restored bridge scripts whose bytes or root names do not match their
+   inventory. Checks both public hosts and Nginx's hidden-path deny rule.
 2. Records the release in its private lifecycle metadata, so retention also removes
    an upload that fails before activation. Moves the build into
    `/srv/htdocs/.playground-releases/.staging-<id>/`, which the probes verified, then:
@@ -121,6 +122,8 @@ PLAYGROUND_RELEASE_ID=<id> ~/website-deployment/apply-update.sh \
 3. Renames the staging directory to `/srv/htdocs/releases/<id>/`.
 4. Records the complete root inventory and backs up every affected existing file under
    `~/website-backups/<id>/`, including files being removed. Records newly added files as absent.
+   Installs any missing [restored bridge scripts](#restored-bridge-scripts-for-older-clients),
+   which are outside this inventory.
 5. Replaces the root `custom-redirects.php`, copies the release's entry pages to
    the web root, writes a root `/sw.js` that imports `/releases/<id>/sw.js`, and
    writes `release.json` naming the release, previous release, installation time and owned root files.
@@ -180,6 +183,30 @@ stay in place. Browsers update their existing `/sw.js` registrations on both hos
 to the new loader, which chooses its role by origin. Tabs opened before the switch
 can no longer load their old root `/assets/` chunks, as with any earlier deployment.
 
+### Restored bridge scripts for older clients
+
+Until its update succeeds, a WordPress worker from that layout answers its own bridge
+URL itself. Its generated HTML loads that build's self-contained app-origin script,
+such as `/wordpress-bridge-Cmo7aZBy.js`. Every later deployment removed those scripts.
+An old `remote.html` can still start after a deployment, for example when its app
+worker falls back to cached entry pages during a network failure. If the WordPress
+worker update also fails, the bridge script request fails. Browsers report that 404 as a
+missing `Access-Control-Allow-Origin` header, then "WordPress request transport did not start".
+
+`../compatibility-assets/inventory.json` lists the exact scripts every production
+build of that layout served, with the commit, deployment run and artifact digest each
+was recovered from. The installer checks each SHA-256 and installs the files at their
+original root URLs, where Nginx serves them like other static scripts: JavaScript MIME
+type and `Access-Control-Allow-Origin: *`. The scripts import nothing else. Only
+root-level `.js` names are accepted; the installer refuses names that releases use and
+existing files with different bytes. No release owns these files, so later deployments,
+rollbacks and pruning leave them in place. They are not redirects: an unknown hashed
+script still returns 404.
+
+To add a file, recover its original bytes from a trusted build artifact or the server's
+private release copy and record their provenance. Never generate them from a new build.
+To retire one, remove its entry, deploy, then delete the file from the web root.
+
 ## Verify and roll back
 
 The HTTP contract test runs `apply-update.sh` against a temporary web root and
@@ -237,7 +264,8 @@ WordPress bridges remain reachable.
 
 When a release is vulnerable, first activate or restore a known-safe release, then
 remove the vulnerable ID from both `releases/` and `.playground-releases/` and its
-backup, and purge the edge cache. Do not wait for retention. This removes server
+backup, and purge the edge cache. A vulnerable restored bridge script is removed the
+same way: delete its inventory entry, deploy, then delete the root file and purge. Do not wait for retention. This removes server
 copies; it cannot recall already loaded documents or browser caches. A fix may also
 need a worker-driven forced reload for open tabs. Retention is not revocation.
 

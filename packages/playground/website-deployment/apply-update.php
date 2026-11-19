@@ -15,6 +15,7 @@ $commands = array(
 	'with-lock'          => 'with_deployment_lock',
 	'check-origins'       => 'check_origins',
 	'check-build'         => 'check_build',
+	'check-compatibility-assets' => 'check_compatibility_assets',
 	'write-private-files' => 'write_private_files',
 	'activate'            => 'activate',
 	'rollback'            => 'rollback',
@@ -123,6 +124,74 @@ function check_build( $build, $app_origin, $wordpress_origin ) {
 }
 
 /**
+ * Refuse an invalid compatibility inventory before the upload touches the web root.
+ *
+ * activate() repeats these checks with the release's root files before installing.
+ */
+function check_compatibility_assets( $root ) {
+	$manifest = is_file( "$root/release.json" ) ? read_json( "$root/release.json" ) : array();
+	compatibility_assets( $root, owned_root_files( $manifest ) );
+}
+
+/**
+ * Check, and optionally install, the reviewed files listed in compatibility-assets/.
+ *
+ * PRE_RELEASE_BRIDGE_SCRIPT_COMPAT: a WordPress worker from the root-only layout
+ * generates bridge HTML naming its own app-origin /wordpress-bridge-<hash>.js. Each
+ * later deployment removed that script, so an old app paired with that worker could
+ * not start its bridge. Each entry restores one exact file at its original root URL;
+ * Nginx serves it with the same MIME type and CORS headers as other static scripts.
+ *
+ * These files are not owned by any release. Activation, rollback and pruning never
+ * remove them, so they survive later deployments and rollbacks. Only root-level .js
+ * names are accepted. A name used by another root file, a source differing from its
+ * reviewed hash, or an existing target with other bytes, a link or a directory refuses
+ * the deployment before root files change. Remove a file only by deleting its entry
+ * and then the file on the server.
+ *
+ * @param string   $root     Web root.
+ * @param string[] $reserved Root paths that releases or the installer own.
+ * @param bool     $install  Install missing files after checking every entry.
+ */
+function compatibility_assets( $root, $reserved, $install = false ) {
+	$directory = __DIR__ . '/compatibility-assets';
+	$assets    = read_json( "$directory/inventory.json" )['assets'];
+	$paths     = array_column( $assets, 'path' );
+	if ( count( $paths ) !== count( $assets ) || count( array_unique( $paths ) ) !== count( $paths ) ) {
+		refuse( 'compatibility assets must name each path once.' );
+	}
+	foreach ( $assets as $asset ) {
+		$path = $asset['path'];
+		$hash = $asset['sha256'] ?? '';
+		if ( ! is_string( $path ) || ! preg_match( '/\A[A-Za-z0-9][A-Za-z0-9_-]*\.js\z/', $path ) ||
+			! is_string( $hash ) || ! preg_match( '/\A[0-9a-f]{64}\z/', $hash )
+		) {
+			refuse( 'invalid compatibility asset entry: ' . json_encode( $asset ) );
+		}
+		if ( in_array( $path, $reserved, true ) ) {
+			refuse( "compatibility asset $path collides with a root file." );
+		}
+		$source = "$directory/files/$path";
+		if ( is_link( $source ) || ! is_file( $source ) || hash_file( 'sha256', $source ) !== $hash ) {
+			refuse( "compatibility asset $path does not match its reviewed hash." );
+		}
+		$target = "$root/$path";
+		if ( is_link( $target ) || ( file_exists( $target ) &&
+			( ! is_file( $target ) || hash_file( 'sha256', $target ) !== $hash ) )
+		) {
+			refuse( "$path already exists in the web root with other contents." );
+		}
+	}
+	if ( $install ) {
+		foreach ( $paths as $path ) {
+			if ( ! file_exists( "$root/$path" ) ) {
+				install_file( "$root/$path", "$directory/files/$path" );
+			}
+		}
+	}
+}
+
+/**
  * Write the release's private PHP: MIME map, native endpoints, and request entry.
  *
  * PHP endpoints leave the public release because Nginx would run them on both
@@ -197,6 +266,9 @@ function activate( $root, $backups, $release, $retention, $app_origin, $wordpres
 	}
 	write_file( "$private/root-sw.js", 'import ' . json_encode( "/releases/$release/sw.js", JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR ) . ";\n" );
 	$sources['sw.js'] = "$private/root-sw.js";
+	// Check before any root change; install below, before the root files change.
+	$reserved = array_merge( $owned, array_keys( $sources ), array( 'release.json' ) );
+	compatibility_assets( $root, $reserved );
 	$next = array(
 		'release'         => $release,
 		'previousRelease' => $manifest['release'] ?? null,
@@ -226,6 +298,8 @@ function activate( $root, $backups, $release, $retention, $app_origin, $wordpres
 		}
 	}
 	write_file( "$backup/inventory.json", json_encode( $inventory, JSON_THROW_ON_ERROR ) );
+	// Additive and outside the snapshot: a failed activation keeps them, as later ones would.
+	compatibility_assets( $root, $reserved, true );
 	record_activation( $root, $manifest['release'] ?? null, $release );
 	try {
 		foreach ( array_diff( $owned, array_keys( $sources ) ) as $path ) {

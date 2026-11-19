@@ -33,9 +33,17 @@ export function wordPressFrameMiddleware(getWebRoot, hostnames) {
 			dotfiles: 'deny',
 			index: false,
 			redirect: false,
-			// WP Cloud's direct static responses currently have no Cache-Control.
 			// Preserve explicit test overrides instead of inventing immutable caching.
 			cacheControl: false,
+			// WP Cloud's Nginx sends these CORS headers on static scripts only; HTML,
+			// JSON and images get none. Old workers name app-origin scripts from the
+			// sandbox, so the preview must match.
+			setHeaders(response, path) {
+				if (path.endsWith('.js')) {
+					response.set('Access-Control-Allow-Origin', '*');
+					response.set('Access-Control-Allow-Methods', 'GET, HEAD');
+				}
+			},
 		})(req, res, async () => {
 			if (!existsSync(join(webRoot, 'custom-redirects.php'))) {
 				return next();

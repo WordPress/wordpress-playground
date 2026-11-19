@@ -149,7 +149,10 @@ The live deployment rehearsal forces a failed purge after restoring trunk, then 
 Its unit tests run in `playground-website:test`.
 The staging browser rehearsal accepts `PLAYGROUND_STAGING_FIREFOX_CHANNEL=moz-firefox`
 to use installed Firefox when the bundled browser cannot launch locally.
-Do not add a second installer script. Host checks live in
+Do not add a second installer script. The installer also places the reviewed, exact
+scripts listed in `website-deployment/compatibility-assets/inventory.json` at their
+original root URLs for clients from the root-only layout; no release owns or removes them.
+Host checks live in
 `website-deployment/custom-redirects-lib.php`, reached through its existing
 `playground_handle_request()` entry point. The sandbox host serves only bridge
 aliases for older clients and returns 404 otherwise, with scoped top-level GET

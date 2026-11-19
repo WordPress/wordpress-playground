@@ -21,3 +21,6 @@ rollup.d.ts
 # makes unrelated PRs carry changelog-only diffs after merging trunk.
 /CHANGELOG.md
 /packages/docs/site/docs/main/changelog.md
+
+# Exact bytes restored from earlier production builds; see website-deployment/wordpress-frame/README.md.
+/packages/playground/website-deployment/compatibility-assets/files

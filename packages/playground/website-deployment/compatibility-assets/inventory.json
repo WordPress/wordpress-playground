@@ -1,0 +1,172 @@
+{
+	"assets": [
+		{
+			"path": "wordpress-bridge-DLuVL3G1.js",
+			"sha256": "2e7a1727da9643525d6f2a0cc45b16633de073bd41f6c1168510727cac4b157f",
+			"builds": [
+				{
+					"commit": "04e94e02eed164ead0004c2538b1cc3ba38a9b3d",
+					"deployRun": 40320934104,
+					"artifact": 12648814816,
+					"artifactDigest": "sha256:63a6dee303d0c569ca41b93e5a67f4da0b006b448c729461b3390386d633fc77"
+				},
+				{
+					"commit": "3ca123c9ddc7258bd42c81efed4ce37bcb961b25",
+					"deployRun": 40488012005,
+					"artifact": 12726775906,
+					"artifactDigest": "sha256:838a5ca67da7b3bb6b8917f4e6c7e495f00d5b1b69d80577c861aefd91efad97"
+				},
+				{
+					"commit": "03eb21b7c402152240df0db6ecde6a968694fe5d",
+					"deployRun": 40493668719,
+					"artifact": 12730326788,
+					"artifactDigest": "sha256:82ca1fd710183b765f52a83c178bee37c0beec571e9e3efc1b291cef2faa435d"
+				},
+				{
+					"commit": "9d51a46925c7edfd2d13a1201a88f359924cb3fb",
+					"deployRun": 40518242798,
+					"artifact": 12741506205,
+					"artifactDigest": "sha256:2982ee7290e99ba1cf48f6644a4bc1d2ecb2d80065d6a6d3a54b833b352abe66"
+				}
+			]
+		},
+		{
+			"path": "wordpress-bridge-BixZjY2a.js",
+			"sha256": "8354b25cec6c35bd25f298d7315e66b56d35d27d486c31c87df9c6ac80506b62",
+			"builds": [
+				{
+					"commit": "3ca123c9ddc7258bd42c81efed4ce37bcb961b25",
+					"deployRun": 40484965851,
+					"artifact": 12724149891,
+					"artifactDigest": "sha256:c6c6d538cba9787a5e0018f1b922801ca65306e806521ad4617930296683423c"
+				}
+			]
+		},
+		{
+			"path": "wordpress-bridge-CWYptIH1.js",
+			"sha256": "6be0c466bb471eb9ea20e444c2fade5907be810f8dbd0c400c0a77009e352284",
+			"builds": [
+				{
+					"commit": "9d51a46925c7edfd2d13a1201a88f359924cb3fb",
+					"deployRun": 40520838939,
+					"artifact": 12742660454,
+					"artifactDigest": "sha256:b9e921251ac692560c1b8a73c76b1c987b6bacc65e0e48b6948ad73d605654d7"
+				},
+				{
+					"commit": "3ba85350ce61867df1cc99e2e0393b464f2fa291",
+					"deployRun": 40534956068,
+					"artifact": 12748371902,
+					"artifactDigest": "sha256:750e25c7dc48ece87cb67e8414c0366f0ddd23ed73fbf79d3b6af52fb149a43e"
+				}
+			]
+		},
+		{
+			"path": "wordpress-bridge-6UlVOJYg.js",
+			"sha256": "98f6163b6319ee725efc99581cc94dff4af4d4ffa83fc22c52e1d7da962c4d3d",
+			"builds": [
+				{
+					"commit": "e0c23e4176f8ab14c9a2e9b0993c58d2800ca705",
+					"deployRun": 40551386057,
+					"artifact": 12756375866,
+					"artifactDigest": "sha256:ff737c5db5672504e37c3a560be5fa22afb64c30d3f4d2cb752077bc377e0bcb"
+				}
+			]
+		},
+		{
+			"path": "wordpress-bridge-DeB3Xrf2.js",
+			"sha256": "d7061b2be4a7387d76a937035f420bb24cbf761fd6b012c0ecfadf83d564cdaa",
+			"builds": [
+				{
+					"commit": "96cac8f281de5cfff9ccef51f78812e1ba9ffb5f",
+					"deployRun": 40710050204,
+					"artifact": 12825209360,
+					"artifactDigest": "sha256:463f45077ec4e0bb691fe51e78f1403feb0fdcc10405e6b9907ab1129b10dde8"
+				}
+			]
+		},
+		{
+			"path": "wordpress-bridge-DY3vW762.js",
+			"sha256": "9f789b9e67b7c9223369a87b0968433595991910994687f0f099da71adb02250",
+			"builds": [
+				{
+					"commit": "3e0088b5cb6c56f5bcd260f83f13097d48d0fcbb",
+					"deployRun": 40738398908,
+					"artifact": 12838681644,
+					"artifactDigest": "sha256:bdf22b40a84236f3438f4a40dc7526714c25fddae91fc730fa676d5137019dce"
+				}
+			]
+		},
+		{
+			"path": "wordpress-bridge-2RIE-y4G.js",
+			"sha256": "9772c773f6892722788cb167cc12e5348dba8d24bf950489311b0482d7e63b4d",
+			"builds": [
+				{
+					"commit": "52c26f8f060dfd00ea973bc3a2e4b4c64a3cf58a",
+					"deployRun": 41624423628,
+					"artifact": 13225432496,
+					"artifactDigest": "sha256:8fbff113a87e20cfb4479de665ddf8f300a2dd0a723546e0e50b11663b55f6a7"
+				}
+			]
+		},
+		{
+			"path": "wordpress-bridge-CI5VG_SC.js",
+			"sha256": "390eaf5f9c1a078cfed5b16036ee081b9a000f6f1bf9ad7819cb714a129e4c6d",
+			"builds": [
+				{
+					"commit": "42f6826b47f13f410cd8981cb60b8c776ac1c153",
+					"deployRun": 41666042877,
+					"artifact": 13246693194,
+					"artifactDigest": "sha256:b986bbccc867a87bb9f929ff7c80dcbc1fc76eef5961164de0fc271732c53e06"
+				}
+			]
+		},
+		{
+			"path": "wordpress-bridge-fGgLfW6d.js",
+			"sha256": "07302f12bba87202d1a8334657e0c27ff712a96fb7b25bc40e2f71e47ceed2b0",
+			"builds": [
+				{
+					"commit": "12e556cf086683e8083400f1c8cfc747bc1765e9",
+					"deployRun": 41746488975,
+					"artifact": 13283658789,
+					"artifactDigest": "sha256:e7f9f02ba3df289ded683703ce132c7f0d08328a4a10aadc80d46037467fc054"
+				}
+			]
+		},
+		{
+			"path": "wordpress-bridge-CpeFShCa.js",
+			"sha256": "75e853047972e8c4a67296fb3d0874289422be657a48b7ab598f9f29806cad58",
+			"builds": [
+				{
+					"commit": "8a1cd5a4024ddb7615ce5d92cee2fb09ed593a1b",
+					"deployRun": 42804313976,
+					"artifact": 13757532345,
+					"artifactDigest": "sha256:07935e6cbc5701d99ee22b6f1b31f2e060e34ec3064311862e7c66322fc47d80"
+				}
+			]
+		},
+		{
+			"path": "wordpress-bridge-Cmo7aZBy.js",
+			"sha256": "7df97b79ad717abfdc9391dcdb354b17bcded53065395ae249e647d5d45207f7",
+			"builds": [
+				{
+					"commit": "ada3b06ce0d85550b55ef3d818460a806ca4f220",
+					"deployRun": 42856256223,
+					"artifact": 13783361685,
+					"artifactDigest": "sha256:001eab369fa7538060d50bfa2ad6ed7ef4018a2905d5bbbbcfd7f73428236ae2"
+				}
+			]
+		},
+		{
+			"path": "wordpress-bridge-Biqqr1nu.js",
+			"sha256": "faa127f25ae0b51b62e3105720001b54ef3eadf49af02f505b1fa45d40457a6f",
+			"builds": [
+				{
+					"commit": "3898d9fa9a594b6804e1f83eab196b3162f7a9ea",
+					"deployRun": 44070536562,
+					"artifact": 14323156534,
+					"artifactDigest": "sha256:ca0a5865eb77e2a483e158d60c97595e7c3e101d4febd7bf23ecc61748682912"
+				}
+			]
+		}
+	]
+}
