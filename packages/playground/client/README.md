@@ -33,7 +33,8 @@ loads, so offscreen deferral does not consume it. Storage-access recovery pauses
 it while the user decides; reloading the iframe resumes the original startup call.
 A reload-required message leaves the application's existing reload prompt in control.
 
-Other early startup errors reject the call with their original name and message. The application owns retry after rejection: call the
+Other early startup errors reject the call with their original name/message, startup
+stage, and a `phase` identifier. The application owns retry after rejection: call the
 startup function again or reload the containing page. The iframe replaces its own
 retry button with that instruction when the client acknowledges the terminal error.
 Older clients that keep waiting retain the iframe's retry button.

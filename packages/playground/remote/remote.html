@@ -77,6 +77,8 @@
 		<script>
 			window.__playgroundStartup = (() => {
 				let settled = false;
+				let stage = 'Loading Playground startup scripts';
+				let phase = 'bootstrap';
 				let clientHandlesRetry = false;
 				const onClientErrorHandled = (event) => {
 					if (
@@ -140,14 +142,26 @@
 					);
 					const name =
 						typeof error?.name === 'string' ? error.name : 'Error';
+					const script =
+						document.querySelector('script[type="module"][src]')
+							?.src || '';
+					const diagnostics = [
+						stage,
+						'Startup phase: ' + phase,
+						name + ': ' + message,
+						'Page: ' + location.origin + location.pathname,
+						'Startup script: ' + script,
+						'Browser: ' + navigator.userAgent,
+					].join('\n');
 					console.error(error);
 					// The embedder may hide its referrer. Send only startup diagnostics;
 					// the SDK validates this window and origin before accepting them.
 					window.parent.postMessage(
 						{
 							type: 'playground-runtime-startup-error',
+							phase,
 							recovery,
-							error: { name, message },
+							error: { name, message: stage + ': ' + message },
 						},
 						'*'
 					);
@@ -166,8 +180,23 @@
 					if (name === 'NotSupportedError') {
 						document.body.append(await renderStorageErrorUI());
 					} else {
-						document.body.append(renderGenericErrorUI(error));
+						document.body.append(
+							renderGenericErrorUI(error, diagnostics)
+						);
 					}
+					const details = document.createElement('details');
+					details.className = 'error-message';
+					const summary = document.createElement('summary');
+					summary.textContent = 'Error details';
+					const text = document.createElement('textarea');
+					text.setAttribute('aria-label', 'Error details');
+					text.readOnly = true;
+					text.rows = 7;
+					text.cols = 70;
+					text.style.maxWidth = '100%';
+					text.value = diagnostics;
+					details.append(summary, text);
+					document.body.append(details);
 				}
 
 				function createParentRetryMessage() {
@@ -177,7 +206,7 @@
 					return message;
 				}
 
-				function renderGenericErrorUI(error) {
+				function renderGenericErrorUI(error, diagnostics) {
 					const fragment = document.createDocumentFragment();
 
 					const div = document.createElement('div');
@@ -207,6 +236,16 @@
 						target="_blank"
 						>report an issue on GitHub</a>.
 				`;
+					const reportUrl = new URL(
+						reportIssues.querySelector('a').href
+					);
+					reportUrl.searchParams.set(
+						'body',
+						'Playground startup failed:\n\n```text\n' +
+							diagnostics +
+							'\n```'
+					);
+					reportIssues.querySelector('a').href = reportUrl.href;
 					fragment.append(reportIssues);
 
 					return fragment;
@@ -309,6 +348,10 @@
 				return {
 					complete,
 					failed,
+					setStage: (caption, nextPhase) => {
+						stage = caption;
+						if (nextPhase) phase = nextPhase;
+					},
 				};
 			})();
 		</script>
@@ -325,7 +368,13 @@
 			}
 			try {
 				const { bootPlaygroundRemote } = await import('./src/index');
-				window.playground = await bootPlaygroundRemote();
+				window.__playgroundStartup.setStage(
+					'Initializing Playground runtime',
+					'runtime-initialization'
+				);
+				window.playground = await bootPlaygroundRemote(
+					window.__playgroundStartup.setStage
+				);
 				window.__playgroundStartup.complete();
 			} catch (error) {
 				await window.__playgroundStartup.failed(error);

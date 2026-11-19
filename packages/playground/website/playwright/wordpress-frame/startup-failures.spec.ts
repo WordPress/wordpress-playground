@@ -26,6 +26,7 @@ interface FailureServer {
 	lazy: boolean;
 	spoofSibling: boolean;
 	foreignRedirect: boolean;
+	parentIsRenderer: boolean;
 	slowDedicatedStartup: boolean;
 	createLazyFrame: boolean;
 	blockedRequests: string[];
@@ -63,6 +64,7 @@ const test = base.extend<{ failureServer: FailureServer }>({
 			lazy: false,
 			spoofSibling: false,
 			foreignRedirect: false,
+			parentIsRenderer: false,
 			slowDedicatedStartup: false,
 			createLazyFrame: false,
 			blockedRequests: [],
@@ -135,7 +137,7 @@ if (${fixture.createLazyFrame}) {
     frame.style.cssText = 'width:100%;height:800px;margin-top:20000px';
     document.body.append(frame);
 }
-window.IS_WASM_WORDPRESS = false;
+window.IS_WASM_WORDPRESS = ${fixture.parentIsRenderer};
 window.spoofMessages = 0;
 window.addEventListener('message', event => {
     if (event.data?.error?.message === 'Spoofed failure') window.spoofMessages++;
@@ -252,6 +254,26 @@ for (const failure of [
 		} else {
 			// A running remote reports its cause before the connection timeout.
 			expect(result.name).not.toBe('TimeoutError');
+			expect(result.phase).toBe(
+				failure === 'bootstrap-module' ? 'bootstrap' : failure
+			);
+			const details = await page
+				.frameLocator('#playground')
+				.getByLabel('Error details')
+				.inputValue();
+			expect(details).toContain(
+				await page.evaluate(() => navigator.userAgent)
+			);
+			const reportUrl = await page
+				.frameLocator('#playground')
+				.getByRole('link', {
+					name: 'report an issue on GitHub',
+					exact: true,
+				})
+				.getAttribute('href');
+			expect(new URL(reportUrl!).searchParams.get('body')).toContain(
+				details
+			);
 		}
 	});
 }
@@ -430,6 +452,20 @@ for (const sender of ['sibling', 'foreign-origin'] as const) {
 			.toBe('resolved');
 	});
 }
+
+test('a pre-worker initialization error is attributed after scripts loaded', async ({
+	page,
+	failureServer,
+}) => {
+	failureServer.parentIsRenderer = true;
+	await page.goto(failureServer.appOrigin + '/embed.html');
+	await expect
+		.poll(() => page.evaluate(() => (window as any).startupResult.state))
+		.toBe('rejected');
+	expect(await page.evaluate(() => (window as any).startupResult.phase)).toBe(
+		'runtime-initialization'
+	);
+});
 
 test('an embedded release can still boot PHP after connecting', async ({
 	page,
