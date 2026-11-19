@@ -12,7 +12,7 @@ WordPress uses the existing remote Vite server without a feature flag:
 
 ```text
 127.0.0.1:5400  SPA, Dock, remote.html, PHP, OPFS, and picked directories
-127.0.0.1:4400  rendered WordPress, HTTP helper, and service worker
+127.0.0.1:4400  rendered WordPress, WordPress bridge, and service worker
 ```
 
 Different ports are different origins. WordPress cannot read the loaded app or

@@ -5,10 +5,12 @@ import { createServer } from 'node:http';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { joinPaths } from '@php-wasm/util';
+import { appOrigin as previewAppOrigin } from '../../bin/wordpress-frame/origins.mjs';
 
-const remoteDirectory = joinPaths(
+// The installed preview web root: root entry copies and the release directory.
+const webRoot = joinPaths(
 	__dirname,
-	'../../../../../dist/packages/playground/remote'
+	'../../../../../dist/packages/playground/website-preview'
 );
 let server: Server;
 let appOrigin: string;
@@ -32,6 +34,19 @@ test.beforeAll(async () => {
 	app.get('/seed.html', (_request, response) => {
 		response.type('html').send('<!doctype html><title>Worker seed</title>');
 	});
+	app.get('/remote.html', async (_request, response) => {
+		// This fixture uses an ephemeral origin. Keep the real page's guard,
+		// configured for the fixture rather than the regular preview listener.
+		const html = await readFile(joinPaths(webRoot, 'remote.html'), 'utf8');
+		response
+			.type('html')
+			.send(
+				html.replaceAll(
+					JSON.stringify(previewAppOrigin),
+					JSON.stringify(appOrigin)
+				)
+			);
+	});
 	app.get('/sw.js', (_request, response) => {
 		// Model an installed release A and a deployed release B. Both forward
 		// downloads to HTTP. Slow B's installation so update() returns before
@@ -50,14 +65,12 @@ self.addEventListener('fetch', event => {
 });`);
 	});
 	app.get(
-		'/playground-worker-endpoint-blueprints-:hash.js',
+		'/releases/:release/playground-worker-endpoint-blueprints-:hash.js',
 		async (request, response) => {
 			phpWorkerRequests.push(
 				request.get('X-Test-Worker-Release') ?? 'uncontrolled'
 			);
-			const script = await readFile(
-				joinPaths(remoteDirectory, request.path)
-			);
+			const script = await readFile(joinPaths(webRoot, request.path));
 			// Send headers and part of the real PHP worker script immediately, but
 			// leave its download unfinished while B activates. WebKit closes A's
 			// handled fetch at that point with "Service Worker context closed".
@@ -65,7 +78,7 @@ self.addEventListener('fetch', event => {
 			setTimeout(() => response.end(script), 1500);
 		}
 	);
-	app.use(express.static(remoteDirectory));
+	app.use(express.static(webRoot));
 	server = createServer(app);
 	await new Promise<void>((resolve) =>
 		server.listen(0, '127.0.0.1', resolve)

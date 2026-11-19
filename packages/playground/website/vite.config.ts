@@ -32,6 +32,11 @@ import virtualModule from '../../vite-extensions/vite-virtual-module';
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import {
+	getStaticReleaseBase,
+	staticReleaseOriginCheckPlugin,
+} from '../../vite-extensions/vite-static-release';
 import { analyticsInjectionPlugin } from './vite-analytics-plugin';
 import { safariModulePreloadWorkaround } from './vite-safari-module-preload';
 
@@ -150,7 +155,10 @@ export default defineConfig(({ command, mode }) => {
 		// Keep the SPA's module graph under /website-server/ so runtime module
 		// requests can be proxied to remote without losing the app origin. PHP
 		// and native handles need that shared origin; rendered WordPress does not.
-		base: mode === 'production' ? '/' : '/website-server/',
+		base:
+			mode === 'production'
+				? (command === 'build' && getStaticReleaseBase()) || '/'
+				: '/website-server/',
 
 		assetsInclude: ['**/*.so', '**/*.dat'],
 
@@ -211,6 +219,7 @@ export default defineConfig(({ command, mode }) => {
 			},
 		},
 		plugins: [
+			staticReleaseOriginCheckPlugin(),
 			// In a devcontainer, Vite prints container IP instead of host IP.
 			// Override the printed URL to show host IP instead (127.0.0.1).
 			isDevcontainer
@@ -529,7 +538,11 @@ export default defineConfig(({ command, mode }) => {
 				dir: '../../../node_modules/.vitest',
 			},
 			environment: 'node',
-			include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+			include: [
+				'src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
+				'../../vite-extensions/*.spec.ts',
+				'playwright/*.spec.ts',
+			],
 			reporters: ['default'],
 		},
 	};

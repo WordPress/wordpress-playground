@@ -2745,6 +2745,13 @@ var wp;
     }
   });
 
+  // package-external:@wordpress/escape-html
+  var require_escape_html = __commonJS({
+    "package-external:@wordpress/escape-html"(exports, module) {
+      module.exports = window.wp.escapeHtml;
+    }
+  });
+
   // package-external:@wordpress/style-engine
   var require_style_engine = __commonJS({
     "package-external:@wordpress/style-engine"(exports, module) {
@@ -3241,13 +3248,6 @@ var wp;
     }
   });
 
-  // package-external:@wordpress/escape-html
-  var require_escape_html = __commonJS({
-    "package-external:@wordpress/escape-html"(exports, module) {
-      module.exports = window.wp.escapeHtml;
-    }
-  });
-
   // package-external:@wordpress/wordcount
   var require_wordcount = __commonJS({
     "package-external:@wordpress/wordcount"(exports, module) {
@@ -3643,7 +3643,10 @@ var wp;
   // packages/icons/build-module/library/file.mjs
   var import_primitives46 = __toESM(require_primitives(), 1);
   var import_jsx_runtime47 = __toESM(require_jsx_runtime(), 1);
-  var file_default = /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(import_primitives46.SVG, { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", style: { fill: "none" }, stroke: "currentColor", strokeWidth: "1.5", children: /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(import_primitives46.Path, { d: "M3.75 6V17.5C3.75 18.1904 4.30964 18.75 5 18.75H19C19.6904 18.75 20.25 18.1904 20.25 17.5V8.5C20.25 7.80964 19.6904 7.25 19 7.25H13.3463C12.8352 7.25 12.3755 6.93881 12.1857 6.46424L11.8143 5.53576C11.6245 5.06119 11.1648 4.75 10.6537 4.75H5C4.30964 4.75 3.75 5.30964 3.75 6Z" }) });
+  var file_default = /* @__PURE__ */ (0, import_jsx_runtime47.jsxs)(import_primitives46.SVG, { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", style: { fill: "none" }, stroke: "currentColor", strokeWidth: "1.5", children: [
+    /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(import_primitives46.Path, { d: "M14 4.75V7.75C14 8.44036 14.5596 9 15.25 9H18.25" }),
+    /* @__PURE__ */ (0, import_jsx_runtime47.jsx)(import_primitives46.Path, { d: "M5.75 18L5.75 6C5.75 5.30964 6.30964 4.75 7 4.75H14L18.25 9V18C18.25 18.6904 17.6904 19.25 17 19.25H7C6.30964 19.25 5.75 18.6904 5.75 18Z", strokeLinejoin: "round" })
+  ] });
 
   // packages/icons/build-module/library/flip-horizontal.mjs
   var import_primitives47 = __toESM(require_primitives(), 1);
@@ -46095,14 +46098,6 @@ ${url}
       attributes: { providerNameSlug: "dailymotion", responsive: true }
     },
     {
-      name: "imgur",
-      title: getTitle("Imgur"),
-      icon: embedPhotoIcon,
-      description: (0, import_i18n71.__)("Embed Imgur content."),
-      patterns: [/^https?:\/\/(.+\.)?imgur\.com\/.+/i],
-      attributes: { providerNameSlug: "imgur", responsive: true }
-    },
-    {
       name: "issuu",
       title: getTitle("Issuu"),
       icon: embedContentIcon,
@@ -47316,6 +47311,7 @@ ${url}
   var import_blocks22 = __toESM(require_blocks(), 1);
   var import_data35 = __toESM(require_data(), 1);
   var import_core_data20 = __toESM(require_core_data(), 1);
+  var import_escape_html = __toESM(require_escape_html(), 1);
   var import_i18n75 = __toESM(require_i18n(), 1);
   var import_url11 = __toESM(require_url(), 1);
   var downloadButtonText = (0, import_i18n75._x)("Download", "button label");
@@ -47393,7 +47389,7 @@ ${url}
           const href = attributes2.src ?? attributes2.url;
           return (0, import_blocks22.createBlock)("core/file", {
             href,
-            fileName: attributes2.caption || (0, import_url11.getFilename)(href),
+            fileName: attributes2.caption || (0, import_escape_html.escapeEditableHTML)((0, import_url11.getFilename)(href) ?? ""),
             textLinkHref: href,
             id: attributes2.id,
             anchor: attributes2.anchor,
@@ -66593,10 +66589,10 @@ ${text}
   var import_data80 = __toESM(require_data(), 1);
   var import_block_editor144 = __toESM(require_block_editor(), 1);
   var import_dom40 = __toESM(require_dom(), 1);
-  var import_escape_html2 = __toESM(require_escape_html(), 1);
+  var import_escape_html3 = __toESM(require_escape_html(), 1);
 
   // packages/block-library/build-module/navigation-link/shared/update-attributes.mjs
-  var import_escape_html = __toESM(require_escape_html(), 1);
+  var import_escape_html2 = __toESM(require_escape_html(), 1);
   var import_url16 = __toESM(require_url(), 1);
   var shouldSeverEntityLink = (originalUrl, newUrl) => {
     if (!originalUrl || !newUrl) {
@@ -66673,7 +66669,7 @@ ${text}
     // live in the LinkControl and not here. It's a great
     // candidate for future refactoring.
     newLabelWithoutHttp !== newUrlWithoutHttp;
-    const label = useNewLabel ? (0, import_escape_html.escapeHTML)(finalNewLabel) : originalLabel || (0, import_escape_html.escapeHTML)(newUrlWithoutHttp);
+    const label = useNewLabel ? (0, import_escape_html2.escapeHTML)(finalNewLabel) : originalLabel || (0, import_escape_html2.escapeHTML)(newUrlWithoutHttp);
     const type = newType === "post_tag" ? "tag" : newType.replace("-", "_");
     const isBuiltInType = ["post", "page", "tag", "category"].indexOf(type) > -1;
     const isCustomLink = !newKind && !isBuiltInType || newKind === "custom";
@@ -66740,7 +66736,7 @@ ${text}
         const currentText = attributes2.label ? (0, import_dom40.__unstableStripHTML)(attributes2.label) : "";
         const updatedText = updatedLink.title ?? "";
         const hasTextUpdate = allowTextUpdate && updatedLink.title !== void 0 && updatedText !== currentText;
-        const textUpdateAttributes = hasTextUpdate ? { label: (0, import_escape_html2.escapeHTML)(updatedText) } : {};
+        const textUpdateAttributes = hasTextUpdate ? { label: (0, import_escape_html3.escapeHTML)(updatedText) } : {};
         if (!attributes2.label || attributes2.label === "" || hasTextUpdate) {
           attrs.title = updatedLink.title;
         }
@@ -96250,7 +96246,7 @@ ${text}
 
   // packages/block-library/build-module/table-of-contents/utils.mjs
   var import_blocks101 = __toESM(require_blocks(), 1);
-  var import_escape_html3 = __toESM(require_escape_html(), 1);
+  var import_escape_html4 = __toESM(require_escape_html(), 1);
   function linearToNestedHeadingList2(headingList) {
     const nestedHeadingList = [];
     headingList.forEach((heading, key) => {
@@ -96289,9 +96285,9 @@ ${text}
         {
           // Headings are plain text, and links can carry query args on
           // paginated posts, so both need escaping to become markup.
-          content: link ? `<a href="${(0, import_escape_html3.escapeAttribute)(
+          content: link ? `<a href="${(0, import_escape_html4.escapeAttribute)(
             link
-          )}">${(0, import_escape_html3.escapeEditableHTML)(content)}</a>` : (0, import_escape_html3.escapeEditableHTML)(content)
+          )}">${(0, import_escape_html4.escapeEditableHTML)(content)}</a>` : (0, import_escape_html4.escapeEditableHTML)(content)
         },
         children?.length ? [
           (0, import_blocks101.createBlock)(

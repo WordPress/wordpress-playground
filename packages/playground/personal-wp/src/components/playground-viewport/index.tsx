@@ -1,3 +1,4 @@
+import { wordPressSiteUrl } from '@wp-playground/remote/config';
 import {
 	memo,
 	useCallback,
@@ -2443,6 +2444,7 @@ export const JustViewport = function JustViewport({
 		<>
 			<iframe
 				key={siteSlug}
+				allow={`loopback-network 'self' ${wordPressSiteUrl}`}
 				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
 				className={classNames('playground-viewport', css.fullSize, {
 					[css.viewportLoading]: isLoading,
