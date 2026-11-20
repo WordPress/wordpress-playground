@@ -140,6 +140,19 @@ phpLoaderOptions.forEach((options) => {
 				expect(stderr).toBe('Error message');
 			});
 
+			it('should reopen php://stderr after closing it in the first request', async () => {
+				await php.setSapiName('cli');
+				const streamed = await php.runStream({
+					code: `<?php
+					fclose(fopen('php://stderr', 'w'));
+					$stderr = fopen('php://stderr', 'w');
+					fwrite($stderr, 'reopened');
+					var_dump(is_resource($stderr));`,
+				});
+				expect(await streamed.stdoutText).toBe('bool(true)\n');
+				expect(await streamed.stderrText).toBe('reopened');
+			});
+
 			it('should handle headers correctly', async () => {
 				const streamed = await php.runStream({
 					code: '<?php header("Content-Type: application/json"); header("X-Custom: value"); echo "{}";',
