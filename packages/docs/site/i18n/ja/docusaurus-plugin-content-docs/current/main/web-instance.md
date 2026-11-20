@@ -128,7 +128,9 @@ Click "Save" to create an instance and list it in the Playground Launch Panel. T
 ### Additional actions menu
 -->
 
-### 追加アクションメニュー
+<a id="追加アクションメニュー"></a>
+
+### 追加アクションメニュー {#playground-options-menu}
 
 ![Additional actions Menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/additional-options-playground-dashboard.webp)
 

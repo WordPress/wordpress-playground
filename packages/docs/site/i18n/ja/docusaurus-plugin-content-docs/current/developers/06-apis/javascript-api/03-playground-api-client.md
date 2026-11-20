@@ -56,7 +56,9 @@ Node.js では、[`cli()`](#the-cli-method)メソッドを使用して PHP を C
 In Node.js, you can also use the [`cli()`](#the-cli-method) method to run PHP in a CLI mode.
  -->
 
-### `run()` メソッド
+<a id="run-メソッド"></a>
+
+### `run()` メソッド {#the-run-method}
 
 <!--
 ### The `run()` method
@@ -66,7 +68,9 @@ import TSDocstring from '@site/src/components/TSDocstring';
 
 <TSDocstring path={[ "@wp-playground/client", "PlaygroundClient", "run" ]} />
 
-### `request()` メソッド
+<a id="request-メソッド"></a>
+
+### `request()` メソッド {#the-request-method}
 
 <!--
 ### The `request()` method
@@ -187,7 +191,9 @@ await php.runStream({
 // { post_id: '15', post_title: 'This is a blog post!' }
 ```
 
-## `cli()` メソッド
+<a id="cli-メソッド"></a>
+
+## `cli()` メソッド {#the-cli-method}
 
 <!--
 ## The `cli()` method

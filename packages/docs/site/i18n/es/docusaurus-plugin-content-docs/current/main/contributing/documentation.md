@@ -24,7 +24,9 @@ Todas las cuestiones relacionadas con la documentación se etiquetan como [`[Typ
 ## How can I contribute?
 -->
 
-## ¿Cómo puedo contribuir?
+<a id="cómo-puedo-contribuir"></a>
+
+## ¿Cómo puedo contribuir? {#how-can-i-contribute}
 
 <!--
 You can contribute by [opening an issue in the project repository](https://github.com/WordPress/wordpress-playground/issues/new) and describing what you'd like to add or change.
