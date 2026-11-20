@@ -71,6 +71,12 @@ function getActiveSite(config: PlaygroundBridgeConfig) {
 	return active;
 }
 
+/**
+ * Registers Playground's built-in WebMCP tools, replacing any previous registration.
+ * Does nothing when WebMCP is unavailable. If registration fails, removes the tools
+ * registered by this attempt and rejects. An aborted registration returns after its
+ * pending registration operations settle.
+ */
 export async function registerWebMCPTools(
 	config: PlaygroundBridgeConfig
 ): Promise<void> {
@@ -80,7 +86,7 @@ export async function registerWebMCPTools(
 	}
 
 	// Abort any previous registration before re-registering.
-	registrationController?.abort();
+	unregisterWebMCPTools();
 	registrationController = new AbortController();
 	const controller = registrationController;
 	const signal = controller.signal;
@@ -134,6 +140,9 @@ export async function registerWebMCPTools(
 			await modelContext.registerTool(tool, { signal });
 		})
 	);
+	if (signal.aborted) {
+		return;
+	}
 	const failedRegistrations: Array<{ name: string; reason: unknown }> = [];
 	for (const [index, result] of results.entries()) {
 		if (result.status === 'rejected') {
@@ -158,6 +167,15 @@ export async function registerWebMCPTools(
 					.join(', ')
 		);
 	}
+}
+
+/**
+ * Unregisters Playground's built-in WebMCP tools and signals any pending registration
+ * to stop. Tools registered separately by the application or site are unaffected.
+ */
+export function unregisterWebMCPTools(): void {
+	registrationController?.abort();
+	registrationController = null;
 }
 
 export function getModelContext(): ModelContext | undefined {

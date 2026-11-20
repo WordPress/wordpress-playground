@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import type http from 'http';
 import express from 'express';
+import type { RequestHandler } from 'express';
 import path from 'path';
 import process from 'process';
 import { wordPressFrameMiddleware } from '../bin/wordpress-frame/middleware.mjs';
@@ -14,11 +15,10 @@ import { wordPressFrameMiddleware } from '../bin/wordpress-frame/middleware.mjs'
  * its service worker and later asset requests encounter a newly deployed build.
  * Serving only the newest build from the start would miss those upgrade failures.
  *
- * In the split-origin lane, install the same host routing as the normal preview
- * before serving static files. Its sandbox-root callback reads staticDirectory on
- * every request: after a release switch, both the app and wordpress-bridge.html
- * must come from the selected build. Do not keep serving the old helper with new
- * app modules or let this test server expose WordPress HTML on the app host.
+ * In the split-origin lane, serve each directory as the normal preview does: an
+ * installed release web root through its PHP entry for missing paths, and the
+ * archived single-origin builds as plain static directories. The callback reads
+ * staticDirectory on every request, so a release switch applies immediately.
  *
  * The cache control only changes HTTP response headers; it does not clear browser
  * HTTP caches or service-worker CacheStorage. Tests manage those separately.
@@ -29,6 +29,11 @@ export async function startVersionSwitchingServer({
 	oldVersionDirectory,
 	newVersionDirectory,
 	midVersionDirectory,
+}: {
+	port?: number;
+	oldVersionDirectory: string;
+	newVersionDirectory: string;
+	midVersionDirectory: string;
 }) {
 	const app = express();
 
@@ -46,7 +51,7 @@ export async function startVersionSwitchingServer({
 	 * Let upgrade tests opt out of storing these responses in the HTTP cache.
 	 * This affects later responses only, not entries already stored by a browser.
 	 */
-	const noCacheMiddleware = (req, res, next) => {
+	const noCacheMiddleware: RequestHandler = (req, res, next) => {
 		if (!httpCacheEnabled) {
 			res.setHeader(
 				'Cache-Control',
@@ -58,16 +63,16 @@ export async function startVersionSwitchingServer({
 		next();
 	};
 
-	if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
-		app.use(
-			wordPressFrameMiddleware(() =>
-				path.join(staticDirectory, 'wordpress-sandbox')
-			)
-		);
-	}
 	app.use(noCacheMiddleware);
 	app.use((req, res, next) => {
 		if (req.method === 'GET' && req.path.startsWith('/switch-versions/')) {
+			if (
+				process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1' &&
+				!['playground.localhost', 'wp.playground.localhost'].includes(
+					req.hostname
+				)
+			)
+				return res.sendStatus(404);
 			const version = req.path.split('/').pop();
 			staticDirectory = path.resolve(
 				version === 'old'
@@ -77,11 +82,21 @@ export async function startVersionSwitchingServer({
 						: newVersionDirectory
 			);
 			res.send('Version switched');
-			next();
 			return;
 		}
-		express.static(staticDirectory)(req, res, next);
+		next();
 	});
+	if (process.env.PLAYWRIGHT_WORDPRESS_FRAME === '1') {
+		app.use(
+			wordPressFrameMiddleware(
+				() => staticDirectory,
+				['playground.localhost', 'wp.playground.localhost']
+			)
+		);
+	}
+	app.use((req, res, next) =>
+		express.static(staticDirectory)(req, res, next)
+	);
 
 	const server = await new Promise<http.Server>((resolve, reject) => {
 		const _server = app.listen(port, () => {

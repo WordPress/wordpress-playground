@@ -748,7 +748,9 @@ Corrections fréquentes :
 
 <!-- ## WP-CLI: Error establishing a database connection on mounted sites -->
 
-## WP-CLI: Error establishing a database connection sur les sites montés
+<a id="wp-cli-error-establishing-a-database-connection-sur-les-sites-montés"></a>
+
+## WP-CLI: Error establishing a database connection sur les sites montés {#wp-cli-error-establishing-a-database-connection-on-mounted-sites}
 
 <!--
 When using `wp-cli` with a mounted Playground site, for example via

@@ -33,7 +33,9 @@ Puedes integrar Playground sin problemas en tu flujo de trabajo de desarrollo pa
 ## Save changes done on a Block Theme and create GitHub Pull Requests
 -->
 
-## Guarda los cambios realizados en un tema de bloques y crea Pull Requests en GitHub
+<a id="guarda-los-cambios-realizados-en-un-tema-de-bloques-y-crea-pull-requests-en-github"></a>
+
+## Guarda los cambios realizados en un tema de bloques y crea Pull Requests en GitHub {#save-changes-done-on-a-block-theme-and-create-github-pull-requests}
 
 <!--
 You can connect your Playground instance to a GitHub repository and create a Pull Request with the changes you’ve made through the WordPress UI, leveraging the [Create Block Theme](https://wordpress.org/plugins/create-block-theme/) plugin.
@@ -65,7 +67,9 @@ Algunos ejemplos más de este flujo de trabajo:
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
 -->
 
-## Sincroniza tu instancia de Playground con una carpeta local y crea Pull Requests en GitHub
+<a id="sincroniza-tu-instancia-de-playground-con-una-carpeta-local-y-crea-pull-requests-en-github"></a>
+
+## Sincroniza tu instancia de Playground con una carpeta local y crea Pull Requests en GitHub {#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests}
 
 <!--
 ![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)

@@ -566,7 +566,9 @@ The `start` command supports these common optional arguments. Run
 - `--no-auto-mount`: Disable automatic project detection.
 -->
 
-## কমান্ড এবং আর্গুমেন্টসমূহ (Command and Arguments)
+<a id="কমান্ড-এবং-আর্গুমেন্টসমূহ-command-and-arguments"></a>
+
+## কমান্ড এবং আর্গুমেন্টসমূহ (Command and Arguments) {#command-and-arguments}
 
 প্লেগ্রাউন্ড সিএলআই অত্যন্ত সহজ, কনফিগারযোগ্য এবং সুনির্দিষ্ট বিধিনিষেধমুক্ত। আপনি আপনার ওয়ার্ডপ্রেস সেটআপ অনুযায়ী এটি সাজিয়ে নিতে পারেন। প্লেগ্রাউন্ড সিএলআই-এর মাধ্যমে আপনি নিচের শীর্ষ-স্তরের কমান্ডগুলো ব্যবহার করতে পারেন:
 
@@ -689,7 +691,9 @@ With the flag `--follow-symlinks`, the following symlinks will expose files outs
 </div>
 -->
 
-### PHP.wasm এক্সটেনশন লোড করা
+<a id="phpwasm-এক্সটেনশন-লোড-করা"></a>
+
+### PHP.wasm এক্সটেনশন লোড করা {#loading-phpwasm-extensions}
 
 প্লেগ্রাউন্ড সিএলআই পিএইচপি শুরু হওয়ার আগে বাহ্যিক PHP.wasm এক্সটেনশন লোড করতে পারে। `@php-wasm/compile-extension` দ্বারা তৈরি কোনো ম্যানিফেস্ট কিংবা প্রকাশিত কোনো ম্যানিফেস্ট (যেমন SQLite Database Integration এর নেটিভ পার্সার) পাস করুন:
 

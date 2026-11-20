@@ -13,7 +13,9 @@ description: URL ফ্র্যাগমেন্ট, কোয়েরি প
 - ব্লুপ্রিন্ট বান্ডেল (ZIP ফাইল বা ডিরেক্টরি) ব্যবহার করে।
 - JavaScript API ব্যবহার করে।
 
-## URL ফ্র্যাগমেন্ট
+<a id="url-ফ্র্যাগমেন্ট"></a>
+
+## URL ফ্র্যাগমেন্ট {#url-fragment}
 
 ব্লুপ্রিন্ট ব্যবহার শুরু করার সবচেয়ে সহজ উপায় হল WordPress Playground ওয়েবসাইটে URL "ফ্র্যাগমেন্ট"-এ একটি পেস্ট করা, যেমন `https://playground.wordpress.net/#{"preferredVersions...`।
 

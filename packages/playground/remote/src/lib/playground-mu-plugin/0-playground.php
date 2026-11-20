@@ -168,6 +168,86 @@ add_action('admin_print_scripts', function () {
 });
 
 /**
+ * Let older editors reuse previews after the sandbox server redirects them to the app.
+ *
+ * Core before 7.1 reads the preview document without checking its origin. A reused
+ * app-origin tab throws before the editor can save. Provide only the window members
+ * these preview buttons use, discarding the interstitial when the tab is cross-origin.
+ * Navigation still uses Core's original URL and the server's general redirect fallback.
+ */
+function playground_legacy_preview_windows() {
+	if (!defined('PLAYGROUND_PARENT_ORIGIN') ||
+		version_compare($GLOBALS['wp_version'], '7.1-alpha', '>=')) {
+		return;
+	}
+	if (!is_admin()) {
+		if (is_preview() && get_the_ID()) {
+			?>
+			<script>
+				// Core resets the preview's name; direct tabs must keep the site's suffix.
+				// In a wrapper, only its top-level window participates in named-tab reuse.
+				if (window === window.top) {
+					window.name = <?php echo json_encode('wp-preview-' . get_the_ID() . '-' . home_url()); ?>;
+				}
+			</script>
+			<?php
+		}
+		return;
+	}
+	?>
+	<script>
+		(function () {
+			const open = window.open;
+			const siteUrl = <?php echo json_encode(home_url()); ?>;
+			document.addEventListener('DOMContentLoaded', () => {
+				const preview = document.getElementById('post-preview');
+				if (preview && preview.target.startsWith('wp-preview-')) {
+					// Classic Core copies this target to form#post before submitting it.
+					preview.target = previewTarget(preview.target);
+				}
+			});
+			window.open = function (url, target, features) {
+				if (typeof target !== 'string' || !target.startsWith('wp-preview-')) {
+					return open.apply(window, arguments);
+				}
+				// Post IDs repeat across running sites, which can share named windows.
+				const popup = open.call(window, url, previewTarget(target), features);
+				if (!popup || url) {
+					return popup;
+				}
+				return {
+					get closed() {
+						return popup.closed;
+					},
+					focus() {
+						popup.focus();
+					},
+					get document() {
+						try {
+							return popup.document;
+						} catch {
+							return document.implementation.createHTMLDocument('');
+						}
+					},
+					set location(url) {
+						popup.location.href = url;
+					},
+				};
+			};
+
+			function previewTarget(target) {
+				const suffix = '-' + siteUrl;
+				return target.endsWith(suffix) ? target : target + suffix;
+			}
+		})();
+	</script>
+	<?php
+}
+add_action('admin_head', 'playground_legacy_preview_windows');
+// Run after Core's wp_post_preview_js, which assigns its unscoped window name.
+add_action('wp_head', 'playground_legacy_preview_windows', 2);
+
+/**
  * Adds target="_blank" to external links when clicked to open them in a new tab.
  * This prevents users from loading non-Playground pages inside the Playground iframe.
  */
@@ -365,16 +445,22 @@ function playground_enable_site_thumbnail_capture() {
 						throw new Error('Missing site thumbnail module URL.');
 					}
 					// Dynamic import executes inside the WordPress document. Accept only
-					// the renderer asset from the trusted parent's origin, with its marker.
+					// the renderer asset with its marker: from the trusted parent's origin,
+					// or from a static release directory, which this host serves too and
+					// WordPress cannot change.
 					const moduleUrl = new URL(request.moduleUrl);
+					const releaseRenderer =
+						/^\/releases\/[A-Za-z0-9._-]+\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/;
 					const isRendererModule =
-						moduleUrl.pathname ===
-							'/src/lib/capture-site-thumbnail.ts' ||
-						/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(
-							moduleUrl.pathname
-						);
+						moduleUrl.origin === event.origin
+							? moduleUrl.pathname ===
+									'/src/lib/capture-site-thumbnail.ts' ||
+								/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(
+									moduleUrl.pathname
+								)
+							: moduleUrl.origin === window.location.origin &&
+								releaseRenderer.test(moduleUrl.pathname);
 					if (
-						moduleUrl.origin !== event.origin ||
 						!isRendererModule ||
 						moduleUrl.searchParams.get(
 							'playground-site-thumbnail-module'

@@ -759,10 +759,10 @@ To run that code during the site setup, use the [`runPHP` step](/blueprints/step
 ### Import the new content
 -->
 
-[`importWxr` ステップ](/blueprints/steps#ImportWXRStep) を使用して、WordPress テーマのテストに役立つ WordPress エクスポート (`WXR`) ファイルをインポートしましょう。このファイルは [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) リポジトリにあり、`raw.githubusercontent.com` アドレス [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml) からアクセスできます。
+[`importWxr` ステップ](/blueprints/steps#ImportWxrStep) を使用して、WordPress テーマのテストに役立つ WordPress エクスポート (`WXR`) ファイルをインポートしましょう。このファイルは [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) リポジトリにあり、`raw.githubusercontent.com` アドレス [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml) からアクセスできます。
 
 <!--
-Let's use the [`importWxr` step](/blueprints/steps#ImportWXRStep) to import a WordPress export (`WXR`) file that helps test WordPress themes. The file is available in the [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) repository, and you can access it via its `raw.githubusercontent.com` address: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
+Let's use the [`importWxr` step](/blueprints/steps#ImportWxrStep) to import a WordPress export (`WXR`) file that helps test WordPress themes. The file is available in the [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) repository, and you can access it via its `raw.githubusercontent.com` address: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
 -->
 
 最終的なブループリントは次のようになります。

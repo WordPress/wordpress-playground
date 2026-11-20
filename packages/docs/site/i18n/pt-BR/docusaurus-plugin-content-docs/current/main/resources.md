@@ -75,7 +75,6 @@ Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algu
 - [Synchronization between two Playgrounds](https://playground.wordpress.net/demos/sync.html)
 - [Time Travel](https://playground.wordpress.net/demos/time-traveling.html)
 - [WP-CLI](https://playground.wordpress.net/demos/wp-cli.html)
-- [PHP implementation of Blueprints](https://playground.wordpress.net/demos/php-blueprints.html)
 -->
 
 ## Aplicativos construídos com WordPress Playground {#apps-built-with-wordpress-playground}
@@ -93,7 +92,6 @@ Há um conjunto de redirecionamentos disponíveis para facilitar o acesso a algu
 - [Sincronização entre dois Playgrounds](https://playground.wordpress.net/demos/sync.html)
 - [Viagem no Tempo](https://playground.wordpress.net/demos/time-traveling.html)
 - [WP-CLI](https://playground.wordpress.net/demos/wp-cli.html)
-- [Implementação PHP de Blueprints](https://playground.wordpress.net/demos/php-blueprints.html)
 
 <!--
 ## Reading materials

@@ -23,6 +23,9 @@
 			title="The WordPress site"
 			sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-downloads allow-modals"
 		></iframe>
-		<script type="module" src="./src/lib/wordpress-popup.ts"></script>
+		<script type="module">
+			import { bootWordPressPopup } from '/src/lib/wordpress-popup';
+			bootWordPressPopup();
+		</script>
 	</body>
 </html>
