@@ -180,12 +180,14 @@ This step can be called multiple times, and the constants will be merged.
 
 - **consts** (Record) – The constants to define
 - **method** (optional) – How Playground defines the constants.
-    - `define-before-run` (default) defines the constants before each PHP request.
-      It leaves `wp-config.php` untouched. An existing `define()` call in that file
-      may try to define the same constant again.
+    - `define-before-run` (default) uses PHP's `auto_prepend_file` setting to define
+      the constants before the requested script runs. Use it to keep `wp-config.php`
+      intact, for example when working with a mounted project. The value set by
+      Playground takes precedence over a later definition in `wp-config.php`.
 
     - `rewrite-wp-config` adds or updates the corresponding `define()` calls in
-      `wp-config.php`.
+      `wp-config.php`. Use it to replace an existing definition in that file or to
+      keep the constants in a `wp-config.php` you plan to use outside Playground.
 
 - **virtualize** (boolean) (optional)
 
