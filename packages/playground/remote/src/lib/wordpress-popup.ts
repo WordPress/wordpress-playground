@@ -4,14 +4,15 @@ import { responseTo } from '@php-wasm/web-service-worker';
 import { playgroundOrigin, wordPressSiteUrl } from './config';
 
 const PARTITION_PROBE_CHANNEL_NAME = 'playground-partition-probe';
+const RUNTIME_PARTITION_LOCK_PREFIX = 'playground-runtime-partition:';
 const OPENER_PROBE_TIMEOUT_MS = 150;
-const BROADCAST_ECHO_WAIT_MS = 50;
 const BRIDGE_READY_TIMEOUT_MS = 15000;
 const PENDING_REQUEST_TIMEOUT_MS = 30000;
 
 type PartitionProbeResult = {
 	openerRemote: Window | null;
 	bridgeUrl: string | null;
+	serviceWorkerUrl: string | null;
 	isSamePartition: boolean;
 };
 
@@ -27,8 +28,8 @@ type PartitionProbeResult = {
  * When Playground itself runs inside a cross-site iframe, Chrome partitions
  * the iframe's service worker separately from top-level tabs. If window.opener
  * points back to that partitioned runtime, this popup detects the partition
- * mismatch via BroadcastChannel and attaches a local bridge that relays HTTP
- * requests back to the opener's remote.html over postMessage.
+ * mismatch and attaches a local bridge that relays HTTP requests back to the
+ * opener's remote.html over postMessage.
  *
  * Scoped app routes preserve the path, query, and fragment on the WordPress origin.
  * The explicit popup route supplies its destination in the hash. Accept only scoped URLs so this
@@ -38,8 +39,11 @@ type PartitionProbeResult = {
  */
 export function bootWordPressPopup({ allowLoopbackNetwork = false } = {}) {
 	const isHashPopupRoute = !getURLScope(new URL(location.href));
-	const target = resolvePopupTarget();
-	const scope = getURLScope(target)!;
+	const initialTarget = resolvePopupTarget();
+	const scope = getURLScope(initialTarget)!;
+	let latestTarget = initialTarget;
+	let startupComplete = false;
+
 	const frame = document.querySelector('#wp') as HTMLIFrameElement;
 	// Only a trusted application entry point opts in; URL parameters cannot enable it.
 	if (allowLoopbackNetwork) {
@@ -50,7 +54,10 @@ export function bootWordPressPopup({ allowLoopbackNetwork = false } = {}) {
 			try {
 				const nextTarget = resolvePopupTarget();
 				if (getURLScope(nextTarget) === scope) {
-					frame.src = nextTarget.href;
+					latestTarget = nextTarget;
+					if (startupComplete) {
+						frame.src = latestTarget.href;
+					}
 				}
 			} catch {
 				// Ignore invalid hash updates.
@@ -59,12 +66,16 @@ export function bootWordPressPopup({ allowLoopbackNetwork = false } = {}) {
 	}
 	const openerCandidates = getOpenerCandidates();
 	if (openerCandidates.length === 0) {
-		frame.src = target.href;
+		startupComplete = true;
+		frame.src = latestTarget.href;
 		return;
 	}
 	void connectCrossPartitionBridgeAndLoad(
 		frame,
-		target,
+		() => latestTarget,
+		() => {
+			startupComplete = true;
+		},
 		scope,
 		openerCandidates
 	);
@@ -110,7 +121,8 @@ function getOpenerCandidates(): Window[] {
 
 async function connectCrossPartitionBridgeAndLoad(
 	frame: HTMLIFrameElement,
-	target: URL,
+	getTarget: () => URL,
+	markStartupComplete: () => void,
 	scope: string,
 	openerCandidates: Window[]
 ) {
@@ -122,12 +134,14 @@ async function connectCrossPartitionBridgeAndLoad(
 		await acquireBridgeOrQueueTakeover(
 			probe.openerRemote,
 			scope,
-			probe.bridgeUrl
+			probe.bridgeUrl,
+			probe.serviceWorkerUrl
 		);
 	} catch {
 		// Fall through to loading the frame so normal error handling applies.
 	} finally {
-		frame.src = target.href;
+		markStartupComplete();
+		frame.src = getTarget().href;
 	}
 }
 
@@ -143,9 +157,9 @@ function probeOpenerPartition(
 				: `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 		let openerRemote: Window | null = null;
 		let bridgeUrl: string | null = null;
+		let serviceWorkerUrl: string | null = null;
 		let isSamePartition = false;
 		let settled = false;
-		let echoTimer: ReturnType<typeof setTimeout> | null = null;
 
 		const channel =
 			typeof BroadcastChannel === 'function'
@@ -156,19 +170,17 @@ function probeOpenerPartition(
 			if (settled) return;
 			settled = true;
 			clearTimeout(overallTimer);
-			if (echoTimer !== null) {
-				clearTimeout(echoTimer);
-			}
 			window.removeEventListener('message', onWindowMessage);
 			channel?.close();
 			resolve({
 				openerRemote,
 				bridgeUrl,
+				serviceWorkerUrl,
 				isSamePartition,
 			});
 		};
 
-		const onWindowMessage = (event: MessageEvent) => {
+		const onWindowMessage = async (event: MessageEvent) => {
 			if (
 				event.origin !== playgroundOrigin ||
 				!event.source ||
@@ -183,12 +195,17 @@ function probeOpenerPartition(
 				typeof event.data.bridgeUrl === 'string'
 					? event.data.bridgeUrl
 					: null;
-			if (isSamePartition || !channel) {
-				finish();
-				return;
+			serviceWorkerUrl =
+				typeof event.data.serviceWorkerUrl === 'string'
+					? event.data.serviceWorkerUrl
+					: null;
+			if (
+				!isSamePartition &&
+				(await isSamePartitionByRuntimeLock(scope))
+			) {
+				isSamePartition = true;
 			}
-			// Give same-partition BroadcastChannel messages a short window to arrive.
-			echoTimer = setTimeout(finish, BROADCAST_ECHO_WAIT_MS);
+			finish();
 		};
 
 		if (channel) {
@@ -225,22 +242,46 @@ function probeOpenerPartition(
 	});
 }
 
+async function isSamePartitionByRuntimeLock(scope: string): Promise<boolean> {
+	const locks = typeof navigator !== 'undefined' ? navigator.locks : null;
+	if (!locks || typeof locks.request !== 'function') {
+		return false;
+	}
+	try {
+		return await locks.request(
+			`${RUNTIME_PARTITION_LOCK_PREFIX}${scope}`,
+			{ ifAvailable: true },
+			(lock) => lock === null
+		);
+	} catch {
+		return false;
+	}
+}
+
 /**
- * Ensure at most one popup tab per (partition, scope) attaches a bridge.
+ * Ensure at most one popup tab per (partition, scope) attaches a bridge, and
+ * wait until a bridge in this partition is ready before navigating #wp.
  *
  * Web Locks are partitioned identically to Service Workers and are released
  * automatically by the browser if the holding tab closes or crashes. If
- * another popup tab already holds the lock, this tab loads immediately using
- * that bridge and queues for atomic takeover when the holder exits.
+ * another popup tab already holds the lock, this tab waits for the owner's
+ * bridge-ready broadcast (or takes over if the owner exits before becoming
+ * ready) before navigating #wp.
  */
 async function acquireBridgeOrQueueTakeover(
 	openerRemote: Window,
 	scope: string,
-	bridgeUrl: string | null
+	bridgeUrl: string | null,
+	serviceWorkerUrl: string | null
 ) {
 	const locks = typeof navigator !== 'undefined' ? navigator.locks : null;
 	if (!locks || typeof locks.request !== 'function') {
-		await attachCrossPartitionBridge(openerRemote, scope, bridgeUrl);
+		await attachCrossPartitionBridge(
+			openerRemote,
+			scope,
+			bridgeUrl,
+			serviceWorkerUrl
+		);
 		return;
 	}
 
@@ -255,10 +296,11 @@ async function acquireBridgeOrQueueTakeover(
 				}
 				acquiredNow = true;
 				try {
-					await attachCrossPartitionBridge(
+					await attachCrossPartitionBridgeWithReadySignal(
 						openerRemote,
 						scope,
-						bridgeUrl
+						bridgeUrl,
+						serviceWorkerUrl
 					);
 					resolve();
 				} catch (error) {
@@ -271,29 +313,115 @@ async function acquireBridgeOrQueueTakeover(
 			.catch(reject);
 	});
 
-	if (!acquiredNow) {
-		// Another popup tab in this partition already owns the bridge. Queue
-		// for atomic takeover if that tab closes while this tab stays open.
+	if (acquiredNow) {
+		return;
+	}
+
+	// Another popup tab in this partition holds the lock. Wait until its bridge
+	// signals readiness, or take over and complete setup if that owner exits.
+	await new Promise<void>((resolve, reject) => {
+		let settled = false;
+		const channel =
+			typeof BroadcastChannel === 'function'
+				? new BroadcastChannel(PARTITION_PROBE_CHANNEL_NAME)
+				: null;
+
+		const finishReady = () => {
+			if (settled) return;
+			settled = true;
+			channel?.close();
+			resolve();
+		};
+
+		const finishError = (error: unknown) => {
+			if (settled) return;
+			settled = true;
+			channel?.close();
+			reject(error);
+		};
+
+		if (channel) {
+			channel.addEventListener('message', (event: MessageEvent) => {
+				if (
+					event.data?.type === 'wordpress-popup-bridge-ready' &&
+					event.data?.scope === scope
+				) {
+					finishReady();
+				}
+			});
+			channel.postMessage({
+				type: 'wordpress-popup-bridge-wait',
+				scope,
+			});
+		}
+
+		// Queue for atomic takeover if the current lock owner exits (ither
+		// before signaling readiness or later while this tab stays open).
 		void locks
 			.request(lockName, async () => {
 				if (openerRemote.closed) {
+					finishReady();
 					return;
 				}
-				await attachCrossPartitionBridge(
-					openerRemote,
-					scope,
-					bridgeUrl
-				);
+				try {
+					await attachCrossPartitionBridgeWithReadySignal(
+						openerRemote,
+						scope,
+						bridgeUrl,
+						serviceWorkerUrl
+					);
+					finishReady();
+				} catch (error) {
+					finishError(error);
+					return;
+				}
 				await new Promise<void>(() => {});
 			})
-			.catch(() => {});
+			.catch(finishError);
+	});
+}
+
+async function attachCrossPartitionBridgeWithReadySignal(
+	openerRemote: Window,
+	scope: string,
+	bridgeUrl: string | null,
+	serviceWorkerUrl: string | null
+) {
+	await attachCrossPartitionBridge(
+		openerRemote,
+		scope,
+		bridgeUrl,
+		serviceWorkerUrl
+	);
+	if (typeof BroadcastChannel !== 'function') {
+		return;
 	}
+	const channel = new BroadcastChannel(PARTITION_PROBE_CHANNEL_NAME);
+	channel.addEventListener('message', (event: MessageEvent) => {
+		if (
+			event.data?.type === 'wordpress-popup-bridge-wait' &&
+			event.data?.scope === scope
+		) {
+			channel.postMessage({
+				type: 'wordpress-popup-bridge-ready',
+				scope,
+			});
+		}
+	});
+	channel.postMessage({
+		type: 'wordpress-popup-bridge-ready',
+		scope,
+	});
+	window.addEventListener('pagehide', () => {
+		channel.close();
+	});
 }
 
 async function attachCrossPartitionBridge(
 	openerRemote: Window,
 	scope: string,
-	bridgeUrl: string | null
+	bridgeUrl: string | null,
+	serviceWorkerUrl: string | null
 ) {
 	if (wordPressSiteUrl !== playgroundOrigin) {
 		if (!isValidBridgeUrl(bridgeUrl, scope)) {
@@ -301,7 +429,7 @@ async function attachCrossPartitionBridge(
 		}
 		await attachSplitOriginBridge(openerRemote, scope, bridgeUrl!);
 	} else {
-		await attachSingleOriginBridge(openerRemote, scope);
+		await attachSingleOriginBridge(openerRemote, scope, serviceWorkerUrl);
 	}
 }
 
@@ -318,6 +446,22 @@ function isValidBridgeUrl(bridgeUrl: string | null, scope: string): boolean {
 	} catch {
 		return false;
 	}
+}
+
+function resolveSingleOriginServiceWorkerUrl(
+	serviceWorkerUrl: string | null
+): URL {
+	if (serviceWorkerUrl) {
+		try {
+			const parsed = new URL(serviceWorkerUrl, playgroundOrigin);
+			if (parsed.origin === playgroundOrigin) {
+				return parsed;
+			}
+		} catch {
+			// Fall back to default root worker path.
+		}
+	}
+	return new URL('/sw.js', location.origin);
 }
 
 function closedOpenerResponse() {
@@ -416,13 +560,17 @@ async function attachSplitOriginBridge(
 	});
 }
 
-async function attachSingleOriginBridge(openerRemote: Window, scope: string) {
+async function attachSingleOriginBridge(
+	openerRemote: Window,
+	scope: string,
+	serviceWorkerUrl: string | null
+) {
 	if (!navigator.serviceWorker) {
 		return;
 	}
 	try {
 		await navigator.serviceWorker.register(
-			new URL('/sw.js', location.origin),
+			resolveSingleOriginServiceWorkerUrl(serviceWorkerUrl),
 			{
 				type: 'module',
 				updateViaCache: 'none',
@@ -445,9 +593,14 @@ async function attachSingleOriginBridge(openerRemote: Window, scope: string) {
 			)
 		),
 	]);
+	let nextRelayRequestId = 0;
 	const pendingSources = new Map<
 		number,
-		{ source: ServiceWorker; timeout: ReturnType<typeof setTimeout> }
+		{
+			source: ServiceWorker;
+			workerRequestId: number;
+			timeout: ReturnType<typeof setTimeout>;
+		}
 	>();
 
 	navigator.serviceWorker.addEventListener('message', (event) => {
@@ -455,24 +608,26 @@ async function attachSingleOriginBridge(openerRemote: Window, scope: string) {
 			return;
 		}
 		const source = event.source as ServiceWorker;
+		const workerRequestId = event.data.requestId as number;
 		if (openerRemote.closed) {
 			source.postMessage(
-				responseTo(event.data.requestId, closedOpenerResponse())
+				responseTo(workerRequestId, closedOpenerResponse())
 			);
 			return;
 		}
-		const requestId = event.data.requestId as number;
-		const existing = pendingSources.get(requestId);
-		if (existing) {
-			clearTimeout(existing.timeout);
-		}
+		const relayRequestId = ++nextRelayRequestId;
 		const timeout = setTimeout(() => {
-			pendingSources.delete(requestId);
+			pendingSources.delete(relayRequestId);
 		}, PENDING_REQUEST_TIMEOUT_MS);
-		pendingSources.set(requestId, { source, timeout });
+		pendingSources.set(relayRequestId, {
+			source,
+			workerRequestId,
+			timeout,
+		});
 		openerRemote.postMessage(
 			{
 				...event.data,
+				requestId: relayRequestId,
 				type: 'wordpress-popup-bridge-request',
 			},
 			playgroundOrigin
@@ -499,7 +654,7 @@ async function attachSingleOriginBridge(openerRemote: Window, scope: string) {
 			response.bodyPort = streamToPort(portToStream(response.bodyPort));
 		}
 		pending.source.postMessage(
-			responseTo(requestId, response),
+			responseTo(pending.workerRequestId, response),
 			response?.bodyPort ? [response.bodyPort] : []
 		);
 	});

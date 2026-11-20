@@ -591,7 +591,11 @@ export async function bootPlaygroundRemote() {
 				await connectWordPressOrigin(phpWorkerApi, options.scope!);
 			} else {
 				if (options.scope) {
-					listenForWordPressPopupRelay(phpWorkerApi, options.scope);
+					listenForWordPressPopupRelay(
+						phpWorkerApi,
+						options.scope,
+						serviceWorkerUrl.href
+					);
 				}
 				if (!sharedRuntime) {
 					// Dedicated runtimes retain the existing window relay.

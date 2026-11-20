@@ -16,6 +16,7 @@ import { getWordPressBridgePath } from './wordpress-bridge-path';
 import { buildVersion } from 'virtual:remote-config';
 
 export const PARTITION_PROBE_CHANNEL_NAME = 'playground-partition-probe';
+export const RUNTIME_PARTITION_LOCK_PREFIX = 'playground-runtime-partition:';
 
 /**
  * Connect WordPress HTTP requests on a separate origin to this app-origin PHP worker.
@@ -149,13 +150,33 @@ export async function connectWordPressOrigin(
  */
 export function listenForWordPressPopupRelay(
 	client: RemoteAPI<PlaygroundWorkerEndpoint>,
-	scope: string
+	scope: string,
+	singleOriginServiceWorkerUrl?: string
 ) {
 	let probeChannel: BroadcastChannel | null = null;
 	const bridgeUrl =
 		wordPressSiteUrl !== playgroundOrigin
 			? getWordPressBridgeUrl(scope).href
 			: null;
+	const serviceWorkerUrl =
+		wordPressSiteUrl === playgroundOrigin
+			? (singleOriginServiceWorkerUrl ?? null)
+			: null;
+
+	// Hold a partition-scoped Web Lock for this runtime's lifetime so popups
+	// in the same storage partition can detect it deterministically without
+	// relying on a BroadcastChannel timing window.
+	if (
+		typeof navigator !== 'undefined' &&
+		typeof navigator.locks?.request === 'function'
+	) {
+		void navigator.locks
+			.request(
+				`${RUNTIME_PARTITION_LOCK_PREFIX}${scope}`,
+				() => new Promise<void>(() => {})
+			)
+			.catch(() => {});
+	}
 
 	window.addEventListener('message', async (event) => {
 		if (
@@ -186,6 +207,7 @@ export function listenForWordPressPopupRelay(
 					scope,
 					probeId,
 					bridgeUrl,
+					serviceWorkerUrl,
 				},
 				playgroundOrigin
 			);
