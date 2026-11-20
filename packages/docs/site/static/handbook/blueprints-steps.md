@@ -30,6 +30,8 @@ Each step is an object that contains a `step` property that specifies the type o
 
 <a id="ActivatePluginStep"></a>
 
+<a id="activatePlugin"></a>
+
 ## activatePlugin
 
 Activates a WordPress plugin (if it's installed).
@@ -71,6 +73,8 @@ activatePlugin(
 ---
 
 <a id="ActivateThemeStep"></a>
+
+<a id="activateTheme"></a>
 
 ## activateTheme
 
@@ -149,6 +153,8 @@ cp(
 
 <a id="DefineSiteUrlStep"></a>
 
+<a id="defineSiteUrl"></a>
+
 ## defineSiteUrl
 
 Sets [`WP_HOME`](https://developer.wordpress.org/advanced-administration/wordpress/wp-config/#blog-address-url) and [`WP_SITEURL`](https://developer.wordpress.org/advanced-administration/wordpress/wp-config/#wp-siteurl) constants for the WordPress installation.
@@ -169,6 +175,8 @@ or deploying Playground on a custom domain.
 
 <a id="DefineWpConfigConstsStep"></a>
 
+<a id="defineWpConfigConsts"></a>
+
 ## defineWpConfigConsts
 
 Defines PHP constants for WordPress. Use the `method` option to write them to
@@ -181,9 +189,10 @@ This step can be called multiple times, and the constants will be merged.
 - **consts** (Record) – The constants to define
 - **method** (optional) – How Playground defines the constants.
     - `define-before-run` (default) uses PHP's `auto_prepend_file` setting to define
-      the constants before the requested script runs. Use it to keep `wp-config.php`
-      intact, for example when working with a mounted project. The value set by
-      Playground takes precedence over a later definition in `wp-config.php`.
+      constants with string, number, or boolean values before the requested script
+      runs. These values take precedence over later definitions in `wp-config.php`.
+      This method skips `null`, arrays, and objects. Use it to keep `wp-config.php`
+      intact, for example when working with a mounted project.
 
     - `rewrite-wp-config` adds or updates the corresponding `define()` calls in
       `wp-config.php`. Use it to replace an existing definition in that file or to
@@ -224,6 +233,8 @@ defineWpConfigConsts(
 
 <a id="EnableMultisiteStep"></a>
 
+<a id="enableMultisite"></a>
+
 ## enableMultisite
 
 Defines the [Multisite](https://developer.wordpress.org/advanced-administration/multisite/create-network/) constants in a `wp-config.php` file.
@@ -255,6 +266,8 @@ enableMultisite(playground, {}, progress);
 ---
 
 <a id="ImportThemeStarterContentStep"></a>
+
+<a id="importThemeStarterContent"></a>
 
 ## importThemeStarterContent
 
@@ -320,6 +333,8 @@ importThemeStarterContent(playground, {}, progress);
 
 <a id="ImportWordPressFilesStep"></a>
 
+<a id="importWordPressFiles"></a>
+
 ## importWordPressFiles
 
 Imports top-level WordPress files from a given zip file into
@@ -381,6 +396,8 @@ importWordPressFiles(
 
 <a id="ImportWxrStep"></a>
 
+<a id="importWxr"></a>
+
 ## importWxr
 
 Imports a WXR file into WordPress.
@@ -440,6 +457,8 @@ importWxr(
 ---
 
 <a id="InstallPluginStep"></a>
+
+<a id="installPlugin"></a>
 
 ## installPlugin
 
@@ -508,6 +527,8 @@ installPlugin(
 ---
 
 <a id="InstallThemeStep"></a>
+
+<a id="installTheme"></a>
 
 ## installTheme
 
@@ -683,6 +704,8 @@ mv(
 
 <a id="ResetDataStep"></a>
 
+<a id="resetData"></a>
+
 ## resetData
 
 Deletes the selected WordPress content through WordPress APIs so dependent
@@ -791,6 +814,8 @@ rmdir(
 
 <a id="RunPHPStep"></a>
 
+<a id="runPHP"></a>
+
 ## runPHP
 
 Runs PHP code.
@@ -828,6 +853,8 @@ runPHP(
 ---
 
 <a id="RunPHPWithOptionsStep"></a>
+
+<a id="runPHPWithOptions"></a>
 
 ## runPHPWithOptions
 
@@ -873,6 +900,8 @@ runPHPWithOptions(
 ---
 
 <a id="RunSqlStep"></a>
+
+<a id="runSql"></a>
 
 ## runSql
 
@@ -925,6 +954,8 @@ runSql(
 
 <a id="SetSiteLanguageStep"></a>
 
+<a id="setSiteLanguage"></a>
+
 ## setSiteLanguage
 
 Sets the site language and download translations.
@@ -963,6 +994,8 @@ setSiteLanguage(
 ---
 
 <a id="SetSiteOptionsStep"></a>
+
+<a id="setSiteOptions"></a>
 
 ## setSiteOptions
 
@@ -1055,6 +1088,8 @@ unzip(
 
 <a id="UpdateUserMetaStep"></a>
 
+<a id="updateUserMeta"></a>
+
 ## updateUserMeta
 
 Updates user meta. This is equivalent to calling [`update_user_meta`](https://developer.wordpress.org/reference/functions/update_user_meta/) for each
@@ -1140,6 +1175,8 @@ wpCLI(
 
 <a id="WriteFileStep"></a>
 
+<a id="writeFile"></a>
+
 ## writeFile
 
 Writes data to a file at the specified path.
@@ -1179,6 +1216,8 @@ writeFile(
 ---
 
 <a id="WriteFilesStep"></a>
+
+<a id="writeFiles"></a>
 
 ## writeFiles
 

@@ -56,7 +56,9 @@ En Node.js, también puedes usar el método [`cli()`](#the-cli-method) para ejec
 ### The `run()` method
 -->
 
-### El método `run()`
+<a id="el-método-run"></a>
+
+### El método `run()` {#the-run-method}
 
 import TSDocstring from '@site/src/components/TSDocstring';
 
@@ -66,7 +68,9 @@ import TSDocstring from '@site/src/components/TSDocstring';
 ### The `request()` method
 -->
 
-### El método `request()`
+<a id="el-método-request"></a>
+
+### El método `request()` {#the-request-method}
 
 <TSDocstring path={[ "@wp-playground/client", "PlaygroundClient", "request" ]} />
 
@@ -186,7 +190,9 @@ console.log(await output.stdoutText);
 ## The `cli()` method
 -->
 
-## El método `cli()`
+<a id="el-método-cli"></a>
+
+## El método `cli()` {#the-cli-method}
 
 <!--
 In Node.js, you also have access to the `cli()` method that runs PHP in a CLI mode:

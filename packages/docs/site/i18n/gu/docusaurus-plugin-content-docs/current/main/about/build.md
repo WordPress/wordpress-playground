@@ -30,7 +30,9 @@ WordPress Playground can help you to create and learn WordPress quickly, even on
 You can seamlessly integrate Playground into your development workflow to launch a local WordPress environment quickly for testing your code. You can do this directly [from the terminal](/developers/local-development/wp-playground-cli) or [your preferred IDE.](/developers/local-development/vscode-extension)
 -->
 
-## બ્લોક થીમ પર કરેલા ફેરફારો સાચવો અને GitHub Pull Requests બનાવો
+<a id="બ્લોક-થીમ-પર-કરેલા-ફેરફારો-સાચવો-અને-github-pull-requests-બનાવો"></a>
+
+## બ્લોક થીમ પર કરેલા ફેરફારો સાચવો અને GitHub Pull Requests બનાવો {#save-changes-done-on-a-block-theme-and-create-github-pull-requests}
 
 <!--
 ## Save changes done on a Block Theme and create GitHub Pull Requests
@@ -67,7 +69,9 @@ Some more examples of this workflow:
 -   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 -->
 
-## તમારા પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને લોકલ ફોલ્ડર સાથે સિંક્રોનાઈઝ કરો અને GitHub Pull Requests બનાવો
+<a id="તમારા-પ્લેગ્રાઉન્ડ-ઇન્સ્ટન્સને-લોકલ-ફોલ્ડર-સાથે-સિંક્રોનાઈઝ-કરો-અને-github-pull-requests-બનાવો"></a>
+
+## તમારા પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને લોકલ ફોલ્ડર સાથે સિંક્રોનાઈઝ કરો અને GitHub Pull Requests બનાવો {#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests}
 
 <!--
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
