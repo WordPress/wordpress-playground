@@ -227,6 +227,12 @@
 				"command": "node packages/playground/website-deployment/test-static-file-ranges.mjs"
 			}
 		},
+		"test:oauth-tls": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "node packages/playground/website-deployment/test-oauth-tls.mjs"
+			}
+		},
 		"build:wordpress-frame": {
 			"executor": "nx:run-commands",
 			"options": {
