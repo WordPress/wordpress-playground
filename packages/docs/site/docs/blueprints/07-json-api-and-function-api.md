@@ -1,26 +1,26 @@
 ---
-title: API Consistency
+title: API Consistency (v1 legacy)
 slug: /blueprints/steps/api-consistency
-description: Learn about the relationship between the Blueprint JSON format and the underlying JavaScript function API used to execute steps.
+description: Legacy Blueprint v1 documentation. Learn about the relationship between the Blueprint JSON format and the underlying JavaScript function API used to execute steps.
 ---
 
 # JSON API and Function API
+
+<div class="callout callout-warning">
+
+**Blueprint v1 (legacy)**
+
+This page documents Blueprint v1. Current Playground runners still accept v1 Blueprints,
+but new work should use [Blueprint v2](/blueprints/v2). See
+[Migrate from v1](/blueprints/v2/migrate-from-v1) to update an existing Blueprint.
+
+</div>
 
 Blueprints are defined in JSON format, but the underlying implementation uses JavaScript functions to execute the steps. While JSON is the most convenient way of interacting with Blueprints, you can also use the underlying functions directly.
 
 JSON is merely a wrapper around the functions. Whether you use the JSON steps or the exported functions, you'll have to provide the same parameters (except for the step name):
 
 You can use Blueprints both with the web and the node.js versions of WordPress Playground.
-
-<div class="callout callout-info">
-
-**Blueprints version 2**
-
-The team is exploring ways to transition Blueprints from a TypeScript library to a PHP library. This would allow people to run Blueprints in any WordPress environments: Playground, a hosted site, or a local setup.
-
-The proposed [new specification](https://github.com/WordPress/blueprints-library/issues/6) is discussed on a separate [GitHub repository](https://github.com/WordPress/blueprints-library/), and you’re more than welcome to join (there or on the [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) Slack channel) and help shape the next generation of Playground.
-
-</div>
 
 ## Differences between JSON and Function APIs
 
