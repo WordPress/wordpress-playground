@@ -75,7 +75,6 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 - [Synchronization between two Playgrounds](https://playground.wordpress.net/demos/sync.html)
 - [Time Travel](https://playground.wordpress.net/demos/time-traveling.html)
 - [WP-CLI](https://playground.wordpress.net/demos/wp-cli.html)
-- [PHP implementation of Blueprints](https://playground.wordpress.net/demos/php-blueprints.html)
 -->
 
 ## WordPress Playground સાથે બનાવેલ એપ્લિકેશન્સ {#apps-built-with-wordpress-playground}
@@ -93,7 +92,6 @@ Playground સાથે સંબંધિત કેટલાક ટૂલ્સ
 - [બે Playgrounds વચ્ચે સમન્વય](https://playground.wordpress.net/demos/sync.html)
 - [Time Travel](https://playground.wordpress.net/demos/time-traveling.html)
 - [WP-CLI](https://playground.wordpress.net/demos/wp-cli.html)
-- [Blueprints નું PHP અમલીકરણ](https://playground.wordpress.net/demos/php-blueprints.html)
 
 <!--
 ## Reading materials
