@@ -22,14 +22,7 @@ libz/jspi/dist/root/lib/lib/libz.a: base-image
 	docker cp $$(docker create playground-php-wasm:libz):/root/lib/lib ./libz/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libz):/root/lib/include ./libz/jspi/dist/root/lib
 
-libzip_asyncify: libzip-1.2.0_asyncify libzip-1.9.2_asyncify
-
-libzip-1.2.0_asyncify: libzip/asyncify/dist/1.2.0/root/lib/lib/libzip.a
-libzip/asyncify/dist/1.2.0/root/lib/lib/libzip.a: base-image libz_asyncify
-	mkdir -p ./libzip/asyncify/dist/1.2.0/root/lib
-	docker build -f ./libzip/Dockerfile -t playground-php-wasm:libzip . --build-arg LIBZIP_VERSION=1.2.0 --progress=plain
-	docker cp $$(docker create playground-php-wasm:libzip):/root/install/lib ./libzip/asyncify/dist/1.2.0/root/lib
-	docker cp $$(docker create playground-php-wasm:libzip):/root/install/include ./libzip/asyncify/dist/1.2.0/root/lib
+libzip_asyncify: libzip-1.9.2_asyncify
 
 libzip-1.9.2_asyncify: libzip/asyncify/dist/1.9.2/root/lib/lib/libzip.a
 libzip/asyncify/dist/1.9.2/root/lib/lib/libzip.a: base-image libz_asyncify
@@ -38,14 +31,7 @@ libzip/asyncify/dist/1.9.2/root/lib/lib/libzip.a: base-image libz_asyncify
 	docker cp $$(docker create playground-php-wasm:libzip):/root/install/lib ./libzip/asyncify/dist/1.9.2/root/lib
 	docker cp $$(docker create playground-php-wasm:libzip):/root/install/include ./libzip/asyncify/dist/1.9.2/root/lib
 
-libzip_jspi: libzip-1.2.0_jspi libzip-1.9.2_jspi
-
-libzip-1.2.0_jspi: libzip/jspi/dist/1.2.0/root/lib/lib/libzip.a
-libzip/jspi/dist/1.2.0/root/lib/lib/libzip.a: base-image libz_jspi
-	mkdir -p ./libzip/jspi/dist/1.2.0/root/lib
-	docker build -f ./libzip/Dockerfile -t playground-php-wasm:libzip . --build-arg LIBZIP_VERSION=1.2.0 --build-arg JSPI=1 --progress=plain
-	docker cp $$(docker create playground-php-wasm:libzip):/root/install/lib ./libzip/jspi/dist/1.2.0/root/lib
-	docker cp $$(docker create playground-php-wasm:libzip):/root/install/include ./libzip/jspi/dist/1.2.0/root/lib
+libzip_jspi: libzip-1.9.2_jspi
 
 libzip-1.9.2_jspi: libzip/jspi/dist/1.9.2/root/lib/lib/libzip.a
 libzip/jspi/dist/1.9.2/root/lib/lib/libzip.a: base-image libz_jspi
