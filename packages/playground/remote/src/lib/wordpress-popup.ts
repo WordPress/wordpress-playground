@@ -180,6 +180,8 @@ function probeOpenerPartition(
 			});
 		};
 
+		const runtimeLockPromise = isSamePartitionByRuntimeLock(scope);
+
 		const onWindowMessage = async (event: MessageEvent) => {
 			if (
 				event.origin !== playgroundOrigin ||
@@ -190,6 +192,7 @@ function probeOpenerPartition(
 			) {
 				return;
 			}
+			clearTimeout(overallTimer);
 			openerRemote = event.source as Window;
 			bridgeUrl =
 				typeof event.data.bridgeUrl === 'string'
@@ -199,10 +202,7 @@ function probeOpenerPartition(
 				typeof event.data.serviceWorkerUrl === 'string'
 					? event.data.serviceWorkerUrl
 					: null;
-			if (
-				!isSamePartition &&
-				(await isSamePartitionByRuntimeLock(scope))
-			) {
+			if (!isSamePartition && (await runtimeLockPromise)) {
 				isSamePartition = true;
 			}
 			finish();
