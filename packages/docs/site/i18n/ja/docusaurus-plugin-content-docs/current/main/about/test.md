@@ -36,10 +36,10 @@ For example, the following link will load the [“pendant” theme](https://word
 
 [https://playground.wordpress.net/?theme=pendant&plugin=gutenberg](https://playground.wordpress.net/?theme=pendant&plugin=gutenberg)
 
-ただし、[ブループリントを使用したより複雑な構成](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)をテストすることもできます。たとえば、gist からプラグインのコードをテストします ([ブループリント](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) と [ライブ デモ](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json) を参照)
+ただし、[ブループリントを使用したより複雑な構成](https://wordpress.github.io/blueprints/)をテストすることもできます。たとえば、gist からプラグインのコードをテストします ([ブループリント](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) と [ライブ デモ](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json) を参照)
 
 <!--
-But you can also test [more elaborate configurations using blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md), for example testing a plugin’s code from a gist (see [blueprint](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json))
+But you can also test [more elaborate configurations using blueprints](https://developer.wordpress.org/playground/blueprints/examples/), for example testing a plugin’s code from a gist (see [blueprint](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json))
 -->
 
 ## ライブプレビューのプルリクエスト
