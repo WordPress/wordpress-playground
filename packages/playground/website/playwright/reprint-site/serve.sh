@@ -15,16 +15,11 @@ CACHE="${REPRINT_E2E_CACHE:-/tmp/playground-reprint-e2e-cache}"
 
 WP_VERSION=7.1.2
 SQLITE_PLUGIN_VERSION=3.0.2
+# Keep the source fixture and its admin form stable when the client updates.
+REPRINT_SERVER_VERSION=v0.11.6
 REPRINT_SERVER_SHA256=99d1457e24136958b2f0ea52acbe39cf43bd2affdbedf4090f917ef1ce4055d0
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
-# Read the client pin rather than maintaining a second release version.
-# The server zip has its own digest, which must be updated with the client pin.
-REPRINT_VERSION="$(node -e "
-const fs = require('node:fs');
-const release = JSON.parse(fs.readFileSync(process.argv[1], 'utf8'));
-process.stdout.write(release.version);
-" "$HERE/../../src/lib/reprint/release.json")"
 URL="http://127.0.0.1:${PORT}"
 WP="php ${CACHE}/wp-cli.phar --path=${DIR}"
 
@@ -38,16 +33,16 @@ fetch() {
 mkdir -p "$CACHE"
 fetch "https://wordpress.org/wordpress-${WP_VERSION}.tar.gz" "${CACHE}/wordpress-${WP_VERSION}.tar.gz"
 fetch "https://downloads.wordpress.org/plugin/sqlite-database-integration.${SQLITE_PLUGIN_VERSION}.zip" "${CACHE}/sqlite-database-integration.zip"
-fetch "https://github.com/WordPress/reprint/releases/download/${REPRINT_VERSION}/reprint-exporter-wp.zip" "${CACHE}/reprint-server-${REPRINT_VERSION}.zip"
+fetch "https://github.com/WordPress/reprint/releases/download/${REPRINT_SERVER_VERSION}/reprint-exporter-wp.zip" "${CACHE}/reprint-server-${REPRINT_SERVER_VERSION}.zip"
 fetch "https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar" "${CACHE}/wp-cli.phar"
-echo "${REPRINT_SERVER_SHA256}  ${CACHE}/reprint-server-${REPRINT_VERSION}.zip" | shasum -a 256 -c - >/dev/null
+echo "${REPRINT_SERVER_SHA256}  ${CACHE}/reprint-server-${REPRINT_SERVER_VERSION}.zip" | shasum -a 256 -c - >/dev/null
 
 rm -rf "$DIR"
 mkdir -p "$DIR"
 tar xzf "${CACHE}/wordpress-${WP_VERSION}.tar.gz" --strip-components=1 -C "$DIR"
 unzip -q "${CACHE}/sqlite-database-integration.zip" -d "${DIR}/wp-content/plugins"
 mkdir -p "${DIR}/wp-content/plugins/reprint-server"
-unzip -q "${CACHE}/reprint-server-${REPRINT_VERSION}.zip" -d "${DIR}/wp-content/plugins/reprint-server"
+unzip -q "${CACHE}/reprint-server-${REPRINT_SERVER_VERSION}.zip" -d "${DIR}/wp-content/plugins/reprint-server"
 
 # The SQLite drop-in, filled in the way WordPress Playground fills it.
 sed \
