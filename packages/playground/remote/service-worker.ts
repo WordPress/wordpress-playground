@@ -822,7 +822,11 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 			// WordPress 6.3+ uses a blob URL with doctype and a list of static assets.
 			// Pass the blob URL – never the document content – to empty.html, which
 			// fetches and renders it itself. Only same-origin blob: URLs are honored.
-			return emptyHtmlUrl + '#' + encodeURIComponent(props.src);
+			return (
+				emptyHtmlUrl +
+				'#' +
+				encodeURIComponent(__playground_cloneBlobUrl(props.src))
+			);
 		} else {
 			// Other URLs need no correction.
 			return props.src;
@@ -842,6 +846,51 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 		})
 	)
 });
+
+// With SCRIPT_DEBUG enabled, WordPress loads development React. On WordPress
+// 6.7–6.9, StrictMode's simulated unmount runs Gutenberg's useEffect cleanup
+// and calls URL.revokeObjectURL(props.src) before /wp-includes/empty.html
+// finishes loading from the service worker. Clone the same-origin blob
+// synchronously during render while props.src is still alive.
+function __playground_cloneBlobUrl(src) {
+	const clones =
+		window.__playground_blobClones ||
+		(window.__playground_blobClones = new Map());
+	if (clones.has(src)) {
+		const existing = clones.get(src);
+		clones.delete(src);
+		clones.set(src, existing);
+		return existing;
+	}
+	try {
+		const parsed = new URL(src);
+		if (
+			parsed.protocol !== 'blob:' ||
+			parsed.origin !== window.location.origin
+		) {
+			return src;
+		}
+		const xhr = new XMLHttpRequest();
+		xhr.open('GET', parsed.href, false);
+		xhr.overrideMimeType('text/plain;charset=utf-8');
+		xhr.send();
+		if (xhr.status !== 200) {
+			return src;
+		}
+		const clone = URL.createObjectURL(
+			new Blob([xhr.responseText], { type: 'text/html' })
+		);
+		clones.set(src, clone);
+		if (clones.size > 128) {
+			const oldestKey = clones.keys().next().value;
+			URL.revokeObjectURL(clones.get(oldestKey));
+			clones.delete(oldestKey);
+		}
+		return clone;
+	} catch (e) {
+		return src;
+	}
+}
 
 // Gutenberg 22.4–22.7 adds the "credentialless" attribute to every iframe in a
 // cross-origin isolated editor, except the editor's own iframes, like the canvas.
