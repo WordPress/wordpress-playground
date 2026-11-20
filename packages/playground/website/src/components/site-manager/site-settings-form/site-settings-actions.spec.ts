@@ -33,6 +33,18 @@ describe('getFreshPlaygroundReason', () => {
 		).toBe('Changing WordPress version requires a fresh Playground.');
 	});
 
+	it('allows enabling multisite on the current Playground', () => {
+		expect(
+			getFreshPlaygroundReason({ ...defaults, multisite: true }, defaults)
+		).toBeUndefined();
+	});
+
+	it('requires a fresh Playground to turn multisite off', () => {
+		expect(
+			getFreshPlaygroundReason(defaults, { ...defaults, multisite: true })
+		).toBe('Changing multisite requires a fresh Playground.');
+	});
+
 	it('names every setting that prevents applying to the current Playground', () => {
 		expect(
 			getFreshPlaygroundReason(
@@ -40,9 +52,8 @@ describe('getFreshPlaygroundReason', () => {
 					...defaults,
 					wpVersion: '6.7',
 					language: 'pl_PL',
-					multisite: true,
 				},
-				defaults
+				{ ...defaults, multisite: true }
 			)
 		).toBe(
 			'Changing WordPress version, language, and multisite requires a fresh Playground.'
