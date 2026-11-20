@@ -106,7 +106,7 @@ permanently**, then choose **Save in browser storage**.
 
 **Store permanently** खोलने के लिए Dock में **Autosaved** या **Unsaved** स्टेटस पर क्लिक करें, फिर **Save in browser storage** चुनें।
 
-![Store permanently पैन, जिसमें ब्राउज़र स्टोरेज चुना गया है](/img/dock/store-permanently-browser.webp)
+![Store permanently पैन, जिसमें ब्राउज़र स्टोरेज चुना गया है](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-browser.webp)
 
 <!--
 A saved browser Playground appears in **Your Playgrounds**. Autosaves also
@@ -128,7 +128,7 @@ Playground permanently when you want to keep it beyond the autosave lifecycle.
 
 Dock से **Export** खोलें और **Download as .zip** का उपयोग करें।
 
-![ZIP, सेटअप लिंक और GitHub विकल्पों वाला Export पैन](/img/dock/dock-export-playground.webp)
+![ZIP, सेटअप लिंक और GitHub विकल्पों वाला Export पैन](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-export-playground.webp)
 
 <!-- The exported file contains the current files, database, plugins, themes, uploads, and edits. You can restore it in Playground or host it on a server that supports PHP and SQLite. -->
 
@@ -146,7 +146,7 @@ SQLite डेटाबेस `wp-content/database/` में शामिल �
 
 Dock से **New Playground** खोलें, **Import zip** चुनें और अपनी ZIP फ़ाइल चुनें।
 
-![New Playground पैन, जिसमें Import zip चुना गया है](/img/dock/dock-new-playground-import-zip.webp)
+![New Playground पैन, जिसमें Import zip चुना गया है](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground-import-zip.webp)
 
 <!-- This restores the files and database from the ZIP into a new Playground. -->
 
@@ -160,7 +160,7 @@ Dock से **New Playground** खोलें, **Import zip** चुनें �
 
 WordPress, PHP, भाषा, मल्टीसाइट और नेटवर्किंग विकल्प चुनने के लिए Dock से **Site Settings** खोलें।
 
-![Site Settings पैन](/img/dock/dock-site-settings.webp)
+![Site Settings पैन](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 <div class="callout callout-info">
 
