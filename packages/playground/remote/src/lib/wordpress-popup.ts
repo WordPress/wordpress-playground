@@ -180,10 +180,12 @@ function probeOpenerPartition(
 			});
 		};
 
-		const runtimeLockPromise = isSamePartitionByRuntimeLock(scope);
+		let ackReceived = false;
 
 		const onWindowMessage = async (event: MessageEvent) => {
 			if (
+				ackReceived ||
+				settled ||
 				event.origin !== playgroundOrigin ||
 				!event.source ||
 				event.data?.type !== 'wordpress-popup-partition-probe-ack' ||
@@ -192,6 +194,7 @@ function probeOpenerPartition(
 			) {
 				return;
 			}
+			ackReceived = true;
 			clearTimeout(overallTimer);
 			openerRemote = event.source as Window;
 			bridgeUrl =
@@ -202,7 +205,10 @@ function probeOpenerPartition(
 				typeof event.data.serviceWorkerUrl === 'string'
 					? event.data.serviceWorkerUrl
 					: null;
-			if (!isSamePartition && (await runtimeLockPromise)) {
+			if (
+				!isSamePartition &&
+				(await isSamePartitionByRuntimeLock(scope))
+			) {
 				isSamePartition = true;
 			}
 			finish();
@@ -250,7 +256,7 @@ async function isSamePartitionByRuntimeLock(scope: string): Promise<boolean> {
 	try {
 		return await locks.request(
 			`${RUNTIME_PARTITION_LOCK_PREFIX}${scope}`,
-			{ ifAvailable: true },
+			{ mode: 'shared', ifAvailable: true },
 			(lock) => lock === null
 		);
 	} catch {
@@ -355,7 +361,7 @@ async function acquireBridgeOrQueueTakeover(
 			});
 		}
 
-		// Queue for atomic takeover if the current lock owner exits (ither
+		// Queue for atomic takeover if the current lock owner exits (either
 		// before signaling readiness or later while this tab stays open).
 		void locks
 			.request(lockName, async () => {
@@ -378,6 +384,10 @@ async function acquireBridgeOrQueueTakeover(
 				await new Promise<void>(() => {});
 			})
 			.catch(finishError);
+
+		if (!channel) {
+			finishReady();
+		}
 	});
 }
 
