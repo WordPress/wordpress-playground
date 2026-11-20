@@ -1,0 +1,12 @@
+{
+	"private": true,
+	"name": "@wp-playground/posix-kernel-builds",
+	"version": "0.0.1",
+	"description": "kandelo host and binaries for the WordPress Playground posix kernel",
+	"license": "GPL-2.0-or-later",
+	"type": "module",
+	"dependencies": {
+		"fflate": "^0.8.3",
+		"fzstd": "^0.1.1"
+	}
+}

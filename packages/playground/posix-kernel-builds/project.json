@@ -1,0 +1,15 @@
+{
+	"name": "playground-posix-kernel-builds",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"projectType": "library",
+	"tags": [],
+	"targets": {
+		"bundle-kandelo": {
+			"executor": "nx:run-commands",
+			"options": {
+				"command": "packages/playground/posix-kernel-builds/scripts/build.sh",
+				"parallel": false
+			}
+		}
+	}
+}
