@@ -758,19 +758,40 @@ test('should display networking as active when networking is enabled', async ({
 	await expect(website.page.getByLabel('Network access')).toBeChecked();
 });
 
-test('should enable networking when requested', async ({ website }) => {
-	await website.goto('./?storage=temp');
+const offlineBlueprints = {
+	v1: { features: { networking: false } },
+	v2: {
+		version: 2,
+		applicationOptions: {
+			'wordpress-playground': { networkAccess: false },
+		},
+	},
+} satisfies Record<string, Blueprint>;
 
-	await website.ensureSiteManagerIsOpen();
-	await website.page.getByLabel('Network access').check();
-	await website.page
-		.getByText('Discard current work & create a fresh Playground')
-		.click();
-	await website.ensureSiteManagerIsClosed();
-	await website.ensureSiteManagerIsOpen();
+for (const [version, blueprint] of Object.entries(offlineBlueprints)) {
+	test(`should re-enable networking over a Blueprint ${version} default`, async ({
+		website,
+	}) => {
+		const hash = encodeURIComponent(JSON.stringify(blueprint));
+		await website.goto(`./?storage=temp#${hash}`);
 
-	await expect(website.page.getByLabel('Network access')).toBeChecked();
-});
+		await website.ensureSiteManagerIsOpen();
+		const networking = website.page.getByLabel('Network access');
+		await expect(networking).not.toBeChecked();
+		await networking.check();
+		await website.page
+			.getByText('Discard current work & create a fresh Playground')
+			.click();
+		await website.ensureSiteManagerIsClosed();
+		await website.waitForNestedIframes();
+		await website.ensureSiteManagerIsOpen();
+
+		await expect(networking).toBeChecked();
+		await expect
+			.poll(() => isNetworkTransportEnabled(website.page))
+			.toBe(true);
+	});
+}
 
 test('should disable networking when requested', async ({ website }) => {
 	await website.goto('./?storage=temp&networking=yes');
@@ -2023,6 +2044,19 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		await expect(
 			website.page.getByLabel('Allow network access')
 		).not.toBeChecked();
+		await expect
+			.poll(() => isNetworkTransportEnabled(website.page))
+			.toBe(false);
+
+		await website.page.getByLabel('Allow network access').check();
+		await applySettingsButton.click();
+		await website.waitForNestedIframes();
+		await expect
+			.poll(() => isNetworkTransportEnabled(website.page))
+			.toBe(true);
+		expect(await getActivePlaygroundSite(website.page)).toMatchObject({
+			slug: originalSite.slug,
+		});
 	});
 
 	test('should create exactly one fresh Playground for structural settings', async ({
@@ -2047,12 +2081,18 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 			(version) =>
 				!['beta', 'default', currentWpVersion].includes(version)
 		)!;
-		await wpSelect.selectOption(nextWpVersion);
 
 		const mainAction = website.page.getByRole('button', {
 			name: 'Create a fresh Playground',
 			exact: true,
 		});
+		await wpSelect.selectOption('');
+		await mainAction.click();
+		await expect(wpSelect).toHaveValue('');
+		await expect(
+			website.page.getByText('WordPress Version is required')
+		).toBeVisible();
+		await wpSelect.selectOption(nextWpVersion);
 		await expect(mainAction).toBeEnabled();
 		await website.page
 			.getByRole('button', { name: 'More settings actions' })
@@ -3667,3 +3707,33 @@ test('should not include Google Analytics when VITE_GOOGLE_ANALYTICS_ID is not s
 		.count();
 	expect(gtmScripts).toBe(0);
 });
+
+/** Reads the running transport without waiting on a client that is being replaced. */
+async function isNetworkTransportEnabled(page: Page) {
+	return page.evaluate(async () => {
+		const client = (window as any).playgroundSites?.getClient();
+		if (!client) {
+			return undefined;
+		}
+		return Promise.race([
+			client
+				.run({
+					code: `<?php
+					require '/wordpress/wp-load.php';
+					echo defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS ? 'on' : 'off';`,
+				})
+				.then(({ text }: { text: string }) => {
+					return text === 'on'
+						? true
+						: text === 'off'
+							? false
+							: undefined;
+				})
+				.catch(() => undefined),
+			// A disposed worker may never answer an RPC sent just before a reboot.
+			new Promise<undefined>((resolve) =>
+				window.setTimeout(resolve, 1000)
+			),
+		]);
+	});
+}
