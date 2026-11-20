@@ -159,9 +159,16 @@ done
 request "$WORDPRESS/logger.php"
 expect_status 404 "WordPress host /logger.php"
 
-request "$APP/.well-known/mcp.json"
-expect_status 200 "app /.well-known/mcp.json"
-expect_type 'json' "app /.well-known/mcp.json"
+for path in /.well-known/mcp.json /.well-known/ard.json; do
+    request "$APP$path" -H 'Origin: https://registry.example'
+    expect_status 200 "app $path"
+    expect_type '^application/json' "app $path"
+    if [ "$(header access-control-allow-origin)" = '*' ]; then
+        pass "app $path: public CORS"
+    else
+        fail "app $path: expected Access-Control-Allow-Origin: *"
+    fi
+done
 
 # Sample release files for MIME types and byte ranges, named by the local build.
 if ! grep -qF "$BASE/" "$BUILD/index.html" 2>/dev/null; then

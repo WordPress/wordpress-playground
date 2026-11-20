@@ -1,0 +1,26 @@
+{
+	"entries": [
+		{
+			"identifier": "urn:air:playground.wordpress.net:mcp:wordpress-playground",
+			"displayName": "WordPress Playground MCP",
+			"type": "application/json",
+			"url": "https://playground.wordpress.net/.well-known/mcp.json",
+			"description": "Setup metadata for connecting an AI assistant to WordPress Playground in the browser using the local @wp-playground/mcp server or browser-native WebMCP tools.",
+			"representativeQueries": [
+				"Connect my AI assistant to a WordPress Playground site in my browser",
+				"Inspect a page on my running WordPress Playground site"
+			]
+		},
+		{
+			"identifier": "urn:air:playground.wordpress.net:skill:wp-playground",
+			"displayName": "WordPress Playground Agent Skill",
+			"type": "application/agent-skills+md",
+			"url": "https://raw.githubusercontent.com/WordPress/agent-skills/trunk/skills/wp-playground/SKILL.md",
+			"description": "Guides coding agents through running WordPress locally, previewing sites in the browser, and working with Blueprints and snapshots.",
+			"representativeQueries": [
+				"Start a local WordPress environment with my plugin mounted",
+				"Create a shareable WordPress Playground preview from a Blueprint"
+			]
+		}
+	]
+}

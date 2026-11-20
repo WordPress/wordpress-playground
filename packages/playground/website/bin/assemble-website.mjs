@@ -6,7 +6,7 @@
  * that production publishes. Top-level dotfiles of the remote, website, and
  * extras builds are not copied, as with the former `cp -r <build>/*` commands;
  * the remote and website Apache rules are concatenated instead. `.well-known/`
- * is published: it holds the AI discovery manifest, `mcp.json`.
+ * is published for agent discovery and MCP setup metadata.
  *
  * The offline prefetch stores its listed files with one Cache.addAll() call, which
  * stores nothing if any file is missing, so assembly fails on a missing file.
