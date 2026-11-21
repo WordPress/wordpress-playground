@@ -22,7 +22,7 @@ Antes de começar, faça login no GitHub e identifique a página da documentaç�
 
 <!-- ## When to use this workflow -->
 
-## Quando usar este fluxo de trabalho
+## Quando usar este fluxo de trabalho {#when-to-use-this-workflow}
 
 <!-- The GitHub web interface is a good fit for: -->
 
@@ -50,7 +50,7 @@ Para alterações maiores, atualizações que precisam de pré-visualização lo
 
 <!-- ## Find the documentation file -->
 
-## Encontre o arquivo da documentação
+## Encontre o arquivo da documentação {#find-the-documentation-file}
 
 <!--
 Most English documentation pages live in the [`packages/docs/site/docs`](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/docs/site/docs) directory.
@@ -102,7 +102,7 @@ As capturas de tela abaixo usam arquivos de tradução como exemplo, mas os mesm
 
 <!-- ## Edit an existing page -->
 
-## Edite uma página existente
+## Edite uma página existente {#edit-an-existing-page}
 
 <!--
 1. Open the file in GitHub.
@@ -128,7 +128,7 @@ O editor web do GitHub é mais indicado para alterações pequenas e focadas. Se
 
 <!-- ## Add a new page -->
 
-## Adicione uma nova página
+## Adicione uma nova página {#add-a-new-page}
 
 <!--
 1. Open the directory where the new page should live.
@@ -178,7 +178,7 @@ Mantenha o conteúdo original em inglês em um comentário acima da tradução, 
 
 <!-- ## Review your changes -->
 
-## Revise suas alterações
+## Revise suas alterações {#review-your-changes}
 
 <!--
 Before submitting, use the **Preview** tab in GitHub to check basic Markdown formatting. This is not
@@ -212,7 +212,7 @@ Verifique se há:
 
 <!-- ## Propose the change -->
 
-## Proponha a alteração
+## Proponha a alteração {#propose-the-change}
 
 <!--
 1. Scroll to the **Commit changes** section.
@@ -232,7 +232,7 @@ Verifique se há:
 
 <!-- ## What happens next -->
 
-## O que acontece depois
+## O que acontece depois {#what-happens-next}
 
 <!--
 A maintainer will review your pull request. They may ask for changes before merging it.
