@@ -191,21 +191,22 @@ async function connectToGitHub(page: Page, handlerUrl: string) {
 	await page.goto('./?gh-ensure-auth=yes');
 	const dialog = page.getByRole('dialog', { name: 'Connect to GitHub' });
 	await expect(dialog).toBeVisible();
-	await page.evaluate(() => {
+	// The WordPress iframe also posts to the app, so record only OAuth messages.
+	await page.evaluate((messageType) => {
 		window.__oauthPopupMessages = [];
 		window.addEventListener('message', (event) => {
-			if (event.source !== window) {
+			if (event.data?.type === messageType) {
 				window.__oauthPopupMessages!.push(event.data);
 			}
 		});
-	});
+	}, OAUTH_MESSAGE_TYPE);
 	await page
 		.getByRole('link', { name: 'Connect your GitHub account' })
 		.click();
 	return dialog;
 }
 
-/** Returns the messages other windows posted to the app, such as the popup. */
+/** Returns the OAuth messages posted to the app, such as the popup's result. */
 function readPopupMessages(page: Page) {
 	return page.evaluate(() => window.__oauthPopupMessages);
 }
