@@ -1,5 +1,7 @@
 import { rm, readdir, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 
 const packagesDirectory = 'packages';
 const outputDirectory = 'dist/packages/playground/client';
@@ -15,10 +17,16 @@ const inlinedPackageNames = [
 	...internalPackageNames,
 	...externalPackageNames,
 ].sort();
+const require = createRequire(import.meta.url);
+const generatorManifest = require.resolve('dts-bundle-generator/package.json');
+const generatorBin = join(
+	dirname(generatorManifest),
+	require(generatorManifest).bin
+);
 const result = spawnSync(
-	'npx',
+	process.execPath,
 	[
-		'dts-bundle-generator',
+		generatorBin,
 		'--project',
 		tsconfig,
 		'--external-inlines',
@@ -31,6 +39,7 @@ const result = spawnSync(
 	{ stdio: 'inherit' }
 );
 
+if (result.error) throw result.error;
 process.exit(result.status ?? 1);
 
 async function removeGeneratedDeclarations(directory) {
