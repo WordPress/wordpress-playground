@@ -62,7 +62,7 @@ WordPress Playground ब्लॉक से जुड़ी किसी भी 
 
 <!-- ## Put a native app running WordPress in the App Store. -->
 
-## App Store में WordPress पर चलने वाला नेटिव ऐप उपलब्ध कराएँ। {#put-a-native-app-running-wordpress-in-the-app-store}
+## App Store में WordPress चलाने वाला नेटिव ऐप उपलब्ध कराएँ। {#put-a-native-app-running-wordpress-in-the-app-store}
 
 <!-- Check the [How to ship a real WordPress site in a native iOS app via Playground?](../guides/wordpress-native-ios-app) guide for info on this use case -->
 
