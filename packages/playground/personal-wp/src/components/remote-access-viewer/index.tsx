@@ -1,5 +1,5 @@
 import { createWebMCPFrameBridge } from '@wp-playground/remote/webmcp-frame-bridge';
-import { startWebMCPSiteToolProxy } from '@wp-playground/mcp/client';
+import { startWebMCPSiteToolMirror } from '@wp-playground/mcp/client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import css from './style.module.css';
 import {
@@ -129,11 +129,11 @@ export function RemoteAccessViewer({ sessionId }: RemoteAccessViewerProps) {
 			origin: window.location.origin,
 			relayMessages: true,
 		});
-		const proxy = startWebMCPSiteToolProxy({
+		// Remote access still mirrors site tools; it moves to the gateway separately.
+		const proxy = startWebMCPSiteToolMirror({
 			onWebMCPToolsChanged: async (listener) =>
 				bridge.subscribe(listener),
-			callWebMCPTool: async (name, args, callId) =>
-				bridge.callTool(name, args, callId),
+			callWebMCPTool: (...args) => bridge.callTool(...args),
 			cancelWebMCPTool: async (callId) => bridge.cancelTool(callId),
 		});
 		return () => {

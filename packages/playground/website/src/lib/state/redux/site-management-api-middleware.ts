@@ -159,6 +159,7 @@ export function createSitesAPI(
 		 * @returns List of site info objects.
 		 */
 		list(): Array<{
+			id: string;
 			slug: string;
 			name: string;
 			storage: PublicSiteStorageType;
@@ -171,6 +172,7 @@ export function createSitesAPI(
 			// Keep the Redux-only "none" sentinel out of the public API;
 			// callers should see the user-facing "temporary" storage state.
 			return allSites.map((s) => ({
+				id: s.metadata.id,
 				slug: s.slug,
 				name: s.metadata.name,
 				storage:
@@ -291,19 +293,30 @@ export function createSitesAPI(
 		},
 
 		/**
-		 * Saves the active temporary or autosaved Playground in browser storage.
+		 * Saves a temporary or autosaved Playground in browser storage.
 		 *
 		 * Temporary sites are persisted to OPFS. Existing autosaves are kept in
 		 * their current backend and marked as explicitly saved.
 		 *
 		 * @param name Optional display name for the saved site.
+		 * @param siteSlug Target slug. Defaults to the active site.
 		 * @returns The site's slug and storage type.
 		 * @throws When no site is selected or saving fails.
 		 */
-		async saveInBrowser(name?: string): Promise<SaveSiteResult> {
-			const site = selectActiveSite(getState());
+		async saveInBrowser(
+			name?: string,
+			siteSlug?: string
+		): Promise<SaveSiteResult> {
+			const site =
+				siteSlug === undefined
+					? selectActiveSite(getState())
+					: selectSiteBySlug(getState(), siteSlug);
 			if (!site) {
-				throw new Error('No active site selected');
+				throw new Error(
+					siteSlug === undefined
+						? 'No active site selected'
+						: 'The requested site no longer exists.'
+				);
 			}
 			if (site.metadata.storage !== 'none') {
 				if (isAutosavedSite(site)) {

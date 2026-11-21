@@ -40,6 +40,7 @@ import { buildPlaygroundAnnotationMetadata } from '../../lib/oai-annotations';
 import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
+import { AgentAccessIndicator } from '../agent-site-access/agent-access-indicator';
 import { SiteManager } from '../site-manager';
 import type { ToolHeaderState } from '../site-manager/site-info-panel/site-tool-renderers';
 import {
@@ -1309,6 +1310,7 @@ export function Dock({
 									disabled={paneCloseBlocked}
 								/>
 							)}
+							<AgentAccessIndicator disabled={paneCloseBlocked} />
 						</div>
 						<DockTogglePill
 							isCollapsed={isCollapsed}

@@ -24,6 +24,8 @@ import { GitHubPrivateRepoAuthModal } from '../github-private-repo-auth-modal';
 import { BlueprintUrlModal } from '../blueprint-url-modal';
 import { ModalLoadingFallback } from '../modal-loading-fallback';
 import { Dock } from '../dock';
+import { SiteAccessDialog } from '../agent-site-access/site-access-dialog';
+import { SiteInteractionBanner } from '../agent-site-access/site-interaction-banner';
 import '../../lib/oai-annotations';
 import classNames from 'classnames';
 
@@ -97,7 +99,9 @@ export function Layout() {
 				})}
 			>
 				<Modals />
+				<SiteAccessDialog />
 				<div className={css.siteView}>
+					<SiteInteractionBanner />
 					<div
 						ref={siteViewContentRef}
 						className={classNames(css.siteViewContent, {

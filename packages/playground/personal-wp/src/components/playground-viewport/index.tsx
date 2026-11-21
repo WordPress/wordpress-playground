@@ -19,6 +19,8 @@ import { ProgressTracker, type ProgressDetails } from '@php-wasm/progress';
 import { logger } from '@php-wasm/logger';
 
 import css from './style.module.css';
+import { AgentAccessIndicator } from '../agent-site-access';
+import { openAgentAccessTabNext } from '../site-manager/site-info-panel';
 import welcomeStrings from './welcome-strings.json';
 import {
 	selectActiveSiteError,
@@ -1624,6 +1626,12 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				>
 					{playgroundLogo({ width: 24, height: 24 })}
 				</Button>
+				<AgentAccessIndicator
+					onOpen={() => {
+						openAgentAccessTabNext();
+						dispatch(setSiteManagerOpen(true));
+					}}
+				/>
 				{showExistingSitePrompt ? (
 					<ExistingSitePrompt
 						onDismiss={() =>
