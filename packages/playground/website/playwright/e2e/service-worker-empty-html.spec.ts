@@ -217,3 +217,35 @@ test('Post editor canvas renders when Gutenberg marks iframes credentialless', a
 			.evaluate(() => window.crossOriginIsolated)
 	).toBe(true);
 });
+
+test('Site editor canvas renders when SCRIPT_DEBUG is enabled', async ({
+	website,
+	wordpress,
+}) => {
+	// SCRIPT_DEBUG loads development React, whose StrictMode effect cleanup
+	// revokes Gutenberg's blob: URL on WordPress 6.7–6.9 before empty.html
+	// finishes loading through the service worker.
+	const blueprint: Blueprint = {
+		landingPage: '/wp-admin/site-editor.php?canvas=edit',
+		preferredVersions: { wp: '6.8', php: '8.3' },
+		login: true,
+		steps: [
+			{
+				step: 'defineWpConfigConsts',
+				consts: {
+					SCRIPT_DEBUG: true,
+				},
+			},
+		],
+	};
+	await website.goto(`./?storage=temp#${JSON.stringify(blueprint)}`);
+
+	const canvas = wordpress.locator('iframe[name="editor-canvas"]');
+	await expect(canvas).toBeVisible({ timeout: 120000 });
+	await expect(canvas).toHaveAttribute('src', /\/wp-includes\/empty\.html/);
+
+	const canvasFrame = wordpress.frameLocator('iframe[name="editor-canvas"]');
+	await expect(canvasFrame.locator('.wp-site-blocks')).toBeVisible({
+		timeout: 120000,
+	});
+});
