@@ -37,10 +37,14 @@ The main deployment workflow runs `deploy-website.sh` with
 `https://playground.wordpress.net` as the app origin and
 `https://wpsandbox.wordpress.net` as the WordPress origin. That script chooses a
 unique `PLAYGROUND_RELEASE_ID`, builds the website for those values, uploads the
-build and this directory over SSH, and runs the single `apply-update.sh` script. `apply-update.sh` checks both hosts and the build, installs the public and
-private release directories, backs up the root files it replaces, replaces the PHP
-entry, copies the entry pages, and installs the root `/sw.js` loader before purging
-the edge. Its PHP steps live in `apply-update.php`, which receives values only as
+build and this directory over SSH, and runs the single `apply-update.sh` script.
+`apply-update.sh` checks both hosts and publishes the release directory. Before
+switching the root files, it checks the versioned worker on both hosts and the
+remote page and WordPress bridge on their respective hosts. A 404 triggers a
+targeted purge for the affected release URLs and a bounded wait for HTTP 200.
+If the checks fail, the previous release remains active. After the checks pass,
+the installer backs up and switches the root files and purges both domains.
+Its PHP steps live in `apply-update.php`, which receives values only as
 arguments. See the [two-host deployment guide](wordpress-frame/README.md)
 for required WP Cloud settings, the Nginx preflight checks, and rollback.
 
