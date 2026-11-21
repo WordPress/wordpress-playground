@@ -36,7 +36,7 @@ do Composer.
 
 <!-- ## What changes when you skip WordPress -->
 
-## O que muda quando você pula o WordPress
+## O que muda quando você pula o WordPress {#what-changes-when-you-skip-wordpress}
 
 <!--
 Set `preferredVersions.wp` to `false` in a Blueprint, or `wp="none"` on a
@@ -68,7 +68,7 @@ Isso torna o Playground útil para exemplos genéricos de PHP:
 
 <!-- ## Try a Symfony app -->
 
-## Experimente uma aplicação Symfony
+## Experimente uma aplicação Symfony {#try-a-symfony-app}
 
 <!--
 The example below uses a Blueprint to download and unzip a bundled Symfony app
@@ -177,7 +177,7 @@ A mesma aplicação também está disponível como uma página completa do Playg
 
 <!-- ## Package the app as a ZIP -->
 
-## Empacote a aplicação como um ZIP
+## Empacote a aplicação como um ZIP {#package-the-app-as-a-zip}
 
 <!--
 For framework demos, prefer a ZIP that already contains `vendor/`. That keeps
@@ -247,7 +247,7 @@ do Symfony possa responder às requisições do navegador.
 
 <!-- ## Keep the demo browser-friendly -->
 
-## Mantenha a demonstração compatível com o navegador
+## Mantenha a demonstração compatível com o navegador {#keep-the-demo-browser-friendly}
 
 <!-- A Playground-hosted framework demo works best when it: -->
 
