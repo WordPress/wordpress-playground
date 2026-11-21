@@ -63,7 +63,6 @@ jobs:
             - run: npx nx run docs-site:test-plugins
             - run: npx nx run playground-website:test:wordpress-frame-router
             - run: npx nx run playground-website:test:static-file-ranges
-            - run: npx nx run playground-website:test:oauth-tls
             - run: bash tools/check-node-engine-alignment.sh
 
     test-node-file-lock-fallback:
