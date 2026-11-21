@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 
 const OAUTH_MESSAGE_TYPE = 'playground-github-oauth-token';
 
@@ -17,16 +17,7 @@ test('authenticates with GitHub in a popup without reloading Playground', async 
 		window.__githubOAuthPageLoads =
 			(window.__githubOAuthPageLoads || 0) + 1;
 	});
-	if (browserName === 'firefox') {
-		await page.addInitScript(() => {
-			window.open = () => {
-				const iframe = document.createElement('iframe');
-				iframe.hidden = true;
-				document.body.appendChild(iframe);
-				return iframe.contentWindow;
-			};
-		});
-	}
+	await openPopupsInFramesOnFirefox(page, browserName);
 
 	let capturedState = '';
 	let releasePopup!: () => void;
@@ -40,7 +31,7 @@ test('authenticates with GitHub in a popup without reloading Playground', async 
 		await waitForRelease;
 		await route.fulfill({
 			contentType: 'text/html',
-			body: oauthCallbackPage(capturedState, 'gho_e2e_token'),
+			body: oauthCallbackPage(capturedState, { token: 'gho_e2e_token' }),
 		});
 	});
 
@@ -94,6 +85,35 @@ test('authenticates with GitHub in a popup without reloading Playground', async 
 		.toBe(1);
 });
 
+test('shows the error reported by the GitHub OAuth popup', async ({
+	page,
+	browserName,
+}) => {
+	await openPopupsInFramesOnFirefox(page, browserName);
+	await page.context().route('**/oauth.php?redirect=1*', async (route) => {
+		const state =
+			new URL(route.request().url()).searchParams.get('state') || '';
+		await route.fulfill({
+			contentType: 'text/html',
+			body: oauthCallbackPage(state, {
+				error: 'GitHub OAuth token request failed.',
+			}),
+		});
+	});
+
+	await page.goto('./?gh-ensure-auth=yes');
+	const dialog = page.getByRole('dialog', {
+		name: 'Connect to GitHub',
+	});
+	await page
+		.getByRole('link', { name: 'Connect your GitHub account' })
+		.click();
+
+	await expect(dialog.getByRole('alert')).toHaveText(
+		'GitHub OAuth token request failed.'
+	);
+});
+
 test('does not post an OAuth token to a scoped opener', async ({ page }) => {
 	await page.goto('./');
 	await page.evaluate(() => {
@@ -129,7 +149,28 @@ test('does not post an OAuth token to a scoped opener', async ({ page }) => {
 	expect(await page.evaluate(() => window.__githubOAuthMessages)).toEqual([]);
 });
 
-function oauthCallbackPage(state: string, token: string) {
+/**
+ * On Firefox, open the OAuth flow in a hidden frame instead of a popup window.
+ * The callback page posts to `window.opener` or, in that frame, its parent.
+ */
+async function openPopupsInFramesOnFirefox(page: Page, browserName: string) {
+	if (browserName !== 'firefox') {
+		return;
+	}
+	await page.addInitScript(() => {
+		window.open = () => {
+			const iframe = document.createElement('iframe');
+			iframe.hidden = true;
+			document.body.appendChild(iframe);
+			return iframe.contentWindow;
+		};
+	});
+}
+
+function oauthCallbackPage(
+	state: string,
+	result: { token: string } | { error: string }
+) {
 	return `<!doctype html>
 <html>
 	<body>
@@ -138,7 +179,7 @@ function oauthCallbackPage(state: string, token: string) {
 				${JSON.stringify({
 					type: OAUTH_MESSAGE_TYPE,
 					state,
-					token,
+					...result,
 				})},
 				window.location.origin
 			);
