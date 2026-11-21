@@ -4,6 +4,8 @@ import type { RunCLIArgs } from '../src/run-cli';
 import type { CLIOutput } from '../src/cli-output';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import { fetchSqliteIntegration } from '../src/blueprints-v1/download';
+import { InMemoryFilesystem, OverlayFilesystem } from '@wp-playground/storage';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 vi.mock('../src/blueprints-v1/download', async (importOriginal) => {
 	const actual = (await importOriginal()) as Record<string, unknown>;
@@ -74,6 +76,84 @@ describe('BlueprintsV1Handler', () => {
 			expect.objectContaining({
 				phpVersion: '7.4',
 				wpVersion: '6.2',
+			}),
+			expect.anything()
+		);
+	});
+
+	test('applies the --wp and --php flags to a Blueprint file bundle', async () => {
+		const handler = new BlueprintsV1Handler(
+			{
+				command: 'server',
+				wordpressInstallMode: 'download-and-install',
+				'mount-before-install': [
+					{
+						hostPath: '/mounted',
+						vfsPath: '/wordpress',
+					},
+				],
+				blueprint: new OverlayFilesystem([
+					new InMemoryFilesystem({
+						'blueprint.json': JSON.stringify({ steps: [] }),
+					}),
+				]),
+				wp: '6.4',
+				php: '8.1',
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(resolveWordPressRelease).toHaveBeenCalledWith('6.4');
+		expect(playground.bootWordPress).toHaveBeenCalledWith(
+			expect.objectContaining({
+				phpVersion: '8.1',
+				wpVersion: '6.4',
+			}),
+			expect.anything()
+		);
+	});
+
+	test('keeps the default versions for a Blueprint file bundle without flags', async () => {
+		const handler = new BlueprintsV1Handler(
+			{
+				command: 'server',
+				wordpressInstallMode: 'download-and-install',
+				'mount-before-install': [
+					{
+						hostPath: '/mounted',
+						vfsPath: '/wordpress',
+					},
+				],
+				blueprint: new OverlayFilesystem([
+					new InMemoryFilesystem({
+						'blueprint.json': JSON.stringify({ steps: [] }),
+					}),
+				]),
+			} as RunCLIArgs,
+			{
+				siteUrl: 'http://127.0.0.1:9400',
+				cliOutput,
+			}
+		);
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(resolveWordPressRelease).toHaveBeenCalledWith('latest');
+		expect(playground.bootWordPress).toHaveBeenCalledWith(
+			expect.objectContaining({
+				phpVersion: RecommendedPHPVersion,
+				wpVersion: 'latest',
 			}),
 			expect.anything()
 		);
