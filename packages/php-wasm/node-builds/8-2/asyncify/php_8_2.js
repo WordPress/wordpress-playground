@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_2_35', 'php_8_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 23068759;
+export const dependenciesTotalSize = 23068757;
 const phpVersionString = '8.2.35';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js

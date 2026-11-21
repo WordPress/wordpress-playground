@@ -83,16 +83,21 @@ RUN if [ "$WITH_OPCACHE" = "yes" ]; \
 			/root/replace.sh 's/php_cv_shm_mmap_anon=no/php_cv_shm_mmap_anon=yes/g' /root/php-src/ext/opcache/config.m4; \
 		else \
 			/root/replace.sh 's/have_shm_mmap_anon=no/have_shm_mmap_anon=yes/g' /root/php-src/ext/opcache/config.m4; \
+			# PHP < 8.1 defines HAVE_SHM_MMAP_ANON only when its fork() test program passes, which it cannot do in Emscripten.
+			if [[ "${PHP_VERSION:0:1}" -lt "8" || "${PHP_VERSION:2:1}" -eq "0" ]]; then \
+				/root/replace.sh 's/AC_MSG_CHECKING\(for mmap\(\) using MAP_ANON shared memory support\)/AC_DEFINE(HAVE_SHM_MMAP_ANON, 1, [Define if you have mmap(MAP_ANON) SHM support])\n  AC_MSG_CHECKING(for mmap() using MAP_ANON shared memory support)/g' /root/php-src/ext/opcache/config.m4; \
+			fi; \
 			# PHP bug: PHP_NEW_EXTENSION do not read $ext_shared from the config.m4 file.
 			# https://github.com/php/php-src/blob/f35a22adba8a7ddf709c6cc98ecb57ba4dd8fe8c/ext/opcache/config.m4#L313
 			/root/replace.sh 's/shared,,/no,,/g' /root/php-src/ext/opcache/config.m4; \
 		fi; \
 		# Force OPcache to be built as a static extension. OPcache is always built as a shared extension.
 		/root/replace.sh 's/ext_shared=yes/ext_shared=no/g' /root/php-src/ext/opcache/config.m4; \
-		# Add the opcache_module.c to the list of files to build for PHP < 8.5.0.
-		# PHP 8.5 made OPcache a non-optional part of PHP https://wiki.php.net/rfc/make_opcache_required
+		# Add the opcache_module.c to the list of files to build and the php-wasm SAPI to the OPcache supported_sapis list for PHP < 8.5.0.
+		# OPcache starts only for the SAPI names in that list. PHP 8.5 removed the list.
 		if [[ "${PHP_VERSION:0:1}" -lt "8" || ("${PHP_VERSION:0:1}" -eq "8" && "${PHP_VERSION:2:1}" -le "4") ]]; then \
 			/root/replace.sh 's/shared_alloc_mmap.c/shared_alloc_mmap.c opcache_module.c/g' /root/php-src/ext/opcache/config.m4; \
+			/root/replace.sh 's/"apache",/"php-wasm", "apache",/g' /root/php-src/ext/opcache/ZendAccelerator.c; \
 		fi; \
 		# Enable OPcache.
 		echo -n ' --enable-opcache --disable-opcache-jit --disable-huge-code-pages ' >> /root/.php-configure-flags; \

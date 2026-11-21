@@ -49,7 +49,18 @@ export class PHPExecutionFailureError extends Error {
 	}
 }
 
-export type UnmountFunction = (() => Promise<any>) | (() => any);
+export type UnmountFunction =
+	| ((context?: UnmountContext) => Promise<any>)
+	| ((context?: UnmountContext) => any);
+
+export interface UnmountContext {
+	/**
+	 * True when the caller already holds `php.semaphore`, as `run()` and
+	 * `cli()` do during runtime rotation. A handler that takes the semaphore
+	 * to flush its data must not wait for it in that case.
+	 */
+	semaphoreHeld?: boolean;
+}
 
 /**
  * Signals that an unmount failed before the mount was detached.
@@ -70,8 +81,17 @@ export class MountStillActiveError extends Error {
 export type MountHandler = (
 	php: PHP,
 	FS: Emscripten.RootFS,
-	vfsMountPoint: string
+	vfsMountPoint: string,
+	context?: MountContext
 ) => UnmountFunction | Promise<UnmountFunction>;
+
+export interface MountContext {
+	/**
+	 * True when runtime rotation applies the handler again. Rotation copies
+	 * the MEMFS nodes of the previous runtime before it calls the handler.
+	 */
+	isRemount?: boolean;
+}
 
 export const PHP_INI_PATH = '/internal/shared/php.ini';
 const AUTO_PREPEND_SCRIPT = '/internal/shared/auto_prepend_file.php';
@@ -81,7 +101,7 @@ const OPCACHE_FILE_FOLDER = '/internal/shared/opcache';
 
 type MountObject = {
 	mountHandler: MountHandler;
-	unmount: () => Promise<any>;
+	unmount: (context?: UnmountContext) => Promise<any>;
 };
 
 /**
@@ -111,6 +131,7 @@ export class PHP implements Disposable {
 	protected [__private__dont__use]: any;
 	#sapiName?: string;
 	#phpWasmInitCalled = false;
+	#cliCalled = false;
 	#wasmErrorsTarget: UnhandledRejectionsTarget | null = null;
 	#eventListeners: Map<string, Set<PHPEventListener>> = new Map([
 		// Listen to all events
@@ -496,7 +517,10 @@ export class PHP implements Disposable {
 		});
 	}
 
-	/** @inheritDoc */
+	/**
+	 * @deprecated PHP reports `php-wasm` for requests and `cli` for
+	 * `php.cli()`. Run command-line programs through `php.cli()` instead.
+	 */
 	async setSapiName(newName: string) {
 		const result = this[__private__dont__use].ccall(
 			'wasm_set_sapi_name',
@@ -748,6 +772,15 @@ export class PHP implements Disposable {
 		 * be dispatched before the first one is finished.
 		 */
 		const release = await this.semaphore.acquire();
+
+		if (this.#cliCalled && !this.#rotationOptions.enabled) {
+			release();
+			throw new Error(
+				'php.cli() already ran on this PHP runtime. Call enableRuntimeRotation() ' +
+					'to run more code on this PHP instance.'
+			);
+		}
+
 		let heapBodyPointer: number | undefined;
 		const streamedResponsePromise = this.#executeWithErrorHandling(
 			async () => {
@@ -1499,7 +1532,8 @@ export class PHP implements Disposable {
 			);
 		}
 		await this.hotSwapPHPRuntime(
-			await this.#rotationOptions.recreateRuntime()
+			await this.#rotationOptions.recreateRuntime(),
+			{ semaphoreHeld: true }
 		);
 		this.#rotationOptions.requestsMade = 0;
 		this.#rotationOptions.needsRotating = false;
@@ -1510,8 +1544,9 @@ export class PHP implements Disposable {
 	 * interrupting the operations of this PHP instance.
 	 *
 	 * @param runtime
+	 * @param context - Passed to the unmount function of each mount.
 	 */
-	async hotSwapPHPRuntime(runtime: number) {
+	async hotSwapPHPRuntime(runtime: number, context: UnmountContext = {}) {
 		// Once we secure the lock and have the new runtime ready,
 		// the rest of the swap handler is synchronous to make sure
 		// no other operations acts on the old runtime or FS.
@@ -1559,7 +1594,7 @@ export class PHP implements Disposable {
 			this.#mounts
 		).reverse();
 		for (const mount of mountsToUnmountInReverseOrder) {
-			await mount.unmount();
+			await mount.unmount(context);
 		}
 
 		// Kill the current runtime
@@ -1601,7 +1636,7 @@ export class PHP implements Disposable {
 			vfsPath,
 		} of mountHandlersToReapplyInOrder) {
 			try {
-				await this.mount(vfsPath, mountHandler);
+				await this.mount(vfsPath, mountHandler, { isRemount: true });
 			} catch (e) {
 				if (isMissingMountSourceError(e)) {
 					// Initial mounts still reject missing sources. During rotation,
@@ -1642,22 +1677,25 @@ export class PHP implements Disposable {
 	 *
 	 * @param  virtualFSPath - Where to mount it in the PHP virtual filesystem.
 	 * @param  mountHandler - The mount handler to use.
+	 * @param  context - Tells the handler that runtime rotation calls it.
 	 * @return Unmount function to unmount the filesystem.
 	 */
 	async mount(
 		virtualFSPath: string,
-		mountHandler: MountHandler
+		mountHandler: MountHandler,
+		context?: MountContext
 	): Promise<UnmountFunction> {
 		const unmountCallback = await mountHandler(
 			this,
 			this[__private__dont__use].FS,
-			virtualFSPath
+			virtualFSPath,
+			context
 		);
 		const mountObject = {
 			mountHandler,
-			unmount: async () => {
+			unmount: async (unmountContext?: UnmountContext) => {
 				try {
-					await unmountCallback();
+					await unmountCallback(unmountContext);
 				} catch (error) {
 					if (error instanceof MountStillActiveError) {
 						throw error;
@@ -1672,7 +1710,7 @@ export class PHP implements Disposable {
 			},
 		};
 		this.#mounts[virtualFSPath] = mountObject;
-		return async () => {
+		return async (unmountContext?: UnmountContext) => {
 			// After rotation, the old mount is already unmounted. Don't call its
 			// cleanup twice when the caller invokes this saved function again.
 			// Look up the current mount instead; it has a new cleanup callback.
@@ -1680,7 +1718,7 @@ export class PHP implements Disposable {
 			// at the same path alone.
 			const currentMount = this.#mounts[virtualFSPath];
 			if (currentMount?.mountHandler === mountHandler) {
-				await currentMount.unmount();
+				await currentMount.unmount(unmountContext);
 			}
 		};
 	}
@@ -1688,12 +1726,12 @@ export class PHP implements Disposable {
 	/**
 	 * Starts a PHP CLI session with given arguments.
 	 *
-	 * This method can only be used when PHP was compiled with the CLI SAPI
-	 * and it cannot be used in conjunction with `run()`.
+	 * This method can only be used when PHP was compiled with the CLI SAPI.
 	 *
-	 * Once this method finishes running, the PHP instance is no
-	 * longer usable and should be discarded. This is because PHP
-	 * internally cleans up all the resources and calls exit().
+	 * A CLI session needs a PHP runtime that ran no other code, and it leaves
+	 * the runtime unusable, because PHP internally cleans up all the resources
+	 * and calls exit(). Call `enableRuntimeRotation()` to mix `cli()` and `run()`
+	 * calls on one PHP instance. Without it, such a call throws an error.
 	 *
 	 * @param  argv - The arguments to pass to the CLI.
 	 * @returns The exit code of the CLI session.
@@ -1706,11 +1744,20 @@ export class PHP implements Disposable {
 			return this.subProcess(argv, options);
 		}
 
+		const release = await this.semaphore.acquire();
+
+		const runtimeIsUsed = this.#phpWasmInitCalled || this.#cliCalled;
+		if (runtimeIsUsed && !this.#rotationOptions.enabled) {
+			release();
+			throw new Error(
+				'php.cli() needs a PHP runtime that ran no other code. Call ' +
+					'enableRuntimeRotation() to run it on this PHP instance.'
+			);
+		}
+
 		if (this.#phpWasmInitCalled) {
 			this.#rotationOptions.needsRotating = true;
 		}
-
-		const release = await this.semaphore.acquire();
 
 		return await this.#executeWithErrorHandling(() => {
 			const env = options.env || {};
@@ -1728,14 +1775,22 @@ export class PHP implements Disposable {
 				);
 			}
 
+			this.#cliCalled = true;
 			return this[__private__dont__use].ccall('run_cli', null, [], [], {
 				async: true,
 			});
 		})
-			.then((response) => {
-				response.exitCode.finally(release);
-				return response;
-			})
+			.then(
+				(response) => {
+					// The caller handles a rejected exit code through the response.
+					response.exitCode.finally(release).catch(() => {});
+					return response;
+				},
+				(error) => {
+					release();
+					throw error;
+				}
+			)
 			.finally(() => {
 				this.#rotationOptions.needsRotating = true;
 			});
@@ -1853,6 +1908,7 @@ export class PHP implements Disposable {
 
 		// Clean up any initialized state
 		this.#phpWasmInitCalled = false;
+		this.#cliCalled = false;
 
 		// Delete any links between this PHP instance and the runtime
 		this.#wasmErrorsTarget = null;

@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_0_30', 'php_8_0.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 19065497;
+export const dependenciesTotalSize = 19068026;
 const phpVersionString = '8.0.30';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -11998,108 +11998,108 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['__indirect_function_table'];
 	}
 
-	var _core_globals = (Module['_core_globals'] = 12133408);
+	var _core_globals = (Module['_core_globals'] = 12133440);
 
-	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 11990816);
+	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 11990848);
 
-	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 11990820);
+	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 11990852);
 
-	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 11990824);
+	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 11990856);
 
-	var _sapi_module = (Module['_sapi_module'] = 12074252);
+	var _sapi_module = (Module['_sapi_module'] = 12074284);
 
-	var _sapi_globals = (Module['_sapi_globals'] = 12074400);
+	var _sapi_globals = (Module['_sapi_globals'] = 12074432);
 
-	var _compiler_globals = (Module['_compiler_globals'] = 12136160);
+	var _compiler_globals = (Module['_compiler_globals'] = 12136192);
 
-	var _executor_globals = (Module['_executor_globals'] = 12136536);
+	var _executor_globals = (Module['_executor_globals'] = 12136568);
 
-	var _zend_compile_file = (Module['_zend_compile_file'] = 12137696);
+	var _zend_compile_file = (Module['_zend_compile_file'] = 12137728);
 
-	var _zend_execute_ex = (Module['_zend_execute_ex'] = 12136048);
+	var _zend_execute_ex = (Module['_zend_execute_ex'] = 12136080);
 
-	var _zend_execute_internal = (Module['_zend_execute_internal'] = 12136052);
+	var _zend_execute_internal = (Module['_zend_execute_internal'] = 12136084);
 
-	var _zend_write = (Module['_zend_write'] = 12136088);
+	var _zend_write = (Module['_zend_write'] = 12136120);
 
-	var _zend_error_cb = (Module['_zend_error_cb'] = 12136096);
+	var _zend_error_cb = (Module['_zend_error_cb'] = 12136128);
 
-	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 12136068);
+	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 12136100);
 
-	var _module_registry = (Module['_module_registry'] = 12134936);
+	var _module_registry = (Module['_module_registry'] = 12134968);
 
-	var _zend_extensions = (Module['_zend_extensions'] = 12134264);
+	var _zend_extensions = (Module['_zend_extensions'] = 12134296);
 
-	var _zend_pass_function = (Module['_zend_pass_function'] = 11630620);
+	var _zend_pass_function = (Module['_zend_pass_function'] = 11630652);
 
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 11986376);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 11986408);
 
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 11986380);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 11986412);
 
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 11986392);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 11986424);
 
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 12134456);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 12134488);
 
-	var _zend_ce_error = (Module['_zend_ce_error'] = 12134572);
+	var _zend_ce_error = (Module['_zend_ce_error'] = 12134604);
 
-	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 12134440);
+	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 12134472);
 
 	var _zend_throw_exception_hook = (Module['_zend_throw_exception_hook'] =
-		12134452);
+		12134484);
 
-	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 11985940);
+	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 11985972);
 
-	var _zend_ce_closure = (Module['_zend_ce_closure'] = 12131128);
+	var _zend_ce_closure = (Module['_zend_ce_closure'] = 12131160);
 
-	var _zend_empty_string = (Module['_zend_empty_string'] = 11984800);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 11984832);
 
-	var _zend_known_strings = (Module['_zend_known_strings'] = 11984804);
+	var _zend_known_strings = (Module['_zend_known_strings'] = 11984836);
 
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		11984868);
+		11984900);
 
-	var _std_object_handlers = (Module['_std_object_handlers'] = 11644804);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 11644836);
 
 	var ___memory_base = (Module['___memory_base'] = 0);
 
 	var ___table_base = (Module['___table_base'] = 1);
 
-	var _stderr = (Module['_stderr'] = 11978080);
+	var _stderr = (Module['_stderr'] = 11978112);
 
-	var ___THREW__ = (Module['___THREW__'] = 12185668);
+	var ___THREW__ = (Module['___THREW__'] = 12185700);
 
-	var ___threwValue = (Module['___threwValue'] = 12185672);
+	var ___threwValue = (Module['___threwValue'] = 12185704);
 
-	var _stdout = (Module['_stdout'] = 11978384);
+	var _stdout = (Module['_stdout'] = 11978416);
 
-	var _timezone = (Module['_timezone'] = 12172560);
+	var _timezone = (Module['_timezone'] = 12172592);
 
-	var _tzname = (Module['_tzname'] = 12172568);
+	var _tzname = (Module['_tzname'] = 12172600);
 
-	var ___heap_base = 13234352;
+	var ___heap_base = 13234384;
 
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		12185756);
+		12185788);
 
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
-	] = 11978632);
+	] = 11978664);
 
 	var __ZTVN10__cxxabiv117__class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv117__class_type_infoE'
-	] = 11978592);
+	] = 11978624);
 
 	var __ZTVN10__cxxabiv121__vmi_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
-	] = 11978684);
+	] = 11978716);
 
 	var __ZTISt20bad_array_new_length = (Module[
 		'__ZTISt20bad_array_new_length'
-	] = 11978756);
+	] = 11978788);
 
-	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 11978800);
+	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 11978832);
 
-	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 11978820);
+	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 11978852);
 
 	var wasmImports = {
 		/** @export */ __assert_fail: ___assert_fail,

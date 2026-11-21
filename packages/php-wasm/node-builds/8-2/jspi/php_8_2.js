@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '8_2_35', 'php_8_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 22868725;
+export const dependenciesTotalSize = 22868742;
 const phpVersionString = '8.2.35';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -11802,7 +11802,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _timelib_timezone_db_data_builtin = (Module[
 		'_timelib_timezone_db_data_builtin'
-	] = 1021904);
+	] = 1021920);
 
 	var _timelib_error_messages = (Module['_timelib_error_messages'] =
 		11848512);
@@ -11825,7 +11825,7 @@ export function init(RuntimeName, PHPLoader) {
 		12058512);
 
 	var __pcre2_default_tables_8 = (Module['__pcre2_default_tables_8'] =
-		1385600);
+		1385616);
 
 	var __pcre2_default_compile_context_8 = (Module[
 		'__pcre2_default_compile_context_8'
@@ -11839,60 +11839,60 @@ export function init(RuntimeName, PHPLoader) {
 		'__pcre2_default_convert_context_8'
 	] = 12029020);
 
-	var __pcre2_OP_lengths_8 = (Module['__pcre2_OP_lengths_8'] = 1386688);
+	var __pcre2_OP_lengths_8 = (Module['__pcre2_OP_lengths_8'] = 1386704);
 
-	var __pcre2_hspace_list_8 = (Module['__pcre2_hspace_list_8'] = 1386864);
+	var __pcre2_hspace_list_8 = (Module['__pcre2_hspace_list_8'] = 1386880);
 
-	var __pcre2_vspace_list_8 = (Module['__pcre2_vspace_list_8'] = 1386944);
+	var __pcre2_vspace_list_8 = (Module['__pcre2_vspace_list_8'] = 1386960);
 
 	var __pcre2_callout_start_delims_8 = (Module[
 		'__pcre2_callout_start_delims_8'
-	] = 1386976);
+	] = 1386992);
 
 	var __pcre2_callout_end_delims_8 = (Module['__pcre2_callout_end_delims_8'] =
-		1387024);
+		1387040);
 
-	var __pcre2_utf8_table1 = (Module['__pcre2_utf8_table1'] = 1387072);
+	var __pcre2_utf8_table1 = (Module['__pcre2_utf8_table1'] = 1387088);
 
 	var __pcre2_utf8_table1_size = (Module['__pcre2_utf8_table1_size'] =
-		1387096);
+		1387112);
 
-	var __pcre2_utf8_table2 = (Module['__pcre2_utf8_table2'] = 1387104);
+	var __pcre2_utf8_table2 = (Module['__pcre2_utf8_table2'] = 1387120);
 
-	var __pcre2_utf8_table3 = (Module['__pcre2_utf8_table3'] = 1387136);
+	var __pcre2_utf8_table3 = (Module['__pcre2_utf8_table3'] = 1387152);
 
-	var __pcre2_utf8_table4 = (Module['__pcre2_utf8_table4'] = 1387168);
+	var __pcre2_utf8_table4 = (Module['__pcre2_utf8_table4'] = 1387184);
 
-	var __pcre2_ucp_gentype_8 = (Module['__pcre2_ucp_gentype_8'] = 1387232);
+	var __pcre2_ucp_gentype_8 = (Module['__pcre2_ucp_gentype_8'] = 1387248);
 
-	var __pcre2_ucp_gbtable_8 = (Module['__pcre2_ucp_gbtable_8'] = 1387360);
+	var __pcre2_ucp_gbtable_8 = (Module['__pcre2_ucp_gbtable_8'] = 1387376);
 
-	var __pcre2_utt_names_8 = (Module['__pcre2_utt_names_8'] = 1387424);
+	var __pcre2_utt_names_8 = (Module['__pcre2_utt_names_8'] = 1387440);
 
-	var __pcre2_utt_8 = (Module['__pcre2_utt_8'] = 1391008);
+	var __pcre2_utt_8 = (Module['__pcre2_utt_8'] = 1391024);
 
-	var __pcre2_utt_size_8 = (Module['__pcre2_utt_size_8'] = 1393924);
+	var __pcre2_utt_size_8 = (Module['__pcre2_utt_size_8'] = 1393940);
 
 	var __pcre2_unicode_version_8 = (Module['__pcre2_unicode_version_8'] =
 		12029040);
 
 	var __pcre2_ucd_caseless_sets_8 = (Module['__pcre2_ucd_caseless_sets_8'] =
-		1393936);
+		1393952);
 
 	var __pcre2_ucd_digit_sets_8 = (Module['__pcre2_ucd_digit_sets_8'] =
-		1394384);
+		1394400);
 
 	var __pcre2_ucd_script_sets_8 = (Module['__pcre2_ucd_script_sets_8'] =
-		1394656);
+		1394672);
 
 	var __pcre2_ucd_boolprop_sets_8 = (Module['__pcre2_ucd_boolprop_sets_8'] =
-		1395424);
+		1395440);
 
-	var __pcre2_ucd_records_8 = (Module['__pcre2_ucd_records_8'] = 1396848);
+	var __pcre2_ucd_records_8 = (Module['__pcre2_ucd_records_8'] = 1396864);
 
-	var __pcre2_ucd_stage1_8 = (Module['__pcre2_ucd_stage1_8'] = 1413760);
+	var __pcre2_ucd_stage1_8 = (Module['__pcre2_ucd_stage1_8'] = 1413776);
 
-	var __pcre2_ucd_stage2_8 = (Module['__pcre2_ucd_stage2_8'] = 1431168);
+	var __pcre2_ucd_stage2_8 = (Module['__pcre2_ucd_stage2_8'] = 1431184);
 
 	var _pcre_globals = (Module['_pcre_globals'] = 12769744);
 
@@ -11946,7 +11946,7 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _MonthNameLong = (Module['_MonthNameLong'] = 12069680);
 
-	var _monthsPerYear = (Module['_monthsPerYear'] = 153e4);
+	var _monthsPerYear = (Module['_monthsPerYear'] = 1530016);
 
 	var _JewishMonthNameLeap = (Module['_JewishMonthNameLeap'] = 12069360);
 
@@ -12077,15 +12077,15 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _fileinfo_module_entry = (Module['_fileinfo_module_entry'] = 12089452);
 
-	var _php_magic_database = (Module['_php_magic_database'] = 1532624);
+	var _php_magic_database = (Module['_php_magic_database'] = 1532640);
 
 	var _file_formats = (Module['_file_formats'] = 12859232);
 
 	var _file_names = (Module['_file_names'] = 12859440);
 
-	var _file_nformats = (Module['_file_nformats'] = 1532612);
+	var _file_nformats = (Module['_file_nformats'] = 1532628);
 
-	var _file_nnames = (Module['_file_nnames'] = 1532616);
+	var _file_nnames = (Module['_file_nnames'] = 1532632);
 
 	var _accept_ranges = (Module['_accept_ranges'] = 12088416);
 
@@ -13474,38 +13474,38 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _file_globals = (Module['_file_globals'] = 12908552);
 
-	var _php_sig_gif = (Module['_php_sig_gif'] = 1526961);
+	var _php_sig_gif = (Module['_php_sig_gif'] = 1526977);
 
-	var _php_sig_psd = (Module['_php_sig_psd'] = 1526964);
+	var _php_sig_psd = (Module['_php_sig_psd'] = 1526980);
 
-	var _php_sig_bmp = (Module['_php_sig_bmp'] = 1526968);
+	var _php_sig_bmp = (Module['_php_sig_bmp'] = 1526984);
 
-	var _php_sig_swf = (Module['_php_sig_swf'] = 1526970);
+	var _php_sig_swf = (Module['_php_sig_swf'] = 1526986);
 
-	var _php_sig_swc = (Module['_php_sig_swc'] = 1526973);
+	var _php_sig_swc = (Module['_php_sig_swc'] = 1526989);
 
-	var _php_sig_jpg = (Module['_php_sig_jpg'] = 1526976);
+	var _php_sig_jpg = (Module['_php_sig_jpg'] = 1526992);
 
-	var _php_sig_png = (Module['_php_sig_png'] = 1526979);
+	var _php_sig_png = (Module['_php_sig_png'] = 1526995);
 
-	var _php_sig_tif_ii = (Module['_php_sig_tif_ii'] = 1526987);
+	var _php_sig_tif_ii = (Module['_php_sig_tif_ii'] = 1527003);
 
-	var _php_sig_tif_mm = (Module['_php_sig_tif_mm'] = 1526991);
+	var _php_sig_tif_mm = (Module['_php_sig_tif_mm'] = 1527007);
 
-	var _php_sig_jpc = (Module['_php_sig_jpc'] = 1526995);
+	var _php_sig_jpc = (Module['_php_sig_jpc'] = 1527011);
 
-	var _php_sig_jp2 = (Module['_php_sig_jp2'] = 1526998);
+	var _php_sig_jp2 = (Module['_php_sig_jp2'] = 1527014);
 
-	var _php_sig_iff = (Module['_php_sig_iff'] = 1527010);
+	var _php_sig_iff = (Module['_php_sig_iff'] = 1527026);
 
-	var _php_sig_ico = (Module['_php_sig_ico'] = 1527014);
+	var _php_sig_ico = (Module['_php_sig_ico'] = 1527030);
 
-	var _php_sig_riff = (Module['_php_sig_riff'] = 1527018);
+	var _php_sig_riff = (Module['_php_sig_riff'] = 1527034);
 
-	var _php_sig_webp = (Module['_php_sig_webp'] = 1527022);
+	var _php_sig_webp = (Module['_php_sig_webp'] = 1527038);
 
 	var _php_tiff_bytes_per_format = (Module['_php_tiff_bytes_per_format'] =
-		1527040);
+		1527056);
 
 	var _assert_globals = (Module['_assert_globals'] = 12768952);
 
@@ -13707,11 +13707,11 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _php_output_default_handler_name = (Module[
 		'_php_output_default_handler_name'
-	] = 1529472);
+	] = 1529488);
 
 	var _php_output_devnull_handler_name = (Module[
 		'_php_output_devnull_handler_name'
-	] = 1529504);
+	] = 1529520);
 
 	var _php_optidx = (Module['_php_optidx'] = 12031500);
 

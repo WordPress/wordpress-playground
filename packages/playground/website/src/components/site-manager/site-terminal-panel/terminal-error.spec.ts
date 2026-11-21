@@ -40,10 +40,10 @@ describe('getTerminalErrorMessage', () => {
 
 	it('extracts the exception message from a PHP stack trace', () => {
 		const explanation =
-			'This WP-CLI command tried to read from STDIN, but the wp-cli Blueprint step does not support interactive input.';
+			'fgets(): supplied resource is not a valid stream resource in phar:///tmp/wp-cli.phar/vendor/wp-cli/wp-cli/php/class-wp-cli.php:1010';
 		expect(
 			getTerminalErrorMessage(
-				`PHP Fatal error: Uncaught RuntimeException: ${explanation}\nStack trace:\n#0 {main}\n  thrown in /wordpress/run-cli.php on line 12`
+				`PHP Fatal error:  Uncaught TypeError: ${explanation}\nStack trace:\n#0 {main}\n  thrown in phar:///tmp/wp-cli.phar/vendor/wp-cli/wp-cli/php/class-wp-cli.php on line 1010`
 			)
 		).toBe(explanation);
 	});

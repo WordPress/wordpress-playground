@@ -1,9 +1,8 @@
 import { formatWpCliOutput } from './wp-cli-output';
 
 describe('formatWpCliOutput', () => {
-	it('removes the PHAR header and terminal color codes', () => {
-		const output = `#!/usr/bin/env php
-\u001b[32;1mSuccess:\u001b[0m Updated 'blogname' option.`;
+	it('removes terminal color codes', () => {
+		const output = `\u001b[32;1mSuccess:\u001b[0m Updated 'blogname' option.`;
 
 		expect(formatWpCliOutput(output)).toBe(
 			"Success: Updated 'blogname' option."
