@@ -104,7 +104,7 @@ You can also browse the repository directly:
 
 <!-- ![Editing a documentation file in GitHub](/img/contributing/editing-translations.webp) -->
 
-![GitHub में दस्तावेज़ की फ़ाइल संपादित करना](/img/contributing/editing-translations.webp)
+![GitHub में दस्तावेज़ की फ़ाइल संपादित करना](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editing-translations.webp)
 
 <!-- GitHub's web editor is best for small, focused changes. If your update is large or needs local preview, use the local workflow in [Documentation contributions](/contributing/documentation). -->
 
@@ -134,7 +134,7 @@ GitHub का वेब एडिटर छोटे और एक ही बा
 
 <!-- ![Creating a new documentation file in GitHub](/img/contributing/adding-file-github-ui.webp) -->
 
-![GitHub में दस्तावेज़ की नई फ़ाइल बनाना](/img/contributing/adding-file-github-ui.webp)
+![GitHub में दस्तावेज़ की नई फ़ाइल बनाना](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/adding-file-github-ui.webp)
 
 <!-- For new English documentation pages, add front matter at the top of the file: -->
 
@@ -176,7 +176,7 @@ GitHub के Markdown पूर्वावलोकन में शायद 
 
 <!-- ![Editing content in the GitHub web editor](/img/contributing/editor-github-ui.webp) -->
 
-![GitHub वेब एडिटर में सामग्री संपादित करना](/img/contributing/editor-github-ui.webp)
+![GitHub वेब एडिटर में सामग्री संपादित करना](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editor-github-ui.webp)
 
 <!--
 Look for:
