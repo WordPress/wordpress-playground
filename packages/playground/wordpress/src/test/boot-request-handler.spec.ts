@@ -15,11 +15,12 @@ describe('bootRequestHandler boot constants', () => {
 			emscriptenOptions: { nativeInternalDirPath: internalDir },
 		});
 	const constsPath = () => join(internalDir, 'shared', 'consts.json');
-	const boot = async () => {
+	const boot = async (constants?: Record<string, string>) => {
 		const handler = await bootRequestHandler({
 			siteUrl: 'http://playground-domain/',
 			createPhpRuntime,
 			maxPhpInstances: 1,
+			constants,
 		});
 		handlers.push(handler);
 		await handler.getPrimaryPhp();
@@ -38,19 +39,20 @@ describe('bootRequestHandler boot constants', () => {
 	});
 
 	it('writes the boot constants on the first boot', async () => {
-		await boot();
+		await boot({ CUSTOM_CONST: 'first' });
 
 		expect(JSON.parse(readFileSync(constsPath(), 'utf8'))).toMatchObject({
 			WP_SQLITE_AST_DRIVER: true,
 			SQLITE_JOURNAL_MODE: 'DELETE',
+			CUSTOM_CONST: 'first',
 		});
 	});
 
 	it('does not rewrite the boot constants when another PHP boots on the same /internal', async () => {
-		await boot();
+		await boot({ CUSTOM_CONST: 'first' });
 		writeFileSync(constsPath(), '{"SENTINEL":1}');
 
-		await boot();
+		await boot({ CUSTOM_CONST: 'second' });
 
 		expect(readFileSync(constsPath(), 'utf8')).toBe('{"SENTINEL":1}');
 	});
