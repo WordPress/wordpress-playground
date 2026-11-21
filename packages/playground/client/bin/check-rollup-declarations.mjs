@@ -2,6 +2,7 @@ import { readdir, readFile } from 'node:fs/promises';
 
 const packageDirectory = 'dist/packages/playground/client';
 const declarationFile = `${packageDirectory}/index.d.ts`;
+const commonJsDeclarationFile = packageDirectory + '/index.d.cts';
 const packageJsonFile = `${packageDirectory}/package.json`;
 const externalImportPattern =
 	/^\s*import\s+(?:[^'"]*\s+from\s+)?['"][^.'"]|^\s*export\s+[^'"]*\s+from\s+['"][^.'"]|import\(\s*['"][^.'"]|^\s*declare module ['"][^.'"]/;
@@ -10,7 +11,7 @@ async function main() {
 	const declarationFiles = await findDeclarationFiles(packageDirectory);
 	const packageJson = JSON.parse(await readFile(packageJsonFile, 'utf8'));
 	const unexpectedFiles = declarationFiles.filter(
-		(file) => file !== declarationFile
+		(file) => file !== declarationFile && file !== commonJsDeclarationFile
 	);
 
 	if (!declarationFiles.includes(declarationFile)) {
@@ -20,7 +21,7 @@ async function main() {
 	if (unexpectedFiles.length > 0) {
 		throw new Error(
 			[
-				'Expected the client package to ship one declaration file.',
+				'Expected only the ESM and CommonJS client declaration files.',
 				'Unexpected files:',
 				...unexpectedFiles.map((file) => `- ${file}`),
 			].join('\n')
@@ -33,13 +34,22 @@ async function main() {
 		);
 	}
 
-	if (packageJson.exports?.['.']?.types !== './index.d.ts') {
+	if (
+		packageJson.exports?.['.']?.import?.types !== './index.d.ts' ||
+		packageJson.exports?.['.']?.require?.types !== './index.d.cts'
+	) {
 		throw new Error(
-			`Expected ${packageJsonFile} to export "./index.d.ts" as its root types.`
+			`Expected ${packageJsonFile} to export "./index.d.ts" and "./index.d.cts" for ESM and CommonJS.`
 		);
 	}
 
 	const declarations = await readFile(declarationFile, 'utf8');
+	if ((await readFile(commonJsDeclarationFile, 'utf8')) !== declarations) {
+		throw new Error(
+			'CommonJS declarations must match the ESM declarations.'
+		);
+	}
+
 	const externalImports = declarations
 		.split('\n')
 		.filter((line) => !line.trimStart().startsWith('*'))
@@ -66,7 +76,7 @@ async function findDeclarationFiles(directory) {
 			if (entry.isDirectory()) {
 				return findDeclarationFiles(entryPath);
 			}
-			return entry.name.endsWith('.d.ts') ? [entryPath] : [];
+			return /\.d\.(?:ts|cts)$/.test(entry.name) ? [entryPath] : [];
 		})
 	);
 	return files.flat();
