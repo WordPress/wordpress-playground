@@ -33,7 +33,7 @@ tutorial pode incluir vários exemplos executáveis sem iniciar o WordPress repe
 
 <!-- ## Try it -->
 
-## Experimente
+## Experimente {#try-it}
 
 <!--
 The example below is editable and runnable. It also uses a Blueprint to install
@@ -103,7 +103,7 @@ mu-plugins, opções, temas, arquivos de demonstração ou conteúdo de exemplo.
 
 <!-- ## Start with one snippet -->
 
-## Comece com um trecho
+## Comece com um trecho {#start-with-one-snippet}
 
 <!--
 For a basic runnable example, add the component script once and place PHP inside
@@ -141,7 +141,7 @@ versão exata do PHP após a execução.
 
 <!-- ## Write PHP safely in HTML -->
 
-## Escreva PHP com segurança no HTML
+## Escreva PHP com segurança no HTML {#write-php-safely-in-html}
 
 <!--
 Put inline PHP in a `<script type="application/x-php">` child. Browsers ignore
@@ -225,7 +225,7 @@ estejam escapadas:
 
 <!-- ## Use WordPress APIs -->
 
-## Use as APIs do WordPress
+## Use as APIs do WordPress {#use-wordpress-apis}
 
 <!--
 Snippets run in a real WordPress installation by default. Load WordPress with
@@ -277,7 +277,7 @@ a inicialização do WordPress:
 
 <!-- ### Automatically prepend a hidden PHP script -->
 
-### Execute automaticamente um script PHP oculto antes do trecho
+### Execute automaticamente um script PHP oculto antes do trecho {#automatically-prepend-a-hidden-php-script}
 
 <!--
 `auto-prepend-script` mirrors PHP's
@@ -347,7 +347,7 @@ também funciona sem um script auto-prepended.
 
 <!-- ## Edit examples in place -->
 
-## Edite os exemplos na própria página
+## Edite os exemplos na própria página {#edit-examples-in-place}
 
 <!--
 Runnable snippets are editable by default. The edited code is kept only in the
@@ -404,7 +404,7 @@ Use `readonly` para exemplos executáveis que devem ser copiados ou executados s
 
 <!-- ## Show output before Run -->
 
-## Mostre a saída antes do Run
+## Mostre a saída antes do Run {#show-output-before-run}
 
 <!--
 Use expected output when you want the result visible immediately. The placeholder
@@ -445,7 +445,7 @@ Para uma saída de uma linha, use o atributo `expected-output`:
 
 <!-- ## Prepare a site with a Blueprint -->
 
-## Prepare um site com um Blueprint
+## Prepare um site com um Blueprint {#prepare-a-site-with-a-blueprint}
 
 <!--
 Use `blueprint` when snippets need setup before the PHP code runs. Put a JSON
@@ -517,7 +517,7 @@ conteúdo dele é interpretado como HTML; se usar um, escape o `<` nas strings P
 
 <!-- ## Load PHP from another file -->
 
-## Carregue o PHP de outro arquivo
+## Carregue o PHP de outro arquivo {#load-php-from-another-file}
 
 <!-- Use `src` when the PHP source should live in a separate file: -->
 
@@ -550,7 +550,7 @@ plugins, opções ou outra configuração antes de o trecho ser executado. O atr
 
 <!-- ## Pin PHP or WordPress versions -->
 
-## Fixe as versões do PHP ou do WordPress
+## Fixe as versões do PHP ou do WordPress {#pin-php-or-wordpress-versions}
 
 <!--
 The default PHP version is `8.4`, and the default WordPress version is `latest`.
@@ -604,7 +604,7 @@ versões disponíveis do PHP e do WordPress.
 
 <!-- ## Show code without running it -->
 
-## Mostre código sem executá-lo
+## Mostre código sem executá-lo {#show-code-without-running-it}
 
 <!--
 Set `runnable="false"` for fragments that should be highlighted but not
@@ -628,7 +628,7 @@ executados, como exemplos incompletos ou códigos que dependem de serviços exte
 
 <!-- ## Self-host the runtime -->
 
-## Hospede o ambiente de execução por conta própria
+## Hospede o ambiente de execução por conta própria {#self-host-the-runtime}
 
 <!--
 Most pages should use the hosted runtime from [playground.wordpress.net](https://playground.wordpress.net).
@@ -655,7 +655,7 @@ exemplos em uma infraestrutura que você controla.
 
 <!-- ## Runtime sharing -->
 
-## Compartilhamento do ambiente de execução
+## Compartilhamento do ambiente de execução {#runtime-sharing}
 
 <!-- The first Run click on a page: -->
 
@@ -670,7 +670,7 @@ O primeiro clique em Run em uma página:
 
 1. Carrega o cliente do Playground.
 2. Cria um iframe oculto apontando para `remote.html`.
-3. Inicializa o PHP e o WordPress, a menos que o trecho use `wp="none"`.
+3. Inicializa o PHP e, se o trecho não usar `wp="none"`, também inicializa o WordPress.
 4. Executa o código do trecho e escreve o stdout no painel de saída.
 
 <!--
@@ -685,7 +685,7 @@ rápidos e, ao mesmo tempo, isola os exemplos que precisam de configurações di
 
 <!-- ## Security and CSP -->
 
-## Segurança e CSP
+## Segurança e CSP {#security-and-csp}
 
 <!--
 Snippet PHP runs inside the Playground runtime iframe, not in the parent page.
@@ -722,7 +722,7 @@ para apontar os trechos para a sua instalação.
 
 <!-- ## Standalone PHP Playground -->
 
-## PHP Playground independente
+## PHP Playground independente {#standalone-php-playground}
 
 <!--
 Use the standalone PHP Playground when you want a full-page editor, a shareable
@@ -751,7 +751,7 @@ O fragmento da URL é um JSON codificado em base64 com os campos `code`, `php` e
 
 <!-- ## Which embed should you use? -->
 
-## Qual incorporação você deve usar?
+## Qual incorporação você deve usar? {#which-embed-should-you-use}
 
 <!--
 | Use case                                              | Use                                       |
@@ -781,7 +781,7 @@ O fragmento da URL é um JSON codificado em base64 com os campos `code`, `php` e
 
 <!-- ## Troubleshooting -->
 
-## Solução de problemas
+## Solução de problemas {#troubleshooting}
 
 <!--
 If the snippet does not render, check that the module script loaded and that the
