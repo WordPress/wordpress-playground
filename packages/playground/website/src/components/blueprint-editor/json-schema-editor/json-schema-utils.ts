@@ -506,36 +506,6 @@ export function filterSchemaByDiscriminator(
 	return matchingSchema || resolved;
 }
 
-/**
- * Get schema properties for the current JSON path
- */
-export function getSchemaForPath(
-	schema: JSONSchema,
-	path: PathSegment[]
-): JSONSchema | null {
-	let current: JSONSchema = schema;
-
-	current = resolveSchemaRefs(current, schema);
-
-	for (const segment of path) {
-		if (segment.type === 'key' && current.properties) {
-			const next = current.properties[segment.key!];
-			if (!next) return null;
-			current = resolveSchemaRefs(next, schema);
-		} else if (segment.type === 'array') {
-			if (current.type === 'array' && current.items) {
-				current = resolveSchemaRefs(current.items, schema);
-			} else if (current.items) {
-				current = resolveSchemaRefs(current.items, schema);
-			}
-		} else if (segment.type === 'object') {
-			continue;
-		}
-	}
-
-	return current;
-}
-
 export interface StringNodeInfo {
 	/** The raw string value (JSON-escaped content without surrounding quotes) */
 	rawValue: string;
@@ -615,13 +585,4 @@ export function getStringNodeAtPosition(
 		path,
 		stepType,
 	};
-}
-
-/**
- * Check if a string contains escape sequences that would benefit from the string editor
- * (e.g., contains \n, \t, or other escape sequences)
- */
-export function stringHasEscapeSequences(rawValue: string): boolean {
-	// Check for common escape sequences that make editing difficult
-	return /\\[nrt"\\]/.test(rawValue);
 }

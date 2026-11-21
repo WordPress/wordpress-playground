@@ -14,27 +14,15 @@
 	appearance: button;
 	-webkit-appearance: button;
 	color: revert;
-}
-
-.button:global(.components-button) {
-	background: revert;
-}
-
-.button.button.button.is-browser-chrome {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	min-height: 40px;
-	min-width: 40px;
-	background: transparent;
-}
-
-.button.button.button:not(.is-browser-chrome) {
 	padding: 12px 7px;
 	display: flex;
 	gap: 10px;
 	align-items: center;
 	justify-content: center;
+}
+
+.button:global(.components-button) {
+	background: revert;
 }
 
 .button[disabled] {
