@@ -88,6 +88,7 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 		blueprint,
 		corsProxyUrl,
 		pathAliases,
+		isCrossOriginEmbedded,
 	}: WorkerBootOptions) {
 		if (this.booted) {
 			throw new Error('Playground already booted');
@@ -125,6 +126,7 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 				withNetworking,
 				phpVersion: phpVersion!,
 				pathAliases,
+				isCrossOriginEmbedded,
 				onProgress: reportBootProgress,
 			});
 

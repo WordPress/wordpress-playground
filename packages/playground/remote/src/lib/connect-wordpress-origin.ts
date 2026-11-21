@@ -4,6 +4,7 @@ import { responseTo } from '@php-wasm/web-service-worker';
 import type { RemoteAPI } from '@php-wasm/universal';
 import type { PlaygroundWorkerEndpoint } from './playground-worker-endpoint';
 import {
+	playgroundOrigin,
 	wordPressSiteUrl,
 	releaseBase,
 	usesMultiReleaseDirectoryLayout,
@@ -13,6 +14,9 @@ import { runtimeStaticAssetsDirectory } from './wordpress-static-assets';
 import { getWordPressBridgePath } from './wordpress-bridge-path';
 // @ts-ignore -- Provided by Vite.
 import { buildVersion } from 'virtual:remote-config';
+
+export const PARTITION_PROBE_CHANNEL_NAME = 'playground-partition-probe';
+export const RUNTIME_PARTITION_LOCK_PREFIX = 'playground-runtime-partition:';
 
 /**
  * Connect WordPress HTTP requests on a separate origin to this app-origin PHP worker.
@@ -66,17 +70,7 @@ export async function connectWordPressOrigin(
 	const bridge = document.createElement('iframe');
 	bridge.hidden = true;
 	bridge.title = 'WordPress bridge';
-	// Name this app's release, or its buildVersion for development/portable builds.
-	// An installed worker can answer the unversioned alias with its own script URL.
-	// Qualified paths let it distinguish its bridge from another release or build.
-	const url = new URL(
-		usesMultiReleaseDirectoryLayout
-			? joinPaths(releaseBase, 'wordpress-bridge.html')
-			: getWordPressBridgePath(buildVersion),
-		wordPressSiteUrl
-	);
-	url.searchParams.set('scope', scope);
-	bridge.src = url.href;
+	bridge.src = getWordPressBridgeUrl(scope).href;
 	await new Promise<void>((resolve, reject) => {
 		const timeout = setTimeout(() => {
 			window.removeEventListener('message', onMessage);
@@ -106,61 +100,27 @@ export async function connectWordPressOrigin(
 				return;
 			}
 			if (event.data.type !== 'wordpress-bridge-request') return;
-			const { method, requestId } = event.data;
-			let response;
-			const transfer: Transferable[] = [];
-			try {
-				if (method === 'request') {
-					const request = event.data.args?.[0];
-					const target = new URL(request?.url);
-					if (
-						target.origin !== wordPressSiteUrl ||
-						getURLScope(target) !== scope
-					)
-						return;
-					// Do not forward arbitrary PHP options, mount devices, or caller-selected scopes.
-					const result = await client.requestStreamed({
-						url: target.href,
-						method: request.method,
-						headers: request.headers,
-						body: request.body,
-					});
-					// Resolve metadata first: a short body must not close its port before transfer.
-					const httpStatusCode = await result.httpStatusCode;
-					const headers = await result.headers;
-					const bodyPort = streamToPort(result.stdout);
-					transfer.push(bodyPort);
-					response = { httpStatusCode, headers, bodyPort };
-				} else if (method === 'getWordPressModuleDetails') {
-					response = {
-						staticAssetsDirectory: runtimeStaticAssetsDirectory(
-							await client.getWordPressModuleDetails()
-						),
-					};
-				} else {
-					return;
-				}
-			} catch (error) {
-				response = {
-					httpStatusCode: 500,
-					headers: { 'content-type': ['text/plain'] },
-					bytes: new TextEncoder().encode(String(error)),
-				};
-			}
+			const result = await handleWordPressBridgeRequest(
+				client,
+				scope,
+				event.data
+			);
+			if (!result) return;
 			bridge.contentWindow!.postMessage(
 				{
 					type: 'wordpress-bridge-response',
 					scope,
-					requestId,
-					response,
+					requestId: event.data.requestId,
+					response: result.response,
 				},
 				wordPressSiteUrl,
-				transfer
+				result.transfer
 			);
 		}
 		window.addEventListener('message', onMessage);
 		document.body.append(bridge);
 	});
+	listenForWordPressPopupRelay(client, scope);
 	// Explicitly reject this site's app-origin HTTP route so /scope:site-a/ cannot
 	// render its WordPress HTML with app storage access. Only the sandbox bridge above
 	// may send this site's HTTP requests to PHP. Keep this listener with the
@@ -176,4 +136,164 @@ export async function connectWordPressOrigin(
 			})
 		);
 	});
+}
+
+/**
+ * Relay HTTP requests from top-level popup tabs on playgroundOrigin when this
+ * runtime runs inside a cross-site iframe's storage partition.
+ *
+ * A new tab opened from an embedded Playground gets an unpartitioned service
+ * worker that cannot reach this partitioned PHP worker. Trusted popup windows
+ * on playgroundOrigin probe whether they share our partition via BroadcastChannel
+ * and, when partitioned, forward the same narrow HTTP/metadata bridge messages
+ * handled by connectWordPressOrigin().
+ */
+export function listenForWordPressPopupRelay(
+	client: RemoteAPI<PlaygroundWorkerEndpoint>,
+	scope: string,
+	singleOriginServiceWorkerUrl?: string
+) {
+	let probeChannel: BroadcastChannel | null = null;
+	const bridgeUrl =
+		wordPressSiteUrl !== playgroundOrigin
+			? getWordPressBridgeUrl(scope).href
+			: null;
+	const serviceWorkerUrl =
+		wordPressSiteUrl === playgroundOrigin
+			? (singleOriginServiceWorkerUrl ?? null)
+			: null;
+
+	// Hold a partition-scoped Web Lock for this runtime's lifetime so popups
+	// in the same storage partition can detect it deterministically without
+	// relying on a BroadcastChannel timing window.
+	if (
+		typeof navigator !== 'undefined' &&
+		typeof navigator.locks?.request === 'function'
+	) {
+		void navigator.locks
+			.request(
+				`${RUNTIME_PARTITION_LOCK_PREFIX}${scope}`,
+				() => new Promise<void>(() => {})
+			)
+			.catch(() => {});
+	}
+
+	window.addEventListener('message', async (event) => {
+		if (
+			event.origin !== playgroundOrigin ||
+			!event.source ||
+			event.source === window ||
+			event.data?.scope !== scope
+		) {
+			return;
+		}
+		const source = event.source as Window;
+		if (event.data.type === 'wordpress-popup-partition-probe') {
+			const { probeId } = event.data;
+			if (typeof probeId !== 'string') return;
+			if (typeof BroadcastChannel === 'function') {
+				probeChannel ??= new BroadcastChannel(
+					PARTITION_PROBE_CHANNEL_NAME
+				);
+				probeChannel.postMessage({
+					type: 'wordpress-popup-partition-probe-echo',
+					scope,
+					probeId,
+				});
+			}
+			source.postMessage(
+				{
+					type: 'wordpress-popup-partition-probe-ack',
+					scope,
+					probeId,
+					bridgeUrl,
+					serviceWorkerUrl,
+				},
+				playgroundOrigin
+			);
+			return;
+		}
+		if (event.data.type !== 'wordpress-popup-bridge-request') {
+			return;
+		}
+		const result = await handleWordPressBridgeRequest(
+			client,
+			scope,
+			event.data
+		);
+		if (!result) return;
+		source.postMessage(
+			{
+				type: 'wordpress-popup-bridge-response',
+				scope,
+				requestId: event.data.requestId,
+				response: result.response,
+			},
+			playgroundOrigin,
+			result.transfer
+		);
+	});
+}
+
+async function handleWordPressBridgeRequest(
+	client: RemoteAPI<PlaygroundWorkerEndpoint>,
+	scope: string,
+	data: { method?: string; args?: any[] }
+): Promise<{ response: any; transfer: Transferable[] } | null> {
+	const { method } = data;
+	let response;
+	const transfer: Transferable[] = [];
+	try {
+		if (method === 'request') {
+			const request = data.args?.[0];
+			const target = new URL(request?.url);
+			if (
+				target.origin !== wordPressSiteUrl ||
+				getURLScope(target) !== scope
+			)
+				return null;
+			// Do not forward arbitrary PHP options, mount devices, or caller-selected scopes.
+			const result = await client.requestStreamed({
+				url: target.href,
+				method: request.method,
+				headers: request.headers,
+				body: request.body,
+			});
+			// Resolve metadata first: a short body must not close its port before transfer.
+			const httpStatusCode = await result.httpStatusCode;
+			const headers = await result.headers;
+			const bodyPort = streamToPort(result.stdout);
+			transfer.push(bodyPort);
+			response = { httpStatusCode, headers, bodyPort };
+		} else if (method === 'getWordPressModuleDetails') {
+			response = {
+				staticAssetsDirectory: runtimeStaticAssetsDirectory(
+					await client.getWordPressModuleDetails()
+				),
+			};
+		} else {
+			return null;
+		}
+	} catch (error) {
+		response = {
+			httpStatusCode: 500,
+			headers: { 'content-type': ['text/plain'] },
+			bytes: new TextEncoder().encode(String(error)),
+		};
+	}
+	return { response, transfer };
+}
+
+function getWordPressBridgeUrl(scope: string): URL {
+	// Name this app's release, or its buildVersion for development/portable builds.
+	// An installed worker can answer the unversioned alias with its own script URL.
+	// Qualified paths let it distinguish its bridge from another release or build.
+	const url = new URL(
+		usesMultiReleaseDirectoryLayout
+			? joinPaths(releaseBase, 'wordpress-bridge.html')
+			: getWordPressBridgePath(buildVersion),
+		wordPressSiteUrl
+	);
+	url.searchParams.set('scope', scope);
+	return url;
 }
