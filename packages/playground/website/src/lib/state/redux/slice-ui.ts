@@ -166,7 +166,7 @@ export interface UIState {
 	siteSlugToSave?: string;
 	githubAuthRepoUrl?: string;
 	offline: boolean;
-	shareExportOpen: boolean;
+	shareExportView: 'options' | 'github' | 'hosting';
 	siteImportProgress?: ProgressDetails;
 	dockPaneIsOpen: boolean;
 	dockPaneSection: DockPaneSection;
@@ -228,7 +228,7 @@ const initialState: UIState = {
 			? null
 			: query.get('modal') || null,
 	offline: !navigator.onLine,
-	shareExportOpen: false,
+	shareExportView: 'options',
 	// NOTE: Please do not eliminate the cases in this dockPaneIsOpen expression,
 	// even if they seem redundant. We may experiment with toggling the Dock
 	// pane to be open by default or closed by default, and we do not want to
@@ -329,10 +329,16 @@ const uiSlice = createSlice({
 			state.dockPaneIsOpen = action.payload;
 			if (!action.payload) {
 				state.cloneRequested = undefined;
+				if (state.shareExportView === 'hosting') {
+					state.shareExportView = 'options';
+				}
 			}
 		},
-		setShareExportOpen: (state, action: PayloadAction<boolean>) => {
-			state.shareExportOpen = action.payload;
+		setShareExportView: (
+			state,
+			action: PayloadAction<UIState['shareExportView']>
+		) => {
+			state.shareExportView = action.payload;
 		},
 		setSiteImportProgress: (
 			state,
@@ -361,6 +367,12 @@ const uiSlice = createSlice({
 				action.payload !== 'transfer'
 			) {
 				state.cloneRequested = undefined;
+			}
+			if (
+				action.payload !== 'share' &&
+				state.shareExportView === 'hosting'
+			) {
+				state.shareExportView = 'options';
 			}
 			state.dockPaneSection = action.payload;
 		},
@@ -442,7 +454,7 @@ export const {
 	clearActiveSiteError,
 	setGitHubAuthRepoUrl,
 	setOffline,
-	setShareExportOpen,
+	setShareExportView,
 	setSiteImportProgress,
 	setDockPaneOpen,
 	setDockPaneSection,

@@ -18,7 +18,7 @@ import { close, code, pencil, plus } from '@wordpress/icons';
 import type { DockPaneSection } from '../../lib/state/redux/slice-ui';
 import {
 	setDockOperationNotice,
-	setShareExportOpen,
+	setShareExportView,
 	setDockPaneOpen,
 	setDockPaneSection,
 } from '../../lib/state/redux/slice-ui';
@@ -85,7 +85,7 @@ export function Dock({
 	const activeModal = useAppSelector((state) => state.ui.activeModal);
 	const activeSiteError = useAppSelector(selectActiveSiteError);
 	const section = useAppSelector((state) => state.ui.dockPaneSection);
-	const shareExportOpen = useAppSelector((state) => state.ui.shareExportOpen);
+	const shareExportView = useAppSelector((state) => state.ui.shareExportView);
 	const [newPlaygroundHeaderOverride, setNewPlaygroundHeaderOverride] =
 		useState<DockPaneHeaderOverride>();
 	const handleNewPlaygroundHeaderChange = useCallback(
@@ -108,7 +108,7 @@ export function Dock({
 	const isWideSection = paneCopy.layout === 'wide';
 	const isFixedHeightSection =
 		Boolean(paneCopy.fixedHeight) ||
-		(section === 'share' && shareExportOpen);
+		(section === 'share' && shareExportView === 'github');
 	const showSharedHeader =
 		!isEditorSection && !(section === 'transfer' && toolHidesHeader);
 	const siteSettingsVisible = dockPaneIsOpen && section === 'settings';
@@ -169,23 +169,25 @@ export function Dock({
 	const cornerRectRef = useRef<DOMRect | null>(null);
 	const lastDockWidthRef = useRef(0);
 	const modeSwitchTimerRef = useRef<number | null>(null);
-	const closeGitHubExport = useCallback(
-		() => dispatch(setShareExportOpen(false)),
-		[dispatch]
-	);
-	const githubExportHeaderOverride = useMemo<DockPaneHeaderOverride>(
+	const exportBackButtonRef = useRef<HTMLButtonElement>(null);
+	const exportHeaderOverride = useMemo<DockPaneHeaderOverride>(
 		() => ({
-			title: 'Export to GitHub',
+			title:
+				shareExportView === 'hosting'
+					? 'Export for hosting'
+					: 'Export to GitHub',
 			backLabel: 'Back to export options',
-			onBack: closeGitHubExport,
+			backButtonRef: exportBackButtonRef,
+			focusBackButton: shareExportView === 'hosting',
+			onBack: () => dispatch(setShareExportView('options')),
 		}),
-		[closeGitHubExport]
+		[dispatch, shareExportView]
 	);
 	const paneHeaderOverride =
 		section === 'new'
 			? newPlaygroundHeaderOverride
-			: section === 'share' && shareExportOpen
-				? githubExportHeaderOverride
+			: section === 'share' && shareExportView !== 'options'
+				? exportHeaderOverride
 				: section === 'transfer' && toolBack
 					? { title: paneTitle, ...toolHeader }
 					: undefined;
