@@ -5,6 +5,7 @@ import {
 	resolvePHPExtension,
 	withResolvedPHPExtensions,
 } from './load-extension';
+import type { ResolvedPHPExtension } from './load-extension';
 
 describe('resolvePHPExtension', () => {
 	it('resolves a regular extension for startup', async () => {
@@ -382,5 +383,72 @@ describe('withResolvedPHPExtensions', () => {
 			[`${PHP_EXTENSIONS_DIR}/example.ini`]: `extension=${PHP_EXTENSIONS_DIR}/example.so`,
 			[`${PHP_EXTENSIONS_DIR}/data/config.json`]: '{"enabled":true}',
 		});
+	});
+});
+
+describe('withResolvedPHPExtensions on a shared directory', () => {
+	const soPath = `${PHP_EXTENSIONS_DIR}/example.so`;
+	const iniPath = `${PHP_EXTENSIONS_DIR}/example.ini`;
+	const dataPath = `${PHP_EXTENSIONS_DIR}/data/icu.dat`;
+	const extension: ResolvedPHPExtension = {
+		soPath,
+		soBytes: new Uint8Array([1, 2, 3, 4]),
+		iniPath,
+		iniContent: 'example.mode=on',
+		extraFiles: { files: { [dataPath]: new Uint8Array([5, 6, 7]) } },
+		extensionDir: PHP_EXTENSIONS_DIR,
+	};
+
+	/** Runs the `preRun` callbacks the way the PHP runtime does at startup. */
+	function installExtension(FS: object) {
+		const options = withResolvedPHPExtensions({}, [extension]);
+		const preRun: Array<(runtime: unknown) => void> = options['preRun'];
+		preRun.forEach((callback) => callback({ FS }));
+	}
+
+	/** An in-memory FS that records every `writeFile` call. */
+	function createFS() {
+		const files = new Map<string, string | Uint8Array>();
+		const writes: string[] = [];
+		const FS = {
+			lookupPath: (path: string) => {
+				if (!files.has(path)) {
+					throw new Error('missing');
+				}
+				return {};
+			},
+			stat: (path: string) => ({ size: files.get(path)?.length }),
+			readFile: (path: string) => files.get(path),
+			mkdirTree: () => {},
+			writeFile: (path: string, contents: string | Uint8Array) => {
+				writes.push(path);
+				files.set(path, contents);
+			},
+		};
+		return { FS, files, writes };
+	}
+
+	it('does not rewrite files that are already installed', () => {
+		const { FS, writes } = createFS();
+		installExtension(FS);
+		writes.length = 0;
+
+		installExtension(FS);
+
+		expect(writes).toEqual([]);
+	});
+
+	it('rewrites files that differ from the installed ones', () => {
+		const { FS, files, writes } = createFS();
+		installExtension(FS);
+		writes.length = 0;
+		files.set(soPath, new Uint8Array([1, 2]));
+		files.set(iniPath, 'example.mode=no');
+
+		installExtension(FS);
+
+		expect(writes).toEqual([soPath, iniPath]);
+		expect(files.get(soPath)).toEqual(extension.soBytes);
+		expect(files.get(iniPath)).toBe(extension.iniContent);
 	});
 });
