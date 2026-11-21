@@ -558,6 +558,16 @@ export class PHPRequestHandler implements AsyncDisposable {
 					);
 				case 'internal-redirect':
 					fsPath = joinPaths(this.#DOCROOT, fileNotFoundAction.uri);
+					/*
+					 * An internal redirect is the final URL after rewrites.
+					 * PHP_SELF is read from this URL. REQUEST_URI stays the
+					 * original request. The query string already stored on
+					 * rewrittenRequestUrl is left as it is.
+					 */
+					rewrittenRequestUrl.pathname = joinPaths(
+						this.#PATHNAME,
+						fileNotFoundAction.uri
+					);
 					break;
 				case '404':
 					return StreamedPHPResponse.forHttpCode(404);
