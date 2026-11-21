@@ -678,6 +678,72 @@ describe.each(configsForRequestTests)(
 	}
 );
 
+describe('PHPRequestHandler – request path confinement', () => {
+	let php: PHP;
+	let handler: PHPRequestHandler;
+	beforeEach(async () => {
+		handler = new PHPRequestHandler({
+			documentRoot: '/wordpress',
+			phpFactory: async () =>
+				new PHP(await loadNodeRuntime(RecommendedPHPVersion)),
+			maxPhpInstances: 1,
+			pathAliases: [{ urlPrefix: '/tools', fsPath: '/opt/tools' }],
+		});
+		php = await handler.getPrimaryPhp();
+		php.mkdirTree('/wordpress/sub');
+		php.writeFile('/wordpress/x.php', `<?php echo 'executed';`);
+		php.writeFile('/wordpress/UPPER.PHP', `<?php echo 'executed';`);
+		php.writeFile('/wordpress/sub/page.html', 'inside');
+		php.mkdirTree('/opt/tools');
+		php.writeFile('/opt/tools/tool.php', `<?php echo 'tool';`);
+		php.writeFile('/opt/secret.txt', 'secret');
+		php.mkdirTree('/outside');
+		php.writeFile('/outside/secret.txt', 'secret');
+		php.mkdirTree('/wordpress-other');
+		php.writeFile('/wordpress-other/secret.txt', 'secret');
+	});
+
+	afterEach(async () => {
+		php.exit();
+	});
+
+	it.each([
+		'/..%252foutside/secret.txt',
+		'/..%255coutside/secret.txt',
+		'/sub/..%252f..%252foutside/secret.txt',
+		'/..%252fwordpress-other/secret.txt',
+		'/tools/..%252fsecret.txt',
+	])('should not serve files outside the root for %s', async (url) => {
+		const response = await handler.request({ url });
+		expect(response.httpStatusCode).toBe(404);
+		expect(response.text).not.toContain('secret');
+	});
+
+	it.each(['/sub/page.html', '/sub%2fpage.html', '/sub/%70age.html'])(
+		'should serve files inside the document root for %s',
+		async (url) => {
+			const response = await handler.request({ url });
+			expect(response.httpStatusCode).toBe(200);
+			expect(response.text).toBe('inside');
+		}
+	);
+
+	it.each(['/x.php', '/x.php/', '/x.php/.', '/x.php/extra', '/UPPER.PHP'])(
+		'should execute PHP rather than serve its source for %s',
+		async (url) => {
+			const response = await handler.request({ url });
+			expect(response.httpStatusCode).toBe(200);
+			expect(response.text).toBe('executed');
+		}
+	);
+
+	it('should execute PHP files under a path alias', async () => {
+		const response = await handler.request({ url: '/tools/tool.php' });
+		expect(response.httpStatusCode).toBe(200);
+		expect(response.text).toBe('tool');
+	});
+});
+
 let phpVersions = SupportedPHPVersions;
 if ('PHP' in process.env) {
 	phpVersions = [process.env['PHP']] as any;
