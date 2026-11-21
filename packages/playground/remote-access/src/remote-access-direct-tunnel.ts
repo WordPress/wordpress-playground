@@ -189,6 +189,15 @@ type DataChannelHostMessage =
 	| DataChannelBackupRequest
 	| DataChannelControlMessage;
 
+/**
+ * The approved attempt and data channel that a request or backup started on.
+ * Results are only sent while both are still current.
+ */
+interface ApprovedDataChannel {
+	attemptId: string;
+	channel: RTCDataChannel;
+}
+
 type DataChannelGuestMessage =
 	| DataChannelResponse
 	| DataChannelResponseStart
@@ -836,7 +845,7 @@ export class DirectTunnelHost {
 			return;
 		}
 		if (this.approvedAttemptId !== attemptId) {
-			this.sendDataChannelResponse({
+			this.sendDataChannelMessage(this.dataChannel, {
 				type: 'response',
 				requestId: request.requestId,
 				status: 403,
@@ -869,7 +878,7 @@ export class DirectTunnelHost {
 	): void {
 		if (this.approvedAttemptId !== message.attemptId) {
 			this.pendingChunkedRequests.delete(message.requestId);
-			this.sendDataChannelResponse({
+			this.sendDataChannelMessage(this.dataChannel, {
 				type: 'response',
 				requestId: message.requestId,
 				status: 403,
@@ -911,7 +920,7 @@ export class DirectTunnelHost {
 			'Incomplete remote access relay request'
 		);
 		if (body instanceof Error) {
-			this.sendDataChannelResponse({
+			this.sendDataChannelMessage(this.dataChannel, {
 				type: 'response',
 				requestId: message.requestId,
 				status: 400,
@@ -944,8 +953,10 @@ export class DirectTunnelHost {
 	private async handleBackupRequest(
 		request: DataChannelBackupRequest
 	): Promise<void> {
-		if (this.approvedAttemptId !== request.attemptId) {
+		const target = this.bindApprovedDataChannel(request.attemptId);
+		if (!target) {
 			this.sendDataChannelBackupError(
+				this.dataChannel,
 				request.requestId,
 				'Waiting for approval on the host device.'
 			);
@@ -959,7 +970,7 @@ export class DirectTunnelHost {
 			const totalChunks = Math.ceil(
 				bytes.length / DATA_CHANNEL_CHUNK_SIZE
 			);
-			this.sendDataChannelBackupMessage({
+			this.sendApprovedMessage(target, {
 				type: 'backup-start',
 				requestId: request.requestId,
 				filename: formatBackupFilename(siteName),
@@ -967,7 +978,7 @@ export class DirectTunnelHost {
 				totalChunks,
 			});
 			for (let i = 0; i < totalChunks; i++) {
-				this.sendDataChannelBackupMessage({
+				this.sendApprovedMessage(target, {
 					type: 'backup-chunk',
 					requestId: request.requestId,
 					index: i,
@@ -978,14 +989,19 @@ export class DirectTunnelHost {
 						)
 					),
 				});
-				await this.waitForDataChannelDrain();
+				await this.waitForDataChannelDrain(target.channel);
 			}
-			this.sendDataChannelBackupMessage({
+			this.sendApprovedMessage(target, {
 				type: 'backup-complete',
 				requestId: request.requestId,
 			});
 		} catch (error) {
+			if (!this.isApprovedDataChannelCurrent(target)) {
+				logger.warn('[DirectTunnelHost] Backup discarded:', error);
+				return;
+			}
 			this.sendDataChannelBackupError(
+				target.channel,
 				request.requestId,
 				(error as Error).message
 			);
@@ -1026,6 +1042,7 @@ export class DirectTunnelHost {
 	): void {
 		if (request.type === 'backup-request') {
 			this.sendDataChannelBackupError(
+				this.dataChannel,
 				request.requestId,
 				'Remote access attempt expired.'
 			);
@@ -1034,17 +1051,19 @@ export class DirectTunnelHost {
 		if (isChunkedRequestMessage(request)) {
 			this.pendingChunkedRequests.delete(request.requestId);
 		}
-		this.sendDataChannelResponse({
-			type: 'response',
-			requestId: request.requestId,
-			status: 409,
-			headers: { 'Content-Type': 'text/plain' },
-			body: uint8ArrayToBase64(
-				new TextEncoder().encode('Remote access attempt expired.')
-			),
-		}).catch((error) => {
+		try {
+			this.sendDataChannelMessage(this.dataChannel, {
+				type: 'response',
+				requestId: request.requestId,
+				status: 409,
+				headers: { 'Content-Type': 'text/plain' },
+				body: uint8ArrayToBase64(
+					new TextEncoder().encode('Remote access attempt expired.')
+				),
+			});
+		} catch (error) {
 			logger.warn('[DirectTunnelHost] Stale request failed:', error);
-		});
+		}
 	}
 
 	private async processQueue(): Promise<void> {
@@ -1089,6 +1108,10 @@ export class DirectTunnelHost {
 	}
 
 	private async handleRequest(request: DataChannelRequest): Promise<void> {
+		const target = this.bindApprovedDataChannel(request.attemptId);
+		if (!target) {
+			return;
+		}
 		try {
 			const phpResponse = await this.playgroundClient.request({
 				method: request.method as HTTPMethod,
@@ -1108,7 +1131,7 @@ export class DirectTunnelHost {
 					: values;
 			}
 			const cookies = getHeaderValues(phpResponse.headers, 'set-cookie');
-			await this.sendDataChannelResponse({
+			await this.sendDataChannelResponse(target, {
 				type: 'response',
 				requestId: request.requestId,
 				status: phpResponse.httpStatusCode,
@@ -1127,7 +1150,10 @@ export class DirectTunnelHost {
 				lastStatus: 500,
 				lastError: (error as Error).message,
 			});
-			await this.sendDataChannelResponse({
+			if (!this.isApprovedDataChannelCurrent(target)) {
+				return;
+			}
+			await this.sendDataChannelResponse(target, {
 				type: 'response',
 				requestId: request.requestId,
 				status: 500,
@@ -1140,30 +1166,26 @@ export class DirectTunnelHost {
 	}
 
 	private async sendDataChannelResponse(
+		target: ApprovedDataChannel,
 		response: DataChannelResponse & { bytes?: Uint8Array }
 	): Promise<void> {
-		if (this.dataChannel?.readyState !== 'open') {
-			throw new Error('Remote access data channel is not open');
-		}
 		const body = response.bytes ?? base64ToUint8Array(response.body);
 		if (body.length <= DATA_CHANNEL_CHUNK_SIZE) {
-			this.dataChannel.send(
-				JSON.stringify({
-					type: 'response',
-					requestId: response.requestId,
-					status: response.status,
-					headers: response.headers,
-					cookies: response.cookies,
-					body:
-						response.bytes === undefined
-							? response.body
-							: uint8ArrayToBase64(body),
-				})
-			);
+			this.sendApprovedMessage(target, {
+				type: 'response',
+				requestId: response.requestId,
+				status: response.status,
+				headers: response.headers,
+				cookies: response.cookies,
+				body:
+					response.bytes === undefined
+						? response.body
+						: uint8ArrayToBase64(body),
+			});
 			return;
 		}
 		const totalChunks = Math.ceil(body.length / DATA_CHANNEL_CHUNK_SIZE);
-		this.sendDataChannelMessage({
+		this.sendApprovedMessage(target, {
 			type: 'response-start',
 			requestId: response.requestId,
 			status: response.status,
@@ -1173,7 +1195,7 @@ export class DirectTunnelHost {
 			totalChunks,
 		});
 		for (let i = 0; i < totalChunks; i++) {
-			this.sendDataChannelMessage({
+			this.sendApprovedMessage(target, {
 				type: 'response-chunk',
 				requestId: response.requestId,
 				index: i,
@@ -1184,42 +1206,70 @@ export class DirectTunnelHost {
 					)
 				),
 			});
-			await this.waitForDataChannelDrain();
+			await this.waitForDataChannelDrain(target.channel);
 		}
-		this.sendDataChannelMessage({
+		this.sendApprovedMessage(target, {
 			type: 'response-complete',
 			requestId: response.requestId,
 		});
 	}
 
-	private sendDataChannelBackupMessage(
-		message:
-			| DataChannelBackupStart
-			| DataChannelBackupChunk
-			| DataChannelBackupComplete
-			| DataChannelBackupError
-	): void {
-		this.sendDataChannelMessage(message);
+	private bindApprovedDataChannel(
+		attemptId: string
+	): ApprovedDataChannel | null {
+		if (this.approvedAttemptId !== attemptId || !this.dataChannel) {
+			return null;
+		}
+		return { attemptId, channel: this.dataChannel };
 	}
 
-	private sendDataChannelMessage(message: DataChannelGuestMessage): void {
-		if (this.dataChannel?.readyState !== 'open') {
+	private isApprovedDataChannelCurrent(target: ApprovedDataChannel): boolean {
+		return (
+			this.approvedAttemptId === target.attemptId &&
+			this.dataChannel === target.channel
+		);
+	}
+
+	/**
+	 * Sends part of an approved request's result. Throws if a newer attempt
+	 * has replaced the channel or approval since the request started.
+	 */
+	private sendApprovedMessage(
+		target: ApprovedDataChannel,
+		message: DataChannelGuestMessage
+	): void {
+		if (!this.isApprovedDataChannelCurrent(target)) {
+			throw new Error('Remote access attempt changed');
+		}
+		this.sendDataChannelMessage(target.channel, message);
+	}
+
+	private sendDataChannelMessage(
+		channel: RTCDataChannel | null,
+		message: DataChannelGuestMessage
+	): void {
+		if (channel?.readyState !== 'open') {
 			throw new Error('Remote access data channel is not open');
 		}
-		this.dataChannel.send(JSON.stringify(message));
+		channel.send(JSON.stringify(message));
 	}
 
-	private sendDataChannelBackupError(requestId: string, error: string): void {
-		this.sendDataChannelBackupMessage({
+	private sendDataChannelBackupError(
+		channel: RTCDataChannel | null,
+		requestId: string,
+		error: string
+	): void {
+		this.sendDataChannelMessage(channel, {
 			type: 'backup-error',
 			requestId,
 			error,
 		});
 	}
 
-	private async waitForDataChannelDrain(): Promise<void> {
-		const channel = this.dataChannel;
-		if (!channel || channel.readyState !== 'open') {
+	private async waitForDataChannelDrain(
+		channel: RTCDataChannel
+	): Promise<void> {
+		if (channel.readyState !== 'open') {
 			throw new Error('Remote access data channel is not open');
 		}
 		if (channel.bufferedAmount < 1024 * 1024) {

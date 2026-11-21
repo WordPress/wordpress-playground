@@ -15,6 +15,7 @@ import {
 	normalizeVerificationCode,
 	readAttemptSignal,
 } from './remote-access-tunnel-utils';
+import { zipWpContent } from '@wp-playground/blueprints';
 
 vi.mock('@wp-playground/blueprints', () => ({
 	zipWpContent: vi.fn(),
@@ -489,5 +490,195 @@ describe('remote access direct tunnel', () => {
 				'host-token-1'
 			);
 		}
+	});
+
+	/*
+	 * A guest can ask the host for a fresh offer without approval. Work that
+	 * began for the approved viewer must not complete on that new channel.
+	 */
+	describe('when an unapproved attempt replaces the approved channel', () => {
+		function createDeferred<T>() {
+			let resolve!: (value: T) => void;
+			const promise = new Promise<T>((res) => {
+				resolve = res;
+			});
+			return { promise, resolve };
+		}
+
+		function createOpenChannel() {
+			const sent: Array<Record<string, unknown>> = [];
+			const channel = {
+				readyState: 'open',
+				bufferedAmount: 0,
+				send: vi.fn((message: string) => {
+					sent.push(JSON.parse(message));
+				}),
+				close: vi.fn(() => {
+					channel.readyState = 'closed';
+				}),
+			};
+			return { channel, sent };
+		}
+
+		type HostInternals = {
+			currentAttemptId: string | null;
+			queueDataChannelMessage: (data: unknown, attemptId: string) => void;
+			handleSignals: (messages: unknown[]) => Promise<void>;
+		};
+
+		function createApprovedHost(
+			client: Record<string, unknown>,
+			replacementChannel: ReturnType<typeof createOpenChannel>['channel']
+		) {
+			vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'));
+			vi.stubGlobal(
+				'RTCPeerConnection',
+				class {
+					localDescription = { type: 'offer', sdp: 'v=0' };
+					createDataChannel() {
+						return replacementChannel;
+					}
+					async createOffer() {
+						return this.localDescription;
+					}
+					async setLocalDescription() {}
+					close() {}
+				}
+			);
+			const approved = createOpenChannel();
+			const host = new DirectTunnelHost(
+				client as ConstructorParameters<typeof DirectTunnelHost>[0],
+				'https://example.test'
+			);
+			Object.assign(host as unknown as Record<string, unknown>, {
+				isActive: true,
+				sessionId: 'session-1',
+				hostToken: 'host-token-1',
+				currentAttemptId: 'attempt-1',
+				approvedAttemptId: 'attempt-1',
+				dataChannel: approved.channel,
+			});
+			return {
+				host: host as unknown as HostInternals,
+				approved,
+			};
+		}
+
+		async function retryFromUnapprovedGuest(host: HostInternals) {
+			await host.handleSignals([
+				{
+					seq: 1,
+					from: 'guest',
+					to: 'host',
+					type: 'retry-request',
+					data: { guestId: 'guest-2' },
+				},
+			]);
+			expect(host.currentAttemptId).not.toBe('attempt-1');
+			return host.currentAttemptId!;
+		}
+
+		afterEach(() => {
+			vi.unstubAllGlobals();
+		});
+
+		it('does not deliver a pending HTTP response to the new channel', async () => {
+			const phpResponse = createDeferred<unknown>();
+			const replacement = createOpenChannel();
+			const { host, approved } = createApprovedHost(
+				{ request: vi.fn(() => phpResponse.promise) },
+				replacement.channel
+			);
+
+			host.queueDataChannelMessage(
+				JSON.stringify({
+					type: 'request',
+					requestId: 'request-1',
+					attemptId: 'attempt-1',
+					method: 'GET',
+					path: '/wp-admin/',
+					headers: {},
+				}),
+				'attempt-1'
+			);
+			const newAttemptId = await retryFromUnapprovedGuest(host);
+			phpResponse.resolve({
+				httpStatusCode: 200,
+				headers: {},
+				bytes: new TextEncoder().encode('approved viewer only'),
+			});
+			await vi.waitFor(() =>
+				expect(
+					(host as unknown as { isProcessingRequest: boolean })
+						.isProcessingRequest
+				).toBe(false)
+			);
+
+			expect(replacement.sent).toEqual([]);
+			expect(approved.sent).toEqual([]);
+
+			host.queueDataChannelMessage(
+				JSON.stringify({
+					type: 'request',
+					requestId: 'request-2',
+					attemptId: newAttemptId,
+					method: 'GET',
+					path: '/wp-admin/',
+					headers: {},
+				}),
+				newAttemptId
+			);
+			expect(replacement.sent).toEqual([
+				expect.objectContaining({
+					type: 'response',
+					requestId: 'request-2',
+					status: 403,
+				}),
+			]);
+		});
+
+		it('does not deliver a pending backup to the new channel', async () => {
+			const backup = createDeferred<Uint8Array>();
+			vi.mocked(zipWpContent).mockReturnValue(
+				backup.promise as ReturnType<typeof zipWpContent>
+			);
+			const replacement = createOpenChannel();
+			const { host, approved } = createApprovedHost(
+				{ run: vi.fn(async () => ({ text: 'Site' })) },
+				replacement.channel
+			);
+
+			host.queueDataChannelMessage(
+				JSON.stringify({
+					type: 'backup-request',
+					requestId: 'backup-1',
+					attemptId: 'attempt-1',
+				}),
+				'attempt-1'
+			);
+			await vi.waitFor(() => expect(zipWpContent).toHaveBeenCalled());
+			const newAttemptId = await retryFromUnapprovedGuest(host);
+			backup.resolve(new Uint8Array(40 * 1024));
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(replacement.sent).toEqual([]);
+			expect(approved.sent).toEqual([]);
+
+			host.queueDataChannelMessage(
+				JSON.stringify({
+					type: 'backup-request',
+					requestId: 'backup-2',
+					attemptId: newAttemptId,
+				}),
+				newAttemptId
+			);
+			expect(replacement.sent).toEqual([
+				{
+					type: 'backup-error',
+					requestId: 'backup-2',
+					error: 'Waiting for approval on the host device.',
+				},
+			]);
+		});
 	});
 });
