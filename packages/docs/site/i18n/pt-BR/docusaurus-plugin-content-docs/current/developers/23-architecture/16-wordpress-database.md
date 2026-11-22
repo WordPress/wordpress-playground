@@ -1,5 +1,6 @@
 ---
 title: Como funciona?
+description: Saiba como o WordPress Playground converte consultas MySQL para SQLite para executar o WordPress no navegador.
 ---
 
 <!-- ## Database is supported via MySQL\<\-\>SQLite translation layer -->
