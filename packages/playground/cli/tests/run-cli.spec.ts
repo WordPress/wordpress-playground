@@ -1356,7 +1356,8 @@ describe.each(blueprintVersions)(
 						[1 => ['pipe', 'w'], 2 => ['pipe', 'w']],
 						$pipes
 					);
-					$pids[] = trim((string) stream_get_contents($pipes[1]));
+					${phpDrainProcessPipes}
+					$pids[] = trim($stdout);
 					fclose($pipes[1]);
 					fclose($pipes[2]);
 					proc_close($proc);
@@ -1375,6 +1376,11 @@ describe.each(blueprintVersions)(
 				text.match(/CHILD_PIDS:([\d,]+)/)?.[1].split(',') ?? [];
 
 			expect(childPids).toHaveLength(spawnCount);
+			// An empty entry would mean a child's output was never read, which
+			// would let the assertions below pass without comparing real ids.
+			for (const childPid of childPids) {
+				expect(childPid).toMatch(/^\d+$/);
+			}
 
 			// A child must never run under the process id of a worker that is
 			// still alive, or the two would share OS-level file locks.
