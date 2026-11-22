@@ -15,9 +15,7 @@ describe('local directory availability', () => {
 	let root: Root;
 	let availability: LocalFsAvailability | null;
 	const playground = {
-		absoluteUrl: Promise.resolve(
-			'http://wp.playground.localhost/scope:site/'
-		),
+		absoluteUrl: Promise.resolve('http://wp.playground.localhost/scope:site/'),
 	} as unknown as PlaygroundClient;
 
 	beforeEach(() => {

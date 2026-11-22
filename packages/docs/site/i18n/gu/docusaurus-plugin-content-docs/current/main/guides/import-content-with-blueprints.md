@@ -42,11 +42,11 @@ These approaches solve different problems:
 | [`importWordPressFiles`](#restore-a-playground-zip-with-importwordpressfiles) | Restoring a complete Playground demo                                                 | The database and any WordPress files present in the ZIP, such as plugins, themes, and uploads |
 -->
 
-| પદ્ધતિ (Method)                                                               | આના માટે શ્રેષ્ઠ છે                                                                       | તે શું ટ્રાન્સફર કરે છે                                                                                |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| પદ્ધતિ (Method)                                                                | આના માટે શ્રેષ્ઠ છે                                                                    | તે શું ટ્રાન્સફર કરે છે                                                                      |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
 | [`importWxr`](#import-a-wordpress-xml-export-with-importwxr)                  | હાલની સામગ્રીને ઓવરરાઇટ કર્યા વિના વર્ડપ્રેસ સાઇટ્સ વચ્ચે શેર કરવા યોગ્ય પોર્ટેબલ સામગ્રી | પોસ્ટ્સ, પેજિસ, કસ્ટમ પોસ્ટ ટાઇપ્સ, ટર્મ્સ, લેખકો (authors), ટિપ્પણીઓ (comments) અને એટેચમેન્ટ સંદર્ભો |
-| [`runPHP`](#generate-content-with-runphp)                                     | નાના, ચોક્કસ (deterministic) ફિક્સ્ચર્સ અને કસ્ટમ લૉજિકની જરૂર હોય તેવી સામગ્રી           | વર્ડપ્રેસ APIs દ્વારા PHP કોડ જે પણ બનાવે છે તે બધું                                                   |
-| [`importWordPressFiles`](#restore-a-playground-zip-with-importwordpressfiles) | સંપૂર્ણ પ્લેગ્રાઉન્ડ ડેમો રિસ્ટોર કરવા માટે                                               | ડેટાબેઝ અને ZIP માં હાજર કોઈપણ વર્ડપ્રેસ ફાઇલો, જેમ કે પ્લગઇન્સ, થીમ્સ અને અપલોડ્સ                     |
+| [`runPHP`](#generate-content-with-runphp)                                     | નાના, ચોક્કસ (deterministic) ફિક્સ્ચર્સ અને કસ્ટમ લૉજિકની જરૂર હોય તેવી સામગ્રી       | વર્ડપ્રેસ APIs દ્વારા PHP કોડ જે પણ બનાવે છે તે બધું                                         |
+| [`importWordPressFiles`](#restore-a-playground-zip-with-importwordpressfiles) | સંપૂર્ણ પ્લેગ્રાઉન્ડ ડેમો રિસ્ટોર કરવા માટે                                            | ડેટાબેઝ અને ZIP માં હાજર કોઈપણ વર્ડપ્રેસ ફાઇલો, જેમ કે પ્લગઇન્સ, થીમ્સ અને અપલોડ્સ            |
 
 <!--
 If you only need posts and terms, start with WXR. If the content is generated or

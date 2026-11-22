@@ -25,11 +25,11 @@ WordPress Playground एक ओपन सोर्स प्रोजेक्�
 -   Translation? see the [translation section](/contributing/translations).
 -->
 
-- कोड? [डेवलपर सेक्शन](/contributing/code) देखें।
-- दस्तावेज़ीकरण? [दस्तावेज़ीकरण सेक्शन](/contributing/documentation) देखें।
-- बग रिपोर्ट करनी है? मुख्य GitHub रिपॉज़िटरी में [नया इश्यू](https://github.com/WordPress/wordpress-playground/issues/new) खोलें, या [Playground Tools](https://github.com/WordPress/playground-tools/issues/new) में।
-- विचार, डिज़ाइन या कुछ और? [GitHub चर्चा](https://github.com/WordPress/wordpress-playground/discussions) शुरू करें, और बात करते हैं!
-- अनुवाद? [अनुवाद सेक्शन](/contributing/translations) देखें।
+-   कोड? [डेवलपर सेक्शन](/contributing/code) देखें।
+-   दस्तावेज़ीकरण? [दस्तावेज़ीकरण सेक्शन](/contributing/documentation) देखें।
+-   बग रिपोर्ट करनी है? मुख्य GitHub रिपॉज़िटरी में [नया इश्यू](https://github.com/WordPress/wordpress-playground/issues/new) खोलें, या [Playground Tools](https://github.com/WordPress/playground-tools/issues/new) में।
+-   विचार, डिज़ाइन या कुछ और? [GitHub चर्चा](https://github.com/WordPress/wordpress-playground/discussions) शुरू करें, और बात करते हैं!
+-   अनुवाद? [अनुवाद सेक्शन](/contributing/translations) देखें।
 
 <!-- ## Guidelines -->
 
@@ -41,9 +41,9 @@ WordPress Playground एक ओपन सोर्स प्रोजेक्�
 -   You maintain copyright over any contribution you make. By submitting a Pull Request, you agree to release that code under [WordPress Playground License](https://github.com/WordPress/wordpress-playground?tab=GPL-2.0-1-ov-file#readme).
 -->
 
-- सभी WordPress प्रोजेक्ट्स की तरह, हम सभी के लिए एक स्वागतपूर्ण और सम्मानजनक माहौल सुनिश्चित करना चाहते हैं। ज़्यादा जानने के लिए कृपया हमारे समुदाय की [आचार संहिता](https://make.wordpress.org/handbook/community-code-of-conduct/) पढ़ें।
-- कोड योगदानकर्ताओं को [कोडिंग सिद्धांत](/contributing/coding-standards) ज़रूर देखने चाहिए।
-- आप अपने हर योगदान का कॉपीराइट अपने पास रखते हैं। पुल रिक्वेस्ट भेजकर आप उस कोड को [WordPress Playground लाइसेंस](https://github.com/WordPress/wordpress-playground?tab=GPL-2.0-1-ov-file#readme) के तहत जारी करने के लिए सहमत होते हैं।
+-   सभी WordPress प्रोजेक्ट्स की तरह, हम सभी के लिए एक स्वागतपूर्ण और सम्मानजनक माहौल सुनिश्चित करना चाहते हैं। ज़्यादा जानने के लिए कृपया हमारे समुदाय की [आचार संहिता](https://make.wordpress.org/handbook/community-code-of-conduct/) पढ़ें।
+-   कोड योगदानकर्ताओं को [कोडिंग सिद्धांत](/contributing/coding-standards) ज़रूर देखने चाहिए।
+-   आप अपने हर योगदान का कॉपीराइट अपने पास रखते हैं। पुल रिक्वेस्ट भेजकर आप उस कोड को [WordPress Playground लाइसेंस](https://github.com/WordPress/wordpress-playground?tab=GPL-2.0-1-ov-file#readme) के तहत जारी करने के लिए सहमत होते हैं।
 
 <!-- ## Triaging issues -->
 
@@ -84,10 +84,10 @@ WordPress Playground और WordPress प्रोजेक्ट की जड�
 -   The GPL license ensures that the project remains free and open-source, not only in terms of cost but also with respect to the freedom to use, modify, and distribute the software.
 -->
 
-- योगदान करके आप अपने योगदान को GPLv2 (या बाद के संस्करण) लाइसेंस के तहत लाइसेंस देने के लिए सहमत होते हैं।
-- GPL लाइसेंस में मज़बूत कॉपीलेफ़्ट प्रावधान हैं, जो पक्का करते हैं कि सभी व्युत्पन्न काम ओपन सोर्स रहें और उन्हीं लाइसेंस शर्तों के तहत रहें। इससे मिल-जुलकर विकास करने का माहौल बढ़ता है।
-- GPL लाइसेंस किसी भी बदलाव, बग फ़िक्स या नई सुविधा को मूल कोडबेस में वापस योगदान करने को प्रोत्साहित करता है।
-- GPL लाइसेंस यह पक्का करता है कि प्रोजेक्ट मुक्त और ओपन सोर्स बना रहे, सिर्फ़ कीमत के मामले में नहीं, बल्कि सॉफ़्टवेयर का उपयोग करने, उसमें बदलाव करने और उसे बाँटने की आज़ादी के मामले में भी।
+-   योगदान करके आप अपने योगदान को GPLv2 (या बाद के संस्करण) लाइसेंस के तहत लाइसेंस देने के लिए सहमत होते हैं।
+-   GPL लाइसेंस में मज़बूत कॉपीलेफ़्ट प्रावधान हैं, जो पक्का करते हैं कि सभी व्युत्पन्न काम ओपन सोर्स रहें और उन्हीं लाइसेंस शर्तों के तहत रहें। इससे मिल-जुलकर विकास करने का माहौल बढ़ता है।
+-   GPL लाइसेंस किसी भी बदलाव, बग फ़िक्स या नई सुविधा को मूल कोडबेस में वापस योगदान करने को प्रोत्साहित करता है।
+-   GPL लाइसेंस यह पक्का करता है कि प्रोजेक्ट मुक्त और ओपन सोर्स बना रहे, सिर्फ़ कीमत के मामले में नहीं, बल्कि सॉफ़्टवेयर का उपयोग करने, उसमें बदलाव करने और उसे बाँटने की आज़ादी के मामले में भी।
 
 <!-- If you have any questions about how the above might affect your contributions, please feel free to reach out on WP Slack and the [`#playground` channel](https://wordpress.slack.com/archives/C04EWKGDJ0K). -->
 

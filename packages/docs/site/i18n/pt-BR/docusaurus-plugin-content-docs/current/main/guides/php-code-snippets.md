@@ -767,17 +767,17 @@ O fragmento da URL é um JSON codificado em base64 com os campos `code`, `php` e
 | A complete WordPress site preview                     | Standard Playground iframe                |
 -->
 
-| Caso de uso                                                   | Use                                       |
-| ------------------------------------------------------------- | ----------------------------------------- |
-| Vários exemplos executáveis em um artigo                      | `<php-snippet>`                           |
-| Um passo de tutorial em que os leitores devem editar o código | `<php-snippet>`                           |
-| Configuração compartilhada entre exemplos                     | `<php-snippet blueprint="...">`           |
-| Configuração PHP oculta antes de cada execução                | `<php-snippet auto-prepend-script="...">` |
-| Código PHP sem tag de abertura                                | `<php-snippet implicit-php-open-tag>`     |
-| Um exemplo da linguagem PHP pura                              | `<php-snippet wp="none">`                 |
-| Um exemplo executável que não deve ser editado                | `<php-snippet readonly>`                  |
-| Um editor único em página inteira com URL compartilhável      | PHP Playground independente               |
-| A pré-visualização de um site WordPress completo              | Iframe padrão do Playground               |
+| Caso de uso                                                     | Use                                       |
+| --------------------------------------------------------------- | ----------------------------------------- |
+| Vários exemplos executáveis em um artigo                        | `<php-snippet>`                           |
+| Um passo de tutorial em que os leitores devem editar o código   | `<php-snippet>`                           |
+| Configuração compartilhada entre exemplos                       | `<php-snippet blueprint="...">`           |
+| Configuração PHP oculta antes de cada execução                  | `<php-snippet auto-prepend-script="...">` |
+| Código PHP sem tag de abertura                                  | `<php-snippet implicit-php-open-tag>`     |
+| Um exemplo da linguagem PHP pura                                | `<php-snippet wp="none">`                 |
+| Um exemplo executável que não deve ser editado                  | `<php-snippet readonly>`                  |
+| Um editor único em página inteira com URL compartilhável        | PHP Playground independente               |
+| A pré-visualização de um site WordPress completo                | Iframe padrão do Playground               |
 
 <!-- ## Troubleshooting -->
 

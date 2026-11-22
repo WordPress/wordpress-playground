@@ -27,10 +27,10 @@ description: किसी WordCamp के Contributor Day पर WordPress Playg
 -   **Check the Playground Repository**: If you never contribute with the WordPress Playground Repository, you should get familiar with this a good section at the documentation that can guide you to understand the project is [Developers > Architecture](/developers/architecture) it will contain information how the project is organized. If you have any questions, please get in touch with the team at the Playground Slack channel.
 -->
 
-- **"Good First Issues" चुनें और व्यवस्थित करें**: GitHub पर [good first issues की सूची](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) की समीक्षा करें और उसे अपडेट करें। ये ऐसे सीधे काम होने चाहिए जिन्हें नए योगदानकर्ता खुद पूरा कर सकें। अगर आपको कोई ऐसा बग मिले जो सूची में नहीं है लेकिन उसका हिस्सा हो सकता है, तो Slack चैनल पर Playground टीम से संपर्क करें।
-- **Playground टीम के साथ तालमेल बनाएँ**: पता करें कि इवेंट के दौरान ऑनलाइन मदद के लिए Playground टीम के सदस्य उपलब्ध हैं या नहीं, खासकर फ़्लैगशिप WordCamps के लिए। टाइमज़ोन के अंतर की वजह से, उनकी उपलब्धता जानने के लिए #playground चैनल पर पहले से बात कर लें।
-- **स्थानीय योगदानकर्ताओं से जुड़ें**: इलाके के उन नियमित योगदानकर्ताओं को पहचानें जो इवेंट में आ रहे हैं। #playground Slack चैनल पर पता करें कि कोई सक्रिय समुदाय सदस्य Contributor Day में हिस्सा ले रहा है या नहीं। यह प्रतिक्रिया जुटाने और समुदाय के रिश्ते मज़बूत करने का एक मौका है।
-- **Playground रिपॉज़िटरी से परिचित हों**: अगर आपने पहले कभी WordPress Playground रिपॉज़िटरी में योगदान नहीं किया है, तो पहले उससे परिचित हो जाएँ। प्रोजेक्ट को समझने के लिए दस्तावेज़ीकरण का [Developers > Architecture](/developers/architecture) सेक्शन अच्छी शुरुआत है, जिसमें बताया गया है कि प्रोजेक्ट कैसे व्यवस्थित है। अगर कोई सवाल हो, तो Playground Slack चैनल पर टीम से संपर्क करें।
+-   **"Good First Issues" चुनें और व्यवस्थित करें**: GitHub पर [good first issues की सूची](https://github.com/WordPress/wordpress-playground/labels/good%20first%20issue) की समीक्षा करें और उसे अपडेट करें। ये ऐसे सीधे काम होने चाहिए जिन्हें नए योगदानकर्ता खुद पूरा कर सकें। अगर आपको कोई ऐसा बग मिले जो सूची में नहीं है लेकिन उसका हिस्सा हो सकता है, तो Slack चैनल पर Playground टीम से संपर्क करें।
+-   **Playground टीम के साथ तालमेल बनाएँ**: पता करें कि इवेंट के दौरान ऑनलाइन मदद के लिए Playground टीम के सदस्य उपलब्ध हैं या नहीं, खासकर फ़्लैगशिप WordCamps के लिए। टाइमज़ोन के अंतर की वजह से, उनकी उपलब्धता जानने के लिए #playground चैनल पर पहले से बात कर लें।
+-   **स्थानीय योगदानकर्ताओं से जुड़ें**: इलाके के उन नियमित योगदानकर्ताओं को पहचानें जो इवेंट में आ रहे हैं। #playground Slack चैनल पर पता करें कि कोई सक्रिय समुदाय सदस्य Contributor Day में हिस्सा ले रहा है या नहीं। यह प्रतिक्रिया जुटाने और समुदाय के रिश्ते मज़बूत करने का एक मौका है।
+-   **Playground रिपॉज़िटरी से परिचित हों**: अगर आपने पहले कभी WordPress Playground रिपॉज़िटरी में योगदान नहीं किया है, तो पहले उससे परिचित हो जाएँ। प्रोजेक्ट को समझने के लिए दस्तावेज़ीकरण का [Developers > Architecture](/developers/architecture) सेक्शन अच्छी शुरुआत है, जिसमें बताया गया है कि प्रोजेक्ट कैसे व्यवस्थित है। अगर कोई सवाल हो, तो Playground Slack चैनल पर टीम से संपर्क करें।
 
 <!-- ## Starting the Day -->
 
@@ -63,6 +63,7 @@ description: किसी WordCamp के Contributor Day पर WordPress Playg
 -->
 
 4. **ज़रूरी लिंक साझा करें**: ये संसाधन `#playground` चैनल में पोस्ट करें:
+
     - [WordPress Playground वेब इंस्टेंस](https://playground.wordpress.net/)
     - [Playground दस्तावेज़ीकरण](https://wordpress.github.io/wordpress-playground/)
     - [Playground Step Library](https://akirk.github.io/playground-step-library/)
@@ -96,10 +97,10 @@ description: किसी WordCamp के Contributor Day पर WordPress Playg
 -   Testing and product feedback.
 -->
 
-- दस्तावेज़ीकरण में सुधार और अनुवाद।
-- ध्यान से लिखे गए इश्यू, जिनमें समस्या के साथ ऐसे हल भी हों जिन पर काम किया जा सके।
-- ब्लूप्रिंट बनाना और WordPress प्लगइन रिपॉज़िटरी में प्लगइन डेमो।
-- परीक्षण और प्रोडक्ट पर प्रतिक्रिया।
+-   दस्तावेज़ीकरण में सुधार और अनुवाद।
+-   ध्यान से लिखे गए इश्यू, जिनमें समस्या के साथ ऐसे हल भी हों जिन पर काम किया जा सके।
+-   ब्लूप्रिंट बनाना और WordPress प्लगइन रिपॉज़िटरी में प्लगइन डेमो।
+-   परीक्षण और प्रोडक्ट पर प्रतिक्रिया।
 
 <!-- **Foster Collaboration**: Look for cross-table opportunities. For example, contributors at the [Polyglots/Translation table](https://make.wordpress.org/polyglots/) might translate Playground documentation, or the [Core Test team](https://make.wordpress.org/test/) could provide valuable Playground feedback. -->
 
@@ -129,6 +130,7 @@ description: किसी WordCamp के Contributor Day पर WordPress Playg
 -->
 
 2. **साफ़ उम्मीदें तय करें**: अधूरे PR के लिए यह तरीका अपनाएँ:
+
     - एक महीने तक कोई गतिविधि न होने पर, टिप्पणी करके पूछें कि क्या लेखक काम पूरा करना चाहते हैं।
     - अगर दो और हफ़्तों तक जवाब न आए, तो उन्हें बताएँ कि PR को कोई दूसरा योगदानकर्ता आगे बढ़ा सकता है, या उसे बंद किया जा सकता है।
 
@@ -150,9 +152,9 @@ description: किसी WordCamp के Contributor Day पर WordPress Playg
 -   **Report Issues**: Submit to the [WordPress Playground GitHub repository](https://github.com/WordPress/wordpress-playground/issues/new).
 -->
 
-- **इवेंट के दौरान**: Playground टेबल पर योगदानकर्ताओं से जुड़ें।
-- **लगातार मदद**: [`#playground` Slack चैनल](https://wordpress.slack.com/archives/C04EWKGDJ0K) का उपयोग करें।
-- **इश्यू रिपोर्ट करें**: [WordPress Playground GitHub रिपॉज़िटरी](https://github.com/WordPress/wordpress-playground/issues/new) में भेजें।
+-   **इवेंट के दौरान**: Playground टेबल पर योगदानकर्ताओं से जुड़ें।
+-   **लगातार मदद**: [`#playground` Slack चैनल](https://wordpress.slack.com/archives/C04EWKGDJ0K) का उपयोग करें।
+-   **इश्यू रिपोर्ट करें**: [WordPress Playground GitHub रिपॉज़िटरी](https://github.com/WordPress/wordpress-playground/issues/new) में भेजें।
 
 <!-- For more information on contributing to WordPress Playground, see the [Contributor Day guide](/contributing/contributor-day). -->
 
