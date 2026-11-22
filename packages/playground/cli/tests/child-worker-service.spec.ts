@@ -203,6 +203,61 @@ describe('createChildWorkerService', function () {
 		expect(readySettled).toBe(true);
 	});
 
+	it('starts the next mount only after a disposed child has stopped', async function () {
+		const harness = createSpawnHarness();
+		const controller = createController(harness);
+		const stoppingChild = await controller.api.createChildWorker();
+		const nextChild = await controller.api.createChildWorker();
+		// This mount never finishes by itself. Only stopping the worker ends it.
+		const mountThatNeverFinishes = vi.fn(function (): Promise<void> {
+			return new Promise<void>(function neverSettle(): void {});
+		});
+		const nextMount = vi.fn(async function (): Promise<void> {});
+		exposeChildControl(
+			stoppingChild.workerConfig.childWorkerControlPort,
+			mountThatNeverFinishes
+		);
+		exposeChildControl(
+			nextChild.workerConfig.childWorkerControlPort,
+			nextMount
+		);
+		const stoppingWorker = harness.workers[0];
+		let finishTermination!: () => void;
+		stoppingWorker.terminate = function (): Promise<number> {
+			return new Promise<number>(function captureFinish(resolve): void {
+				finishTermination = function (): void {
+					stoppingWorker.exit();
+					resolve(0);
+				};
+			});
+		};
+
+		const mountsApplied = controller.applyPostInstallMounts([
+			{ hostPath: '/host/data', vfsPath: '/wordpress/data' },
+		]);
+		await vi.waitFor(function waitForFirstMount(): void {
+			expect(mountThatNeverFinishes).toHaveBeenCalledOnce();
+		});
+		const disposed = controller.api.disposeChildWorker(
+			stoppingChild.childId
+		);
+		await vi.waitFor(function waitForTerminationToStart(): void {
+			expect(finishTermination).toBeDefined();
+		});
+		await nextTask();
+
+		try {
+			// The child was asked to stop, but its worker is still running and
+			// may still be writing to the shared filesystem.
+			expect(nextMount).not.toHaveBeenCalled();
+		} finally {
+			finishTermination();
+		}
+		await disposed;
+		await mountsApplied;
+		expect(nextMount).toHaveBeenCalledOnce();
+	});
+
 	it('stops waiting to apply mounts when the child exits', async function () {
 		const harness = createSpawnHarness();
 		const controller = createController(harness);

@@ -475,13 +475,11 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 				}
 				const mountOperation =
 					child.controlApi.mountAfterWordPressInstall(mounts);
-				// Comlink does not reject a pending call when its endpoint closes.
-				// Termination wins this race so install and disposal always settle.
-				await Promise.race([
-					mountOperation,
-					child.terminated.promise,
-					child.disposeRequested.promise,
-				]);
+				// Comlink does not reject a pending call when its endpoint closes,
+				// so termination also ends this wait. A disposal request does not:
+				// the child may keep mounting until its worker has stopped, and
+				// freeing the queue sooner would let the next NODEFS mount overlap.
+				await Promise.race([mountOperation, child.terminated.promise]);
 			}
 		);
 		// A child waiting behind another NODEFS mount must not hold disposal open.
