@@ -110,10 +110,13 @@ function assertIsMessagePort(
 				`of its ports instead of passing the proxy itself.`
 		);
 	}
+	// A Worker also has postMessage(), but the synchronous transport can only
+	// receive on a port. start() is what tells the two apart.
 	if (
 		remote === null ||
 		typeof remote !== 'object' ||
-		typeof remote.postMessage !== 'function'
+		typeof remote.postMessage !== 'function' ||
+		typeof remote.start !== 'function'
 	) {
 		throw new TypeError(
 			`${callerName}() expects a MessagePort but received ` +

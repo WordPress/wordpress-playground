@@ -52,6 +52,9 @@ describe('consumeAPISync() endpoint validation', () => {
 		['null', null],
 		['undefined', undefined],
 		['a plain object', {}],
+		// A Worker can post messages too, but only a port can receive
+		// synchronously.
+		['a Worker-like object', { postMessage: () => undefined }],
 	])('rejects %s', async (_label, value) => {
 		await expect(consumeAPISync(value as any)).rejects.toThrow(
 			/expects a MessagePort/
