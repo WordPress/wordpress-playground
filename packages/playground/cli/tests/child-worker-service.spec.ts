@@ -102,6 +102,31 @@ describe('createChildWorkerService', function () {
 		expect(controller.liveChildWorkerCount()).toBe(2);
 	});
 
+	it('releases the file locks of a child that exits without releasing them', async function () {
+		const harness = createSpawnHarness();
+		const fileLockManager = new FileLockManagerInMemory();
+		const controller = createController(harness, fileLockManager);
+		const child = await controller.api.createChildWorker();
+		const childProcessId = child.workerConfig.processId;
+		fileLockManager.lockWholeFile('/wordpress/db.sqlite', {
+			pid: childProcessId,
+			fd: 1,
+			type: 'exclusive',
+		});
+
+		// The worker stops in the middle of a PHP request, so PHP never
+		// reaches the request shutdown that would release the lock.
+		harness.workers[0].exit(1);
+
+		expect(
+			fileLockManager.lockWholeFile('/wordpress/db.sqlite', {
+				pid: childProcessId + 1,
+				fd: 1,
+				type: 'exclusive',
+			})
+		).toBe(true);
+	});
+
 	it('applies post-install mounts to a child that is already connected', async function () {
 		const harness = createSpawnHarness();
 		const controller = createController(harness);
@@ -425,11 +450,14 @@ describe('createChildWorkerService', function () {
 	});
 });
 
-function createController(harness: SpawnHarness): TestController {
+function createController(
+	harness: SpawnHarness,
+	fileLockManager = new FileLockManagerInMemory()
+): TestController {
 	let mountQueue = Promise.resolve();
 	const controller = createChildWorkerService(
 		harness.spawnWorker,
-		new FileLockManagerInMemory(),
+		fileLockManager,
 		function enqueuePostInstallMount(
 			mount: () => Promise<void>
 		): Promise<void> {

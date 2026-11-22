@@ -288,7 +288,11 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 					child.worker = worker;
 					child.workerCreated.resolve();
 				},
-				onExit: function recordWorkerExit(): void {
+				onExit: function recordWorkerExit(_code, processId): void {
+					// A worker stopped in the middle of a PHP request never runs
+					// the request shutdown that releases its locks. Release them
+					// now, before a later worker can be given the same process ID.
+					fileLockManager.releaseLocksForProcess(processId);
 					handleChildExit(child);
 				},
 			});
