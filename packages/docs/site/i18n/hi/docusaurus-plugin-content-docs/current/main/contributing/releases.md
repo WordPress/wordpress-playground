@@ -76,6 +76,7 @@ After the initial publish, go to the package's settings on npmjs.com and set up 
     - **Workflow filename**: `publish-npm-packages.yml`
     - **Environment**: `npm`
 4. Under **Allowed actions**, select `npm publish`. A new trusted publisher allows only `npm stage publish` by default, and the release workflow publishes directly.
+5. Run the release workflow within 48 hours, for example with the workflow dispatch. A new trusted publisher expires if it doesn't complete a publish in that time, and you then need to delete it and create a new one.
 -->
 
 पहली बार पब्लिश करने के बाद, npmjs.com पर पैकेज की सेटिंग्स में जाएँ और OIDC trusted publishing सेट करें:
@@ -88,6 +89,7 @@ After the initial publish, go to the package's settings on npmjs.com and set up 
     - **Workflow filename**: `publish-npm-packages.yml`
     - **Environment**: `npm`
 4. **Allowed actions** में `npm publish` चुनें। नया trusted publisher डिफ़ॉल्ट रूप से सिर्फ़ `npm stage publish` की अनुमति देता है, और रिलीज़ वर्कफ़्लो सीधे पब्लिश करता है।
+5. 48 घंटे के अंदर रिलीज़ वर्कफ़्लो चलाएँ, उदाहरण के लिए workflow dispatch से। अगर नया trusted publisher इतने समय में कोई पब्लिश पूरा नहीं करता, तो उसकी अवधि ख़त्म हो जाती है, और फिर आपको उसे हटाकर नया बनाना होगा।
 
 <!-- ![Setting up OIDC trusted publishing on npm](/img/php-wasm-node-oidc.webp) -->
 
