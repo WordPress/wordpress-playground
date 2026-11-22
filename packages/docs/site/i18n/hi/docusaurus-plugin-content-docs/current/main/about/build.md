@@ -11,7 +11,7 @@ sidebar_class_name: navbar-build-item
 
 <!-- WordPress Playground can help you to create and learn WordPress quickly, even on mobile with no signal. You can use Playground where you work best, whether that’s in the browser, Node.js, mobile apps, VS Code, or elsewhere. -->
 
-WordPress Playground की मदद से आप WordPress के साथ जल्दी बना और सीख सकते हैं, मोबाइल पर बिना सिग्नल के भी। आप Playground को वहीं इस्तेमाल कर सकते हैं जहाँ आप सबसे अच्छा काम करते हैं, चाहे वह ब्राउज़र हो, Node.js हो, मोबाइल ऐप हों, VS Code हो या कोई और जगह।
+WordPress Playground की मदद से आप जल्दी से WordPress साइटें बना सकते हैं और WordPress सीख सकते हैं, मोबाइल पर बिना सिग्नल के भी। आप Playground को वहीं इस्तेमाल कर सकते हैं जहाँ आप सबसे अच्छा काम करते हैं, चाहे वह ब्राउज़र हो, Node.js हो, मोबाइल ऐप हों, VS Code हो या कोई और जगह।
 
 <!-- ## Setting up a local WordPress environment quickly -->
 
