@@ -38,6 +38,10 @@ export const CHILD_WORKER_CONTROL_READY = 'child-worker-control-ready';
 export interface WorkerPlatformConfig {
 	siteUrl: string;
 	phpVersion: AllPHPVersion;
+	/**
+	 * php.ini entries set via the --php-ini flag.
+	 */
+	phpIniEntries?: Record<string, string>;
 	trace: boolean;
 	/**
 	 * Blueprints v2 only: toggles the networking-related php.ini entries and

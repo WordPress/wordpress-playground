@@ -73,6 +73,123 @@ class EndpointWithoutRequestHandler extends TestEndpoint {
 }
 
 describe('PlaygroundWorkerEndpoint', () => {
+	test.each(['run', 'runStream'] as const)(
+		'%s uses the primary PHP instance when requested, even with a request handler',
+		async (method) => {
+			const response = { finished: Promise.resolve() };
+			const acquirePHPInstance = vi.fn();
+			const requestHandler = {
+				absoluteUrl: 'http://127.0.0.1/',
+				documentRoot: '/wordpress',
+				instanceManager: { acquirePHPInstance },
+			};
+			const endpoint = new TestEndpoint(
+				requestHandler as unknown as PHPRequestHandler
+			);
+			const event = { type: 'worker.ready' };
+			const message = 'primary message';
+			const onEvent = vi.fn();
+			const onMessage = vi.fn();
+			endpoint.addEventListener(event.type, onEvent);
+			await endpoint.onMessage(onMessage);
+			const primaryRun = vi.fn(async () => {
+				await primaryPhp.emitEvent(event);
+				await primaryPhp.emitMessage(message);
+				return response;
+			});
+			const primaryPhp = {
+				...createMockPHP(),
+				requestHandler,
+				[method]: primaryRun,
+			};
+			await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+			const request = { code: "<?php echo 'hi!';", usePrimaryPhp: true };
+
+			await expect(endpoint[method](request)).resolves.toBe(response);
+			await expect(endpoint[method](request)).resolves.toBe(response);
+			expect(onEvent).toHaveBeenCalledTimes(2);
+			expect(onEvent).toHaveBeenCalledWith(event);
+			expect(onMessage).toHaveBeenCalledTimes(2);
+			expect(onMessage).toHaveBeenCalledWith(message);
+			expect(primaryPhp.addEventListener).toHaveBeenCalledOnce();
+			expect(primaryPhp.onMessage).toHaveBeenCalledOnce();
+			expect(primaryRun).toHaveBeenCalledWith(request);
+			expect(acquirePHPInstance).not.toHaveBeenCalled();
+		}
+	);
+
+	test.each(['run', 'runStream'] as const)(
+		'%s still acquires a pooled instance by default',
+		async (method) => {
+			const response = { finished: Promise.resolve() };
+			const pooledRun = vi.fn().mockResolvedValue(response);
+			const pooledPhp = {
+				...createMockPHP(),
+				chdir: vi.fn(),
+				[method]: pooledRun,
+			};
+			const reap = vi.fn();
+			const requestHandler = {
+				absoluteUrl: 'http://127.0.0.1/',
+				documentRoot: '/wordpress',
+				instanceManager: {
+					acquirePHPInstance: vi.fn().mockResolvedValue({
+						php: pooledPhp,
+						reap,
+					}),
+				},
+			};
+			const endpoint = new TestEndpoint(
+				requestHandler as unknown as PHPRequestHandler
+			);
+			const primaryRun = vi.fn();
+			const primaryPhp = {
+				...createMockPHP(),
+				requestHandler,
+				[method]: primaryRun,
+			};
+			await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+			for (const usePrimaryPhp of [undefined, false]) {
+				const request = { code: "<?php echo 'hi!';", usePrimaryPhp };
+				await expect(endpoint[method](request)).resolves.toBe(response);
+				expect(pooledRun).toHaveBeenLastCalledWith(request);
+			}
+			expect(primaryRun).not.toHaveBeenCalled();
+			expect(
+				requestHandler.instanceManager.acquirePHPInstance
+			).toHaveBeenCalledTimes(2);
+			await vi.waitFor(() => expect(reap).toHaveBeenCalledTimes(2));
+		}
+	);
+
+	test.each(['run', 'runStream'] as const)(
+		'%s reports a primary failure without retrying on a pooled instance',
+		async (method) => {
+			const failure = new Error('Primary request failed');
+			const acquirePHPInstance = vi.fn();
+			const requestHandler = {
+				absoluteUrl: 'http://127.0.0.1/',
+				documentRoot: '/wordpress',
+				instanceManager: { acquirePHPInstance },
+			};
+			const endpoint = new TestEndpoint(
+				requestHandler as unknown as PHPRequestHandler
+			);
+			const primaryPhp = {
+				...createMockPHP(),
+				[method]: vi.fn().mockRejectedValue(failure),
+			};
+			await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+			await expect(
+				endpoint[method]({
+					code: "<?php echo 'hi!';",
+					usePrimaryPhp: true,
+				})
+			).rejects.toBe(failure);
+			expect(acquirePHPInstance).not.toHaveBeenCalled();
+		}
+	);
+
 	test('copies files using the primary PHP instance', async () => {
 		const endpoint = new TestEndpoint();
 		const primaryPhp = {

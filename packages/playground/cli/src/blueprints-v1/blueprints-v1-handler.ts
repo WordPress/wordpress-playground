@@ -200,6 +200,7 @@ export class BlueprintsV1Handler {
 			{
 				phpVersion: runtimeConfiguration.phpVersion,
 				siteUrl: this.siteUrl,
+				phpIniEntries: this.args['php-ini'],
 				mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 				mountsAfterWpInstall: this.args['mount'] || [],
 				followSymlinks: this.args.followSymlinks === true,

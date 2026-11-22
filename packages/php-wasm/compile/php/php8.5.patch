@@ -12,6 +12,23 @@ index b2a3105dc62..f7e328312a8 100644
  #endif
  #include "ZendAccelerator.h"
 
+diff --git a/php-src/ext/opcache/zend_file_cache.c b/php-src/ext/opcache/zend_file_cache.c
+index fef6a5a..65e49e1 100644
+--- a/php-src/ext/opcache/zend_file_cache.c
++++ b/php-src/ext/opcache/zend_file_cache.c
+@@ -561,6 +561,12 @@ static void zend_file_cache_serialize_op_array(zend_op_array            *op_arra
+ 				&& (opline-1)->opcode == ZEND_DECLARE_ATTRIBUTED_CONST
+ 			) {
+ 				zval *literal = RT_CONSTANT(opline, opline->op1);
++				// Backport of https://github.com/php/php-src/commit/a2052f318ab4c7d4fb2e03d576e51488ad7aa097
++				// (GH-24745). Delete this hunk after the upgrade to PHP 8.5.13.
++#if ZEND_USE_ABS_CONST_ADDR
++				SERIALIZE_PTR(literal);
++				UNSERIALIZE_PTR(literal);
++#endif
+ 				SERIALIZE_ATTRIBUTES(Z_PTR_P(literal));
+ 			}
+ 
 diff --git a/php-src/ext/standard/file.c b/php-src/ext/standard/file.c
 index 01f49640e4a..e559b61b0c6 100644
 --- a/php-src/ext/standard/file.c

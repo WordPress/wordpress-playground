@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+	<head>
+		<title>WordPress bridge</title>
+	</head>
+	<body>
+		<script type="module">
+			import bridgeScriptUrl from './src/lib/wordpress-bridge.ts?worker&url';
+			// Share the same bundle with the service worker's offline bridge document.
+			// Vite extracts this bootstrap into an external module. Release builds serve
+			// it and the bridge bundle on the WordPress host; development points the
+			// bootstrap at the app host. Resolve the bundle relative to the bootstrap
+			// so both layouts work before a WordPress service worker is installed.
+			const script = document.createElement('script');
+			script.type = 'module';
+			script.src = new URL(bridgeScriptUrl, import.meta.url).href;
+			document.head.append(script);
+		</script>
+	</body>
+</html>

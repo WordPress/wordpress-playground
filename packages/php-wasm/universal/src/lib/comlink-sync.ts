@@ -392,9 +392,8 @@ export type ProxyOrClone<T> = T extends ProxyMarked ? Remote<T> : T;
 /**
  * Inverse of `ProxyOrClone<T>`.
  */
-export type UnproxyOrClone<T> = T extends RemoteObject<ProxyMarked>
-	? Local<T>
-	: T;
+export type UnproxyOrClone<T> =
+	T extends RemoteObject<ProxyMarked> ? Local<T> : T;
 
 /**
  * Takes the raw type of a remote object in the other thread and returns the type as it is visible
@@ -439,7 +438,7 @@ export type Remote<T> =
 					...args: {
 						[I in keyof TArguments]: UnproxyOrClone<TArguments[I]>;
 					}
-			  ) => Promisify<ProxyOrClone<Unpromisify<TReturn>>>
+				) => Promisify<ProxyOrClone<Unpromisify<TReturn>>>
 			: unknown) &
 		// Handle construct signature (if present)
 		// The return of construct signatures is always proxied (whether marked or not)
@@ -452,7 +451,7 @@ export type Remote<T> =
 							>;
 						}
 					): Promisify<Remote<TInstance>>;
-			  }
+				}
 			: unknown) &
 		// Include additional special comlink methods available on the proxy.
 		ProxyMethods;
@@ -478,8 +477,8 @@ export type Local<T> =
 					...args: {
 						[I in keyof TArguments]: ProxyOrClone<TArguments[I]>;
 					}
-			  ) => // The raw function could either be sync or async, but is always proxied automatically
-			  MaybePromise<UnproxyOrClone<Unpromisify<TReturn>>>
+				) => // The raw function could either be sync or async, but is always proxied automatically
+				MaybePromise<UnproxyOrClone<Unpromisify<TReturn>>>
 			: unknown) &
 		// Handle construct signature (if present)
 		// The return of construct signatures is always proxied (whether marked or not)
@@ -493,7 +492,7 @@ export type Local<T> =
 						}
 					): // The raw constructor could either be sync or async, but is always proxied automatically
 					MaybePromise<Local<Unpromisify<TInstance>>>;
-			  }
+				}
 			: unknown);
 
 const isObject = (val: unknown): val is object =>
@@ -916,16 +915,43 @@ export function proxy<T extends object>(obj: T): T & ProxyMarked {
 	return Object.assign(obj, { [proxyMarker]: true }) as any;
 }
 
+/** Connect an RPC endpoint only to messages sent by its peer window. */
 export function windowEndpoint(
 	w: PostMessageWithOrigin,
 	context: EventSource = globalThis,
 	targetOrigin = '*'
 ): Endpoint {
+	// The capture flag controls event order: capturing listeners run before bubbling listeners.
+	// Window messages do not bubble, but the browser still treats the same callback registered
+	// with capture: true and capture: false as two separate listeners. Removing one must leave
+	// the other removable, so keep the wrapper cached for later removeEventListener calls.
+	const listeners = new WeakMap<
+		EventListenerOrEventListenerObject,
+		EventListener
+	>();
 	return {
 		postMessage: (msg: any, transferables: Transferable[]) =>
 			w.postMessage(msg, targetOrigin, transferables),
-		addEventListener: context.addEventListener.bind(context),
-		removeEventListener: context.removeEventListener.bind(context),
+		addEventListener: (type, listener, options) => {
+			let filteredListener = listeners.get(listener);
+			if (!filteredListener) {
+				// Only the connected window may invoke this API, not its nested frames.
+				filteredListener = (event) => {
+					if ((event as MessageEvent).source !== w) return;
+					if (typeof listener === 'function')
+						listener.call(context, event);
+					else listener.handleEvent(event);
+				};
+				listeners.set(listener, filteredListener);
+			}
+			context.addEventListener(type, filteredListener, options);
+		},
+		removeEventListener: (type, listener, options) => {
+			const filteredListener = listeners.get(listener);
+			if (filteredListener) {
+				context.removeEventListener(type, filteredListener, options);
+			}
+		},
 	};
 }
 

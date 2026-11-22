@@ -70,6 +70,30 @@ class ProxyFunctionsTests extends TestCase
                 'https://cors.playground.wordpress.net/proxy.php',
                 'https://cors.playground.wordpress.net/proxy.php?https://w.net/hosting/?utm_source=wporg'
             ],
+            'Root-relative redirect retains the HTTP port and query' => [
+                'http://example.com:8080/one',
+                '/two?download=1',
+                'https://proxy.example/cors-proxy.php?',
+                'https://proxy.example/cors-proxy.php?http://example.com:8080/two?download=1',
+            ],
+            'Path-relative redirect retains the HTTPS port' => [
+                'https://example.com:8443/directory/one',
+                'two',
+                'https://proxy.example/cors-proxy.php?',
+                'https://proxy.example/cors-proxy.php?https://example.com:8443/directory/two',
+            ],
+            'Absolute redirect uses its own authority' => [
+                'https://example.com:8443/one',
+                'https://other.example/two',
+                'https://proxy.example/cors-proxy.php?',
+                'https://proxy.example/cors-proxy.php?https://other.example/two',
+            ],
+            'Scheme-relative redirect uses its own port' => [
+                'http://example.com:8080/one',
+                '//other.example:9090/two',
+                'https://proxy.example/cors-proxy.php?',
+                'https://proxy.example/cors-proxy.php?http://other.example:9090/two',
+            ],
         ];
     }
     
@@ -176,6 +200,102 @@ class ProxyFunctionsTests extends TestCase
         url_validate_and_resolve(
             'http://cors.playground.wordpress.net/cors-proxy.php?http://cors.playground.wordpress.net'
         );
+    }
+
+    /**
+     * @dataProvider providerTargetPorts
+     */
+    public function testResolvesTheEffectiveTargetPort($url, $port)
+    {
+        $lookups = 0;
+        $resolved = url_validate_and_resolve($url, function ($host) use (&$lookups) {
+            $this->assertSame('example.com', $host);
+            $lookups++;
+            return ['8.8.8.8'];
+        });
+        $this->assertSame($port, $resolved['port']);
+        $this->assertSame('8.8.8.8', $resolved['ip']);
+        $this->assertSame(1, $lookups);
+    }
+
+    static public function providerTargetPorts()
+    {
+        return [
+            'default HTTP port' => ['http://example.com/', 80],
+            'default HTTPS port' => ['https://example.com/', 443],
+            'custom HTTP port' => ['http://example.com:8080/', 8080],
+            'custom HTTPS port' => ['https://example.com:8443/', 8443],
+            'explicit port overrides HTTP default' => ['http://example.com:443/', 443],
+            'explicit port overrides HTTPS default' => ['https://example.com:80/', 80],
+        ];
+    }
+
+    public function testRejectsPortZeroBeforeResolving()
+    {
+        $this->expectException(CorsProxyException::class);
+        $this->expectExceptionMessage('Invalid port');
+        url_validate_and_resolve('http://example.com:0/', function () {
+            $this->fail('Invalid ports must not reach DNS resolution');
+        });
+    }
+
+    /**
+     * @dataProvider providerUnsafeResolutionResults
+     */
+    public function testRejectsUnsafeResolutionResults($ips)
+    {
+        $this->expectException(CorsProxyException::class);
+        url_validate_and_resolve('http://example.com:8080/', fn() => $ips);
+    }
+
+    static public function providerUnsafeResolutionResults()
+    {
+        return [
+            'lookup failure' => [false],
+            'empty answer' => [[]],
+            'invalid address' => [['not-an-ip']],
+        ];
+    }
+
+    /**
+     * @dataProvider providerBlockedIpv4Destinations
+     */
+    public function testRejectsPrivateAndReservedDestinations($ips)
+    {
+        $this->expectException(CorsProxyException::class);
+        $this->expectExceptionMessage('Private IPs are forbidden');
+        url_validate_and_resolve('http://example.com:8080/', fn() => $ips);
+    }
+
+    static public function providerBlockedIpv4Destinations()
+    {
+        $blocked_ranges = [
+            'private 10/8' => ['10.0.0.0', '10.255.255.255'],
+            'private 172.16/12' => ['172.16.0.0', '172.31.255.255'],
+            'private 192.168/16' => ['192.168.0.0', '192.168.255.255'],
+            'loopback 127/8' => ['127.0.0.0', '127.0.0.1', '127.255.255.255'],
+            'shared address space' => ['100.64.0.0', '100.127.255.255'],
+            'current network' => ['0.0.0.0', '0.255.255.255'],
+            'protocol assignments' => ['192.0.0.0', '192.0.0.255'],
+            'link-local and metadata' => ['169.254.0.0', '169.254.169.254', '169.254.255.255'],
+            'benchmarking' => ['198.18.0.0', '198.19.255.255'],
+            'documentation TEST-NET-1' => ['192.0.2.0', '192.0.2.255'],
+            'documentation TEST-NET-2' => ['198.51.100.0', '198.51.100.255'],
+            'documentation TEST-NET-3' => ['203.0.113.0', '203.0.113.255'],
+            'deprecated relay' => ['192.88.99.0', '192.88.99.255'],
+            'multicast' => ['224.0.0.0', '239.255.255.255'],
+            'reserved and broadcast' => ['240.0.0.0', '255.255.255.255'],
+        ];
+        $cases = [];
+        // Reject each blocked address alone and after a public answer. Accepting
+        // the first DNS answer must not hide a later private or reserved address.
+        foreach ($blocked_ranges as $name => $ips) {
+            foreach ($ips as $ip) {
+                $cases["$name: $ip alone"] = [[$ip]];
+                $cases["$name: public answer followed by $ip"] = [['8.8.8.8', $ip]];
+            }
+        }
+        return $cases;
     }
 
     public function testFilterHeadersStrings()

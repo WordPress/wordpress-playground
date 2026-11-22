@@ -74,7 +74,9 @@ Le bouton d'actualisation dédié dans Playground ne recharge que le contenu Wor
 
 <!-- ### Browser support -->
 
-### Compatibilité des navigateurs
+<a id="compatibilité-des-navigateurs"></a>
+
+### Compatibilité des navigateurs {#browser-support}
 
 <!-- WordPress Playground is designed to work across all major desktop and mobile browsers. This includes: -->
 

@@ -16,7 +16,6 @@ const DEMO_URL = './php-code-snippet-e2e.html';
 const DOCS_URL =
 	'https://wordpress.github.io/wordpress-playground/guides/php-code-snippets/';
 const CLIENT_INDEX_SOURCE = `${process.cwd()}/packages/playground/client/src/index.ts`;
-const TOOLKIT_AUTOLOAD_SOURCE = `${process.cwd()}/packages/playground/website/public/php-toolkit-autoload.txt`;
 const pageErrors = new WeakMap<Page, string[]>();
 
 test.describe('php-code-snippet embed', () => {
@@ -36,7 +35,7 @@ test.describe('php-code-snippet embed', () => {
 	});
 
 	test('renders all snippets with Run buttons', async ({ page }) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		await waitForPhpSnippetDefinition(page);
 		for (const name of [
 			'hello.php',
@@ -69,7 +68,7 @@ test.describe('php-code-snippet embed', () => {
 	});
 
 	test('decodes JSON-encoded child payloads', async ({ page }) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		await waitForPhpSnippetDefinition(page);
 		await page.evaluate(() => {
 			document.body.insertAdjacentHTML(
@@ -100,7 +99,7 @@ test.describe('php-code-snippet embed', () => {
 	test('rejects JSON child payloads that are not strings', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		await waitForPhpSnippetDefinition(page);
 
 		const rejected = await page.evaluate(async () => {
@@ -147,7 +146,7 @@ test.describe('php-code-snippet embed', () => {
 	test('runs snippets with implicit opening tags and real filenames', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		await waitForPhpSnippetDefinition(page);
 		await page.evaluate(() => {
 			document.body.insertAdjacentHTML(
@@ -212,7 +211,7 @@ test.describe('php-code-snippet embed', () => {
 	test('rejects missing prepended scripts and explicit opening tags before boot', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		await waitForPhpSnippetDefinition(page);
 		await page.evaluate(() => {
 			document.body.insertAdjacentHTML(
@@ -266,7 +265,7 @@ test.describe('php-code-snippet embed', () => {
 	test('runnable snippets are editable by default unless readonly', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const defaultEditable = await waitForRenderedPhpSnippet(
 			page,
 			'php-snippet[name="hello.php"]'
@@ -310,7 +309,7 @@ test.describe('php-code-snippet embed', () => {
 	test('runnable=false renders a read-only snippet without Run', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const snippet = page.locator('php-snippet[name="illustration.php"]');
 
 		await expect(snippet).toBeVisible();
@@ -327,7 +326,7 @@ test.describe('php-code-snippet embed', () => {
 	test('wp=none progress copy says runtime instead of WordPress', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const phpOnly = page.locator('php-snippet[name="just-php.php"]');
 		const withWordPress = page.locator('php-snippet[name="hello.php"]');
 
@@ -352,7 +351,7 @@ test.describe('php-code-snippet embed', () => {
 	test('Run button width stays stable across progress labels', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const editable = page.locator('php-snippet[name="scratch.php"]');
 		await expect(editable).toBeVisible();
 		const runButton = editable.locator('.run');
@@ -373,7 +372,7 @@ test.describe('php-code-snippet embed', () => {
 	test('first Run boots the runtime and shows button progress + output', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const first = page.locator('php-snippet').nth(0);
 		const runButton = first.locator('.run');
 		const runSpinner = first.locator('.run-spinner');
@@ -412,20 +411,10 @@ test.describe('php-code-snippet embed', () => {
 	});
 
 	test('subsequent snippets reuse the shared runtime', async ({ page }) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const first = page.locator('php-snippet').nth(0);
 		const second = page.locator('php-snippet').nth(1);
 		const third = page.locator('php-snippet').nth(2);
-
-		await ensurePlaygroundClientIsServed(page);
-		await page.locator('php-snippet').evaluateAll((snippets) => {
-			for (const snippet of snippets) {
-				snippet.setAttribute(
-					'playground-origin',
-					window.location.origin
-				);
-			}
-		});
 
 		// Boot the runtime via the first snippet.
 		await first.locator('.run').click();
@@ -470,7 +459,7 @@ test.describe('php-code-snippet embed', () => {
 	test('snippets sharing a blueprint share one runtime and see its mu-plugin', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const alice = page.locator('php-snippet[name="greet-alice.php"]');
 		const bob = page.locator('php-snippet[name="greet-bob.php"]');
 
@@ -495,7 +484,7 @@ test.describe('php-code-snippet embed', () => {
 	});
 
 	test('editable snippet runs the user-typed code', async ({ page }) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const editable = page.locator('php-snippet[name="scratch.php"]');
 		await expect(editable).toBeVisible();
 		const textarea = editable.locator('textarea.ta');
@@ -521,7 +510,7 @@ test.describe('php-code-snippet embed', () => {
 	test('Run button queues clicks while a snippet is running', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const editable = page.locator('php-snippet[name="scratch.php"]');
 		await expect(editable).toBeVisible();
 
@@ -553,7 +542,7 @@ test.describe('php-code-snippet embed', () => {
 	test('Run button starts from pointer activation even if click is canceled', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const editable = page.locator('php-snippet[name="scratch.php"]');
 		await expect(editable).toBeVisible();
 
@@ -592,7 +581,7 @@ test.describe('php-code-snippet embed', () => {
 	test('Run button works while the code editor textarea is focused', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const editable = page.locator('php-snippet[name="scratch.php"]');
 		await expect(editable).toBeVisible();
 
@@ -661,7 +650,7 @@ test.describe('php-code-snippet embed', () => {
 	test('Run button handles repeated mouse clicks after completion', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const editable = page.locator('php-snippet[name="scratch.php"]');
 		await expect(editable).toBeVisible();
 
@@ -698,7 +687,7 @@ test.describe('php-code-snippet embed', () => {
 		page,
 		browserName,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const editable = page.locator('php-snippet[name="scratch.php"]');
 		await expect(editable).toBeVisible();
 		const textarea = editable.locator('textarea.ta');
@@ -740,7 +729,7 @@ test.describe('php-code-snippet embed', () => {
 	});
 
 	test('output refresh keeps the light result styling', async ({ page }) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const editable = page.locator('php-snippet[name="scratch.php"]');
 		await expect(editable).toBeVisible();
 
@@ -780,15 +769,10 @@ test.describe('php-code-snippet embed', () => {
 	test('wp="none" + blueprint installs a PHP toolkit usable from the snippet', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const snippet = page.locator('php-snippet[name="quickstart.php"]');
 
 		await expect(snippet).toBeVisible();
-		await ensurePlaygroundClientIsServed(page);
-		await ensureToolkitAutoloadIsServed(page);
-		await snippet.evaluate((element) => {
-			element.setAttribute('playground-origin', window.location.origin);
-		});
 		// The snippet ships with an expected-output script that pre-fills the
 		// output panel. Wait for the real run to execute by watching the run
 		// button enter and exit its busy state.
@@ -814,7 +798,7 @@ test.describe('php-code-snippet embed', () => {
 	test('Run button shows progress while a snippet is running', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const editable = page.locator('php-snippet[name="scratch.php"]');
 		await expect(editable).toBeVisible();
 		const textarea = editable.locator('textarea.ta');
@@ -881,7 +865,7 @@ test.describe('php-code-snippet embed', () => {
 	test('expected output shows before Run and is replaced by real output', async ({
 		page,
 	}) => {
-		await page.goto(DEMO_URL);
+		await openSnippetDemo(page);
 		const snippet = page.locator('php-snippet[name="precomputed.php"]');
 
 		await expect(snippet.locator('.progress')).toHaveCount(0);
@@ -906,6 +890,18 @@ test.describe('php-code-snippet embed', () => {
 	});
 });
 
+/** Opens the fixture with the client and runtime from the build under test. */
+async function openSnippetDemo(page: Page) {
+	await page.goto(DEMO_URL);
+	await ensurePlaygroundClientIsServed(page);
+	await page.locator('php-snippet').evaluateAll((snippets) => {
+		for (const snippet of snippets) {
+			snippet.setAttribute('playground-origin', window.location.origin);
+		}
+	});
+}
+
+/** Serve the source client through the website dev server when no bundle exists. */
 async function ensurePlaygroundClientIsServed(page: Page) {
 	const clientUrl = new URL('/client/index.js', page.url()).href;
 	const response = await page.request.get(clientUrl);
@@ -913,25 +909,10 @@ async function ensurePlaygroundClientIsServed(page: Page) {
 		return;
 	}
 
-	const sourceUrl = new URL(`/@fs${CLIENT_INDEX_SOURCE}`, page.url()).href;
+	const sourceUrl = new URL(`./@fs${CLIENT_INDEX_SOURCE}`, page.url()).href;
 	await page.route(clientUrl, async (route) => {
 		const response = await page.request.get(sourceUrl);
 		await route.fulfill({ response });
-	});
-}
-
-async function ensureToolkitAutoloadIsServed(page: Page) {
-	const autoloadUrl = new URL('/php-toolkit-autoload.txt', page.url()).href;
-	const response = await page.request.get(autoloadUrl);
-	if (response.ok()) {
-		return;
-	}
-
-	await page.route(autoloadUrl, async (route) => {
-		await route.fulfill({
-			path: TOOLKIT_AUTOLOAD_SOURCE,
-			contentType: 'text/plain',
-		});
 	});
 }
 

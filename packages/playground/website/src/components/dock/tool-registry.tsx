@@ -18,6 +18,7 @@ import {
 	TerminalTool,
 	LogsTool,
 	MailTool,
+	TransferTool,
 } from '../site-manager/site-info-panel/site-tool-renderers';
 import type { SiteToolPanelProps } from '../site-manager/site-info-panel/site-tool-renderers';
 import css from '../site-manager/site-info-panel/style.module.css';
@@ -158,6 +159,19 @@ const definitions = [
 		fixedHeight: true,
 		Panel: MailTool,
 		panelClassName: `${css.tabContents} ${css.mailTab}`,
+	},
+	{
+		section: 'transfer',
+		label: 'Clone site',
+		ariaLabel: 'Clone site',
+		icon: <Icon icon={external} size={24} />,
+		group: 'hidden',
+		title: 'Clone a WordPress site',
+		description:
+			'Copy a live site into a new Playground with Reprint. Your live site stays unchanged.',
+		layout: 'default',
+		Panel: TransferTool,
+		panelClassName: `${css.tabContents} ${css.toolTabContents}`,
 	},
 	{
 		section: 'save',

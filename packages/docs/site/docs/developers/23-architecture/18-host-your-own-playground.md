@@ -63,33 +63,28 @@ const client = await startPlaygroundWeb({
 
 ## Static assets
 
-There are several ways to get the static assets necessary to host the Playground.
+Build the browser website from source to host it on your own domain. This does
+not require a GitHub Actions artifact. The `@wp-playground/client` npm package
+connects your app to an already hosted browser runtime. The
+`@wp-playground/cli` npm package runs WordPress locally with Node.js. Neither
+installs the browser website and its Dock.
 
-In order of convenience and ease:
-
-- Download pre-built package
-- Fork the repository and build with GitHub Action
-- Build locally
-
-### Download pre-built package
-
-To host the Playground as is, without making changes, you can download the built artifact from [the latest successful GitHub Action](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml?query=is%3Asuccess).
-
-- Click on **Deploy Playground website**.
-- In the section **Artifacts** at the bottom of the page, click `playground-website`.
-- It's a zip package with the same files deployed to the public site.
-
-### Fork the repository and build with GitHub Action
-
-To customize the Playground, you can [fork the Git repository](https://github.com/WordPress/wordpress-playground/fork).
-
-Build it from the fork's GitHub page by going to: **Actions -> Deploy Playground website -> Run workflow**.
+The [Deploy Playground website workflow](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml)
+produces a temporary self-hosting artifact, built separately without production
+origins or release-specific asset paths. It expires; use the source build below
+when the artifact is unavailable or you need a different configuration.
+Running the deploy workflow in a fork without the deployment secrets skips
+the build, too.
 
 ### Build locally
 
-The most flexible and customizable method is to build the site locally.
-
-Create a shallow clone of the Playground repository, or your own fork.
+Create a shallow clone of the Playground repository or your own fork. The
+command below uses the latest development source on `trunk`. To pin the
+Playground source to a specific version, replace `trunk` with a tag from the
+[releases page](https://github.com/WordPress/wordpress-playground/releases).
+The tag does not make the build reproducible: the build downloads
+`wp-cli.phar` from the `wp-cli/builds` repository's `gh-pages` branch, which
+can change between builds.
 
 ```sh
 git clone -b trunk --single-branch --depth 1 --recurse-submodules https://github.com/WordPress/wordpress-playground.git
@@ -101,10 +96,28 @@ Enter the `wordpress-playground` directory.
 cd wordpress-playground
 ```
 
-Install dependencies, and build the website.
+Use the Node.js version in `.nvmrc`. The commands below require
+[nvm](https://github.com/nvm-sh/nvm#installing-and-updating) to be installed.
+`nvm install` installs and activates the required Node.js version. If you use
+another version manager, install and activate the version in `.nvmrc` with it
+instead. Then install the locked dependencies:
 
 ```sh
-npm install
+nvm install
+npm ci
+```
+
+Before building, leave `PLAYGROUND_APP_ORIGIN` and `VITE_WORDPRESS_SITE_URL` unset to serve
+the Playground app and its WordPress pages from the same origin. For a public
+instance that runs untrusted plugins or Blueprints, use a separate WordPress
+origin to reduce exposure. This does not fully protect saved files or native
+directory handles. See the [split-origin deployment guide](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website-deployment/wordpress-frame/README.md).
+
+For a same-origin build, run the following in a POSIX-compatible shell, such
+as Bash or Zsh:
+
+```sh
+unset PLAYGROUND_APP_ORIGIN VITE_WORDPRESS_SITE_URL
 npm run build:website
 ```
 
@@ -114,7 +127,37 @@ This command internally runs the `nx` task `build:wasm-wordpress-net`. It copies
 dist/packages/playground/wasm-wordpress-net
 ```
 
-The entire service of the Playground consists of the content of this folder.
+Serve the contents of this folder as your site root.
+
+This builds the files you serve. It does not make every Playground feature
+independent of external services. For example, production builds use the
+project's CORS proxy for requests that the browser cannot make directly,
+unless you set `CORS_PROXY_URL` at build time.
+
+### Verify the local build
+
+With PHP installed, run this command from the `wordpress-playground`
+directory to serve the built files locally:
+
+```sh
+php -S localhost:9999 -t dist/packages/playground/wasm-wordpress-net
+```
+
+Open [http://localhost:9999/](http://localhost:9999/) in your browser. Confirm that:
+
+1. The WordPress welcome page and Playground Dock appear.
+2. Entering `/wp-admin/` in the Dock's address field opens the WordPress Dashboard.
+3. The WordPress iframe URL, inspected with your browser's developer tools,
+   starts with `http://localhost:9999/scope:`. The app and WordPress should use
+   the same scheme, hostname, and port, rather than `wpsandbox.wordpress.net`.
+
+Stop the server with `Ctrl+C`. This server is for local verification only.
+Use HTTPS when deploying to a public domain; service workers can run over
+HTTP on loopback addresses such as `127.0.0.1`.
+
+When reporting a test result, include the output of `git rev-parse HEAD`,
+`node --version`, and `npm --version`, along with the browser version and
+the command used to serve the files.
 
 ## Summary of included files
 

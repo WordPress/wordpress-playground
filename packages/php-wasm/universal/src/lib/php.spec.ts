@@ -67,6 +67,46 @@ async function readStream(stream: ReadableStream<Uint8Array>) {
 }
 
 describe('PHP mounts', () => {
+	it('unmounts the current runtime when the same handler is reapplied', async () => {
+		const php = new PHP();
+		(php as any)[__private__dont__use] = { FS: {} };
+		const oldUnmount = vi.fn(async () => {});
+		const newUnmount = vi.fn(async () => {});
+		const handler = vi
+			.fn()
+			.mockResolvedValueOnce(oldUnmount)
+			.mockResolvedValueOnce(newUnmount);
+		const unmount = await php.mount('/mounted', handler);
+		// Runtime rotation tears down the old mount, then reapplies its handler.
+		await unmount();
+		await php.mount('/mounted', handler);
+
+		await unmount();
+		await unmount();
+
+		expect(oldUnmount).toHaveBeenCalledTimes(1);
+		expect(newUnmount).toHaveBeenCalledTimes(1);
+	});
+
+	it('does not unmount an unrelated replacement at the same path', async () => {
+		const php = new PHP();
+		(php as any)[__private__dont__use] = { FS: {} };
+		const oldUnmount = vi.fn(async () => {});
+		const newUnmount = vi.fn(async () => {});
+		const unmount = await php.mount('/mounted', async () => oldUnmount);
+		await unmount();
+		const unmountReplacement = await php.mount(
+			'/mounted',
+			async () => newUnmount
+		);
+
+		await unmount();
+		expect(oldUnmount).toHaveBeenCalledTimes(1);
+		expect(newUnmount).not.toHaveBeenCalled();
+		await unmountReplacement();
+		expect(newUnmount).toHaveBeenCalledTimes(1);
+	});
+
 	it('forgets mount tracking even when the unmount callback fails', async () => {
 		// `PHP#mount` stores each mount in the private `#mounts` map and
 		// returns a thin wrapper that:

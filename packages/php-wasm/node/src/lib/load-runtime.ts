@@ -6,7 +6,6 @@ import {
 	type FileLockManager,
 	loadPHPRuntime,
 	FSHelpers,
-	FileLockManagerComposite,
 	createLegacyPhpIniPreRunStep,
 	isLegacyPHPVersion,
 	ProcessIdAllocator,
@@ -15,8 +14,7 @@ import type { WasmUserSpaceAPI, WasmUserSpaceContext } from './wasm-user-space';
 import { bindUserSpace } from './wasm-user-space';
 import fs from 'fs';
 import { getPHPLoaderModule } from '.';
-import { FileLockManagerForPosix } from './file-lock-manager-for-posix';
-import { FileLockManagerForWindows } from './file-lock-manager-for-windows';
+import { createFileLockManager } from './create-file-lock-manager';
 import { withNetworking } from './networking/with-networking';
 import {
 	withPHPExtensions,
@@ -24,7 +22,6 @@ import {
 	type XdebugOptions,
 } from './extensions/load-extensions';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
-import { platform } from 'os';
 import { jspi } from 'wasm-feature-detect';
 
 export interface PHPLoaderOptions {
@@ -59,6 +56,9 @@ export type PHPLoaderOptionsForNode = PHPLoaderOptions & {
 	/**
 	 * A file lock manager to coordinate file locks between
 	 * multiple php-wasm instances and other OS processes.
+	 * When native locking is unavailable, the Node adapter passes device/inode
+	 * keys instead of filesystem paths. The manager must treat those as opaque
+	 * lock keys so hard links to the same file share locks.
 	 */
 	fileLockManager?: FileLockManager;
 	emscriptenOptions?: EmscriptenOptions & {
@@ -178,16 +178,9 @@ export async function loadNodeRuntime(
 			throw error;
 		},
 		bindUserSpace: (userSpaceContext: WasmUserSpaceContext) => {
-			const nativeFileLockManager =
-				platform() === 'win32'
-					? new FileLockManagerForWindows()
-					: new FileLockManagerForPosix();
-			const fileLockManager = options.fileLockManager
-				? new FileLockManagerComposite({
-						nativeLockManager: nativeFileLockManager,
-						wasmLockManager: options.fileLockManager,
-					})
-				: nativeFileLockManager;
+			const fileLockManager = createFileLockManager(
+				options.fileLockManager
+			);
 			return bindUserSpace({ fileLockManager }, userSpaceContext);
 		},
 		...(options.emscriptenOptions || {}),

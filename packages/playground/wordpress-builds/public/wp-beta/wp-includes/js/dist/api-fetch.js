@@ -349,13 +349,21 @@ var wp;
 
   // packages/api-fetch/build-module/utils/response.mjs
   var import_i18n = __toESM(require_i18n(), 1);
-  async function parseJsonAndNormalizeError(response) {
+  async function parseJsonAndNormalizeError(response, allowEmptyBody = false) {
     try {
-      return await response.json();
+      if (typeof response.text !== "function") {
+        return await response.json();
+      }
+      const text = await response.text();
+      if (allowEmptyBody && text === "") {
+        return null;
+      }
+      return JSON.parse(text);
     } catch {
       throw {
         code: "invalid_json",
-        message: (0, import_i18n.__)("The response is not a valid JSON response.")
+        message: (0, import_i18n.__)("The response is not a valid JSON response."),
+        data: { status: response.status }
       };
     }
   }
@@ -366,13 +374,17 @@ var wp;
     if (response.status === 204) {
       return null;
     }
-    return await parseJsonAndNormalizeError(response);
+    return await parseJsonAndNormalizeError(response, true);
   }
   async function parseAndThrowError(response, shouldParseResponse = true) {
     if (!shouldParseResponse) {
       throw response;
     }
-    throw await parseJsonAndNormalizeError(response);
+    const error = await parseJsonAndNormalizeError(response);
+    if (error && typeof error === "object" && !Array.isArray(error) && error.data === void 0) {
+      throw { ...error, data: { status: response.status } };
+    }
+    throw error;
   }
 
   // packages/api-fetch/build-module/middlewares/media-upload.mjs
@@ -491,6 +503,14 @@ var wp;
   function registerMiddleware(middleware) {
     middlewares.unshift(middleware);
   }
+  function unregisterMiddleware(middleware) {
+    const index = middlewares.indexOf(middleware);
+    if (index === -1) {
+      return false;
+    }
+    middlewares.splice(index, 1);
+    return true;
+  }
   function enablePreloadMultiUse() {
     for (const middleware of middlewares) {
       middleware[ENABLE_MULTI_USE]?.();
@@ -501,9 +521,9 @@ var wp;
       middleware[CLEAR]?.();
     }
   }
-  var defaultFetchHandler = (nextOptions) => {
-    const { url, path, data, parse = true, ...remainingOptions } = nextOptions;
-    let { body, headers } = nextOptions;
+  var defaultFetchHandler = (options) => {
+    const { url, path, data, parse = true, ...remainingOptions } = options;
+    let { body, headers } = options;
     headers = { ...DEFAULT_HEADERS, ...headers };
     if (data) {
       body = JSON.stringify(data);
@@ -574,7 +594,9 @@ var wp;
     });
   };
   apiFetch.use = registerMiddleware;
+  apiFetch.unregister = unregisterMiddleware;
   apiFetch.setFetchHandler = setFetchHandler;
+  apiFetch.defaultFetchHandler = defaultFetchHandler;
   apiFetch.privateApis = {};
   lock(apiFetch.privateApis, {
     enablePreloadMultiUse,
@@ -584,6 +606,7 @@ var wp;
   apiFetch.createPreloadingMiddleware = preloading_default;
   apiFetch.createRootURLMiddleware = root_url_default;
   apiFetch.fetchAllMiddleware = fetch_all_middleware_default;
+  apiFetch.httpV1Middleware = http_v1_default;
   apiFetch.mediaUploadMiddleware = media_upload_default;
   apiFetch.createThemePreviewMiddleware = theme_preview_default;
   var index_default = apiFetch;

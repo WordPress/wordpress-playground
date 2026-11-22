@@ -24,9 +24,9 @@ Broadly speaking, you can use the client to perform three types of operations:
 
 En términos generales, puedes usar el cliente para realizar tres tipos de operaciones:
 
--   Ejecutar código PHP
--   Personalizar `PHP.ini`
--   Gestionar archivos y directorios
+- Ejecutar código PHP
+- Personalizar `PHP.ini`
+- Gestionar archivos y directorios
 
 <!--
 ## Running PHP code
@@ -43,8 +43,8 @@ The two methods you can use to run PHP code are:
 
 Los dos métodos que puedes usar para ejecutar código PHP son:
 
--   [`run()`](#the-run-method) - ejecuta código PHP y devuelve la salida
--   [`request()`](#the-request-method) - realiza una solicitud HTTP al sitio web
+- [`run()`](#the-run-method) - ejecuta código PHP y devuelve la salida
+- [`request()`](#the-request-method) - realiza una solicitud HTTP al sitio web
 
 <!--
 In Node.js, you can also use the [`cli()`](#the-cli-method) method to run PHP in a CLI mode.
@@ -56,7 +56,9 @@ En Node.js, también puedes usar el método [`cli()`](#the-cli-method) para ejec
 ### The `run()` method
 -->
 
-### El método `run()`
+<a id="el-método-run"></a>
+
+### El método `run()` {#the-run-method}
 
 import TSDocstring from '@site/src/components/TSDocstring';
 
@@ -66,7 +68,9 @@ import TSDocstring from '@site/src/components/TSDocstring';
 ### The `request()` method
 -->
 
-### El método `request()`
+<a id="el-método-request"></a>
+
+### El método `request()` {#the-request-method}
 
 <TSDocstring path={[ "@wp-playground/client", "PlaygroundClient", "request" ]} />
 
@@ -142,7 +146,7 @@ You can pass messages from PHP to JavaScript using the `post_message_to_js()` fu
 
 Puedes pasar mensajes de PHP a JavaScript usando la función `post_message_to_js()`. Acepta un argumento:
 
--   `$data` (string) – Datos para pasar a JavaScript.
+- `$data` (string) – Datos para pasar a JavaScript.
 
 <!--
 For example, here's how you would send a message with a JSON-encoded post ID and title:
@@ -186,7 +190,9 @@ console.log(await output.stdoutText);
 ## The `cli()` method
 -->
 
-## El método `cli()`
+<a id="el-método-cli"></a>
+
+## El método `cli()` {#the-cli-method}
 
 <!--
 In Node.js, you also have access to the `cli()` method that runs PHP in a CLI mode:

@@ -49,7 +49,6 @@ export type WorkerBootWordPressOptions = {
 	 */
 	constants?: Record<string, string | number | boolean>;
 };
-
 /**
  * Print trace messages from PHP-WASM.
  *
@@ -183,6 +182,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				siteUrl: options.siteUrl,
 				phpVersion: options.phpVersion,
 				maxPhpInstances: 1,
+				phpIniEntries: options.phpIniEntries,
 				createPhpRuntime: createPhpRuntimeFactory(
 					options,
 					this.fileLockManager!

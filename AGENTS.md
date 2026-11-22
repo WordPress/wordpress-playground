@@ -76,6 +76,103 @@ npm run sync:php-next                  # Fetch gitignored PHP next assets for lo
 npm run rebuild:wordpress-builds         # Rebuild all WordPress versions
 ```
 
+Normal loopback website development keeps the SPA, PHP, OPFS, and directory
+handles on `127.0.0.1:5400`, with rendered WordPress on `127.0.0.1:4400`.
+`localhost` uses the same two ports. Vite's app proxy preserves the app Host;
+the remote server restricts direct WordPress-port requests to the WordPress bridge and
+worker loaders. Standalone remote, Personal WP, sync, and forwarded hosts retain
+their previous routing. Do not replace either server with an auto-selected port.
+A single Chromium CI smoke test covers the live Vite module graph; the full
+browser suite still runs once against the built cross-origin preview.
+
+The WordPress-only origin prototype has `build:wordpress-frame`,
+`preview:wordpress-frame`, and `e2e:wordpress-frame` website targets. It runs on
+port 9500, separately from normal development. CI runs all website E2E tests once
+against the separate WordPress origin, with shared storage/import grouping.
+Deployment tests use the same boundary on port 7999. See
+`packages/playground/website/bin/wordpress-frame/README.md` for its boundaries.
+WordPress always uses the configured sandbox origin. PHP, OPFS, and directory
+handles stay on the app origin. Tabs share one app service worker and asset cache.
+App workers leave other releases' assets to HTTP so worker replacement cannot interrupt
+those downloads in WebKit, including `/assets/` when rolling back to the root-only layout;
+their own release's assets keep offline caching.
+Standalone and self-hosted builds without a sandbox retain one origin.
+External embeds do not need a referrer or new URL parameters. This mode does not
+block WordPress from embedding fresh app/API documents.
+The normal WP Cloud deployment runs `website-deployment/deploy-website.sh`, which sets
+`VITE_WORDPRESS_SITE_URL` to `https://wpsandbox.wordpress.net`, `PLAYGROUND_APP_ORIGIN`
+to `https://playground.wordpress.net`, and a unique `PLAYGROUND_RELEASE_ID`.
+`test-staging-deployment.sh` runs that same script against a disposable staging site, and
+`check-deployment.sh` checks a deployed release over HTTP without changing it. Vite builds with base `/releases/<id>/`, so every asset URL names its
+release, and adds an inline origin check to every app HTML page, including copied
+public files: the WordPress bridge requires the sandbox origin, all other pages the
+app origin and their web-root URL, so retained releases' pages cannot start.
+JavaScript release ID validation is
+shared in `packages/playground/remote/src/lib/release-id.ts`. Compatibility code markers
+and removal conditions are listed in
+`packages/playground/website-deployment/wordpress-frame/compatibility.md`. When changing
+marked code, update that checklist and its coverage. Remove compatibility code only
+when its documented removal conditions hold; preserve supported portable/dev layouts.
+The target and the `build:wordpress-frame` preview assemble the upload with the same
+`bin/assemble-website.mjs`, so preview checks cover every published page. The single `apply-update.sh`
+installs the build as the public `releases/<id>/` directory, moves its PHP endpoints
+to the Nginx-denied `.playground-releases/<id>/`, and copies entry pages plus a root
+`/sw.js` loader to the web root. Pages needing custom headers stay PHP-served.
+Its PHP steps live in `apply-update.php`, which it calls with arguments only.
+The cacheable `playground-wordpress-builds:validate-static-documents` target validates
+WordPress HTML, SVG, XHTML, and XML with a parsed-document DOMPurify check. Asset refresh
+and publication depend on it. It rejects active and unreviewed malformed content without
+rewriting bytes; reviewed upstream defects require reviewed hash lists per WordPress-relative path, shared across versions.
+WordPress Docker exports restore the mounted output directory's owner before host-side validation.
+Use container-visible IDs so rootless Docker keeps the files owned by the caller.
+Limit ownership repair to the exported version directory and core archive.
+Preserve SQLite's owner-only directory permissions when exporting build artifacts.
+The self-hosting download is built separately without release paths or production
+origins.
+Nginx serves existing files on both hostnames; `custom-redirects.php` handles only
+missing paths. Inactive releases expire after 30 days (configurable), protecting active and previous releases.
+`release.json` inventories owned root files; activation failures and manual rollback restore
+replaced/deleted files and remove newly introduced ones with the same installer.
+Cleanup failures retain lifecycle metadata for retry; prune runs only after both hosts
+have been purged. PHP's `flock` serializes the whole installer on each web root.
+Only the lock coordinator disables WP Cloud's auto-prepend bootstrap, preserving
+the shell environment for its child; PHP installation steps keep the normal bootstrap.
+Purge hosts are recorded outside root snapshots; `PLAYGROUND_PURGE_ONLY=1` retries a
+failed purge without another rollback. Pending purges block further installations
+and rollbacks. Rollback records both the current and restored hostname pairs, including
+origin changes. Failed activation purges after restoring the previous files.
+Staging readiness checks require successful worker responses and retry transient
+HTTP errors; rollback compares both workers with their captured baseline bytes.
+The browser rehearsal rejects a non-trunk baseline before opening browsers or deploying.
+It first reloads trunk as a control, and logs errors with their phase and request URLs.
+The live deployment rehearsal forces a failed purge after restoring trunk, then retries it.
+Its unit tests run in `playground-website:test`.
+The staging browser rehearsal accepts `PLAYGROUND_STAGING_FIREFOX_CHANNEL=moz-firefox`
+to use installed Firefox when the bundled browser cannot launch locally.
+Do not add a second installer script. Host checks live in
+`website-deployment/custom-redirects-lib.php`, reached through its existing
+`playground_handle_request()` entry point. The sandbox host serves only bridge
+aliases for older clients and returns 404 otherwise, with scoped top-level GET
+navigations redirected to the configured app origin. Scoped app navigations serve
+the trusted WordPress iframe wrapper; iframe and subresource requests never
+redirect. App requests keep the existing redirects, headers, and PHP setup.
+One `/sw.js` serves both hostnames and chooses its role by origin. Personal WP keeps
+its no-argument public-file layout and separate script.
+The HTTP/install contract tests run with
+`playground-website:test:wordpress-frame-router` (Node 24 and PHP required).
+The WordPress bridge (`wordpress-bridge.html`) is the hidden sandbox iframe that relays
+HTTP between its service worker and app-origin PHP. Production bridge URLs name the
+app's release directory. Development and portable builds use build-version root aliases;
+older root-only production builds use those aliases too. Workers generate bridge HTML
+only for their own release/buildVersion and the unversioned compatibility alias. Other
+versions reach the server, so an installed worker cannot supply a removed script URL.
+The bridge waits for the worker it registers to activate before completing PHP startup.
+
+WP Cloud's PHP-served static files support single bounded and open-ended byte
+ranges for runtime download retries. Other range forms get the full response;
+HEAD ignores Range. Run `playground-website:test:static-file-ranges` for the real
+PHP HTTP contract tests (Node 24 and PHP required); CI runs them with lint checks.
+
 ### Package Naming Convention
 
 - `@php-wasm/<name>`: PHP runtime and utilities
@@ -104,6 +201,17 @@ The core architecture uses an iframe-based isolation model:
 - `@php-wasm/web`: Browser-based PHP runtime (uses Emscripten WASM)
 - `@php-wasm/node`: Node.js-based PHP runtime
 - `@php-wasm/universal`: Abstract interface shared by web and node implementations
+
+Personal WP explicitly opts into SharedWorkers via `startPlaygroundWeb`.
+Its ServiceWorker sends HTTP requests directly to the shared PHP runtime through MessagePorts.
+The main website retains dedicated workers and the existing window relay by default.
+Personal WP owns loopback-network delegation: its startup load listener configures
+its same-origin remote's WordPress frame before PHP boots. Its popup HTML entry
+opts in to the shared renderer and replaces the default popup in the combined
+Personal WP build. Shared remote and public popup documents do not opt in based
+on their hostname or URL parameters. Keep these app-specific policies in Personal WP.
+Deployment checks run once per Personal WP document; stale runtimes drain requests and flush
+OPFS before shutting down. Keep shared-runtime behavior behind the explicit opt-in.
 
 ### Blueprint System
 
@@ -135,6 +243,12 @@ The schema is NOT auto-rebuilt in `npm run dev` mode.
 - `@wp-playground/sync`: Multi-client synchronization for collaborative editing
 - `@php-wasm/fs-journal`: Tracks filesystem changes for synchronization
 
+Browser WordPress boots record the site's public base URL in `/wordpress/.playground-site-url`.
+Stored sites without that record are migrated from their scoped app-origin URL before startup
+completes. Flush migrated data before saving the record; later boots must not rescan the database
+when the recorded URL still matches. Log migration failures and keep the site accessible;
+a missing completion record allows a later boot to retry.
+
 ### WordPress Builds
 
 `@wp-playground/wordpress-builds` compiles specific WordPress versions into the playground format. Each version is tested and bundled separately.
@@ -159,6 +273,11 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 - Path aliases defined in `tsconfig.base.json` for cross-package imports
 
 ### Code Style
+
+- **Explicit conditions:** Name the fact a branch depends on. If a value only implies
+  that fact (a path, sentinel, or naming convention), derive a clearly named boolean
+  once and use it at decision sites. Keep the inference in one place and explain
+  why it holds. Prefer names that describe the actual behavior or layout.
 
 - **Comment length**: Max 100 characters per line (enforced by ESLint)
 - **No console.log**: Disallowed except in tests and bin/ scripts
@@ -199,6 +318,10 @@ Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and co
 
 ### Testing
 
+CI removes the slow Azure Ubuntu mirror from the runner's apt mirror list before
+installing browser dependencies. The public Ubuntu archive and security mirrors
+remain available.
+
 - **Test files**: Co-located with implementation as `*.spec.ts`
 - **Test runner**: Vitest (via `@nx/vite:test`) for most packages; some packages use Jest (via `@nx/jest`)
 - **Coverage**: Reports to `coverage/packages/<package-name>`
@@ -233,6 +356,18 @@ adjacent CSS changes. Delete or avoid that test instead of updating its numbers.
 
 Use screenshots and manual interaction for visual-only changes. Tests are not
 required for every PR. Never add tests simply to make a PR appear complete.
+
+CI tests the Node file-lock fallback on Node 24 and the current Node release.
+It builds the published Node package, checks that the native addon is optional,
+and runs PHP/SQLite, CLI multi-worker, and worker-wait tests with that addon moved
+out of resolution.
+The addon is restored before the shared dependency cache is saved.
+
+Dependabot's daily version check opens PRs for `fs-ext-extra-prebuilt` patch
+releases. It raises the minimum package version and updates the lockfile; the
+existing Dependabot lockfile workflow preserves workspace links. An explicit
+`trunk` target keeps this version-update allow-list out of security-update
+settings. Other dependencies remain eligible for security updates.
 
 ### Package Structure
 
@@ -319,6 +454,14 @@ Located in `packages/nx-extensions/src/executors/`:
 - `assert-built-esm-and-cjs`: Verifies dual-format build
 - `package-for-self-hosting`: Creates distributable archives
 
+### Reprint Client Asset
+
+The website's `sync-reprint` target verifies and downloads the selected Reprint client
+before builds and standalone dev startup. The generated asset lives in the ignored
+`packages/playground/website/public/assets/optional/reprint/` directory and is loaded
+on demand. Use `npm exec -- nx run playground-website:update-reprint` to update the
+version and checksum together in `src/lib/reprint/release.json`; see the website README.
+
 ## Key Files & Directories
 
 - `nx.json`: NX workspace configuration
@@ -339,6 +482,11 @@ Located in `packages/nx-extensions/src/executors/`:
 - Deployed to https://wordpress.github.io/wordpress-playground/
 - Built with Docusaurus in `packages/docs/`
 - API reference generated with TypeDoc from package source
+- Docusaurus generates `manifest.json` and `translation-availability.json` in the
+  build output for the default locale. The handbook manifest derives pages, titles,
+  hierarchy, and order from loaded docs and sidebars. Legacy handbook URL and
+  generated Markdown exceptions live in `plugins/generate-handbook-manifest.js`.
+  Run `npx nx run docs-site:test-plugins` when changing these build plugins.
 - The docs build generates handbook Markdown in `packages/docs/site/static/handbook/`
   from TypeDoc. Regenerate and commit these files when their source docs or API
   comments change; the WordPress.org importer reads them through `manifest.json`.

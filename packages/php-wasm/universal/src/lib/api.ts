@@ -346,7 +346,7 @@ function assertIsMessagePort(
  * require an APITransferPolicy as the third argument.
  */
 export function consumeAPI<APIType>(
-	remote: Worker | Window | NodeWorker | NodeProcess,
+	remote: Worker | MessagePort | Window | NodeWorker | NodeProcess,
 	context: undefined | EventTarget = undefined,
 	...consumeArguments: ConsumeAPIArguments<APIType>
 ): RemoteAPI<APIType> {
@@ -381,7 +381,7 @@ export function consumeAPI<APIType>(
 				'consumeAPI: remote does not look like a Worker, MessagePort, or Process'
 			);
 		}
-	} else if (remote instanceof Worker) {
+	} else if (remote instanceof Worker || remote instanceof MessagePort) {
 		endpoint = remote;
 	} else {
 		const windowEndpoint = Comlink.windowEndpoint(
@@ -835,7 +835,7 @@ function completeBeforeEndpointTerminates<T>(
  * on Node.js workers, child processes, and MessagePorts.
  */
 function observeEndpointLifecycle(
-	remote: Worker | Window | NodeWorker | NodeProcess,
+	remote: Worker | MessagePort | Window | NodeWorker | NodeProcess,
 	providedTermination: PromiseLike<unknown> | undefined
 ): EndpointLifecycle | undefined {
 	const automaticObserver = observeNodeEndpointTermination(remote);
@@ -884,7 +884,7 @@ function observeEndpointLifecycle(
  * one must provide ConsumeAPIOptions.endpointTerminated.
  */
 function observeNodeEndpointTermination(
-	remote: Worker | Window | NodeWorker | NodeProcess
+	remote: Worker | MessagePort | Window | NodeWorker | NodeProcess
 ): EndpointTerminationObserver | undefined {
 	const candidate = remote as any;
 	if (
