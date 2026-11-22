@@ -35,7 +35,7 @@ cd packages/your-new-package
 npm publish --access public
 ```
 
-This creates the package on the npm registry under your account.
+This creates the package on the npm registry, under the organization that owns its scope (`wp-playground` for `@wp-playground/*` packages, `php-wasm` for `@php-wasm/*` packages).
 
 ### 2. Configure trusted publishing
 
@@ -51,9 +51,9 @@ After the initial publish, go to the package's settings on npmjs.com and set up 
 
 ![Setting up OIDC trusted publishing on npm](/img/php-wasm-node-oidc.webp)
 
-### 3. Transfer ownership (if needed)
+### 3. Check team access
 
-If you published under your personal account, transfer the package to the `@aspect` organization or ensure the appropriate team has publish access.
+Make sure the appropriate team in the package's npm organization has publish access.
 
 Once configured, subsequent releases will work automatically through the CI workflow.
 
