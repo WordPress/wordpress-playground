@@ -57,9 +57,9 @@ cd packages/your-new-package
 npm publish --access public
 ```
 
-<!-- This creates the package on the npm registry under your account. -->
+<!-- This creates the package on the npm registry, under the organization that owns its scope (`wp-playground` for `@wp-playground/*` packages, `php-wasm` for `@php-wasm/*` packages). -->
 
-इससे npm रजिस्ट्री पर आपके अकाउंट के तहत पैकेज बन जाता है।
+इससे npm रजिस्ट्री पर पैकेज उस संगठन के तहत बन जाता है जिसके पास उसका स्कोप है (`@wp-playground/*` पैकेज के लिए `wp-playground`, `@php-wasm/*` पैकेज के लिए `php-wasm`)।
 
 <!-- ### 2. Configure trusted publishing -->
 
@@ -91,13 +91,13 @@ After the initial publish, go to the package's settings on npmjs.com and set up 
 
 ![npm पर OIDC trusted publishing सेट करना](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/php-wasm-node-oidc.webp)
 
-<!-- ### 3. Transfer ownership (if needed) -->
+<!-- ### 3. Check team access -->
 
-### 3. स्वामित्व ट्रांसफ़र करें (अगर ज़रूरी हो) {#3-transfer-ownership-if-needed}
+### 3. टीम की अनुमति जाँचें {#3-check-team-access}
 
-<!-- If you published under your personal account, transfer the package to the `@aspect` organization or ensure the appropriate team has publish access. -->
+<!-- Make sure the appropriate team in the package's npm organization has publish access. -->
 
-अगर आपने अपने निजी अकाउंट से पब्लिश किया है, तो पैकेज को `@aspect` ऑर्गनाइज़ेशन को ट्रांसफ़र करें, या पक्का करें कि सही टीम के पास पब्लिश करने की अनुमति है।
+पक्का करें कि पैकेज के npm संगठन में सही टीम के पास इसे पब्लिश करने की अनुमति है।
 
 <!-- Once configured, subsequent releases will work automatically through the CI workflow. -->
 
