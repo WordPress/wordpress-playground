@@ -32,7 +32,7 @@
 		"description": "The label of footer link with label=#playground on Slack linking to https://make.wordpress.org/chat"
 	},
 	"logo.alt": {
-		"message": "Code Is Poetry",
+		"message": "कोड काव्य है",
 		"description": "The alt text of footer logo"
 	}
 }
