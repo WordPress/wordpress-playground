@@ -127,6 +127,18 @@ describe('createChildWorkerService', function () {
 		).toBe(true);
 	});
 
+	it('does not let a worker stop a child that another worker created', async function () {
+		const harness = createSpawnHarness();
+		const controller = createController(harness);
+		const otherWorker = controller.createEndpoint();
+		const child = await controller.api.createChildWorker();
+
+		await otherWorker.api.disposeChildWorker(child.childId);
+
+		expect(harness.workers[0].terminateCalls).toBe(0);
+		expect(controller.liveChildWorkerCount()).toBe(1);
+	});
+
 	it('applies post-install mounts to a child that is already connected', async function () {
 		const harness = createSpawnHarness();
 		const controller = createController(harness);

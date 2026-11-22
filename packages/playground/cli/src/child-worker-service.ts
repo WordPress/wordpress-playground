@@ -179,9 +179,15 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 			createChildWorker: function createOwnedChildWorker() {
 				return createChildWorker(owner);
 			},
-			waitForChildReady,
-			waitForChildExit,
-			disposeChildWorker,
+			waitForChildReady: function waitForOwnedChildReady(childId) {
+				return waitForChildReady(owner, childId);
+			},
+			waitForChildExit: function waitForOwnedChildExit(childId) {
+				return waitForChildExit(owner, childId);
+			},
+			disposeChildWorker: function disposeOwnedChildWorker(childId) {
+				return disposeChildWorker(owner, childId);
+			},
 		};
 		return {
 			api,
@@ -362,7 +368,7 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 			// failure. Stop that child so its positive exit signal interrupts the
 			// spawning worker instead of leaving it in a partially mounted state.
 			if (children.get(child.childId) === child) {
-				disposeChildWorker(child.childId).catch(
+				disposeChildRecord(child).catch(
 					function reportFailedChildDisposal(error): void {
 						logger.error(
 							`Failed to dispose child worker ${child.childId} ` +
@@ -374,21 +380,41 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 		});
 	}
 
-	function waitForChildExit(childId: number): Promise<void> {
+	/**
+	 * Child IDs arrive from workers, so resolve them only within the caller's
+	 * own children. One worker must not be able to stop another worker's child.
+	 */
+	function findOwnedChild(
+		owner: ChildWorkerOwner<Worker>,
+		childId: number
+	): ChildWorkerRecord<Worker> | undefined {
 		const child = children.get(childId);
+		return child?.owner === owner ? child : undefined;
+	}
+
+	function waitForChildExit(
+		owner: ChildWorkerOwner<Worker>,
+		childId: number
+	): Promise<void> {
+		const child = findOwnedChild(owner, childId);
 		if (child) {
 			return child.terminated.promise;
 		}
 		// IDs are monotonic and never reused. A previously allocated ID that no
 		// longer has a record therefore describes a child that already exited.
-		if (Number.isInteger(childId) && childId > 0 && childId < nextChildId) {
+		const wasAllocated =
+			Number.isInteger(childId) && childId > 0 && childId < nextChildId;
+		if (wasAllocated && !children.has(childId)) {
 			return Promise.resolve();
 		}
 		return Promise.reject(new Error(`Unknown child worker ${childId}.`));
 	}
 
-	async function waitForChildReady(childId: number): Promise<void> {
-		const child = children.get(childId);
+	async function waitForChildReady(
+		owner: ChildWorkerOwner<Worker>,
+		childId: number
+	): Promise<void> {
+		const child = findOwnedChild(owner, childId);
 		if (!child) {
 			throw new Error(`Child worker ${childId} has already exited.`);
 		}
@@ -523,8 +549,11 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 		}
 	}
 
-	async function disposeChildWorker(childId: number): Promise<void> {
-		const child = children.get(childId);
+	async function disposeChildWorker(
+		owner: ChildWorkerOwner<Worker>,
+		childId: number
+	): Promise<void> {
+		const child = findOwnedChild(owner, childId);
 		if (!child) {
 			return;
 		}
