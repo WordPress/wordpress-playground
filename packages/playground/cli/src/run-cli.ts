@@ -2257,8 +2257,9 @@ function spawnWorkerThread(
 			}
 		});
 		worker.once('error', function (e: Error) {
-			processIdAllocator.release(processId);
-
+			// The process ID stays claimed until 'exit', which always follows.
+			// Releasing it here would let another worker claim it before this
+			// worker's exit cleanup, which would then act on the new owner.
 			console.error(e);
 			const originalMessage =
 				e?.message || (e ? String(e) : 'unknown error');
