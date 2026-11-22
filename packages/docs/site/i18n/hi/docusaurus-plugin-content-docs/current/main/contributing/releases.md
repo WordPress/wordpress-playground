@@ -75,6 +75,7 @@ After the initial publish, go to the package's settings on npmjs.com and set up 
     - **Repository name**: `wordpress-playground`
     - **Workflow filename**: `publish-npm-packages.yml`
     - **Environment**: `npm`
+4. Under **Allowed actions**, select `npm publish`. A new trusted publisher allows only `npm stage publish` by default, and the release workflow publishes directly.
 -->
 
 पहली बार पब्लिश करने के बाद, npmjs.com पर पैकेज की सेटिंग्स में जाएँ और OIDC trusted publishing सेट करें:
@@ -86,6 +87,7 @@ After the initial publish, go to the package's settings on npmjs.com and set up 
     - **Repository name**: `wordpress-playground`
     - **Workflow filename**: `publish-npm-packages.yml`
     - **Environment**: `npm`
+4. **Allowed actions** में `npm publish` चुनें। नया trusted publisher डिफ़ॉल्ट रूप से सिर्फ़ `npm stage publish` की अनुमति देता है, और रिलीज़ वर्कफ़्लो सीधे पब्लिश करता है।
 
 <!-- ![Setting up OIDC trusted publishing on npm](/img/php-wasm-node-oidc.webp) -->
 
