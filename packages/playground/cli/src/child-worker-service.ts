@@ -34,13 +34,13 @@ import {
 	exposeAPI,
 	exposeSyncAPI,
 	releaseApiProxy,
+	withTransferables,
 	type FileLockManagerInMemory,
 	type RemoteAPI,
 } from '@php-wasm/universal';
 import { MessageChannel, type MessagePort } from 'worker_threads';
 import {
 	CHILD_WORKER_CONTROL_READY,
-	childWorkerServiceTransferPolicy,
 	type ChildWorkerControl,
 	type ChildWorkerService,
 	type CreatedChildWorker,
@@ -242,13 +242,8 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 		);
 
 		// The main ends remain owned here for the child's entire lifetime. The
-		// other ends are returned once, as one naturally transferable aggregate.
-		exposeAPI(
-			descendantEndpoint.api,
-			undefined,
-			serviceChannel.port1,
-			childWorkerServiceTransferPolicy
-		);
+		// other ends are returned once, together, in the createChildWorker() result.
+		exposeAPI(descendantEndpoint.api, undefined, serviceChannel.port1);
 		lockChannel.port1.unref();
 		serviceChannel.port1.unref();
 		controlChannel.port1.unref();
@@ -311,16 +306,26 @@ export function createChildWorkerService<Worker extends TerminableWorker>(
 				observeFutureChildMount(child, ensureChildMounted(child));
 			}
 
-			return {
-				childId: child.childId,
-				phpPort: spawnedWorker.phpPort,
-				fileLockManagerPort: child.fileLockManagerPort,
-				workerConfig: {
-					processId: spawnedWorker.processId,
-					childWorkerServicePort: child.childWorkerServicePort,
-					childWorkerControlPort: child.childWorkerControlPort,
+			// The ports are nested in the result, so they must be named to be
+			// transferred to the spawning worker along with it.
+			return withTransferables(
+				{
+					childId: child.childId,
+					phpPort: spawnedWorker.phpPort,
+					fileLockManagerPort: child.fileLockManagerPort,
+					workerConfig: {
+						processId: spawnedWorker.processId,
+						childWorkerServicePort: child.childWorkerServicePort,
+						childWorkerControlPort: child.childWorkerControlPort,
+					},
 				},
-			};
+				[
+					spawnedWorker.phpPort,
+					child.fileLockManagerPort,
+					child.childWorkerServicePort,
+					child.childWorkerControlPort,
+				]
+			);
 		} catch (error) {
 			// Let a concurrent disposal know that spawnWorker() cannot produce a
 			// Worker before asking that same disposal operation to finish.

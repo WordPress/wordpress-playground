@@ -82,7 +82,6 @@ import {
 import { createHash } from 'crypto';
 import { CLIOutput } from './cli-output';
 import { createChildWorkerService } from './child-worker-service';
-import { childWorkerServiceTransferPolicy } from './worker-boot';
 import {
 	getPhpMyAdminInstallSteps,
 	PHPMYADMIN_ENTRY_PATH,
@@ -1622,9 +1621,7 @@ export async function runCLI(
 						| (() => Promise<void>)
 						| undefined;
 					const promiseToBoot = spawnWorkerThread(workerType, {
-						onExit: function reportUnexpectedWorkerExit(
-							exitCode: number
-						) {
+						onExit: (exitCode: number) => {
 							const descendantsDisposed =
 								disposeOwnedChildWorkers?.();
 							if (descendantsDisposed) {
@@ -1654,48 +1651,53 @@ export async function runCLI(
 							);
 							// @TODO: Should we respawn the worker if it exited with an error and the CLI is not shutting down?
 						},
-					}).then(async function bootWorker(
-						spawnResult: SpawnedWorker
-					): Promise<
-						[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]
-					> {
-						// Remember the worker process before booting the Playground
-						// so we can clean it up if there is an error during boot.
-						spawnedWorkers.push(spawnResult);
+					}).then(
+						async (
+							spawnResult: SpawnedWorker
+						): Promise<
+							[SpawnedWorker, RemoteAPI<PlaygroundCliWorker>]
+						> => {
+							// Remember the worker process before booting the Playground
+							// so we can clean it up if there is an error during boot.
+							spawnedWorkers.push(spawnResult);
 
-						const fileLockManagerPort =
-							await exposeFileLockManager(fileLockManager);
-						const childWorkerServiceEndpoint =
-							activeChildWorkerService.createEndpoint();
-						disposeOwnedChildWorkers =
-							childWorkerServiceEndpoint.dispose;
-						const childWorkerServiceChannel =
-							new NodeMessageChannel();
-						exposeAPI(
-							childWorkerServiceEndpoint.api,
-							undefined,
-							childWorkerServiceChannel.port1,
-							childWorkerServiceTransferPolicy
-						);
-						childWorkerServiceChannel.port1.unref();
-						childWorkerServicePorts.push(
-							childWorkerServiceChannel.port1
-						);
-						const playgroundApi = await handler.bootRequestHandler({
-							worker: spawnResult,
-							fileLockManagerPort,
-							workerConfig: {
-								processId: spawnResult.processId,
-								childWorkerServicePort:
-									childWorkerServiceChannel.port2,
-							},
-							nativeInternalDirPath,
-						});
+							const fileLockManagerPort =
+								await exposeFileLockManager(fileLockManager);
+							const childWorkerServiceEndpoint =
+								activeChildWorkerService.createEndpoint();
+							disposeOwnedChildWorkers =
+								childWorkerServiceEndpoint.dispose;
+							const childWorkerServiceChannel =
+								new NodeMessageChannel();
+							exposeAPI(
+								childWorkerServiceEndpoint.api,
+								undefined,
+								childWorkerServiceChannel.port1
+							);
+							childWorkerServiceChannel.port1.unref();
+							childWorkerServicePorts.push(
+								childWorkerServiceChannel.port1
+							);
+							const playgroundApi =
+								await handler.bootRequestHandler({
+									worker: spawnResult,
+									fileLockManagerPort,
+									workerConfig: {
+										processId: spawnResult.processId,
+										childWorkerServicePort:
+											childWorkerServiceChannel.port2,
+									},
+									nativeInternalDirPath,
+								});
 
-						workerToPlaygroundMap.set(spawnResult, playgroundApi);
+							workerToPlaygroundMap.set(
+								spawnResult,
+								playgroundApi
+							);
 
-						return [spawnResult, playgroundApi];
-					});
+							return [spawnResult, playgroundApi];
+						}
+					);
 
 					promisesToBoot.push(promiseToBoot);
 
@@ -1715,9 +1717,8 @@ export async function runCLI(
 				await Promise.all(promisesToBoot);
 				playgroundPool = createObjectPoolProxy(
 					spawnedWorkers.map(
-						function getPlaygroundForWorker(spawnedWorker) {
-							return workerToPlaygroundMap.get(spawnedWorker)!;
-						}
+						(spawnedWorker) =>
+							workerToPlaygroundMap.get(spawnedWorker)!
 					)
 				);
 
@@ -1734,7 +1735,7 @@ export async function runCLI(
 						messageChannelForPostInstallMounts.port2;
 					await exposeAPI(
 						{
-							async applyPostInstallMountsToAllWorkers() {
+							applyPostInstallMountsToAllWorkers: async () => {
 								// Apply post-install mounts to workers
 								// one at a time. Each worker's mount handler
 								// creates placeholder files on the shared
@@ -2238,14 +2239,11 @@ function spawnWorkerThread(
 	}
 	onWorkerCreated?.(worker);
 
-	return new Promise<SpawnedWorker>(function initializeWorker(
-		resolve,
-		reject
-	) {
+	return new Promise<SpawnedWorker>((resolve, reject) => {
 		const processId = processIdAllocator.claim();
 		let initialized = false;
 
-		worker.once('message', function handleWorkerMessage(message: any) {
+		worker.once('message', function (message: any) {
 			// Let the worker confirm it has initialized.
 			// We could use the 'online' event to detect start of JS execution,
 			// but that would miss initialization errors.
@@ -2258,7 +2256,7 @@ function spawnWorkerThread(
 				});
 			}
 		});
-		worker.once('error', function handleWorkerError(e: Error) {
+		worker.once('error', function (e: Error) {
 			processIdAllocator.release(processId);
 
 			console.error(e);
@@ -2270,7 +2268,7 @@ function spawnWorkerThread(
 			);
 			reject(error);
 		});
-		worker.once('exit', function handleWorkerExit(code) {
+		worker.once('exit', (code) => {
 			processIdAllocator.release(processId);
 
 			if (!initialized) {

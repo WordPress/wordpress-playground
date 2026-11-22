@@ -14,7 +14,6 @@ import {
 } from '../src/child-worker-service';
 import {
 	CHILD_WORKER_CONTROL_READY,
-	childWorkerServiceTransferPolicy,
 	type ChildWorkerControl,
 	type ChildWorkerService,
 } from '../src/worker-boot';
@@ -200,9 +199,7 @@ describe('createChildWorkerService', function () {
 		const topLevelWorkerEndpoint = controller.createEndpoint();
 		const child = await topLevelWorkerEndpoint.api.createChildWorker();
 		const childService = consumeAPI<ChildWorkerService>(
-			child.workerConfig.childWorkerServicePort,
-			undefined,
-			childWorkerServiceTransferPolicy
+			child.workerConfig.childWorkerServicePort
 		);
 		await childService.createChildWorker();
 
@@ -226,9 +223,7 @@ describe('createChildWorkerService', function () {
 		const topLevelWorkerEndpoint = controller.createEndpoint();
 		const child = await topLevelWorkerEndpoint.api.createChildWorker();
 		const childService = consumeAPI<ChildWorkerService>(
-			child.workerConfig.childWorkerServicePort,
-			undefined,
-			childWorkerServiceTransferPolicy
+			child.workerConfig.childWorkerServicePort
 		);
 		await childService.createChildWorker();
 		await childService.createChildWorker();
@@ -292,9 +287,7 @@ describe('createChildWorkerService', function () {
 		const controller = createController(harness);
 		const child = await controller.api.createChildWorker();
 		const childService = consumeAPI<ChildWorkerService>(
-			child.workerConfig.childWorkerServicePort,
-			undefined,
-			childWorkerServiceTransferPolicy
+			child.workerConfig.childWorkerServicePort
 		);
 		await childService.createChildWorker();
 

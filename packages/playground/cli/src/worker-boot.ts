@@ -13,8 +13,9 @@
 import type { PHPExtension } from '@php-wasm/node';
 import {
 	consumeAPI,
-	defineAPITransferPolicy,
+	exposeAPI,
 	releaseApiProxy,
+	withTransferables,
 	type AllPHPVersion,
 	type PathAlias,
 	type RemoteAPI,
@@ -23,6 +24,11 @@ import type { Mount } from '@php-wasm/cli-util';
 import { logger } from '@php-wasm/logger';
 import type { MessagePort } from 'worker_threads';
 
+/**
+ * Posted by a child on its control port once its control API is exposed. The
+ * main thread waits for it instead of using isConnected(), whose retry loop
+ * cannot be cancelled if the child never finishes booting.
+ */
 export const CHILD_WORKER_CONTROL_READY = 'child-worker-control-ready';
 
 /**
@@ -89,7 +95,7 @@ export interface ChildWorkerConfig extends WorkerConfig {
 }
 
 /**
- * The complete, naturally transferable result of creating a child worker.
+ * The complete result of creating a child worker.
  *
  * All worker-owned endpoints travel together so the caller can either finish
  * booting the child or dispose it without a partially-consumed service record.
@@ -134,45 +140,9 @@ export interface WorkerBootApi {
 	): Promise<void>;
 }
 
-export const childWorkerServiceTransferPolicy =
-	defineAPITransferPolicy<ChildWorkerService>({
-		createChildWorker: {
-			result: function transferCreatedChildWorker(child) {
-				return [
-					child.phpPort,
-					child.fileLockManagerPort,
-					child.workerConfig.childWorkerServicePort,
-					child.workerConfig.childWorkerControlPort,
-				];
-			},
-		},
-	});
-
-export const workerBootApiTransferPolicy =
-	defineAPITransferPolicy<WorkerBootApi>({
-		bootRequestHandler: {
-			arguments: function transferWorkerBootArguments(
-				_platformConfig,
-				workerConfig
-			) {
-				return [
-					workerConfig.childWorkerServicePort,
-					...(workerConfig.childWorkerControlPort
-						? [workerConfig.childWorkerControlPort]
-						: []),
-				];
-			},
-		},
-	});
-
 type SpawnedChildWorkerApi = WorkerBootApi & {
 	useFileLockManager(port: MessagePort): Promise<void>;
 };
-
-const spawnedChildWorkerTransferPolicy =
-	defineAPITransferPolicy<SpawnedChildWorkerApi>({
-		bootRequestHandler: workerBootApiTransferPolicy.bootRequestHandler,
-	});
 
 /**
  * Ask the main thread for a child worker and finish wiring it before exposing
@@ -195,21 +165,24 @@ export async function bootSpawnedChildWorker<
 	let childApi: RemoteAPI<SpawnedChildWorkerApi> | undefined;
 
 	try {
-		const activeChildApi = consumeAPI<SpawnedChildWorkerApi>(
-			phpPort,
-			undefined,
-			spawnedChildWorkerTransferPolicy,
-			{ endpointTerminated: runtimeExited }
-		);
+		const activeChildApi = consumeAPI<SpawnedChildWorkerApi>(phpPort);
 		childApi = activeChildApi;
-		await activeChildApi.useFileLockManager(fileLockManagerPort);
-		await activeChildApi.bootRequestHandler(platformConfig, workerConfig);
-		// A child created after WordPress installation must not execute PHP until
-		// the service has applied the mounts it recorded for future workers.
-		await childWorkerService.waitForChildReady(childId);
+		// Comlink does not reject a pending call when its worker exits. Racing
+		// the boot against the child's exit turns a crashed child into a failed
+		// proc_open() instead of leaving this worker waiting forever.
+		await Promise.race([
+			bootChild(activeChildApi),
+			runtimeExited.then((): never => {
+				throw new Error(
+					`Child worker ${childId} exited before it finished booting.`
+				);
+			}),
+		]);
 
 		return {
 			php: activeChildApi as unknown as RemoteAPI<WorkerApi>,
+			// The spawn handler races the command it runs in the same way.
+			runtimeExited,
 			reap() {
 				releaseChildApiProxyQuietly(childApi);
 				// Reaping is deliberately fire-and-forget because the spawn-handler
@@ -238,6 +211,59 @@ export async function bootSpawnedChildWorker<
 		}
 		throw error;
 	}
+
+	async function bootChild(
+		activeChildApi: RemoteAPI<SpawnedChildWorkerApi>
+	): Promise<void> {
+		await activeChildApi.useFileLockManager(fileLockManagerPort);
+		await activeChildApi.bootRequestHandler(
+			platformConfig,
+			withWorkerConfigPorts(workerConfig)
+		);
+		// A child created after WordPress installation must not execute PHP until
+		// the service has applied the mounts it recorded for future workers.
+		await childWorkerService.waitForChildReady(childId);
+	}
+}
+
+/**
+ * Name the ports inside a worker configuration so they are transferred with it.
+ *
+ * Every `bootRequestHandler()` call that crosses a thread must wrap its
+ * `workerConfig` with this. A port nested in an object cannot be cloned, so
+ * the call would otherwise fail with a DataCloneError.
+ */
+export function withWorkerConfigPorts<Config extends WorkerConfig>(
+	workerConfig: Config
+): Config {
+	return withTransferables(workerConfig, [
+		workerConfig.childWorkerServicePort,
+		...(workerConfig.childWorkerControlPort
+			? [workerConfig.childWorkerControlPort]
+			: []),
+	]);
+}
+
+/**
+ * Let the main thread reach a spawned worker once its PHP runtime is ready.
+ *
+ * Spawned workers miss the main WordPress installation flow. This private
+ * endpoint lets the main-thread service apply post-install mounts before it
+ * declares the child ready. The ready message must come after the exposure:
+ * the service may call the API as soon as the message arrives. The service
+ * releases the API and closes both ports when the child is cleaned up.
+ *
+ * Top-level request workers have no control port, so this does nothing there.
+ */
+export function exposeChildWorkerControl(
+	control: ChildWorkerControl,
+	controlPort: MessagePort | undefined
+): void {
+	if (!controlPort) {
+		return;
+	}
+	exposeAPI(control, undefined, controlPort);
+	controlPort.postMessage(CHILD_WORKER_CONTROL_READY);
 }
 
 /** Release a child proxy even when its worker already closed the endpoint. */
