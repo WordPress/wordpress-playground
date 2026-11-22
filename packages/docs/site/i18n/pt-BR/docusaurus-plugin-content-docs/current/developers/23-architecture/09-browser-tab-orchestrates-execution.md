@@ -1,5 +1,6 @@
 ---
 slug: /developers/architecture/browser-tab-orchestrates-execution
+title: A aba do navegador orquestra a execução
 ---
 
 <!-- # Browser tab orchestrates the execution -->
