@@ -174,8 +174,6 @@ Loading times vary based on what Playground needs to set up:
 
 ## Al desarrollar con Playground
 
-<!-- ### Iframe quirks -->
-
 ### Peculiaridades del iframe
 
 <!--
@@ -189,8 +187,6 @@ Playground renders WordPress in an [`iframe`](/developers/architecture/browser-i
 -->
 
 Además, las ventanas emergentes de JavaScript que se originan en el `iframe` no siempre se muestran.
-
-<!-- ### Run WordPress PHP functions -->
 
 ### Ejecutar funciones PHP de WordPress
 
@@ -227,7 +223,7 @@ Al usar [Playground CLI](/developers/local-development/wp-playground-cli), el co
 When using the [Playground CLI](/developers/local-development/wp-playground-cli), the `php` command can run PHP scripts, including a mounted `wp-cli.phar`, directly in the WASM PHP runtime.
 -->
 
-## Mejoras recientes {#recent-improvements}
+## Limitaciones resueltas
 
 Se han resuelto varias limitaciones anteriores:
 
@@ -237,7 +233,7 @@ Se han resuelto varias limitaciones anteriores:
 - **Gestión de errores de descarga**: cuando falla una descarga necesaria de WASM o de un script por un problema de red, un bloqueador de anuncios o una causa similar, Playground muestra un modal de error útil en lugar de una página en blanco.
 
 <!--
-## Recent improvements {#recent-improvements}
+## Resolved limitations
 
 Several previous limitations have been addressed:
 

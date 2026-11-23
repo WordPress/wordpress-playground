@@ -219,7 +219,7 @@ You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/step
 When using the [Playground CLI](/developers/local-development/wp-playground-cli), the `php` command can run PHP scripts, including a mounted `wp-cli.phar`, directly in the WASM PHP runtime.
 -->
 
-## 最近の改善 {#recent-improvements}
+## 解消された制限
 
 これまでの制限のいくつかが解消されました。
 
@@ -229,7 +229,7 @@ When using the [Playground CLI](/developers/local-development/wp-playground-cli)
 - **ダウンロードエラー時の表示改善**: ネットワーク、広告ブロッカーなどの問題で必要なWASMやスクリプトのダウンロードに失敗した場合、Playgroundは空白ページではなく分かりやすいエラーモーダルを表示します。
 
 <!--
-## Recent improvements {#recent-improvements}
+## Resolved limitations
 
 Several previous limitations have been addressed:
 

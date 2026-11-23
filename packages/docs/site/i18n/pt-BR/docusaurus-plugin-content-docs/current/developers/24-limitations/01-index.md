@@ -82,8 +82,6 @@ Browser storage still belongs to the browser. Storage pressure, private browsing
 ![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 -->
 
-<!-- ### Browser support -->
-
 ### Suporte a navegadores
 
 <!--
@@ -105,8 +103,6 @@ WordPress Playground is designed to work across all major desktop and mobile bro
 -->
 
 O Playground usa tecnologias web modernas e deve se comportar de forma consistente nesses ambientes. Ainda assim, alguns recursos avançados podem ter níveis de suporte diferentes conforme o navegador e a versão.
-
-<!-- ### Performance expectations -->
 
 ### Expectativas de desempenho
 
@@ -168,8 +164,6 @@ Loading times vary based on what Playground needs to set up:
 
 ## Ao desenvolver com o Playground
 
-<!-- ### Iframe quirks -->
-
 ### Peculiaridades do iframe
 
 <!--
@@ -183,8 +177,6 @@ Playground renders WordPress in an [`iframe`](/developers/architecture/browser-i
 -->
 
 Além disso, pop-ups JavaScript originados no `iframe` podem nem sempre aparecer.
-
-<!-- ### Run WordPress PHP functions -->
 
 ### Executar funções PHP do WordPress
 
@@ -221,7 +213,7 @@ Quando você usa o [Playground CLI](/developers/local-development/wp-playground-
 When using the [Playground CLI](/developers/local-development/wp-playground-cli), the `php` command can run PHP scripts, including a mounted `wp-cli.phar`, directly in the WASM PHP runtime.
 -->
 
-## Melhorias recentes {#recent-improvements}
+## Limitações resolvidas
 
 Várias limitações anteriores foram resolvidas:
 
@@ -231,7 +223,7 @@ Várias limitações anteriores foram resolvidas:
 - **Tratamento de erros ao baixar arquivos**: quando não é possível baixar um arquivo WASM ou um script necessário devido a um problema de rede, bloqueador de anúncios ou situação semelhante, o Playground exibe um modal de erro útil em vez de uma página em branco.
 
 <!--
-## Recent improvements {#recent-improvements}
+## Resolved limitations
 
 Several previous limitations have been addressed:
 

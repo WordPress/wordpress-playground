@@ -91,7 +91,7 @@ You can execute `wp-cli` commands via the Blueprints [`wp-cli`](/blueprints/step
 
 When using the [Playground CLI](/developers/local-development/wp-playground-cli), the `php` command can run PHP scripts, including a mounted `wp-cli.phar`, directly in the WASM PHP runtime.
 
-## Recent improvements {#recent-improvements}
+## Resolved limitations
 
 Several previous limitations have been addressed:
 

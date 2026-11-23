@@ -82,8 +82,6 @@ Browser storage still belongs to the browser. Storage pressure, private browsing
 ![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 -->
 
-<!-- ### Browser support -->
-
 ### Compatibilité des navigateurs
 
 <!--
@@ -166,8 +164,6 @@ Loading times vary based on what Playground needs to set up:
 
 ## Lors du développement avec Playground
 
-<!-- ### Iframe quirks -->
-
 ### Particularités des iframes
 
 <!--
@@ -181,8 +177,6 @@ Playground renders WordPress in an [`iframe`](/developers/architecture/browser-i
 -->
 
 De plus, les fenêtres popup JavaScript issues de l’`iframe` ne s’affichent pas toujours.
-
-<!-- ### Run WordPress PHP functions -->
 
 ### Exécuter des fonctions PHP WordPress
 
@@ -203,8 +197,6 @@ Playground supports running PHP code in Blueprints using the [`runPHP` step](/bl
 }
 ```
 
-<!-- ### Using WP-CLI -->
-
 ### Utilisation de WP-CLI
 
 <!--
@@ -223,10 +215,10 @@ Avec [Playground CLI](/developers/local-development/wp-playground-cli), la comma
 When using the [Playground CLI](/developers/local-development/wp-playground-cli), the `php` command can run PHP scripts, including a mounted `wp-cli.phar`, directly in the WASM PHP runtime.
 -->
 
-## Améliorations récentes {#recent-improvements}
+## Limitations résolues
 
 <!--
-## Recent improvements {#recent-improvements}
+## Resolved limitations
 -->
 
 Plusieurs limitations antérieures ont été levées :
