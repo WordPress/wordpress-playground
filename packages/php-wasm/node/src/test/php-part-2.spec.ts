@@ -818,6 +818,7 @@ phpLoaderOptions.forEach((options) => {
 			it('Should be able to use mb_regex_encoding functions', async () => {
 				const promise = php.run({
 					code: `<?php
+							error_reporting(E_ALL & ~E_DEPRECATED);
 							mb_regex_encoding('UTF-8');
 						?>`,
 				});

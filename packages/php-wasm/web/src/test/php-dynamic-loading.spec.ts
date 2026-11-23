@@ -362,6 +362,25 @@ test.describe('External PHP side modules', () => {
 		});
 	});
 
+	if (process.env['JSPI'] !== 'true') {
+		test('rejects external extensions in Asyncify mode', async ({
+			page,
+		}) => {
+			await test
+				.expect(
+					page.evaluate(async (manifestUrl) => {
+						await window.loadWebRuntime('8.3', {
+							extensions: [
+								{ source: { format: 'manifest', manifestUrl } },
+							],
+						});
+					}, sqliteParserManifestUrl)
+				)
+				.rejects.toThrow('External PHP extensions require JSPI');
+		});
+		return;
+	}
+
 	test('loads the published SQLite wp_mysql_parser extension', async ({
 		page,
 	}) => {

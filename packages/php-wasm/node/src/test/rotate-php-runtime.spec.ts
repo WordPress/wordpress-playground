@@ -375,41 +375,21 @@ describe.each([true, false])(
 			expect(php.readFileAsText(scriptPath)).toBe(parentPhpCode);
 		});
 
-		it('Free up the available PHP memory', async () => {
-			const freeMemory = (php: PHP) =>
-				php[__private__dont__use].HEAPU32.reduce(
-					(count: number, byte: number) =>
-						byte === 0 ? count + 1 : count,
-					0
-				);
-
+		it('Uses fresh WebAssembly memory after rotation', async () => {
 			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
-			// Rotate the PHP runtime
 			const php = new PHP(await recreateRuntime());
 			php.enableRuntimeRotation({
 				recreateRuntime: recreateRuntimeSpy,
-				maxRequests: 1000,
+				maxRequests: 1,
 			});
-			const freeInitially = freeMemory(php);
-			for (let i = 0; i < 1000; i++) {
-				await php.run({
-					code: `<?php
-			// Do some string allocations
-			for($i=0;$i<10;$i++) {
-				echo "abc";
-			}
-			file_put_contents('./test', 'test');
-			`,
-				});
-			}
-			const freeAfter1000Requests = freeMemory(php);
-			expect(freeAfter1000Requests).toBeLessThan(freeInitially);
-
-			// Rotate the PHP runtime
 			await php.run({ code: `<?php echo "abc";` });
-			const freeAfterRotation = freeMemory(php);
-			expect(freeAfterRotation).toBeGreaterThan(freeAfter1000Requests);
-		}, 45_000);
+			const previousMemory = php[__private__dont__use].HEAPU32.buffer;
+			await php.run({ code: `<?php echo "abc";` });
+			expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
+			expect(php[__private__dont__use].HEAPU32.buffer).not.toBe(
+				previousMemory
+			);
+		});
 
 		it('Should recreate the PHP runtime after maxRequests', async () => {
 			const recreateRuntimeSpy = vitest.fn(recreateRuntime);

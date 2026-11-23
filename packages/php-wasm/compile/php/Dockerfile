@@ -337,6 +337,8 @@ RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 		echo -n ' -DMYSQLND_FORCE_TCP_LOCALHOST ' >> /root/.emcc-php-wasm-flags; \
 	fi
 
+COPY ./compile/php/wasm-imagick-stream-8.6.patch /root/
+
 # Download and prepare imagick extension if needed (PHP 7.4+)
 # Use version 3.7.0 for PHP 7.x, development branch for PHP 8.x
 RUN if [ "$WITH_IMAGICK" = "yes" ]; then \
@@ -350,6 +352,9 @@ RUN if [ "$WITH_IMAGICK" = "yes" ]; then \
 			--single-branch \
 			--depth 1 && \
 		cp -r /root/imagick /root/php-src/ext/imagick && \
+		if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
+			cd /root && git apply --no-index /root/wasm-imagick-stream-8.6.patch; \
+		fi && \
 		cd /root/php-src && \
 		if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
 			cp configure configure.backup && \
@@ -2202,7 +2207,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 	if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
 		ASYNCIFY_ONLY_UNPREFIXED+=',"php_poll_wasm","poll_backend_wait","php_poll_wait","zim_Io_Poll_Context_wait"'; \
 		ASYNCIFY_ONLY_UNPREFIXED+=',"curl_read","multi_wait"'; \
-		ASYNCIFY_ONLY_UNPREFIXED+=',"php_stream_read","php_stream_set_option","php_stream_fill_read_buffer","php_stream_free"'; \
+		ASYNCIFY_ONLY_UNPREFIXED+=',"php_stream_read","php_stream_set_option","php_stream_fill_read_buffer","php_stream_get_line","php_stream_eof","php_stream_free"'; \
 	fi; \
 	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
 	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \

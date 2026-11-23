@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { LegacyPHPVersions, SupportedPHPVersions } from '@php-wasm/universal';
 
 const repoRoot = resolve(
 	dirname(fileURLToPath(import.meta.url)),
@@ -61,7 +62,9 @@ describe('socket timeout support', () => {
 			),
 		];
 
-		expect(loaderFiles).toHaveLength(32);
+		expect(loaderFiles).toHaveLength(
+			(SupportedPHPVersions.length + LegacyPHPVersions.length) * 4
+		);
 
 		for (const loaderFile of loaderFiles) {
 			const loader = readFileSync(loaderFile, 'utf8');
