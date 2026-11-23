@@ -379,8 +379,6 @@
 	}
 }
 
-/* A rejected key is marked at the field so a replacement can be pasted
-   without losing the chosen site or creating another Playground. */
 
 .panel
 	.hero-input
