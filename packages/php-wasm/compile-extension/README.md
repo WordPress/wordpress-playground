@@ -65,7 +65,7 @@ If an extension needs startup settings, add them to the manifest:
 }
 ```
 
-The supported `--php-versions` are `7.4` and `8.0` through `8.5`.
+The supported `--php-versions` are `7.4` and `8.0` through `8.6`.
 
 Docker is required. The CLI lazily fetches the small PHP.wasm Docker asset set
 needed to prepare the Emscripten base image and all `compile/php/php*.patch`
@@ -87,7 +87,7 @@ The package only needs Docker and Node. It does not require a checkout of
       npx --yes @php-wasm/compile-extension \
         --source ./my-extension \
         --name my_extension \
-        --php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
+        --php-versions 8.0,8.1,8.2,8.3,8.4,8.5,8.6 \
         --out ./dist/my-extension
 ```
 

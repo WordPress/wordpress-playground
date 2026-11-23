@@ -37,7 +37,7 @@ If you run into a crash like the one above, you can fix it by:
 
 ## JSPI: The Modern Alternative to Asyncify
 
-The [JavaScript Promise Integration (JSPI)](https://v8.dev/blog/jspi) API handles stack switching natively in V8, eliminating the need for Asyncify's function wrapping. WordPress Playground now ships JSPI builds alongside Asyncify builds for all PHP versions (7.4–8.5).
+The [JavaScript Promise Integration (JSPI)](https://v8.dev/blog/jspi) API handles stack switching natively in V8, eliminating the need for Asyncify's function wrapping. WordPress Playground now ships JSPI builds alongside Asyncify builds for all PHP versions (7.4–8.6).
 
 **Current status:**
 
@@ -56,4 +56,4 @@ Both Asyncify and JSPI builds are compiled with Emscripten's `MAIN_MODULE=2` fla
 - `.wasm` files reduced by **109 MB** (16%)
 - JavaScript glue code reduced by **14.5 MB** (63%)
 
-This optimization applies across all PHP versions (7.4–8.5) for both Node.js and Web targets. The exported symbol list is centrally managed in the Dockerfile, with conditional exports for specific extensions (e.g., `__c_longjmp` for Xdebug, `_wasm_recv` for Memcached).
+This optimization applies across all PHP versions (7.4–8.6) for both Node.js and Web targets. The exported symbol list is centrally managed in the Dockerfile, with conditional exports for specific extensions (e.g., `__c_longjmp` for Xdebug, `_wasm_recv` for Memcached).

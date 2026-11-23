@@ -2,6 +2,7 @@ export const PHPNextVersion = 'next';
 export type PHPNextVersion = typeof PHPNextVersion;
 
 export const SupportedPHPVersions = [
+	'8.6',
 	'8.5',
 	'8.4',
 	'8.3',

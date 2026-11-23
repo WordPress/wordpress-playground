@@ -103,6 +103,71 @@ phpLoaderOptions.forEach((options) => {
 			php.exit();
 		});
 
+		it('loads the requested PHP version', async () => {
+			const response = await php.run({
+				code: '<?php echo PHP_MAJOR_VERSION . "." . PHP_MINOR_VERSION;',
+			});
+
+			expect(response.text).toBe(phpVersion);
+		});
+
+		if (phpVersion === '8.6') {
+			it('encrypts and decrypts with OpenSSL', async () => {
+				const response = await php.run({
+					code: `<?php
+						$key = str_repeat('k', 32);
+						$iv = str_repeat('i', 12);
+						$tag = '';
+						$ciphertext = openssl_encrypt('hello', 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+						echo openssl_decrypt($ciphertext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
+					`,
+				});
+
+				expect(response.text).toBe('hello');
+			});
+
+			it('polls an empty set without blocking', async () => {
+				const response = await php.run({
+					code: `<?php
+						$poll = new Io\\Poll\\Context(Io\\Poll\\Backend::Poll);
+						$ready = $poll->wait(Time\\Duration::fromMilliseconds(0));
+						echo $poll->getBackend()->name . ':' . count($ready);
+					`,
+				});
+
+				expect(response.text).toBe('Poll:0');
+			});
+
+			it('yields to JavaScript while an empty poll waits', async () => {
+				await php.run({ code: '<?php echo "ready";' });
+				const response = await php.runStream({
+					code: `<?php
+						echo 'started';
+						flush();
+						$poll = new Io\\Poll\\Context(Io\\Poll\\Backend::Poll);
+						$poll->wait(Time\\Duration::fromMilliseconds(300));
+						echo 'finished';
+					`,
+				});
+				const reader = response.stdout.getReader();
+				expect(
+					new TextDecoder().decode((await reader.read()).value)
+				).toBe('started');
+				const next = reader.read();
+				const first = await Promise.race([
+					next.then(() => 'poll'),
+					new Promise((resolve) =>
+						setTimeout(() => resolve('timer'), 10)
+					),
+				]);
+
+				expect(first).toBe('timer');
+				expect(new TextDecoder().decode((await next).value)).toBe(
+					'finished'
+				);
+			});
+		}
+
 		describe('php.runStream()', { skip }, () => {
 			it('should return a StreamedPHPResponse', async () => {
 				const streamed = await php.runStream({

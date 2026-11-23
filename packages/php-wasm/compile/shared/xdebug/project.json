@@ -15,6 +15,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.6",
 					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.5",
 					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.4",
 					"nx run php-wasm-compile-shared-xdebug:jspi --PHP_VERSION=8.3",
@@ -39,6 +40,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.6",
 					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.5",
 					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.4",
 					"nx run php-wasm-compile-shared-xdebug:asyncify --PHP_VERSION=8.3",

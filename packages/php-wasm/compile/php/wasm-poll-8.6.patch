@@ -1,0 +1,72 @@
+diff --git a/php-src/main/poll/poll_backend_poll.c b/php-src/main/poll/poll_backend_poll.c
+--- a/php-src/main/poll/poll_backend_poll.c
++++ b/php-src/main/poll/poll_backend_poll.c
+@@ -14,6 +14,11 @@
+ 
+ #include "php_poll_internal.h"
+ 
++#ifdef __EMSCRIPTEN__
++#include <emscripten.h>
++static int php_poll_wasm(struct pollfd *fds, nfds_t count, int timeout_ms);
++#endif
++
+ #ifndef PHP_WIN32
+ 
+ typedef struct poll_backend_data {
+@@ -190,7 +195,11 @@
+ 	int fd_count = php_poll_fd_table_count(backend_data->fd_table);
+ 	if (fd_count == 0) {
+ 		if (timeout != NULL && (timeout->tv_sec > 0 || timeout->tv_nsec > 0)) {
++#ifdef __EMSCRIPTEN__
++			emscripten_sleep(php_poll_timespec_to_ms(timeout));
++#else
+ 			nanosleep(timeout, NULL);
++#endif
+ 		}
+ 		return 0;
+ 	}
+@@ -213,7 +222,11 @@
+ 
+ 	/* Convert timespec to milliseconds (poll() only supports ms resolution) */
+ 	int timeout_ms = php_poll_timespec_to_ms(timeout);
++#ifdef __EMSCRIPTEN__
++	int nfds = php_poll_wasm(backend_data->temp_fds, fd_count, timeout_ms);
++#else
+ 	int nfds = poll(backend_data->temp_fds, fd_count, timeout_ms);
++#endif
+ 
+ 	if (nfds < 0) {
+ 		php_poll_set_current_errno_error(ctx);
+@@ -255,6 +268,32 @@
+ 
+ 	return event_count;
+ }
++
++#ifdef __EMSCRIPTEN__
++/* Emscripten's poll() does not wait, so yield to the event loop between checks. */
++static int php_poll_wasm(struct pollfd *fds, nfds_t count, int timeout_ms)
++{
++	double deadline = emscripten_get_now() + timeout_ms;
++	int result = poll(fds, count, 0);
++
++	while (result == 0 && timeout_ms != 0) {
++		int sleep_ms = 10;
++		if (timeout_ms > 0) {
++			double remaining = deadline - emscripten_get_now();
++			if (remaining <= 0) {
++				break;
++			}
++			if (remaining < sleep_ms) {
++				sleep_ms = (int) remaining + 1;
++			}
++		}
++		emscripten_sleep(sleep_ms);
++		result = poll(fds, count, 0);
++	}
++
++	return result;
++}
++#endif
+ 
+ static bool poll_backend_is_available(void)
+ {

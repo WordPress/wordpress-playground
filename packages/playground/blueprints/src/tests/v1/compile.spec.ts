@@ -578,7 +578,16 @@ describe('Blueprints', () => {
 		});
 
 		it('should accept PHP 7.4 and later versions without changes', async () => {
-			const versions = ['7.4', '8.0', '8.1', '8.2', '8.3', '8.4', '8.5'];
+			const versions = [
+				'7.4',
+				'8.0',
+				'8.1',
+				'8.2',
+				'8.3',
+				'8.4',
+				'8.5',
+				'8.6',
+			];
 
 			for (const version of versions) {
 				const blueprint = {

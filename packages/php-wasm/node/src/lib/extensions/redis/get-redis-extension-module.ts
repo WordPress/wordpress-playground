@@ -6,6 +6,7 @@ import type { SupportedPHPVersion } from '@php-wasm/universal';
  *
  * Each PHP version's redis extension is packaged separately. Install the
  * version-specific package you need:
+ * - @php-wasm/node-8-6
  * - @php-wasm/node-8-5
  * - @php-wasm/node-8-4
  * - etc.
@@ -14,6 +15,9 @@ export async function getRedisExtensionModule(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion
 ): Promise<any> {
 	switch (version) {
+		case '8.6':
+			// @ts-ignore
+			return (await import('@php-wasm/node-8-6')).getRedisExtensionPath();
 		case '8.5':
 			// @ts-ignore
 			return (await import('@php-wasm/node-8-5')).getRedisExtensionPath();

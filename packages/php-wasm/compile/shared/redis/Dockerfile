@@ -34,7 +34,10 @@ RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 # The resulting PHP version is not used at runtime.
 # It only exists to enable 'phpize' to build extensions.
 #
+# PHP 8.6 requires the CLI SAPI when building the embed SAPI.
 RUN source /root/emsdk/emsdk_env.sh && \
+	CLI_SAPI_FLAG=--disable-cli && \
+	if [[ "${PHP_VERSION:0:3}" == "8.6" ]]; then CLI_SAPI_FLAG=--enable-cli; fi && \
 	cd php-src && \
 	emconfigure ./configure \
 	--disable-fiber-asm \
@@ -46,7 +49,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--disable-opcache \
 	--disable-phpdbg \
 	--without-pcre-jit \
-	--disable-cli \
+	"$CLI_SAPI_FLAG" \
 	# PHP < 8.5
 	--disable-libxml \
 	--without-libxml \
@@ -66,9 +69,14 @@ RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_multipl
 RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
 RUN /root/replace.sh 's/defined\(__clang__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
 
+# Only install the tools and headers needed by phpize; do not link a standalone PHP CLI.
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd /root/php-src && \
-	emmake make install
+	if [[ "${PHP_VERSION:0:3}" == "8.6" ]]; then \
+		emmake make install-build install-headers install-programs; \
+	else \
+		emmake make install; \
+	fi
 
 # Copy extension headers that phpredis requires.
 # These headers are not installed by default during `make install`
@@ -89,13 +97,19 @@ RUN mkdir -p /usr/local/include/php/ext/standard && \
 		cp /root/php-src/ext/random/*.h /usr/local/include/php/ext/standard/; \
 	fi
 
-# Clone phpredis
-# Use a specific version that supports all PHP versions we need
-# Version 6.3.0 has PHP 8.4+ support
-RUN git clone https://github.com/phpredis/phpredis.git /root/phpredis \
-	--branch 6.3.0 \
-	--single-branch \
-	--depth 1;
+# PHP 8.6 support is available in phpredis 6.4.0RC1.
+RUN if [[ "${PHP_VERSION:0:3}" == "8.6" ]]; then \
+		wget -q https://pecl.php.net/get/redis-6.4.0RC1.tgz -O /tmp/phpredis.tgz && \
+		echo '876434dff29603c83e33cb69bbcfdcff1f7846d968a396436b6c026cc15fc492  /tmp/phpredis.tgz' | sha256sum -c - && \
+		mkdir -p /root/phpredis && \
+		tar -xzf /tmp/phpredis.tgz --strip-components=1 -C /root/phpredis && \
+		rm /tmp/phpredis.tgz; \
+	else \
+		git clone https://github.com/phpredis/phpredis.git /root/phpredis \
+			--branch 6.3.0 \
+			--single-branch \
+			--depth 1; \
+	fi
 
 # Fix va_arg(ap, long) in redis_spprintf: on WASM32, long is 4 bytes but
 # zend_long is 8 bytes (due to -D__x86_64__), causing argument misalignment

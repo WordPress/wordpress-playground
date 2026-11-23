@@ -21,6 +21,7 @@ import type {
 import { createManifest, ExtensionAsyncMode, writeManifest } from './manifest';
 
 export const SupportedExtensionPHPVersions = [
+	'8.6',
 	'8.5',
 	'8.4',
 	'8.3',

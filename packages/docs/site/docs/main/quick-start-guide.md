@@ -113,7 +113,7 @@ You can also use the `wp` and `php` [query parameters](/developers/apis/query-ap
 
 This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
-Use `php=next` to preview the next PHP version built from the php-src development branch. For example, see the [PHP 8.6 feature preview](https://playground.wordpress.net/php-8-6.html).
+Use `php=next` to preview the next PHP version built from the php-src development branch. You can also explore the [PHP 8.6 features](https://playground.wordpress.net/php-8-6.html).
 
 To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
 

@@ -37,7 +37,10 @@ RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 # The resulting PHP version is not used at runtime.
 # It only exists to enable 'phpize' to build extensions.
 #
+# PHP 8.6 requires the CLI SAPI when building the embed SAPI.
 RUN source /root/emsdk/emsdk_env.sh && \
+	CLI_SAPI_FLAG=--disable-cli && \
+	if [[ "${PHP_VERSION:0:3}" == "8.6" ]]; then CLI_SAPI_FLAG=--enable-cli; fi && \
 	cd php-src && \
 	emconfigure ./configure \
 	--disable-fiber-asm \
@@ -49,7 +52,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--disable-opcache \
 	--disable-phpdbg \
 	--without-pcre-jit \
-	--disable-cli \
+	"$CLI_SAPI_FLAG" \
 	# PHP < 8.5
 	--disable-libxml \
 	--without-libxml \
@@ -69,9 +72,14 @@ RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_multipl
 RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
 RUN /root/replace.sh 's/defined\(__clang__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
 
+# Only install the tools and headers needed by phpize; do not link a standalone PHP CLI.
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd /root/php-src && \
-	emmake make install
+	if [[ "${PHP_VERSION:0:3}" == "8.6" ]]; then \
+		emmake make install-build install-headers install-programs; \
+	else \
+		emmake make install; \
+	fi
 
 # Build ICU libraries
 RUN set -euxo pipefail; \
@@ -143,8 +151,12 @@ RUN set -euxo pipefail; \
 
 	emmake make -j1;
 
-# Post-process with wasm-opt
-RUN	/root/emsdk/upstream/bin/wasm-opt -Oz \
+# Chrome limits synchronous WebAssembly compilation on the main thread to 8 MB.
+RUN WASM_OPT_FLAGS=""; \
+	if [[ "${PHP_VERSION:0:3}" == "8.6" && "$JSPI" != "yes" && "$DEBUG" != "yes" ]]; then \
+		WASM_OPT_FLAGS="--strip-debug"; \
+	fi; \
+	/root/emsdk/upstream/bin/wasm-opt -Oz $WASM_OPT_FLAGS \
 		--enable-bulk-memory \
 		--enable-nontrapping-float-to-int \
 		--enable-sign-ext \

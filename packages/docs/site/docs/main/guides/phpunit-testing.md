@@ -61,7 +61,7 @@ npx @wp-playground/cli@latest php \
   -c /wordpress/wp-content/plugins/MY_PLUGIN/phpunit.xml.dist
 ```
 
-Supported PHP versions range from 7.4 to 8.5. For WordPress, you can use a specific version number, `latest`, `nightly`, or `beta`.
+Supported PHP versions range from 7.4 to 8.6. For WordPress, you can use a specific version number, `latest`, `nightly`, or `beta`.
 
 ## Next steps
 

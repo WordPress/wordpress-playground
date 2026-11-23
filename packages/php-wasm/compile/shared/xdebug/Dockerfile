@@ -35,7 +35,10 @@ RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 # The resulting PHP version is not used at runtime.
 # It only exists to enable 'phpize' to build extensions.
 #
+# PHP 8.6 requires the CLI SAPI when building the embed SAPI.
 RUN source /root/emsdk/emsdk_env.sh && \
+	CLI_SAPI_FLAG=--disable-cli && \
+	if [[ "${PHP_VERSION:0:3}" == "8.6" ]]; then CLI_SAPI_FLAG=--enable-cli; fi && \
 	cd php-src && \
 	emconfigure ./configure \
 	--disable-fiber-asm \
@@ -47,7 +50,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--disable-opcache \
 	--disable-phpdbg \
 	--without-pcre-jit \
-	--disable-cli \
+	"$CLI_SAPI_FLAG" \
 	# PHP < 8.5
 	--disable-libxml \
 	--without-libxml \
@@ -67,13 +70,20 @@ RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_multipl
 RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
 RUN /root/replace.sh 's/defined\(__clang__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
 
+# Only install the tools and headers needed by phpize; do not link a standalone PHP CLI.
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd /root/php-src && \
-	emmake make install
+	if [[ "${PHP_VERSION:0:3}" == "8.6" ]]; then \
+		emmake make install-build install-headers install-programs; \
+	else \
+		emmake make install; \
+	fi
 
 # Build Xdebug
 RUN set -euxo pipefail; \
-	if [[ "${PHP_VERSION:0:1}" -ge "8" && "${PHP_VERSION:2:1}" -ge "5" ]]; then \
+	if [[ "${PHP_VERSION:0:3}" == "8.6" ]]; then \
+		export XDEBUG_BRANCH="3.6.0alpha1"; \
+	elif [[ "${PHP_VERSION:0:1}" -ge "8" && "${PHP_VERSION:2:1}" -ge "5" ]]; then \
 		export XDEBUG_BRANCH="xdebug_3_5"; \
 	elif [[ "${PHP_VERSION:0:1}" -ge 8 ]]; then \
 		export XDEBUG_BRANCH="xdebug_3_4"; \
@@ -90,7 +100,8 @@ RUN set -euxo pipefail; \
 # Strict `>` checks skipped resolving "/" for shallow paths.
 # Using `>=` ensures "/.xdebug" is properly scanned.
 # Pending upstream pull request : https://github.com/xdebug/xdebug/pull/1062
-RUN if [[ "${PHP_VERSION:0:3}" != "7.4" ]]; then \
+# Xdebug 3.6 already includes this fix.
+RUN if [[ "${PHP_VERSION:0:3}" != "7.4" && "${PHP_VERSION:0:3}" != "8.6" ]]; then \
 		/root/replace.sh 's/current_dir\s*=\s*parts->c\s*>\s*2/current_dir = parts->c >= 2/g' /root/xdebug/src/lib/maps/maps.c; \
 		/root/replace.sh 's/parent_dir\s*=\s*parts->c\s*>\s*3/parent_dir = parts->c >= 3/g' /root/xdebug/src/lib/maps/maps.c; \
 		/root/replace.sh 's/grand_dir\s*=\s*parts->c\s*>\s*4/grand_dir = parts->c >= 4/g' /root/xdebug/src/lib/maps/maps.c; \

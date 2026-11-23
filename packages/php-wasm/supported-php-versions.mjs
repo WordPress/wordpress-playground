@@ -14,6 +14,12 @@ export const lastRefreshed = '2026-10-22T09:16:08.168Z';
  */
 export const phpVersions = [
 	{
+		version: '8.6',
+		loaderFilename: 'php_8_6.js',
+		wasmFilename: 'php_8_6.wasm',
+		lastRelease: '8.6.0',
+	},
+	{
 		version: '8.5',
 		loaderFilename: 'php_8_5.js',
 		wasmFilename: 'php_8_5.wasm',

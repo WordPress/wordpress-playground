@@ -160,6 +160,11 @@ libxml2/jspi/dist/root/lib/lib/libxml2.a: base-image libz_jspi
 	docker cp $$(docker create playground-php-wasm:libxml2):/root/lib/lib ./libxml2/jspi/dist/root/lib
 	docker cp $$(docker create playground-php-wasm:libxml2):/root/lib/include ./libxml2/jspi/dist/root/lib
 
+OPENSSL_PHP_86_VERSION := 3.5.9
+OPENSSL_PHP_86_SHA256 := 603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
+CURL_PHP_86_VERSION := 8.23.0
+CURL_PHP_86_SHA256 := e3de77cfa6367083c776a26647fc9f633b538c06c3baa73d931a252ac8f72b49
+
 libopenssl_asyncify: libopenssl/asyncify/dist/1.1.0h/root/lib/lib/libssl.a libopenssl/asyncify/dist/1.1.1/root/lib/lib/libssl.a
 
 libopenssl/asyncify/dist/1.1.0h/root/lib/lib/libssl.a: base-image libz_asyncify
@@ -191,6 +196,28 @@ libopenssl/jspi/dist/1.1.1/root/lib/lib/libssl.a: base-image libz_jspi
 	mkdir -p ./libopenssl/jspi/dist/1.1.1/root/lib
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/lib ./libopenssl/jspi/dist/1.1.1/root/lib
 	docker cp $$(docker create playground-php-wasm:libopenssl-1.1.1):/root/install/include ./libopenssl/jspi/dist/1.1.1/root/lib
+
+libopenssl_3_5_asyncify: libopenssl/asyncify/dist/3.5/root/lib/lib/libssl.a
+libopenssl/asyncify/dist/3.5/root/lib/lib/libssl.a: base-image libz_asyncify libopenssl/Dockerfile
+	mkdir -p ./libopenssl/asyncify/dist/3.5/root/lib
+	docker build -f ./libopenssl/Dockerfile -t playground-php-wasm:libopenssl-3.5-asyncify . --progress=plain --build-arg OPENSSL_VERSION=$(OPENSSL_PHP_86_VERSION) --build-arg OPENSSL_SHA256=$(OPENSSL_PHP_86_SHA256)
+	container=$$(docker create playground-php-wasm:libopenssl-3.5-asyncify); \
+		trap 'docker rm "$$container" >/dev/null' EXIT; \
+		docker cp "$$container:/root/install/lib" ./libopenssl/asyncify/dist/3.5/root/lib/ && \
+		docker cp "$$container:/root/install/include" ./libopenssl/asyncify/dist/3.5/root/lib/ && \
+		rm -rf ./libopenssl/asyncify/dist/3.5/root/lib/lib/cmake && \
+		sed -i -e 's|^prefix=.*|prefix=/root/lib|' -e 's/[[:space:]]*$$//' ./libopenssl/asyncify/dist/3.5/root/lib/lib/pkgconfig/*.pc
+
+libopenssl_3_5_jspi: libopenssl/jspi/dist/3.5/root/lib/lib/libssl.a
+libopenssl/jspi/dist/3.5/root/lib/lib/libssl.a: base-image libz_jspi libopenssl/Dockerfile
+	mkdir -p ./libopenssl/jspi/dist/3.5/root/lib
+	docker build -f ./libopenssl/Dockerfile -t playground-php-wasm:libopenssl-3.5-jspi . --progress=plain --build-arg JSPI=1 --build-arg OPENSSL_VERSION=$(OPENSSL_PHP_86_VERSION) --build-arg OPENSSL_SHA256=$(OPENSSL_PHP_86_SHA256)
+	container=$$(docker create playground-php-wasm:libopenssl-3.5-jspi); \
+		trap 'docker rm "$$container" >/dev/null' EXIT; \
+		docker cp "$$container:/root/install/lib" ./libopenssl/jspi/dist/3.5/root/lib/ && \
+		docker cp "$$container:/root/install/include" ./libopenssl/jspi/dist/3.5/root/lib/ && \
+		rm -rf ./libopenssl/jspi/dist/3.5/root/lib/lib/cmake && \
+		sed -i -e 's|^prefix=.*|prefix=/root/lib|' -e 's/[[:space:]]*$$//' ./libopenssl/jspi/dist/3.5/root/lib/lib/pkgconfig/*.pc
 
 WITH_DEBUG ?= no
 
@@ -294,6 +321,30 @@ libcurl/jspi/dist/root/lib/lib/libcurl.a: base-image libz libopenssl_jspi
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/lib/.libs ./libcurl/jspi/dist/root/lib/lib
 	docker cp $$(docker create playground-php-wasm:libcurl):/root/curl-7.69.1/include/ ./libcurl/jspi/dist/root/lib
 
+libcurl_8_asyncify: libcurl/asyncify/dist/8.23/root/lib/lib/libcurl.a
+libcurl/asyncify/dist/8.23/root/lib/lib/libcurl.a: base-image libz_asyncify libopenssl_3_5_asyncify libcurl/Dockerfile
+	mkdir -p ./libcurl/asyncify/dist/8.23/root/lib/lib/pkgconfig ./libcurl/asyncify/dist/8.23/root/lib/include
+	docker build -f ./libcurl/Dockerfile -t playground-php-wasm:libcurl-8-asyncify . --progress=plain --build-arg CURL_VERSION=curl-$(CURL_PHP_86_VERSION) --build-arg CURL_SHA256=$(CURL_PHP_86_SHA256) --build-arg OPENSSL_DIST_PATH=3.5/root/lib
+	container=$$(docker create playground-php-wasm:libcurl-8-asyncify); \
+		trap 'docker rm "$$container" >/dev/null' EXIT; \
+		docker cp "$$container:/root/curl-$(CURL_PHP_86_VERSION)/lib/.libs/libcurl.a" ./libcurl/asyncify/dist/8.23/root/lib/lib/ && \
+		docker cp "$$container:/root/curl-$(CURL_PHP_86_VERSION)/include/curl" ./libcurl/asyncify/dist/8.23/root/lib/include/ && \
+		rm -f ./libcurl/asyncify/dist/8.23/root/lib/include/curl/Makefile* && \
+		docker cp "$$container:/root/curl-$(CURL_PHP_86_VERSION)/libcurl.pc" ./libcurl/asyncify/dist/8.23/root/lib/lib/pkgconfig/ && \
+		sed -i 's|^prefix=.*|prefix=/root/lib|' ./libcurl/asyncify/dist/8.23/root/lib/lib/pkgconfig/libcurl.pc
+
+libcurl_8_jspi: libcurl/jspi/dist/8.23/root/lib/lib/libcurl.a
+libcurl/jspi/dist/8.23/root/lib/lib/libcurl.a: base-image libz_jspi libopenssl_3_5_jspi libcurl/Dockerfile
+	mkdir -p ./libcurl/jspi/dist/8.23/root/lib/lib/pkgconfig ./libcurl/jspi/dist/8.23/root/lib/include
+	docker build -f ./libcurl/Dockerfile -t playground-php-wasm:libcurl-8-jspi . --progress=plain --build-arg JSPI=1 --build-arg CURL_VERSION=curl-$(CURL_PHP_86_VERSION) --build-arg CURL_SHA256=$(CURL_PHP_86_SHA256) --build-arg OPENSSL_DIST_PATH=3.5/root/lib
+	container=$$(docker create playground-php-wasm:libcurl-8-jspi); \
+		trap 'docker rm "$$container" >/dev/null' EXIT; \
+		docker cp "$$container:/root/curl-$(CURL_PHP_86_VERSION)/lib/.libs/libcurl.a" ./libcurl/jspi/dist/8.23/root/lib/lib/ && \
+		docker cp "$$container:/root/curl-$(CURL_PHP_86_VERSION)/include/curl" ./libcurl/jspi/dist/8.23/root/lib/include/ && \
+		rm -f ./libcurl/jspi/dist/8.23/root/lib/include/curl/Makefile* && \
+		docker cp "$$container:/root/curl-$(CURL_PHP_86_VERSION)/libcurl.pc" ./libcurl/jspi/dist/8.23/root/lib/lib/pkgconfig/ && \
+		sed -i 's|^prefix=.*|prefix=/root/lib|' ./libcurl/jspi/dist/8.23/root/lib/lib/pkgconfig/libcurl.pc
+
 libImageMagick_asyncify: libImageMagick/asyncify/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a
 libImageMagick/asyncify/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a: base-image libz_asyncify libjpeg_asyncify libpng16_asyncify libwebp_asyncify
 	mkdir -p ./libImageMagick/asyncify/dist/root/lib
@@ -311,8 +362,8 @@ libImageMagick/jspi/dist/root/lib/lib/libMagickCore-7.Q16HDRI.a: base-image libz
 	docker cp $$(docker create playground-php-wasm:libImageMagick):/root/install/bin ./libImageMagick/jspi/dist/root/lib
 
 all: all_jspi all_asyncify
-all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libaom_jspi libavif_jspi libgd_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi oniguruma_jspi libcurl_jspi libImageMagick_jspi
-all_asyncify: libz_asyncify libzip_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libaom_asyncify libavif_asyncify libgd_asyncify libxml2_asyncify libopenssl_asyncify libsqlite3_asyncify libiconv_asyncify oniguruma_asyncify libcurl_asyncify libImageMagick_asyncify
+all_jspi: libz_jspi libzip_jspi libpng16_jspi libjpeg_jspi libwebp_jspi libaom_jspi libavif_jspi libgd_jspi libxml2_jspi libopenssl_jspi libsqlite3_jspi libiconv_jspi oniguruma_jspi libcurl_jspi libcurl_8_jspi libImageMagick_jspi
+all_asyncify: libz_asyncify libzip_asyncify libpng16_asyncify libjpeg_asyncify libwebp_asyncify libaom_asyncify libavif_asyncify libgd_asyncify libxml2_asyncify libopenssl_asyncify libsqlite3_asyncify libiconv_asyncify oniguruma_asyncify libcurl_asyncify libcurl_8_asyncify libImageMagick_asyncify
 
 clean:
 	rm -rf ./libz/jspi/dist

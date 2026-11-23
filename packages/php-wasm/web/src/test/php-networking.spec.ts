@@ -7,6 +7,8 @@ import {
 	cleanupCertificate,
 	generateCertificate,
 } from './utils/generate-certificate';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { SupportedPHPVersions } from '../../../universal/src/lib/supported-php-versions';
 
 const longText = 'The quick brown fox jumps over the lazy dog. '.repeat(100);
 
@@ -158,56 +160,66 @@ test.describe('PHP networking through tcp-over-fetch bridge', () => {
 		});
 	});
 
-	test('PHP curl receives decompressed body for gzip-compressed response', async ({
-		page,
-	}) => {
-		const result = await page.evaluate(async (url: string) => {
-			const CAroot = await window.generateCertificate({
-				subject: {
-					commonName: 'TestCA',
-					organizationName: 'Test',
-					countryName: 'US',
-				},
-				basicConstraints: { ca: true },
-			});
+	SupportedPHPVersions.forEach((phpVersion) => {
+		test(`PHP ${phpVersion} curl receives decompressed body for gzip-compressed response`, async ({
+			page,
+		}) => {
+			const result = await page.evaluate(
+				async ({ url, phpVersion }) => {
+					const CAroot = await window.generateCertificate({
+						subject: {
+							commonName: 'TestCA',
+							organizationName: 'Test',
+							countryName: 'US',
+						},
+						basicConstraints: { ca: true },
+					});
 
-			const php = new window.PHP(
-				await window.loadWebRuntime('8.4', {
-					tcpOverFetch: { CAroot },
-				})
-			);
+					const php = new window.PHP(
+						await window.loadWebRuntime(phpVersion, {
+							tcpOverFetch: { CAroot },
+						})
+					);
 
-			await window.setPhpIniEntries(php, {
-				allow_url_fopen: '1',
-				disable_functions: '',
-			});
+					await window.setPhpIniEntries(php, {
+						allow_url_fopen: '1',
+						disable_functions: '',
+					});
 
-			const response = await php.runStream({
-				code: `<?php
+					const response = await php.runStream({
+						code: `<?php
 					$ch = curl_init('${url}/gzipped');
 					curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 					$body = curl_exec($ch);
 					$error = curl_error($ch);
 					$code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-					curl_close($ch);
 					echo json_encode([
 						'code' => $code,
 						'error' => $error,
 						'bodyLength' => strlen($body),
 						'bodyStart' => substr($body, 0, 50),
+						'delivered' => defined('CURLINFO_SIZE_DELIVERED')
+							? curl_getinfo($ch, CURLINFO_SIZE_DELIVERED)
+							: null,
 					]);
 				`,
-			});
-			const text = await response.stdoutText;
-			php.exit();
-			return text;
-		}, serverUrl);
+					});
+					const text = await response.stdoutText;
+					php.exit();
+					return text;
+				},
+				{ url: serverUrl, phpVersion }
+			);
 
-		const parsed = JSON.parse(result);
-		test.expect(parsed.code).toBe(200);
-		test.expect(parsed.error).toBe('');
-		test.expect(parsed.bodyLength).toBe(longText.length);
-		test.expect(parsed.bodyStart).toBe(longText.slice(0, 50));
+			const parsed = JSON.parse(result);
+			test.expect(parsed.code).toBe(200);
+			test.expect(parsed.error).toBe('');
+			test.expect(parsed.bodyLength).toBe(longText.length);
+			test.expect(parsed.bodyStart).toBe(longText.slice(0, 50));
+			if (phpVersion === '8.6') {
+				test.expect(parsed.delivered).toBe(longText.length);
+			}
+		});
 	});
 
 	test('PHP curl can verify HTTPS peers via the curl.cainfo CA bundle', async ({
