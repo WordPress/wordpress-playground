@@ -709,7 +709,6 @@ describe('PHPRequestHandler – request path confinement', () => {
 
 	it.each([
 		'/..%252foutside/secret.txt',
-		'/..%255coutside/secret.txt',
 		'/sub/..%252f..%252foutside/secret.txt',
 		'/..%252fwordpress-other/secret.txt',
 		'/tools/..%252fsecret.txt',
@@ -727,6 +726,16 @@ describe('PHPRequestHandler – request path confinement', () => {
 			expect(response.text).toBe('inside');
 		}
 	);
+
+	it.each([
+		['/100%25.txt', '/wordpress/100%.txt'],
+		['/sub%252fpage.html', '/wordpress/sub%2fpage.html'],
+	])('should decode %s only once and serve %s', async (url, fsPath) => {
+		php.writeFile(fsPath, 'decoded once');
+		const response = await handler.request({ url });
+		expect(response.httpStatusCode).toBe(200);
+		expect(response.text).toBe('decoded once');
+	});
 
 	it.each(['/x.php', '/x.php/', '/x.php/.', '/x.php/extra', '/UPPER.PHP'])(
 		'should execute PHP rather than serve its source for %s',

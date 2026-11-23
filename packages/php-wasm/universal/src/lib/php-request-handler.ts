@@ -1,4 +1,4 @@
-import { dirname, isParentOf, joinPaths, normalizePath } from '@php-wasm/util';
+import { dirname, joinPathUnderRoot, joinPaths } from '@php-wasm/util';
 import {
 	ensurePathPrefix,
 	toRelativeUrl,
@@ -33,9 +33,7 @@ export type FileNotFoundToInternalRedirect = {
 export type FileNotFoundTo404 = { type: '404' };
 
 export type FileNotFoundAction =
-	| FileNotFoundToResponse
-	| FileNotFoundToInternalRedirect
-	| FileNotFoundTo404;
+	FileNotFoundToResponse | FileNotFoundToInternalRedirect | FileNotFoundTo404;
 
 export type FileNotFoundGetActionCallback = (
 	relativePath: string
@@ -464,9 +462,8 @@ export class PHPRequestHandler implements AsyncDisposable {
 			 * URL.pathname returns a URL-encoded path. We need to decode it
 			 * before using it as a filesystem path.
 			 *
-			 * The rewrite step already decoded the path once, so this can
-			 * decode escaped bytes a second time. #resolveToFsPath() keeps
-			 * the result inside the document root or path alias.
+			 * This only undoes the encoding applied by #applyRewriteRules().
+			 * Each byte of the original request path is decoded exactly once.
 			 */
 			decodeURIComponent(rewrittenRequestUrl.pathname),
 			this.#PATHNAME
@@ -624,7 +621,11 @@ export class PHPRequestHandler implements AsyncDisposable {
 			this.rewriteRules
 		);
 		const rewrittenRequestUrl = new URL(
-			joinPaths(this.#PATHNAME, rewrittenRequestPath),
+			// Encode percent signs in the path so each byte is decoded once.
+			joinPaths(this.#PATHNAME, rewrittenRequestPath).replace(
+				/^[^?#]*/,
+				(path) => path.replaceAll('%', '%25')
+			),
 			originalRequestUrl.toString()
 		);
 		// Merge the query string parameters from the original request URL.
@@ -1049,22 +1050,6 @@ export function applyRewriteRules(path: string, rules: RewriteRule[]): string {
 		}
 	}
 	return path;
-}
-
-/**
- * Joins a request path to a root directory.
- *
- * The result is normalized so that file type checks see the same path the
- * filesystem resolves. For example, `/x.php/` and `/x.php/.` both resolve
- * to `/x.php`.
- *
- * @param root - The directory the result must stay in.
- * @param path - The request path to join to the root.
- * @returns The normalized path, or undefined when it is outside the root.
- */
-function joinPathUnderRoot(root: string, path: string): string | undefined {
-	const fsPath = normalizePath(joinPaths(root, path));
-	return isParentOf(root, fsPath) ? fsPath : undefined;
 }
 
 /**
