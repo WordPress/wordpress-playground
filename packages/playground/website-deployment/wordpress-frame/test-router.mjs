@@ -326,6 +326,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	assert.equal(ard.status, 200);
 	assert.match(ard.headers.get('content-type'), /^application\/json/);
 	assert.equal(ard.headers.get('access-control-allow-origin'), '*');
+	assert.equal(ard.headers.get('a8c-edge-cache'), 'cache');
 	assert.deepEqual(JSON.parse(await ard.text()), {
 		entries: [],
 		release: 'A',
@@ -334,10 +335,14 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		(await request('/.well-known/ard.json', wordpress)).status,
 		404
 	);
-	assert.equal(
-		await (await request('/.well-known/mcp.json', app)).text(),
-		'manifest A'
-	);
+	const mcp = await request('/.well-known/mcp.json', app, {
+		Origin: 'https://registry.example',
+	});
+	assert.equal(mcp.status, 200);
+	assert.match(mcp.headers.get('content-type'), /^application\/json/);
+	assert.equal(mcp.headers.get('access-control-allow-origin'), '*');
+	assert.equal(mcp.headers.get('a8c-edge-cache'), 'cache');
+	assert.equal(await mcp.text(), 'manifest A');
 	const sdk = await request('/client/index.js', app);
 	assert.equal(sdk.headers.get('access-control-allow-origin'), '*');
 	assert.equal(
