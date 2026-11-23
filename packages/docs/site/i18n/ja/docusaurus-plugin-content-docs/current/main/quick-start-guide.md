@@ -141,13 +141,13 @@ https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
 This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
-## ブラウザストレージにプレイグラウンドを保存する
+## ブラウザストレージに Playground を保存する
 
 <!--
 ## Store a Playground in browser storage
  -->
 
-Dock 内の**自動保存済み**または**未保存**というステータスをクリックして**永続的に保存**を開き、**ブラウザストレージに保存**を選択します。
+Dock 内の**自動保存済み (Autosaved)**または**未保存 (Unsaved)**というステータスをクリックして **永続的に保存 (Store permanently)** を開き、**ブラウザストレージに保存 (Save in browser storage)**を選択します。
 
 <!--
 Click the **Autosaved** or **Unsaved** status in the Dock to open **Store
@@ -160,7 +160,7 @@ permanently**, then choose **Save in browser storage**.
 ![The Store permanently pane with browser storage selected](/img/dock/store-permanently-browser.webp)
  -->
 
-保存されたブラウザ上の Playground は、**Your Playgrounds**に表示されます。自動保存されたものもそこに表示されますが、Playground では直近の自動保存データを最大5つまで保持します。自動保存の保持期間を超えて残しておきたい場合は、その Playground を永続的に保存してください。
+保存されたブラウザ上の Playground は、**あなたの Playground (Your Playgrounds)**に表示されます。自動保存されたものもそこに表示されますが、Playground では直近の自動保存データを最大5つまで保持します。自動保存の保持期間を超えて残しておきたい場合は、その Playground を永続的に保存してください。
 
 <!--
 A saved browser Playground appears in **Your Playgrounds**. Autosaves also
@@ -210,7 +210,7 @@ The SQLite database is included in `wp-content/database/`. When this directory c
 ## Restore a ZIP
  -->
 
-Dock から**New Playground**を開き、**Import zip**を選択して、ZIP ファイルを選びます。
+Dock から**新しい Playground （New Playground）**を開き、**ZIP をインポート （Import zip）**を選択して、ZIP ファイルを選びます。
 
 <!--
 Open **New Playground** from the Dock, choose **Import zip**, and select the ZIP file.
@@ -234,7 +234,7 @@ This restores the files and database from the ZIP into a new Playground.
 ## Use a specific WordPress or PHP version
  -->
 
-Dock から**サイト設定**を開き、WordPress、PHP、言語、マルチサイト、ネットワークに関するオプションを選択します。
+Dock から**サイト設定 (Site Settings)**を開き、WordPress、PHP、言語、マルチサイト、ネットワークに関するオプションを選択します。
 
 <!--
 Open **Site Settings** from the Dock to choose WordPress, PHP, language, multisite, and networking options.
@@ -341,13 +341,13 @@ This is different from restoring a Playground ZIP. A WXR file imports WordPress 
 ## Build apps with WordPress Playground
  -->
 
-WordPress Playground はプログラム可能であり、[WordPress アプリの構築](/developers/build-your-first-app)やプラグインのデモ環境のセットアップができるほか、セットアップ不要の[ローカル開発環境](/developers/local-development/)として利用することも可能です。
+WordPress Playground はプログラム可能であり、[WordPress アプリの構築](https://developer.wordpress.org/playground/developers/build-an-app/)やプラグインのデモ環境のセットアップができるほか、セットアップ不要の[ローカル開発環境](/developers/local-development/)として利用することも可能です。
 
 <!--
 WordPress Playground is programmable, which means you can [build WordPress apps](https://developer.wordpress.org/playground/developers/build-an-app/), set up plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
  -->
 
-WordPress Playground を活用した開発について詳しくは、[開発クイックスタート](/developers/build-your-first-app/) のセクションをご覧ください。
+WordPress Playground を活用した開発について詳しくは、[開発クイックスタート](https://developer.wordpress.org/playground/developers/build-an-app/) のセクションをご覧ください。
 
 <!--
 To learn more about developing with WordPress Playground, check out the [development quick start](https://developer.wordpress.org/playground/developers/build-an-app/) section.
