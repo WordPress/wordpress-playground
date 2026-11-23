@@ -18,6 +18,7 @@ COPY ./compile/php/php*.patch /root/
 RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 
 # PHP 8.6 requires the CLI SAPI when building the embed SAPI.
+# https://github.com/php/php-src/pull/21385
 RUN source /root/emsdk/emsdk_env.sh && \
 	CLI_SAPI_FLAG=--disable-cli && \
 	if [[ "${PHP_VERSION:0:3}" == "8.6" ]]; then CLI_SAPI_FLAG=--enable-cli; fi && \
