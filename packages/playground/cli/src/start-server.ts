@@ -94,7 +94,7 @@ export async function startServer(
 			setCodespacesPortPublic(port, codespaceName);
 		} else {
 			logger.log(
-				`Port ${port} is private to your GitHub account. To share it, run: ` +
+				`Playground does not change the visibility of port ${port}. To make it public, run: ` +
 					`gh codespace ports visibility ${port}:public -c ${codespaceName}`
 			);
 		}

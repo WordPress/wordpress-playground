@@ -412,15 +412,6 @@ export async function parseOptionsAndRunCLI(
 					'Port to listen on when serving. Defaults to 9400 when available.',
 				type: 'number',
 			},
-			'codespaces-public-port': {
-				describe:
-					'In GitHub Codespaces, make the forwarded port public so anyone ' +
-					'with the URL can open the site without signing in to GitHub. ' +
-					"Turns off the start command's default auto-login unless " +
-					'--login is passed.',
-				type: 'boolean',
-				default: false,
-			},
 			workers: {
 				describe:
 					'Number of request-handling worker threads. Accepts a ' +
@@ -443,6 +434,15 @@ export async function parseOptionsAndRunCLI(
 					}
 					return n;
 				},
+			},
+			'codespaces-public-port': {
+				describe:
+					'In GitHub Codespaces, make the forwarded port public so anyone ' +
+					'with the URL can open the site without signing in to GitHub. ' +
+					"Turns off the start command's default auto-login unless " +
+					'--login is passed.',
+				type: 'boolean',
+				default: false,
 			},
 			'experimental-multi-worker': {
 				deprecated:
@@ -485,8 +485,6 @@ export async function parseOptionsAndRunCLI(
 				describe: 'Port to listen on. Defaults to 9400 when available.',
 				type: 'number',
 			},
-			'codespaces-public-port':
-				serverOnlyOptions['codespaces-public-port'],
 			blueprint: {
 				describe:
 					'Path to a Blueprint JSON file to execute on startup.',
@@ -495,7 +493,7 @@ export async function parseOptionsAndRunCLI(
 			login: {
 				describe: 'Auto-login as the admin user.',
 				type: 'boolean',
-				default: true,
+				defaultDescription: 'true',
 			},
 			xdebug: {
 				describe: 'Enable Xdebug for debugging.',
@@ -548,6 +546,8 @@ export async function parseOptionsAndRunCLI(
 			'php-ini': sharedOptions['php-ini'],
 			// Tools
 			phpmyadmin: sharedOptions['phpmyadmin'],
+			'codespaces-public-port':
+				serverOnlyOptions['codespaces-public-port'],
 		};
 
 		const buildSnapshotOnlyOptions: Record<string, YargsOptions> = {
@@ -578,6 +578,9 @@ export async function parseOptionsAndRunCLI(
 								'  wp-playground start --no-auto-mount    # Disable auto-detection'
 						)
 						.options(startCommandOptions)
+						.middleware((argv) => {
+							argv['login'] ??= !argv['codespaces-public-port'];
+						}, true)
 			)
 			.command(
 				'server',
@@ -757,25 +760,8 @@ export async function parseOptionsAndRunCLI(
 			}
 		}
 
-		// `start` logs in as admin by default. A public Codespaces port is
-		// reachable by anyone with its URL, so keep auto-login there only when
-		// the user explicitly asked for it.
-		const hasExplicitLogin = argsToParse.some(
-			(arg) =>
-				arg === '--login' ||
-				arg === '--no-login' ||
-				arg.startsWith('--login=')
-		);
-		const login =
-			args['codespaces-public-port'] &&
-			process.env['CODESPACE_NAME'] &&
-			!hasExplicitLogin
-				? false
-				: args['login'];
-
 		const cliArgs = {
 			...args,
-			login,
 			define,
 			'define-bool': defineBool,
 			'define-number': defineNumber,
@@ -872,10 +858,6 @@ export interface RunCLIArgs {
 	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot' | 'php';
 	debug?: boolean;
 	login?: boolean;
-	/**
-	 * In GitHub Codespaces, make the forwarded port public. Codespaces ports
-	 * are private to the codespace owner by default.
-	 */
 	codespacesPublicPort?: boolean;
 	mount?: Mount[];
 	'mount-before-install'?: Mount[];
@@ -1144,12 +1126,12 @@ export async function runCLI(
 	let isFirstRequest = true;
 
 	const server = await startServer({
-		codespacesPublicPort: args.codespacesPublicPort,
 		port: args.port
 			? args.port
 			: !(await isPortInUse(selectedPort))
 				? selectedPort
 				: 0,
+		codespacesPublicPort: args.codespacesPublicPort,
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;

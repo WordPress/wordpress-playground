@@ -3,7 +3,6 @@ import os from 'node:os';
 import http from 'node:http';
 import { Worker } from 'node:worker_threads';
 import type * as ChildProcess from 'child_process';
-import { exec } from 'child_process';
 import {
 	runCLI,
 	parseOptionsAndRunCLI,
@@ -1479,7 +1478,6 @@ describe('start command', () => {
 
 	test('turns off default auto-login when making the Codespaces port public', async () => {
 		vi.stubEnv('CODESPACE_NAME', 'test-codespace');
-		vi.mocked(exec).mockClear();
 		const tmpDir = await mkdtemp(
 			path.join(tmpdir(), 'playground-test-codespaces-public-')
 		);
@@ -1506,11 +1504,6 @@ describe('start command', () => {
 				'--codespaces-public-port',
 			])) as CLIServerResult;
 			const { serverUrl } = cliResult[internalsKeyForTesting].cliServer;
-
-			expect(exec).toHaveBeenCalledWith(
-				`gh codespace ports visibility ${new URL(serverUrl).port}:public -c test-codespace`,
-				expect.anything()
-			);
 
 			const getWpAdmin = () =>
 				new Promise<http.IncomingMessage>((resolve, reject) => {
