@@ -685,6 +685,8 @@ describe.each(blueprintVersions)(
 					`${pluginUrl}/BAR.PHP`,
 					`${pluginUrl}/bar.php.`,
 					`${pluginUrl}/bar.php%20`,
+					`${pluginUrl}/bar.php%20%3f`,
+					`${pluginUrl}/bar.php%20.`,
 					`${pluginUrl}/bar.php::$DATA`,
 					`${pluginUrl}/..%2fbaz.txt`,
 					`${pluginUrl}/..%252fbaz.txt`,
@@ -704,7 +706,7 @@ describe.each(blueprintVersions)(
 			} finally {
 				rmSync(hostTmpDir, { recursive: true, force: true });
 			}
-		});
+		}, 60_000);
 
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
 

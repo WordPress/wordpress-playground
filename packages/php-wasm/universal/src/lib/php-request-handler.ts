@@ -1,4 +1,9 @@
-import { dirname, joinPathUnderRoot, joinPaths } from '@php-wasm/util';
+import {
+	basename,
+	dirname,
+	joinPathUnderRoot,
+	joinPaths,
+} from '@php-wasm/util';
 import {
 	ensurePathPrefix,
 	toRelativeUrl,
@@ -595,14 +600,23 @@ export class PHPRequestHandler implements AsyncDisposable {
 					rewrittenRequestUrl,
 					fsPath
 				);
-			} else {
+			}
+			// A host filesystem can resolve an unlisted name, such as the
+			// Windows `x.php::$DATA`, to another file. Only send listed names.
+			const lowerCaseName = basename(fsPath).toLowerCase();
+
+			const isListed = primaryPhp
+				.listFiles(dirname(fsPath))
+				.some((name) => name.toLowerCase() === lowerCaseName);
+
+			if (isListed) {
 				return StreamedPHPResponse.fromPHPResponse(
 					this.#serveStaticFile(primaryPhp, fsPath)
 				);
 			}
-		} else {
-			return StreamedPHPResponse.forHttpCode(404);
 		}
+
+		return StreamedPHPResponse.forHttpCode(404);
 	}
 
 	/**
