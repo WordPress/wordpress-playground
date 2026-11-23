@@ -2208,6 +2208,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 		ASYNCIFY_ONLY_UNPREFIXED+=',"php_poll_wasm","poll_backend_wait","php_poll_wait","zim_Io_Poll_Context_wait"'; \
 		ASYNCIFY_ONLY_UNPREFIXED+=',"curl_read","multi_wait"'; \
 		ASYNCIFY_ONLY_UNPREFIXED+=',"php_stream_read","php_stream_set_option","php_stream_fill_read_buffer","php_stream_get_line","php_stream_eof","php_stream_free"'; \
+		ASYNCIFY_ONLY_UNPREFIXED+=',"zend_call_known_function_ex","ZEND_FE_RESET_R_SPEC_TMP_HANDLER"'; \
 	fi; \
 	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
 	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
