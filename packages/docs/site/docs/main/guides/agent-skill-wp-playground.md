@@ -37,6 +37,8 @@ The CLI asks which coding agents to install to, and whether to install in the pr
 
 ### 2. Install manually
 
+Without `--skills`, the install command installs all skills. It replaces each matching skill folder, so back up any local changes in those folders first. To install only `wp-playground` and `blueprint`, add `--skills=wp-playground,blueprint` to the install command.
+
 ```bash
 # Clone agent-skills
 git clone https://github.com/WordPress/agent-skills.git
@@ -56,8 +58,6 @@ This copies all skills, including `blueprint`, into:
 - `.cursor/skills/` for Cursor
 - `.agents/skills/` for Antigravity and Gemini CLI
 - `.codex/skills/` for Codex
-
-The installer replaces each matching skill folder, so back up any local changes in those folders first. To install only these two skills, add `--skills=wp-playground,blueprint` to the install command.
 
 After a manual install, verify that the skill directory exists for your agent:
 
