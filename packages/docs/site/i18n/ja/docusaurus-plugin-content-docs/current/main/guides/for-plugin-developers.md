@@ -126,7 +126,7 @@ GitHub リポジトリに保存されているプラグインは、ブループ�
 With the `pluginData` property of the [`installPlugin` blueprint step](/blueprints/steps#installPlugin), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a plugin from the files from a repository in the Playground instance.
 -->
 
-[`installPlugin` ブループリントステップ](/blueprints/steps#installPlugin)の`pluginData`プロパティを使用して、Playgroundインスタンス内のリポジトリのファイルからプラグインを構築する[`git:directory`リソース](/blueprints/steps/resources#gitdirectoryreference)を定義できます。
+[`installPlugin` ブループリントステップ](/blueprints/steps#installPlugin)の`pluginData`プロパティを使用して、Playgroundインスタンス内のリポジトリのファイルからプラグインを構築する[`git:directory`リソース](https://developer.wordpress.org/playground/blueprints/steps/resources/#gitdirectoryreference)を定義できます。
 
 <!--
 <div class="callout callout-info">
@@ -531,13 +531,13 @@ Google Chrome を使用すると、Playground インスタンスをローカル�
 <!--
 <div class="callout callout-info">
 
-Check [About Playground &gt; Build &gt; Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
+Check [About Playground &gt; Build &gt; Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests) for more info.
 
 </div>
 -->
 
 <div class="callout callout-info">
 
-詳細については、[Playground について &gt; ビルド &gt; Playground インスタンスをローカル フォルダーと同期して GitHub プル リクエストを作成する](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) を確認してください。
+詳細については、[Playground について &gt; ビルド &gt; Playground インスタンスをローカル フォルダーと同期して GitHub プル リクエストを作成する](/about/build#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests) を確認してください。
 
 </div>

@@ -17,12 +17,13 @@ In order to customize these aspects for static files on WP Cloud, we did the fol
 - Configured the WP Cloud site to delegate requests for non-existent files to WordPress.
 - Provided a `__wp__/index.php` file as a default target for Nginx. - Even though this is not a WordPress site, we can provide a `__wp__/index.php` file that Nginx will run as a fallback for non-existent files. The `__wp__/index.php` file is empty and simply exists so Nginx will invoke PHP.
 - Added a `custom-redirects.php` file to implement special request handling. - WP Cloud invokes `<web-root>/custom-redirects.php` (if it exists) at the beginning of every PHP run in order to provide custom request handling. We added this file to implement the rewrites, redirects, and custom headers that we used to get via htaccess.
-- Keep the main website's complete build behind a server-level deny rule under
-  `<web-root>/.playground-releases/`. Nginx must not find a public copy of app
-  HTML or assets on the WordPress sandbox host. Otherwise it would serve those
-  files before PHP can check the hostname. The deployed `custom-redirects.php`
-  selects a private build and calls `playground_handle_request()` in
-  `custom-redirects-lib.php`. That library contains all host and path rules.
+- Serve the main website's static files directly from public, immutable
+  `<web-root>/releases/<id>/` directories on both hostnames. Each build's asset
+  URLs name its release, so open tabs keep loading their own files after a later
+  deployment. Native PHP endpoints stay under the Nginx-denied
+  `<web-root>/.playground-releases/<id>/`. The deployed `custom-redirects.php`
+  selects the active release and calls `playground_handle_request()` in
+  `custom-redirects-lib.php`, which contains all host and path rules for missing files.
 
 ## Deployment notes
 
@@ -32,17 +33,20 @@ The main Playground site uses `apply-update.sh`. The My WordPress site uses
 `my-wordpress-net/apply-update.sh` so its endpoint deployment and schema
 updates do not affect the main Playground deployment path.
 
-The main deployment workflow sets `PLAYGROUND_APP_ORIGIN` to
-`https://playground.wordpress.net` and `VITE_WORDPRESS_SITE_URL` to
-`https://wpsandbox.wordpress.net`. It uses those values for the browser build and
-passes them to the single `apply-update.sh` script. The build produces a small
-`wordpress-sandbox/` document root; PHP serves its existing files and versioned
-WordPress static files on the sandbox host without generating their contents.
-The PHP library has no hardcoded host choice.
-`apply-update.sh` checks both hosts, installs a private
-release, moves old public files to a rollback backup, and replaces the public
-entry file. See the [two-host deployment guide](wordpress-frame/README.md) for
-required WP Cloud settings, the Nginx preflight checks, and rollback.
+The main deployment workflow runs `deploy-website.sh` with
+`https://playground.wordpress.net` as the app origin and
+`https://wpsandbox.wordpress.net` as the WordPress origin. That script chooses a
+unique `PLAYGROUND_RELEASE_ID`, builds the website for those values, uploads the
+build and this directory over SSH, and runs the single `apply-update.sh` script. `apply-update.sh` checks both hosts and the build, installs the public and
+private release directories, backs up the root files it replaces, replaces the PHP
+entry, copies the entry pages, and installs the root `/sw.js` loader before purging
+the edge. Its PHP steps live in `apply-update.php`, which receives values only as
+arguments. See the [two-host deployment guide](wordpress-frame/README.md)
+for required WP Cloud settings, the Nginx preflight checks, and rollback.
+
+`PLAYGROUND_APP_ORIGIN` remains the app-origin build setting. Vite explicitly
+embeds that value in browser code and uses it for the page guards, so existing
+build scripts keep the same variable name.
 
 Personal WP retains the previous file placement: its deployment consults
 `custom-redirects-lib.php` about each file and moves files needing custom headers
@@ -52,6 +56,72 @@ existing handler. The main website's two-host routing does not change Personal
 WP's endpoint deployment or database updates.
 
 At the end of the deployment process, the WP Cloud edge cache is purged.
+
+## Rolling back
+
+Run the installer already on the server; a rollback needs no build or origins and
+finishes in seconds:
+
+```sh
+ssh -tt <user@host> PLAYGROUND_ROLLBACK=previous website-deployment/apply-update.sh
+```
+
+`previous` restores whatever was live before the current release; repeat it to step
+further back, or pass a release ID to undo that deployment.
+`https://playground.wordpress.net/release.json` names the live and previous releases.
+Deployment and rollback take the same host lock. If the edge purge fails, finish it
+without changing the live files again:
+
+```sh
+ssh -tt <user@host> PLAYGROUND_PURGE_ONLY=1 website-deployment/apply-update.sh
+```
+
+The installer keeps the hostnames in `~/website-backups/pending-edge-purge` until
+both purges succeed, including when rollback removes `release.json`. A pending purge
+must finish before another deployment or rollback can start.
+See the [two-host deployment guide](wordpress-frame/README.md#verify-and-roll-back)
+for details.
+
+## Testing a deployment on a staging site
+
+Use a disposable WP Cloud site with two HTTPS hostnames, set up like production
+(see the [two-host deployment guide](wordpress-frame/README.md)), and an SSH key
+for it. From the repository root:
+
+```sh
+PLAYGROUND_STAGING_CONFIRM=user@staging-host \
+  packages/playground/website-deployment/test-staging-deployment.sh \
+  user@staging-host https://app.staging.example https://wp.staging.example
+```
+
+It deploys two releases with `deploy-website.sh`, the script the workflow uses,
+then rolls back, checks that a broken upload is refused, and expires a release
+early. `check-deployment.sh` verifies each active release over HTTP. Set
+`PLAYGROUND_STAGING_FROM_TRUNK=1` to deploy `origin/trunk` first and rehearse the
+transition from the current production layout. Add `PLAYGROUND_STAGING_BROWSER=1` to
+finish with `test-staging-upgrade.mjs`: Chromium, Firefox and WebKit sessions stay
+open while the site upgrades from trunk to two releases, then rolls back to the first
+release and from it to trunk. It checks open tabs, reloads, fresh tabs and a site saved
+in browser storage. The test overwrites the site and refuses the production hostnames.
+It ends with a short list of browser checks.
+The trunk rehearsal also forces a failed edge purge after rollback and tests purge-only
+recovery without a release manifest. Browser errors include their phase and request URLs;
+reloads before the first upgrade provide a trunk-only comparison.
+If bundled Firefox cannot launch locally, set
+`PLAYGROUND_STAGING_FIREFOX_CHANNEL=moz-firefox` to use installed Firefox.
+
+WP Cloud's edge cache purge clears only the primary domain unless a domain is
+named, so `apply-update.sh` purges each hostname. Nginx lets the edge cache `.js`
+files, including the root `/sw.js` loader, for a year, so both purges are needed.
+The purge returns before every edge node drops its copies; the checks wait for both
+hosts' root files to name the new release.
+
+`check-deployment.sh` only reads, so it can also check production after a deploy:
+
+```sh
+packages/playground/website-deployment/check-deployment.sh \
+  https://playground.wordpress.net https://wpsandbox.wordpress.net
+```
 
 ## Static-file ranges
 

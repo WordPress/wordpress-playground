@@ -26,7 +26,9 @@ All documentation-related issues are labeled [`[Type] Documentation`](https://gi
 ## How can I contribute?
 -->
 
-## আমি কিভাবে কন্টিবিউট করতে পারি?
+<a id="আমি-কিভাবে-কন্টিবিউট-করতে-পারি"></a>
+
+## আমি কিভাবে কন্টিবিউট করতে পারি? {#how-can-i-contribute}
 
 <!--
 You can contribute by [opening an issue in the project repository](https://github.com/WordPress/wordpress-playground/issues/new) and describing what you'd like to add or change.

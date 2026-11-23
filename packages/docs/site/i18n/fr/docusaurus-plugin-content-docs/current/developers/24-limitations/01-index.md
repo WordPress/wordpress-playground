@@ -82,7 +82,9 @@ Browser storage still belongs to the browser. Storage pressure, private browsing
 ![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 -->
 
-### Compatibilité des navigateurs
+<a id="compatibilité-des-navigateurs"></a>
+
+### Compatibilité des navigateurs {#browser-support}
 
 <!--
 ### Browser support

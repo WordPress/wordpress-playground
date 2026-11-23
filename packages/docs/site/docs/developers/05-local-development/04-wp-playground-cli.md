@@ -141,6 +141,10 @@ CLI command loading a blueprint:
 npx @wp-playground/cli@latest server --blueprint=my-blueprint.json
 ```
 
+#### Missing constants after a login step in CLI 3.1.64
+
+In CLI 3.1.64, running `login` followed by `defineWpConfigConsts` with multiple workers can lose constants, including `SQLITE_JOURNAL_MODE`. If you encounter this, start the server with `--workers=1`. If you need multiple workers, set `"method": "rewrite-wp-config"` on the `defineWpConfigConsts` step to write those constants to `wp-config.php`. The [SQLite corruption report](https://github.com/WordPress/wordpress-playground/issues/4615) tracks the underlying issue.
+
 ### Mounting folders manually
 
 Some projects have a specific structure that requires a custom configuration; for example, your repository contains all the files in the `/wp-content/` folder. So in this scenario, you can specify to the Playground CLI that it will mount your project from that folder using the `--mount` flag.

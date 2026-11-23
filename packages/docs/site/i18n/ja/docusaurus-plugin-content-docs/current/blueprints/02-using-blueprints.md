@@ -27,7 +27,9 @@ You can use Blueprints in one of the following ways:
 -   By using the JavaScript API.
 -->
 
-## URL フラグメント
+<a id="url-フラグメント"></a>
+
+## URL フラグメント {#url-fragment}
 
 <!--
 ## URL Fragment
