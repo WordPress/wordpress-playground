@@ -272,7 +272,7 @@ As seguintes APIs do Playground estão disponíveis no navegador:
 - [JavaScript API](/developers/apis/javascript-api) give you full control via a JavaScript client from an npm package
 -->
 
-- A [Query API](/developers/apis/query-api) permite operações básicas usando apenas parâmetros na URL
+- A [Query API](/developers/apis/query-api) permite realizar operações básicas usando apenas os parâmetros de consulta da URL
 - A [API de Blueprints](/blueprints) oferece um alto grau de controle com um simples arquivo JSON
 - A [Sites API](/developers/apis/sites-api) permite que scripts executados em playground.wordpress.net gerenciem os sites salvos
 - A [JavaScript API](/developers/apis/javascript-api) oferece controle total por meio de um cliente JavaScript de um pacote npm
