@@ -159,7 +159,7 @@ Build every PHP version you plan to support. A `.so` built for PHP 8.4 cannot
 be loaded into PHP 8.3. Custom extension artifacts are JSPI-only and must be
 loaded by a JSPI runtime.
 
-The helper supports PHP `7.4` and `8.0` through `8.5`. Pass the matrix as a
+The helper supports PHP `7.4` and `8.0` through `8.6`. Pass the matrix as a
 comma-separated list:
 
 ```bash
@@ -183,15 +183,15 @@ needs Docker and Node. A typical GitHub Actions job:
 
 - uses: actions/setup-node@v4
   with:
-    node-version: '24'
+      node-version: '24'
 
 - name: Build the extension matrix
   run: |
-    npx --yes @php-wasm/compile-extension \
-      --source ./my-extension \
-      --name my_extension \
-      --php-versions 8.0,8.1,8.2,8.3,8.4,8.5 \
-      --out ./dist/my-extension
+      npx --yes @php-wasm/compile-extension \
+        --source ./my-extension \
+        --name my_extension \
+        --php-versions 8.0,8.1,8.2,8.3,8.4,8.5,8.6 \
+        --out ./dist/my-extension
 ```
 
 When you build the matrix in GitHub Actions, set `strategy.max-parallel: 1`

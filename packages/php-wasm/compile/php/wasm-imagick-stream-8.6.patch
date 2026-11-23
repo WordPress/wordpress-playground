@@ -1,0 +1,21 @@
+--- a/php-src/ext/imagick/imagick_file.c
++++ b/php-src/ext/imagick/imagick_file.c
+@@ -226,6 +226,18 @@
+ 		return IMAGICK_RW_UNDERLYING_LIBRARY;
+ 	}
+ 
++#if PHP_VERSION_ID >= 80600
++	/* ImageMagick needs a seekable file; filtered HTTP streams cannot seek. */
++	php_stream *seekable_stream;
++	if (php_stream_make_seekable(stream, &seekable_stream,
++			PHP_STREAM_PREFER_STDIO | PHP_STREAM_FORCE_CONVERSION) != PHP_STREAM_RELEASED) {
++		php_stream_close(stream);
++		IMAGICK_RESTORE_ERROR_HANDLING;
++		return IMAGICK_RW_UNDERLYING_LIBRARY;
++	}
++	stream = seekable_stream;
++#endif
++
+ 	if (php_stream_can_cast(stream, PHP_STREAM_AS_STDIO|PHP_STREAM_CAST_INTERNAL) == FAILURE ||
+ 		php_stream_cast(stream, PHP_STREAM_AS_STDIO|PHP_STREAM_CAST_INTERNAL, (void*)&fp, 0) == FAILURE) {
+ 

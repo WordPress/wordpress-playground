@@ -57,6 +57,9 @@
 			"@php-wasm/node-8-5": [
 				"packages/php-wasm/node-builds/8-5/src/index.ts"
 			],
+			"@php-wasm/node-8-6": [
+				"packages/php-wasm/node-builds/8-6/src/index.ts"
+			],
 			"@php-wasm/private": ["packages/php-wasm/private/src/index.ts"],
 			"@php-wasm/progress": ["packages/php-wasm/progress/src/index.ts"],
 			"@php-wasm/scopes": ["packages/php-wasm/scopes/src/index.ts"],
@@ -98,6 +101,9 @@
 			],
 			"@php-wasm/web-8-5": [
 				"packages/php-wasm/web-builds/8-5/src/index.ts"
+			],
+			"@php-wasm/web-8-6": [
+				"packages/php-wasm/web-builds/8-6/src/index.ts"
 			],
 			"@php-wasm/web-service-worker": [
 				"packages/php-wasm/web-service-worker/src/index.ts"

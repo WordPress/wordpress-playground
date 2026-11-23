@@ -9,7 +9,7 @@ AI assistants can generate working WordPress Playground links directly in respon
 - `plugin=<slug-or-zip-url>`: Install and activate one or more WordPress.org plugins (repeatable, e.g., `?plugin=woocommerce&plugin=gutenberg`).
 - `theme=<slug>`: Install and activate a WordPress.org theme by slug (e.g., `?theme=twentytwentyfour`).
 - `wp=<version>`: Choose WordPress version (e.g., `?wp=6.8`, `?wp=latest`, `?wp=beta`, `?wp=nightly`).
-- `php=<version>`: Choose PHP version (`7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`).
+- `php=<version>`: Choose PHP version (`7.4`, `8.0`, `8.1`, `8.2`, `8.3`, `8.4`, `8.5`, `8.6`).
 - `url=<path>`: Open a specific WordPress path on boot (e.g., `?url=/wp-admin/post-new.php`).
 - `login=yes` / `login=no`: Automatically log in as `admin` (enabled by default).
 - `networking=yes` / `networking=no`: Control outbound `wp_remote_get` / network access inside PHP (enabled by default). Plugins that fetch external APIs or install plugins from within wp-admin require networking to be enabled.

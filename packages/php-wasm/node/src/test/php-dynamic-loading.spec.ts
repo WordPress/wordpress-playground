@@ -377,6 +377,22 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				'array(3) {\n  ["Br"]=>\n  string(3) "Bar"\n  ["Bz"]=>\n  string(2) "Bz"\n  ["F"]=>\n  string(3) "Foo"\n}\n'
 			);
 		});
+
+		if (phpVersion === '8.6') {
+			it('formats number ranges with the PHP 8.6 Intl API', async () => {
+				const response = await php.run({
+					code: `<?php
+						$formatter = IntlNumberRangeFormatter::createFromSkeleton(
+							'', 'en_GB', IntlNumberRangeFormatter::COLLAPSE_AUTO,
+							IntlNumberRangeFormatter::IDENTITY_FALLBACK_APPROXIMATELY
+						);
+						echo $formatter->format(5.1, 5.2);
+					`,
+				});
+
+				expect(response.text).toBe('5.1–5.2');
+			});
+		}
 	});
 
 	// Redis requires JSPI for proper exception handling during network operations.

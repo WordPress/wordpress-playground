@@ -22,6 +22,26 @@ test('Base64-encoded Blueprints should work', async ({
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
+test('Blueprints can run PHP 8.6 features', async ({ website, wordpress }) => {
+	const blueprint: Blueprint = {
+		landingPage: '/php-8-6-test.php',
+		preferredVersions: { php: '8.6' },
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/php-8-6-test.php',
+				data: `<?php
+					$normalize = clamp(?, 0, 100);
+					echo PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION . ' ' . $normalize(130);
+				`,
+			},
+		],
+	};
+
+	await website.goto(`/#${encodeStringAsBase64(JSON.stringify(blueprint))}`);
+	await expect(wordpress.locator('body')).toContainText('8.6 100');
+});
+
 test('Blueprint v2 declarations should route by version through the website flow', async ({
 	website,
 	wordpress,

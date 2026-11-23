@@ -1,0 +1,21 @@
+diff --git a/php-src/ext/curl/interface.c b/php-src/ext/curl/interface.c
+--- a/php-src/ext/curl/interface.c
++++ b/php-src/ext/curl/interface.c
+@@ -849,7 +849,17 @@
+ 	switch (read_handler->method) {
+ 		case PHP_CURL_DIRECT:
+ 			if (read_handler->fp) {
++#ifdef __EMSCRIPTEN__
++				/* Keep reads and user seek callbacks on the same PHP stream. */
++				php_stream *stream = (php_stream *)zend_fetch_resource2_ex(
++					&read_handler->stream, NULL, php_file_le_stream(), php_file_le_pstream());
++				if (stream) {
++					ssize_t result = php_stream_read(stream, data, nmemb);
++					length = result < 0 ? CURL_READFUNC_ABORT : (size_t) result;
++				}
++#else
+ 				length = fread(data, size, nmemb, read_handler->fp);
++#endif
+ 			}
+ 			break;
+ 		case PHP_CURL_USER: {

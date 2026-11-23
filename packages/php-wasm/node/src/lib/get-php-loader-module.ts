@@ -8,6 +8,7 @@ import type { AllPHPVersion, PHPLoaderModule } from '@php-wasm/universal';
  * Loads the PHP loader module for the given PHP version.
  *
  * Each PHP version is packaged separately to reduce bundle size:
+ * - @php-wasm/node-8-6
  * - @php-wasm/node-8-5
  * - @php-wasm/node-8-4
  * - @php-wasm/node-8-3
@@ -27,6 +28,11 @@ export async function getPHPLoaderModule(
 
 	try {
 		switch (version) {
+			case '8.6':
+				// @ts-ignore
+				return (
+					await import('@php-wasm/node-8-6')
+				).getPHPLoaderModule();
 			case '8.5':
 				// @ts-ignore
 				return (

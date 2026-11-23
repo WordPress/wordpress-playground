@@ -3,10 +3,10 @@
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<title>PHP 8.6 feature preview in WordPress Playground</title>
+		<title>PHP 8.6 features in WordPress Playground</title>
 		<meta
 			name="description"
-			content="Try selected PHP 8.6 features in the browser with WordPress Playground and PHP next WebAssembly builds."
+			content="Try selected PHP 8.6 features in the browser with WordPress Playground."
 		/>
 		<style>
 			:root {
@@ -169,28 +169,27 @@
 	<body>
 		<header class="hero">
 			<div class="wrap">
-				<p class="eyebrow">WordPress Playground + PHP next</p>
-				<h1>Preview PHP 8.6 in your browser</h1>
+				<p class="eyebrow">WordPress Playground + PHP 8.6</p>
+				<h1>Try PHP 8.6 in your browser</h1>
 				<p class="lede">
-					These examples run on Playground's PHP <code>next</code>
+					These examples run on Playground's PHP <code>8.6</code>
 					WebAssembly build. Click Run to verify the output in the
 					same browser tab, without installing PHP locally.
 				</p>
 				<div class="actions">
-					<a class="button" href="./?php=next&wp=latest">
-						Open WordPress on PHP next
+					<a class="button" href="./?php=8.6&wp=latest">
+						Open WordPress on PHP 8.6
 					</a>
 					<a
 						class="button secondary"
-						href="./php-playground.html?php=next"
+						href="./php-playground.html?php=8.6"
 					>
-						Open PHP Playground on Next
+						Open PHP Playground on 8.6
 					</a>
 				</div>
 				<p class="notice">
-					PHP 8.6 is still under development. This page focuses on
-					features that are already available in the current
-					<code>php-src</code> development build used by Playground.
+					These examples run PHP without WordPress. To try PHP 8.6
+					with WordPress, use the button above.
 				</p>
 			</div>
 		</header>
@@ -203,7 +202,7 @@
 					ratings, or layout values must stay between a lower and
 					upper bound.
 				</p>
-				<php-snippet php="next" wp="none" name="clamp.php" readonly>
+				<php-snippet php="8.6" wp="none" name="clamp.php" readonly>
 					<script type="application/x-php">
 						<?php
 						foreach ([-15, 42, 130] as $score) {
@@ -226,7 +225,7 @@
 					<code>Descending</code> cases.
 				</p>
 				<php-snippet
-					php="next"
+					php="8.6"
 					wp="none"
 					name="sort-direction.php"
 					readonly
@@ -263,7 +262,7 @@
 					<code>isPublic()</code> cannot express.
 				</p>
 				<php-snippet
-					php="next"
+					php="8.6"
 					wp="none"
 					name="reflection-access.php"
 					readonly
@@ -307,7 +306,7 @@
 					care about.
 				</p>
 				<php-snippet
-					php="next"
+					php="8.6"
 					wp="none"
 					name="debuggable-enum.php"
 					readonly
@@ -346,7 +345,7 @@
 					<code>rtrim()</code>, and <code>chop()</code>.
 				</p>
 				<php-snippet
-					php="next"
+					php="8.6"
 					wp="none"
 					name="trim-form-feed.php"
 					readonly
@@ -408,7 +407,7 @@
 
 		<footer>
 			<div class="wrap">
-				The snippets use <code>php="next"</code> and
+				The snippets use <code>php="8.6"</code> and
 				<code>wp="none"</code> so they boot the PHP runtime only.
 			</div>
 		</footer>

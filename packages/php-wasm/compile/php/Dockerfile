@@ -57,6 +57,17 @@ else \
 	find /root/builds -path '*/asyncify/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
 fi
 
+# PHP 8.6 uses newer curl and OpenSSL builds without changing older PHP versions.
+RUN set -eux; \
+	if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
+		MODE=asyncify; \
+		if [ "$WITH_JSPI" = "yes" ]; then MODE=jspi; fi; \
+		rm -rf /root/lib/include/curl /root/lib/include/openssl \
+			/root/lib/lib/libcurl.* /root/lib/lib/libcrypto.* /root/lib/lib/libssl.*; \
+		cp -r /root/builds/libcurl/$MODE/dist/8.23/root/lib/. /root/lib; \
+		cp -r /root/builds/libopenssl/$MODE/dist/3.5/root/lib/. /root/lib; \
+	fi
+
 COPY ./compile/libzip/ /root/builds-libzip/
 RUN mkdir -p /libs/libzip
 RUN if [ "$WITH_JSPI" = "yes" ]; then \
@@ -67,11 +78,13 @@ fi
 
 COPY ./compile/libopenssl/ /root/builds-libopenssl/
 RUN mkdir -p /libs/libopenssl
-RUN if [ "$WITH_JSPI" = "yes" ]; then \
-	cp -r /root/builds-libopenssl/jspi/dist/root/lib /libs/libopenssl; \
-else \
-	cp -r /root/builds-libopenssl/asyncify/dist/root/lib /libs/libopenssl; \
-fi
+RUN MODE=asyncify; \
+	if [ "$WITH_JSPI" = "yes" ]; then MODE=jspi; fi; \
+	if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
+		cp -r /root/builds-libopenssl/$MODE/dist/3.5/root/lib /libs/libopenssl; \
+	else \
+		cp -r /root/builds-libopenssl/$MODE/dist/root/lib /libs/libopenssl; \
+	fi
 
 # Patch OPcache config.m4 file if needed
 RUN if [ "$WITH_OPCACHE" = "yes" ]; \
@@ -151,11 +164,16 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
 	then \
 		# Configure build flags
 		echo -n ' --enable-phar --enable-cli=static ' >> /root/.php-configure-flags && \
-		echo -n ' /root/php-src/sapi/cli/php_cli_process_title.c /root/php-src/sapi/cli/ps_title.c ' \
-			# Use absolute paths to help path mapping for DWARF debug info
-			'/root/php-src/sapi/cli/php_http_parser.c /root/php-src/sapi/cli/php_cli_server.c ' \
-			'/root/php-src/sapi/cli/php_cli.c ' \
-			>> /root/.emcc-php-wasm-sources && \
+		# PHP 8.6 includes the CLI SAPI in libphp.a, except its entry point.
+		if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
+			echo -n ' /root/php-src/sapi/cli/php_cli_main.c ' >> /root/.emcc-php-wasm-sources; \
+		else \
+			echo -n ' /root/php-src/sapi/cli/php_cli_process_title.c /root/php-src/sapi/cli/ps_title.c ' \
+				# Use absolute paths to help path mapping for DWARF debug info
+				'/root/php-src/sapi/cli/php_http_parser.c /root/php-src/sapi/cli/php_cli_server.c ' \
+				'/root/php-src/sapi/cli/php_cli.c ' \
+				>> /root/.emcc-php-wasm-sources; \
+		fi && \
 		echo "_run_cli" >> /root/.JS_ABI_EXPORTS && echo "_wasm_add_cli_arg" >> /root/.JS_ABI_EXPORTS && \
 		echo -n ' -DWITH_CLI_SAPI=1 ' >> /root/.emcc-php-wasm-flags && \
 		/root/replace.sh 's/GET_SHELL_CB\(cb\);/(cb) = php_cli_get_shell_callbacks();/g' /root/php-src/ext/readline/readline_cli.c; \
@@ -300,14 +318,26 @@ RUN cd /root && \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-8.4.patch -v; \
 	elif [[ "$PHP_PATCH_VERSION" == '8.5' ]]; then \
 		git apply --no-index /root/php-chunk-alloc-zend-assert-8.5.patch -v; \
+	elif [[ "$PHP_PATCH_VERSION" == '8.6' ]]; then \
+		git apply --no-index /root/php-chunk-alloc-zend-assert-8.6.patch -v; \
 	fi && \
 	touch php-src/patched
+
+# PHP 8.6's polling and cURL stream APIs need WebAssembly-specific handling.
+COPY ./compile/php/wasm-poll-8.6.patch ./compile/php/wasm-curl-stream-8.6.patch /root/
+RUN if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
+		cd /root && \
+		git apply --no-index /root/wasm-poll-8.6.patch -v && \
+		git apply --no-index /root/wasm-curl-stream-8.6.patch -v; \
+	fi
 
 # Install Mysql support if needed
 RUN if [ "$WITH_MYSQL" = "yes" ]; then \
 		echo -n ' --enable-mysql --enable-pdo --with-mysql=mysqlnd --with-mysqli=mysqlnd --with-pdo-mysql=mysqlnd ' >> /root/.php-configure-flags; \
 		echo -n ' -DMYSQLND_FORCE_TCP_LOCALHOST ' >> /root/.emcc-php-wasm-flags; \
 	fi
+
+COPY ./compile/php/wasm-imagick-stream-8.6.patch /root/
 
 # Download and prepare imagick extension if needed (PHP 7.4+)
 # Use version 3.7.0 for PHP 7.x, development branch for PHP 8.x
@@ -322,6 +352,9 @@ RUN if [ "$WITH_IMAGICK" = "yes" ]; then \
 			--single-branch \
 			--depth 1 && \
 		cp -r /root/imagick /root/php-src/ext/imagick && \
+		if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
+			cd /root && git apply --no-index /root/wasm-imagick-stream-8.6.patch; \
+		fi && \
 		cd /root/php-src && \
 		if [ "${PHP_VERSION:0:1}" -eq "7" ]; then \
 			cp configure configure.backup && \
@@ -2171,6 +2204,12 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zval_try_get_string_func",\
 "zval_undefined_cv",\
 "zval_update_constant_ex"';\
+	if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
+		ASYNCIFY_ONLY_UNPREFIXED+=',"php_poll_wasm","poll_backend_wait","php_poll_wait","zim_Io_Poll_Context_wait"'; \
+		ASYNCIFY_ONLY_UNPREFIXED+=',"curl_read","multi_wait"'; \
+		ASYNCIFY_ONLY_UNPREFIXED+=',"php_stream_read","php_stream_set_option","php_stream_fill_read_buffer","php_stream_get_line","php_stream_eof","php_stream_free"'; \
+		ASYNCIFY_ONLY_UNPREFIXED+=',"zend_call_known_function_ex","ZEND_FE_RESET_R_SPEC_TMP_HANDLER"'; \
+	fi; \
 	# If pointer casts are enabled, we need to asyncify both the prefixed and unprefixed names
 	if [ "${PHP_VERSION:0:1}" -lt "8" ]; then \
 		export ASYNCIFY_ONLY="$ASYNCIFY_ONLY_UNPREFIXED,"$(echo "$ASYNCIFY_ONLY_UNPREFIXED" | sed -E $'s/"([a-zA-Z])/"byn$fpcast-emu$\\1/g'); \

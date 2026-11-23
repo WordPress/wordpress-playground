@@ -69,6 +69,10 @@ npm run format:uncommitted               # Format only uncommitted files
 # PHP Recompilation (see compile-php-wasm skill for details)
 npm run recompile:php:web                # Recompile all PHP versions for web
 npm run recompile:php:node               # Recompile all PHP versions for Node.js
+npm run recompile:php:web:jspi:8.6       # Recompile PHP 8.6 web JSPI
+npm run recompile:php:web:asyncify:8.6    # Recompile PHP 8.6 web Asyncify
+npm run recompile:php:node:jspi:8.6      # Recompile PHP 8.6 Node.js JSPI
+npm run recompile:php:node:asyncify:8.6   # Recompile PHP 8.6 Node.js Asyncify
 npm run recompile:php:web:next         # Recompile PHP next web binaries
 npm run sync:php-next                  # Fetch gitignored PHP next assets for local dev
 
@@ -260,7 +264,7 @@ PHP binaries are compiled separately for:
 - **Web (browser)**: Asyncify and JSPI variants for different browser capabilities
 - **Node.js**: Native async/await support
 
-Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-5` (and corresponding node-builds)
+Version-specific builds: `@php-wasm/web-7-4` through `@php-wasm/web-8-6` (and corresponding node-builds)
 
 ## Development Conventions
 
@@ -429,7 +433,7 @@ npx nx dev playground-cli server --wp=6.8 --php=8.4 --auto-mount
 - `--blueprint=<path>`: Execute a blueprint JSON file
 - `--mount=<src>:<dest>`: Manually mount directories
 - `--login`: Auto-login as admin
-- `--php=<version>`: Choose PHP version (7.4-8.5)
+- `--php=<version>`: Choose PHP version (7.4-8.6)
 - `--wp=<version>`: Choose WordPress version
 
 ### Git Operations

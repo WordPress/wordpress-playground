@@ -82,11 +82,13 @@ export default defineConfig(function () {
 
 		test: {
 			globals: true,
+			setupFiles: ['./src/test/setup-asyncify.ts'],
 			cache: {
 				dir: '../../../node_modules/.vitest',
 			},
 			env: {
 				TEST: JSON.stringify(true),
+				PHP_WASM_TEST_ASYNCIFY: 'true',
 			},
 			poolOptions: {
 				// This is needed to allow `--expose-gc` to be passed to the

@@ -15,7 +15,9 @@
 #include <emscripten.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <unistd.h>
 
 #include "zend_globals_macros.h"
@@ -847,26 +849,59 @@ ZEND_END_ARG_INFO()
  */
 EMSCRIPTEN_KEEPALIVE int __wrap_select(int max_fd, fd_set *read_fds, fd_set *write_fds, fd_set *except_fds, struct timeval *timeouttv)
 {
-	emscripten_sleep(0); // always yield to JS event loop
-	int timeoutms = php_tvtoto(timeouttv);
-	int n = 0;
+	if (max_fd < 0 || max_fd > FD_SETSIZE ||
+		(timeouttv && (timeouttv->tv_sec < 0 || timeouttv->tv_usec < 0 || timeouttv->tv_usec >= 1000000)))
+	{
+		errno = EINVAL;
+		return -1;
+	}
+
+	struct pollfd fds[FD_SETSIZE];
+	int count = 0;
 	for (int i = 0; i < max_fd; i++)
 	{
-		if (FD_ISSET(i, read_fds))
-		{
-			n += wasm_poll_socket(i, POLLIN | POLLOUT, timeoutms);
-		}
-		if (FD_ISSET(i, write_fds))
-		{
-			n += wasm_poll_socket(i, POLLOUT, timeoutms);
-		}
-		if (FD_ISSET(i, except_fds))
-		{
-			n += wasm_poll_socket(i, POLLERR, timeoutms);
-			FD_CLR(i, except_fds);
-		}
+		short events = 0;
+		if (read_fds && FD_ISSET(i, read_fds)) events |= POLLIN;
+		if (write_fds && FD_ISSET(i, write_fds)) events |= POLLOUT;
+		if (except_fds && FD_ISSET(i, except_fds)) events |= POLLPRI;
+		if (events) fds[count++] = (struct pollfd){ .fd = i, .events = events, .revents = 0 };
 	}
-	return n;
+
+	double deadline = timeouttv ? emscripten_get_now() +
+		(double)timeouttv->tv_sec * 1000 + (double)timeouttv->tv_usec / 1000 : 0;
+	int ready;
+	// Emscripten's poll() is nonblocking, so yield while waiting for socket events.
+	do
+	{
+		emscripten_sleep(0);
+		if (poll(fds, count, 0) < 0) return -1;
+		ready = 0;
+		for (int i = 0; i < count; i++)
+		{
+			if (fds[i].revents & POLLNVAL)
+			{
+				errno = EBADF;
+				return -1;
+			}
+			if ((fds[i].events & POLLIN) && (fds[i].revents & (POLLIN | POLLHUP | POLLERR))) ready++;
+			if ((fds[i].events & POLLOUT) && (fds[i].revents & (POLLOUT | POLLERR))) ready++;
+			if ((fds[i].events & POLLPRI) && (fds[i].revents & POLLPRI)) ready++;
+		}
+		if (ready || (timeouttv && emscripten_get_now() >= deadline)) break;
+		double remaining = timeouttv ? deadline - emscripten_get_now() : 10;
+		emscripten_sleep(remaining > 10 ? 10 : remaining >= 1 ? (int)remaining : 1);
+	} while (1);
+
+	if (read_fds) FD_ZERO(read_fds);
+	if (write_fds) FD_ZERO(write_fds);
+	if (except_fds) FD_ZERO(except_fds);
+	for (int i = 0; i < count; i++)
+	{
+		if ((fds[i].events & POLLIN) && (fds[i].revents & (POLLIN | POLLHUP | POLLERR))) FD_SET(fds[i].fd, read_fds);
+		if ((fds[i].events & POLLOUT) && (fds[i].revents & (POLLOUT | POLLERR))) FD_SET(fds[i].fd, write_fds);
+		if ((fds[i].events & POLLPRI) && (fds[i].revents & POLLPRI)) FD_SET(fds[i].fd, except_fds);
+	}
+	return ready;
 }
 
 #if !defined(TSRMLS_DC)

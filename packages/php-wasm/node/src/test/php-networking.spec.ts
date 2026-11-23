@@ -6,10 +6,13 @@ import {
 	type SupportedPHPVersion,
 } from '@php-wasm/universal';
 import express from 'express';
-import { rootCertificates } from 'tls';
+import { createServer as createTlsServer, rootCertificates } from 'tls';
 import { loadNodeRuntime } from '../lib';
 import type { PHPLoaderOptions } from '../lib';
 import http from 'http';
+import https from 'https';
+import { readFileSync } from 'fs';
+import { gzipSync } from 'zlib';
 
 const phpVersions =
 	'PHP' in process.env
@@ -62,6 +65,22 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 
 		return 'http://127.0.0.1:' + server.address().port;
 	}
+	async function startRedirectUploadServer() {
+		server = http.createServer((req, res) => {
+			const chunks: Buffer[] = [];
+			req.on('data', (chunk: Buffer) => chunks.push(chunk));
+			req.on('end', () => {
+				if (req.url === '/redirect') {
+					res.writeHead(307, { Location: '/upload' });
+					res.end();
+				} else {
+					res.end(Buffer.concat(chunks));
+				}
+			});
+		});
+		await new Promise<void>((resolve) => server.listen(0, resolve));
+		return 'http://127.0.0.1:' + server.address().port;
+	}
 	async function stopServer(server: any) {
 		if (server) {
 			await new Promise((resolve) => {
@@ -72,6 +91,128 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 	}
 
 	phpLoaderOptions.forEach((options) => {
+		if (phpVersion === '8.6') {
+			it('resumes a TLS stream session', async () => {
+				let php: PHP | undefined;
+				const resumed: boolean[] = [];
+				try {
+					const certificate = readFileSync(
+						new URL('./test-data/cert.pem', import.meta.url)
+					);
+					server = createTlsServer(
+						{
+							cert: certificate,
+							key: readFileSync(
+								new URL('./test-data/key.pem', import.meta.url)
+							),
+							maxVersion: 'TLSv1.2',
+						},
+						(socket) => {
+							resumed.push(socket.isSessionReused());
+							socket.end('secure stream');
+						}
+					);
+					await new Promise<void>((resolve) =>
+						server.listen(0, resolve)
+					);
+					const address = `tls://127.0.0.1:${server.address().port}`;
+					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					await setPhpIniEntries(php, { disable_functions: '' });
+					php.writeFile('/tmp/test-ca.pem', certificate);
+					const response = await php.run({
+						code: `<?php
+							$session = null;
+							$options = [
+								'cafile' => '/tmp/test-ca.pem',
+								'peer_name' => '127.0.0.1',
+								'crypto_method' => STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT,
+								'session_new_cb' => function ($stream, $newSession) use (&$session) {
+									$session = $newSession;
+								},
+							];
+							$first = stream_socket_client('${address}', $errno, $error, 4, STREAM_CLIENT_CONNECT, stream_context_create(['ssl' => $options]));
+							$firstBody = stream_get_contents($first);
+							fclose($first);
+							if ($session === null) {
+								throw new Exception('No TLS session was captured');
+							}
+							unset($options['session_new_cb']);
+							$options['session_data'] = $session;
+							$second = stream_socket_client('${address}', $errno, $error, 4, STREAM_CLIENT_CONNECT, stream_context_create(['ssl' => $options]));
+							$secondBody = stream_get_contents($second);
+							fclose($second);
+							echo json_encode([$firstBody, $secondBody]);
+						`,
+					});
+					expect(JSON.parse(response.text)).toEqual([
+						'secure stream',
+						'secure stream',
+					]);
+					expect(resumed).toEqual([false, true]);
+				} finally {
+					php?.exit();
+					await stopServer(server);
+				}
+			}, 15000);
+
+			it('polls multiple network streams for readiness', async () => {
+				let php: PHP | undefined;
+				try {
+					const serverUrl = await startServer();
+					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					await setPhpIniEntries(php, {
+						disable_functions: '',
+					});
+					const response = await php.run({
+						code: `<?php
+							$address = str_replace('http://', 'tcp://', '${serverUrl}');
+							$readSocket = stream_socket_client($address);
+							$writeSocket = stream_socket_client($address);
+							$poll = new Io\\Poll\\Context(Io\\Poll\\Backend::Poll);
+							$poll->add(new StreamPollHandle($readSocket), [Io\\Poll\\Event::Read]);
+							$poll->add(new StreamPollHandle($writeSocket), [Io\\Poll\\Event::Write]);
+							$ready = $poll->wait(Time\\Duration::fromSeconds(1));
+							echo count($ready) . ':' . ($ready[0]->getHandle()->getStream() === $writeSocket ? 'write' : 'unexpected');
+							fclose($readSocket);
+							fclose($writeSocket);
+						`,
+					});
+
+					expect(response.text).toBe('1:write');
+				} finally {
+					php?.exit();
+					await stopServer(server);
+				}
+			}, 10000);
+
+			it('waits for the polling timeout when a socket is idle', async () => {
+				let php: PHP | undefined;
+				try {
+					const serverUrl = await startServer();
+					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					await setPhpIniEntries(php, {
+						disable_functions: '',
+					});
+					const response = await php.run({
+						code: `<?php
+							$socket = stream_socket_client(str_replace('http://', 'tcp://', '${serverUrl}'));
+							$poll = new Io\\Poll\\Context(Io\\Poll\\Backend::Poll);
+							$poll->add(new StreamPollHandle($socket), [Io\\Poll\\Event::Read]);
+							$start = hrtime(true);
+							$ready = $poll->wait(Time\\Duration::fromMilliseconds(60));
+							echo count($ready) . ':' . (hrtime(true) - $start >= 30000000 ? 'waited' : 'early');
+							fclose($socket);
+						`,
+					});
+
+					expect(response.text).toBe('0:waited');
+				} finally {
+					php?.exit();
+					await stopServer(server);
+				}
+			}, 10000);
+		}
+
 		it('should be able to make a request to a server', async () => {
 			let php: PHP | undefined;
 			try {
@@ -175,6 +316,221 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		}, 10000);
 
 		describe('cURL', () => {
+			if (phpVersion === '8.6') {
+				it('verifies a local HTTPS server certificate', async () => {
+					let php: PHP | undefined;
+					try {
+						const certificate = readFileSync(
+							new URL('./test-data/cert.pem', import.meta.url)
+						);
+						server = https.createServer(
+							{
+								cert: certificate,
+								key: readFileSync(
+									new URL(
+										'./test-data/key.pem',
+										import.meta.url
+									)
+								),
+							},
+							(_req, res) => res.end('secure response')
+						);
+						await new Promise<void>((resolve) =>
+							server.listen(0, resolve)
+						);
+						const serverUrl = `https://127.0.0.1:${server.address().port}`;
+						php = new PHP(
+							await loadNodeRuntime(phpVersion, options)
+						);
+						await setPhpIniEntries(php, { disable_functions: '' });
+						php.writeFile('/tmp/test-ca.pem', certificate);
+						php.writeFile(
+							'/tmp/public-cas.pem',
+							rootCertificates.join('\n')
+						);
+						const response = await php.run({
+							code: `<?php
+								$untrusted = curl_init('${serverUrl}');
+								curl_setopt($untrusted, CURLOPT_RETURNTRANSFER, true);
+								curl_setopt($untrusted, CURLOPT_CAINFO, '/tmp/public-cas.pem');
+								curl_exec($untrusted);
+								$untrustedError = curl_errno($untrusted);
+								$curl = curl_init('${serverUrl}');
+								curl_setopt($curl, CURLOPT_CAINFO, '/tmp/test-ca.pem');
+								curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+								$body = curl_exec($curl);
+								if ($body === false) {
+									throw new Exception(curl_error($curl));
+								}
+								echo json_encode(['body' => $body, 'untrusted_error' => $untrustedError]);
+							`,
+						});
+						expect(JSON.parse(response.text)).toEqual({
+							body: 'secure response',
+							untrusted_error: 60,
+						});
+					} finally {
+						php?.exit();
+						await stopServer(server);
+					}
+				}, 15000);
+
+				it('reports the delivered response size', async () => {
+					let php: PHP | undefined;
+					try {
+						const body = 'response from express'.repeat(10);
+						const compressed = gzipSync(body);
+						server = http.createServer((_req, res) => {
+							res.writeHead(200, {
+								'Content-Encoding': 'gzip',
+								'Content-Length': compressed.length,
+							});
+							res.end(compressed);
+						});
+						await new Promise<void>((resolve) =>
+							server.listen(0, resolve)
+						);
+						const serverUrl = `http://127.0.0.1:${server.address().port}`;
+						php = new PHP(
+							await loadNodeRuntime(phpVersion, options)
+						);
+						await setPhpIniEntries(php, {
+							disable_functions: '',
+						});
+						const response = await php.run({
+							code: `<?php
+								$curl = curl_init('${serverUrl}');
+								curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+								curl_setopt($curl, CURLOPT_ENCODING, '');
+								$body = curl_exec($curl);
+								$info = curl_getinfo($curl);
+								echo json_encode([
+									'length' => strlen($body),
+									'downloaded' => curl_getinfo($curl, CURLINFO_SIZE_DOWNLOAD_T),
+									'by_constant' => curl_getinfo($curl, CURLINFO_SIZE_DELIVERED),
+									'by_array' => $info['size_delivered'],
+								]);
+							`,
+						});
+						expect(JSON.parse(response.text)).toEqual({
+							length: body.length,
+							downloaded: compressed.length,
+							by_constant: body.length,
+							by_array: body.length,
+						});
+					} finally {
+						php?.exit();
+						await stopServer(server);
+					}
+				}, 10000);
+
+				it('authenticates with an NTLM challenge', async () => {
+					let php: PHP | undefined;
+					const messages: number[] = [];
+					try {
+						const challenge =
+							'TlRMTVNTUAACAAAAAgACADAAAACGggEAc51AYVDgyNcAAAAAAAAAAG4AbgAyAAAAQ0MCAAQAQwBDAAEAEgBFAEwASQBTAEEAQgBFAFQASAAEABgAYwBjAC4AaQBjAGUAZABlAHYALgBuAHUAAwAsAGUAbABpAHMAYQBiAGUAdABoAC4AYwBjAC4AaQBjAGUAZABlAHYALgBuAHUAAAAAAA==';
+						server = http.createServer((req, res) => {
+							const authorization = req.headers.authorization;
+							if (!authorization?.startsWith('NTLM ')) {
+								res.writeHead(401, {
+									'WWW-Authenticate': 'NTLM',
+								});
+							} else {
+								const message = Buffer.from(
+									authorization.slice(5),
+									'base64'
+								).readUInt32LE(8);
+								messages.push(message);
+								if (message === 1) {
+									res.writeHead(401, {
+										'WWW-Authenticate': `NTLM ${challenge}`,
+									});
+								} else if (message === 3) {
+									res.end('authenticated');
+									return;
+								} else {
+									res.writeHead(400);
+								}
+							}
+							res.end();
+						});
+						await new Promise<void>((resolve) =>
+							server.listen(0, resolve)
+						);
+						php = new PHP(
+							await loadNodeRuntime(phpVersion, options)
+						);
+						await setPhpIniEntries(php, { disable_functions: '' });
+						const response = await php.run({
+							code: `<?php
+								$curl = curl_init('http://127.0.0.1:${server.address().port}');
+								curl_setopt_array($curl, [
+									CURLOPT_HTTPAUTH => CURLAUTH_NTLM,
+									CURLOPT_USERPWD => 'user:password',
+									CURLOPT_RETURNTRANSFER => true,
+									CURLOPT_TIMEOUT => 4,
+								]);
+								$body = curl_exec($curl);
+								if ($body === false) {
+									throw new Exception(curl_error($curl));
+								}
+								echo $body;
+							`,
+						});
+						expect(response.text).toBe('authenticated');
+						expect(messages).toEqual([1, 3]);
+					} finally {
+						php?.exit();
+						await stopServer(server);
+					}
+				}, 10000);
+
+				it('rewinds a streamed upload on redirect', async () => {
+					let php: PHP | undefined;
+					try {
+						const serverUrl = await startRedirectUploadServer();
+						php = new PHP(
+							await loadNodeRuntime(phpVersion, options)
+						);
+						await setPhpIniEntries(php, {
+							disable_functions: '',
+						});
+						const response = await php.run({
+							code: `<?php
+								$stream = fopen('php://temp', 'r+');
+								fwrite($stream, 'upload body');
+								rewind($stream);
+								$seeks = 0;
+								$curl = curl_init('${serverUrl}/redirect');
+								curl_setopt_array($curl, [
+									CURLOPT_UPLOAD => true,
+									CURLOPT_INFILE => $stream,
+									CURLOPT_INFILESIZE => 11,
+									CURLOPT_TIMEOUT => 4,
+									CURLOPT_HTTPHEADER => ['Expect:'],
+									CURLOPT_FOLLOWLOCATION => true,
+									CURLOPT_RETURNTRANSFER => true,
+									CURLOPT_SEEKFUNCTION => function ($handle, $offset, $origin) use ($stream, &$seeks) {
+										$seeks++;
+										return fseek($stream, $offset, $origin) === 0 ? CURL_SEEKFUNC_OK : CURL_SEEKFUNC_FAIL;
+									},
+								]);
+								$body = curl_exec($curl);
+								echo json_encode(['body' => $body, 'rewound' => $seeks > 0]);
+							`,
+						});
+						expect(JSON.parse(response.text)).toEqual({
+							body: 'upload body',
+							rewound: true,
+						});
+					} finally {
+						php?.exit();
+						await stopServer(server);
+					}
+				}, 10000);
+			}
+
 			it('should support single handle requests', async () => {
 				let php: PHP | undefined;
 				try {

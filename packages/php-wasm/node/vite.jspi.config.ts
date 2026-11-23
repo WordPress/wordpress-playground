@@ -6,6 +6,7 @@ export default defineConfig((env) =>
 		config(env),
 		defineConfig({
 			test: {
+				env: { PHP_WASM_TEST_ASYNCIFY: 'false' },
 				poolOptions: {
 					forks: {
 						execArgv: [

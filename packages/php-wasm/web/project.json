@@ -82,6 +82,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.6 --WITH_JSPI=yes",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.5 --WITH_JSPI=yes",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.4 --WITH_JSPI=yes",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3 --WITH_JSPI=yes",
@@ -106,6 +107,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
+					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.6",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.5",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.4",
 					"node packages/php-wasm/compile/build.js --PLATFORM=web --PHP_VERSION=8.3",

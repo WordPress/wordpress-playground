@@ -6,6 +6,7 @@ import type { SupportedPHPVersion } from '@php-wasm/universal';
  *
  * Each PHP version's xdebug extension is packaged separately. Install the
  * version-specific package you need:
+ * - @php-wasm/node-8-6
  * - @php-wasm/node-8-5
  * - @php-wasm/node-8-4
  * - etc.
@@ -14,6 +15,11 @@ export async function getXdebugExtensionModule(
 	version: SupportedPHPVersion = LatestSupportedPHPVersion
 ): Promise<any> {
 	switch (version) {
+		case '8.6':
+			// @ts-ignore
+			return (
+				await import('@php-wasm/node-8-6')
+			).getXdebugExtensionPath();
 		case '8.5':
 			// @ts-ignore
 			return (

@@ -33,7 +33,10 @@ RUN cd /root && git apply --no-index /root/php${PHP_VERSION:0:3}*.patch -v
 # The resulting PHP version is not used at runtime.
 # It only exists to enable 'phpize' to build extensions.
 #
+# PHP 8.6 requires the CLI SAPI when building the embed SAPI.
 RUN source /root/emsdk/emsdk_env.sh && \
+	CLI_SAPI_FLAG=--disable-cli && \
+	if [[ "${PHP_VERSION:0:3}" == "8.6" ]]; then CLI_SAPI_FLAG=--enable-cli; fi && \
 	cd php-src && \
 	emconfigure ./configure \
 	--disable-fiber-asm \
@@ -45,7 +48,7 @@ RUN source /root/emsdk/emsdk_env.sh && \
 	--disable-opcache \
 	--disable-phpdbg \
 	--without-pcre-jit \
-	--disable-cli \
+	"$CLI_SAPI_FLAG" \
 	# PHP < 8.5
 	--disable-libxml \
 	--without-libxml \
@@ -65,9 +68,14 @@ RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_multipl
 RUN /root/replace.sh 's/defined\(__GNUC__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
 RUN /root/replace.sh 's/defined\(__clang__\)/0/g' /root/php-src/Zend/zend_cpuinfo.c
 
+# Only install the tools and headers needed by phpize; do not link a standalone PHP CLI.
 RUN source /root/emsdk/emsdk_env.sh && \
 	cd /root/php-src && \
-	emmake make install
+	if [[ "${PHP_VERSION:0:3}" == "8.6" ]]; then \
+		emmake make install-build install-headers install-programs; \
+	else \
+		emmake make install; \
+	fi
 
 # Copy extension headers that php-memcached may require
 # PHP 8.5 moved php_smart_string.h to Zend/zend_smart_string.h
@@ -136,6 +144,12 @@ RUN git clone https://github.com/php-memcached-dev/php-memcached.git /root/php-m
 	--branch v3.4.0 \
 	--single-branch \
 	--depth 1;
+
+# Apply the PHP 8.6 compatibility fix from https://github.com/php-memcached-dev/php-memcached/pull/580.
+RUN if [[ "${PHP_VERSION:0:3}" == "8.6" ]]; then \
+		/root/replace.sh 's/\bXtOffsetOf\(/offsetof(/g' /root/php-memcached/php_memcached.c && \
+		/root/replace.sh 's/\bzval_dtor\(/zval_ptr_dtor_nogc(/g' /root/php-memcached/php_memcached.c; \
+	fi
 
 COPY ./shared/memcached/shims/socket.c /root/php-memcached/wasm_socket_shims.c
 # Build php-memcached

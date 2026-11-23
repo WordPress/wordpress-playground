@@ -1,0 +1,44 @@
+#***************************************************************************
+#                                  _   _ ____  _
+#  Project                     ___| | | |  _ \| |
+#                             / __| | | | |_) | |
+#                            | (__| |_| |  _ <| |___
+#                             \___|\___/|_| \_\_____|
+#
+# Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
+#
+# This software is licensed as described in the file COPYING, which
+# you should have received as part of this distribution. The terms
+# are also available at https://curl.se/docs/copyright.html.
+#
+# You may opt to use, copy, modify, merge, publish, distribute and/or sell
+# copies of the Software, and permit persons to whom the Software is
+# furnished to do so, under the terms of the COPYING file.
+#
+# This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
+# KIND, either express or implied.
+#
+# SPDX-License-Identifier: curl
+#
+###########################################################################
+
+prefix=/root/lib
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+supported_protocols="DICT FILE HTTP HTTPS"
+supported_features="alt-svc HSTS HTTPS-proxy IPv6 Largefile libz NTLM SSL threadsafe UnixSockets"
+
+Name: libcurl
+URL: https://curl.se/
+Description: Library to transfer files with HTTP, FTP, etc.
+License: curl
+Copyright: Copyright (C) Daniel Stenberg, <daniel@haxx.se>, et al.
+Version: 8.23.0
+Source: https://curl.se/download/curl-8.23.0.tar.gz
+Requires: zlib,openssl
+Libs: -L${libdir} -lcurl -lssl -lcrypto -lssl -lcrypto  -lz
+Libs.private: -L/root/lib/lib -lssl -lcrypto -lssl -lcrypto -lz
+Cflags: -I${includedir} -DCURL_STATICLIB
+Cflags.private: -DCURL_STATICLIB
+Link.ABI: c
