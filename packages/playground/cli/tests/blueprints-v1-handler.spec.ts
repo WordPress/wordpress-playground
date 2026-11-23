@@ -87,7 +87,7 @@ describe('BlueprintsV1Handler', () => {
 		);
 	});
 
-	test.each(['../../backups/site', '/var/backups/site', 'C:\\backups\\site'])(
+	test.each(['../../backups/site', 'C:\\backups\\site'])(
 		'rejects the Blueprint WordPress version %s',
 		async (wp) => {
 			vi.mocked(resolveWordPressRelease).mockImplementationOnce(

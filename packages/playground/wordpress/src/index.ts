@@ -655,9 +655,9 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 		versionQuery = 'latest';
 	} else if (!isValidWordPressVersion(versionQuery)) {
 		throw new Error(
-			`Unrecognized WordPress version "${versionQuery}". Use "latest", "beta", ` +
-				'"trunk", "nightly", an http(s) URL, or a numeric version such as ' +
-				'"6.2", "6.0.1", "6.2-beta1", or "6.2-RC1".'
+			`Unrecognized WordPress version ${JSON.stringify(versionQuery)}. ` +
+				'Use "latest", "beta", "trunk", "nightly", an http(s) URL, or a ' +
+				'numeric version such as "7.1", "7.0.1", "7.1-beta1", or "7.1-RC1".'
 		);
 	} else if (
 		versionQuery.startsWith('https://') ||

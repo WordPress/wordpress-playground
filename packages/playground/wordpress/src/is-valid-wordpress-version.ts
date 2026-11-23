@@ -7,10 +7,10 @@
  * - "latest"
  * - "beta"
  * - "trunk" (legacy alias: "nightly")
- * - "x.y" (x and y are integers) e.g. "6.2"
- * - "x.y.z" (x, y and z are integers) e.g. "6.2.1"
- * - "x.y.z-betaN" (N is an integer) e.g. "6.2.1-beta1"
- * - "x.y.z-RCN" (N is an integer) e.g. "6.2-RC1"
+ * - "x.y" (x and y are integers) e.g. "7.1"
+ * - "x.y.z" (x, y and z are integers) e.g. "7.0.1"
+ * - "x.y.z-betaN" (N is an integer) e.g. "7.1-beta1"
+ * - "x.y.z-RCN" (N is an integer) e.g. "7.1-RC1"
  * - an http:// or https:// URL of a WordPress ZIP file
  *
  * @param version The version string to check.

@@ -636,7 +636,7 @@ export async function parseOptionsAndRunCLI(
 					!isValidWordPressVersion(args['wp'])
 				) {
 					throw new Error(
-						'Unrecognized WordPress version. Please use "latest", "beta", "trunk", "nightly", an http(s) URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1" (see --help for details).'
+						'Unrecognized WordPress version. Please use "latest", "beta", "trunk", "nightly", an http(s) URL, or a numeric version such as "7.1", "7.0.1", "7.1-beta1", or "7.1-RC1" (see --help for details).'
 					);
 				}
 

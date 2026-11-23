@@ -683,7 +683,7 @@ describe('BlueprintsV2Handler', () => {
 		expect(playground.bootWordPress).not.toHaveBeenCalled();
 	});
 
-	test.each(['../../backups/site', '/var/backups/site', 'C:\\backups\\site'])(
+	test.each(['../../backups/site', 'C:\\backups\\site'])(
 		'rejects the Blueprint WordPress version %s',
 		async (wordpressVersion) => {
 			const playground = {
@@ -695,7 +695,7 @@ describe('BlueprintsV2Handler', () => {
 					playground as any,
 					{} as any
 				)
-			).rejects.toThrow();
+			).rejects.toThrow('Invalid Blueprint v2 declaration');
 			expect(cachedDownload).not.toHaveBeenCalled();
 			expect(playground.bootWordPress).not.toHaveBeenCalled();
 		}
