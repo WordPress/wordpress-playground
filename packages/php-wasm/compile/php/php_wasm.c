@@ -1043,7 +1043,9 @@ SAPI_API sapi_module_struct php_wasm_sapi_module = {
 
 	wasm_sapi_log_message, /* Log message */
 	NULL,				   /* Get request time */
+#if PHP_VERSION_ID < 80700
 	NULL,				   /* Child terminate */
+#endif
 
 	STANDARD_SAPI_MODULE_PROPERTIES};
 

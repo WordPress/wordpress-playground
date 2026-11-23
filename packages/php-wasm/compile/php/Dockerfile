@@ -57,9 +57,9 @@ else \
 	find /root/builds -path '*/asyncify/dist/root/lib' -type d -exec cp -r {}/. /root/lib \; ; \
 fi
 
-# PHP 8.6 uses newer curl and OpenSSL builds without changing older PHP versions.
+# PHP 8.6 and 8.7 use newer curl and OpenSSL builds.
 RUN set -eux; \
-	if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
+	if [[ "${PHP_VERSION:0:3}" == '8.6' || "${PHP_VERSION:0:3}" == '8.7' ]]; then \
 		MODE=asyncify; \
 		if [ "$WITH_JSPI" = "yes" ]; then MODE=jspi; fi; \
 		rm -rf /root/lib/include/curl /root/lib/include/openssl \
@@ -80,7 +80,7 @@ COPY ./compile/libopenssl/ /root/builds-libopenssl/
 RUN mkdir -p /libs/libopenssl
 RUN MODE=asyncify; \
 	if [ "$WITH_JSPI" = "yes" ]; then MODE=jspi; fi; \
-	if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
+	if [[ "${PHP_VERSION:0:3}" == '8.6' || "${PHP_VERSION:0:3}" == '8.7' ]]; then \
 		cp -r /root/builds-libopenssl/$MODE/dist/3.5/root/lib /libs/libopenssl; \
 	else \
 		cp -r /root/builds-libopenssl/$MODE/dist/root/lib /libs/libopenssl; \
@@ -164,8 +164,8 @@ RUN if [ "$WITH_CLI_SAPI" = "yes" ]; \
 	then \
 		# Configure build flags
 		echo -n ' --enable-phar --enable-cli=static ' >> /root/.php-configure-flags && \
-		# PHP 8.6 includes the CLI SAPI in libphp.a, except its entry point.
-		if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
+		# PHP 8.6 and 8.7 include the CLI SAPI in libphp.a, except its entry point.
+		if [[ "${PHP_VERSION:0:3}" == '8.6' || "${PHP_VERSION:0:3}" == '8.7' ]]; then \
 			echo -n ' /root/php-src/sapi/cli/php_cli_main.c ' >> /root/.emcc-php-wasm-sources; \
 		else \
 			echo -n ' /root/php-src/sapi/cli/php_cli_process_title.c /root/php-src/sapi/cli/ps_title.c ' \
@@ -305,7 +305,7 @@ COPY ./compile/php/apply-mysqlnd-patch.sh /root/
 RUN cd /root && \
 	PHP_PATCH_VERSION="${PHP_VERSION:0:3}" && \
 	if ! compgen -G "/root/php${PHP_PATCH_VERSION}*.patch" > /dev/null; then \
-		PHP_PATCH_VERSION="8.5"; \
+		PHP_PATCH_VERSION="8.6"; \
 	fi && \
 	git apply --no-index /root/php${PHP_PATCH_VERSION}*.patch -v && \
 	chmod +x /root/apply-mysqlnd-patch.sh && \
@@ -323,9 +323,9 @@ RUN cd /root && \
 	fi && \
 	touch php-src/patched
 
-# PHP 8.6's polling and cURL stream APIs need WebAssembly-specific handling.
+# PHP 8.6 and 8.7 need WebAssembly-specific polling and cURL stream handling.
 COPY ./compile/php/wasm-poll-8.6.patch ./compile/php/wasm-curl-stream-8.6.patch /root/
-RUN if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
+RUN if [[ "${PHP_VERSION:0:3}" == '8.6' || "${PHP_VERSION:0:3}" == '8.7' ]]; then \
 		cd /root && \
 		git apply --no-index /root/wasm-poll-8.6.patch -v && \
 		git apply --no-index /root/wasm-curl-stream-8.6.patch -v; \
@@ -2204,7 +2204,7 @@ RUN export ASYNCIFY_IMPORTS=$'[\n\
 "zval_try_get_string_func",\
 "zval_undefined_cv",\
 "zval_update_constant_ex"';\
-	if [[ "${PHP_VERSION:0:3}" == '8.6' ]]; then \
+	if [[ "${PHP_VERSION:0:3}" == '8.6' || "${PHP_VERSION:0:3}" == '8.7' ]]; then \
 		ASYNCIFY_ONLY_UNPREFIXED+=',"php_poll_wasm","poll_backend_wait","php_poll_wait","zim_Io_Poll_Context_wait"'; \
 		ASYNCIFY_ONLY_UNPREFIXED+=',"curl_read","multi_wait"'; \
 		ASYNCIFY_ONLY_UNPREFIXED+=',"php_stream_read","php_stream_set_option","php_stream_fill_read_buffer","php_stream_get_line","php_stream_eof","php_stream_free"'; \

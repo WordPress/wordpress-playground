@@ -75,9 +75,9 @@ To investigate a runtime failure with assertions, change that setting in the PHP
 
 ## PHP next builds
 
-Playground can also run the next PHP version from the php-src development branch in the web runtime. These builds are published separately from the main repository because the generated WebAssembly files are large and change often.
+Playground can also run a PHP development build in the web runtime. These builds are published separately from the main repository because the generated WebAssembly files are large and change often.
 
-The nightly refresh workflow builds the php-src development branch, writes the web artifacts to the gitignored `packages/playground/website/public/php-next/` directory, and publishes the result to the `php-next-builds` branch. Website deploys and the local dev server sync that branch before serving `?php=next`.
+The weekly refresh workflow builds the php-src development branch, writes the web artifacts to the gitignored `packages/playground/website/public/php-next/` directory, and publishes the result to the `php-next-builds` branch. Website deploys and the local dev server sync that branch before serving `?php=next`. If a refresh fails, the previous build remains available.
 
 To refresh the local copy manually, run:
 
