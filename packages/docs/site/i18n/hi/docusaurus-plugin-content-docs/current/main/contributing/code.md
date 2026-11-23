@@ -53,10 +53,8 @@ description: कोड योगदान की एक गाइड, जिस�
 [Playground रिपॉज़िटरी को फ़ोर्क करें](https://github.com/WordPress/wordpress-playground/fork) और उसे अपनी लोकल मशीन पर क्लोन करें। इसके लिए ये कमांड कॉपी करके अपने टर्मिनल में पेस्ट करें:
 
 ```bash
-git clone -b trunk --single-branch --depth 1 --recurse-submodules
-
 # replace `YOUR-GITHUB-USERNAME` with your GitHub username:
-git@github.com:YOUR-GITHUB-USERNAME/wordpress-playground.git
+git clone -b trunk --single-branch --depth 1 --recurse-submodules git@github.com:YOUR-GITHUB-USERNAME/wordpress-playground.git
 cd wordpress-playground
 npm install
 ```
@@ -93,11 +91,10 @@ cat /proc/sys/fs/inotify/max_user_watches
 
 <!-- If it's around 65,536 or lower, increase it by running: -->
 
-अगर यह लगभग 65,536 या उससे कम है, तो ये कमांड चलाकर इसे बढ़ाएँ:
+अगर यह लगभग 65,536 या उससे कम है, तो यह कमांड चलाकर इसे बढ़ाएँ:
 
 ```bash
 sudo sysctl fs.inotify.max_user_watches=131070
-sudo sysctl -p
 ```
 
 <!-- Then try `npm run dev` again. This is a common issue on Debian, Ubuntu, and other Linux distributions. -->
@@ -106,7 +103,7 @@ sudo sysctl -p
 
 </div>
 
-<!-- When your'e ready, commit the changes and submit a Pull Request. -->
+<!-- When you're ready, commit the changes and submit a Pull Request. -->
 
 तैयार होने पर बदलाव कमिट करें और पुल रिक्वेस्ट भेजें।
 
