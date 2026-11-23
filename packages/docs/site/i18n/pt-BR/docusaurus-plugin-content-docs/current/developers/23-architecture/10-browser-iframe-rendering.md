@@ -1,5 +1,7 @@
 ---
 slug: /developers/architecture/browser-iframe-rendering
+title: Renderização baseada em iframe
+description: Por que o WordPress Playground renderiza as respostas do PHP em um iframe para não recarregar a aplicação principal.
 ---
 
 <!-- # Iframe-based rendering -->

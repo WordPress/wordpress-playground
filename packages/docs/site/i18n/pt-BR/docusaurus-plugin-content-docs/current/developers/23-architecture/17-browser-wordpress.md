@@ -1,3 +1,8 @@
+---
+title: Empacotando o WordPress para o navegador
+description: Como o Dockerfile do empacotador web transforma um WordPress padrão em um WordPress otimizado para o navegador.
+---
+
 <!-- # Bundling WordPress for the browser -->
 
 # Empacotando o WordPress para o navegador

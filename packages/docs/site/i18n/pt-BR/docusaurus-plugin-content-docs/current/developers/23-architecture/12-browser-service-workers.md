@@ -1,5 +1,7 @@
 ---
 slug: /developers/architecture/browser-service-workers
+title: Service Workers
+description: Como um Service Worker intercepta as requisições do iframe e as encaminha para o PHP no WordPress Playground.
 ---
 
 <!-- # Service Workers -->

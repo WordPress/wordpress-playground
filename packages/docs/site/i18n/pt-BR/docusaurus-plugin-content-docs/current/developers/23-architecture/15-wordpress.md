@@ -1,5 +1,6 @@
 ---
 slug: /developers/architecture/wordpress
+title: Suporte ao WordPress
 ---
 
 <!-- # WordPress support -->

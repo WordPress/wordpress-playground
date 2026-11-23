@@ -1,3 +1,8 @@
+---
+title: Comunicação entre processos
+description: Como o @php-wasm/web usa a biblioteca Comlink para transformar o postMessage em um canal de comunicação de mão dupla.
+---
+
 <!-- # Cross-process communication -->
 
 # Comunicação entre processos

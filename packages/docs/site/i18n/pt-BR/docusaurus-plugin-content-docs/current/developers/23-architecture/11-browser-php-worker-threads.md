@@ -1,5 +1,7 @@
 ---
 slug: /developers/architecture/browser-php-worker-threads
+title: Worker Threads do PHP
+description: Como o WordPress Playground executa o PHP em um web worker para não deixar lenta a interface do site principal.
 ---
 
 <!-- # PHP Worker Threads -->

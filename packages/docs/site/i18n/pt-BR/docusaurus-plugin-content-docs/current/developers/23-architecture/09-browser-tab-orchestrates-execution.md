@@ -1,6 +1,7 @@
 ---
 slug: /developers/architecture/browser-tab-orchestrates-execution
 title: A aba do navegador orquestra a execução
+description: Como o index.html principal inicia os processos concorrentes do WordPress Playground e exibe as respostas do PHP.
 ---
 
 <!-- # Browser tab orchestrates the execution -->
