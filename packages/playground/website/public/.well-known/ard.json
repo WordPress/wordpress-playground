@@ -8,7 +8,9 @@
 			"description": "Setup metadata for connecting an AI assistant to WordPress Playground in the browser using the local @wp-playground/mcp server or browser-native WebMCP tools.",
 			"representativeQueries": [
 				"Connect my AI assistant to a WordPress Playground site in my browser",
-				"Inspect a page on my running WordPress Playground site"
+				"Inspect a page on my running WordPress Playground site",
+				"Debug a WordPress plugin error by running PHP and reading files in a browser sandbox",
+				"Check emails sent by a WordPress site and test pages in my browser"
 			]
 		},
 		{
@@ -18,8 +20,10 @@
 			"url": "https://raw.githubusercontent.com/WordPress/agent-skills/trunk/skills/wp-playground/SKILL.md",
 			"description": "Guides coding agents through running WordPress locally, previewing sites in the browser, and working with Blueprints and snapshots.",
 			"representativeQueries": [
+				"Reproduce a WordPress plugin bug in a fresh WordPress and PHP environment",
 				"Start a local WordPress environment with my plugin mounted",
-				"Create a shareable WordPress Playground preview from a Blueprint"
+				"Test my WordPress theme or plugin on a different PHP or WordPress version without Docker",
+				"Create a shareable WordPress preview link from a Blueprint"
 			]
 		}
 	]
