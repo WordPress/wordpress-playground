@@ -33,7 +33,7 @@ Install the skill using the `npx skills` CLI. Add the `blueprint` skill too: the
 npx skills add wordpress/agent-skills --skill wp-playground blueprint
 ```
 
-The CLI asks which coding agents to install to. Claude Code skills go into `.claude/skills/`. Codex, Cursor, GitHub Copilot, Gemini CLI, and Antigravity share `.agents/skills/`.
+The CLI asks which coding agents to install to, and whether to install in the project or globally. In a project install, Claude Code skills go into `.claude/skills/`. Codex, Cursor, GitHub Copilot, Gemini CLI, and Antigravity share `.agents/skills/`.
 
 ### 2. Install manually
 
@@ -57,6 +57,8 @@ This copies all skills, including `blueprint`, into:
 - `.agents/skills/` for Antigravity and Gemini CLI
 - `.codex/skills/` for Codex
 
+The installer replaces each matching skill folder, so back up any local changes in those folders first. To install only these two skills, add `--skills=wp-playground,blueprint` to the install command.
+
 After a manual install, verify that the skill directory exists for your agent:
 
 | Agent          | Skill directory                 |
@@ -68,7 +70,7 @@ After a manual install, verify that the skill directory exists for your agent:
 | Antigravity    | `.agents/skills/wp-playground/` |
 | Codex          | `.codex/skills/wp-playground/`  |
 
-If you installed with `npx skills`, check `.claude/skills/wp-playground/` for Claude Code and `.agents/skills/wp-playground/` for the other agents.
+After a project install with `npx skills`, check `.claude/skills/wp-playground/` for Claude Code and `.agents/skills/wp-playground/` for the other agents. A global install puts skills in your home directory instead. Run `npx skills list`, or `npx skills ls -g` for a global install, to see what is installed.
 
 Some agents also support listing skills directly:
 
