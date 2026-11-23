@@ -1,6 +1,6 @@
 ---
 slug: /developers/limitations
-description: Découvrez les limitations actuelles de WordPress Playground, notamment les comportements propres aux navigateurs, le stockage et la récupération des sites dans le navigateur, les particularités des iframes et la prise en charge de WP-CLI.
+description: Consultez les limitations actuelles de WordPress Playground, notamment les comportements propres aux navigateurs, le stockage et la récupération des sites dans le navigateur, les particularités des iframes et la prise en charge de WP-CLI.
 ---
 
 <!--
