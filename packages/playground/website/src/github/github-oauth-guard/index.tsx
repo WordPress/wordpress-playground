@@ -45,6 +45,9 @@ export default function GitHubOAuthGuard({
 	mayLoseProgress,
 	intro,
 }: GitHubOAuthGuardProps) {
+	// Authenticate unmounts while the popup is open, so keep its error here.
+	const [error, setError] = useState<string>();
+
 	if (oAuthState.value.isAuthorizing) {
 		return (
 			<div className={css.authorizing}>
@@ -61,20 +64,30 @@ export default function GitHubOAuthGuard({
 		return <div>{children}</div>;
 	}
 
-	return <Authenticate mayLoseProgress={mayLoseProgress} intro={intro} />;
+	return (
+		<Authenticate
+			mayLoseProgress={mayLoseProgress}
+			intro={intro}
+			error={error}
+			setError={setError}
+		/>
+	);
 }
 
 interface AuthenticateProps {
 	mayLoseProgress?: boolean;
 	intro?: React.ReactNode;
+	error?: string;
+	setError: (error?: string) => void;
 }
 
 function Authenticate({
 	mayLoseProgress = undefined,
 	intro,
+	error,
+	setError,
 }: AuthenticateProps) {
 	const [exported, setExported] = useState(false);
-	const [error, setError] = useState<string>();
 	const buttonClass = classNames(css.githubButton, {
 		[css.disabled]: mayLoseProgress && !exported,
 	});
