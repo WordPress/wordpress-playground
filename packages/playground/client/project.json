@@ -13,7 +13,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"cp packages/playground/client/README.md dist/packages/playground/client"
+					"node -e \"require('node:fs').copyFileSync('packages/playground/client/README.md', 'dist/packages/playground/client/README.md')\""
 				]
 			},
 			"dependsOn": ["build:package-json"]
