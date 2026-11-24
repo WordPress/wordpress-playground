@@ -53,6 +53,81 @@ describe('startServer', () => {
 		}
 	});
 
+	describe('Host header', () => {
+		const requestStatusForHost = async (host: string, siteUrl?: string) => {
+			const handleRequest = vi.fn(async () =>
+				StreamedPHPResponse.forHttpCode(200)
+			);
+			const cliServer = await startServer({
+				port: 0,
+				siteUrl,
+				handleRequest,
+				async onBind(server, port) {
+					return { server, port } as any;
+				},
+			});
+			const { server, port } = cliServer as any;
+
+			try {
+				const statusCode = await new Promise<number | undefined>(
+					(resolve, reject) => {
+						http.get(
+							`http://127.0.0.1:${port}/`,
+							{ headers: { host } },
+							(res) => {
+								res.resume();
+								res.on('end', () => resolve(res.statusCode));
+							}
+						).on('error', reject);
+					}
+				);
+				return { statusCode, handled: handleRequest.mock.calls.length };
+			} finally {
+				server.close();
+			}
+		};
+
+		it.each([
+			'127.0.0.1:9400',
+			'192.168.1.5',
+			'[::1]:9400',
+			'localhost:8080',
+			'LOCALHOST',
+			'foo.example',
+			'foo.example:8443',
+		])('serves a request for the host %s', async (host) => {
+			expect(
+				await requestStatusForHost(host, 'https://foo.example')
+			).toEqual({
+				statusCode: 200,
+				handled: 1,
+			});
+		});
+
+		it.each([
+			'bar.example:9400',
+			'bar.foo.example',
+			'localhost.bar.example',
+			'127.0.0.1.bar.example',
+			'foo.example.',
+			'[',
+		])('rejects a request for the host %s', async (host) => {
+			expect(
+				await requestStatusForHost(host, 'https://foo.example')
+			).toEqual({
+				statusCode: 403,
+				handled: 0,
+			});
+		});
+
+		it('rejects a request for a domain name without a site URL', async () => {
+			expect(await requestStatusForHost('foo.example')).toEqual({
+				statusCode: 403,
+				handled: 0,
+			});
+		});
+	});
+
 	it('does not log an error when piping to a destroyed stream (ERR_STREAM_UNABLE_TO_PIPE)', async () => {
 		const pipelineMock = vi.mocked(pipeline);
 		pipelineMock.mockClear();

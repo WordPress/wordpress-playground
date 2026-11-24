@@ -1728,6 +1728,36 @@ describe('other run-cli behaviors', () => {
 				'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/'
 			);
 		});
+
+		test('should reject a request for a foreign Host', async () => {
+			await using cliServer = await runCLI({
+				command: 'server',
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+				'site-url': 'http://foo.example',
+			});
+			const requestWithHost = (host: string) =>
+				new Promise<http.IncomingMessage>((resolve, reject) => {
+					// fetch() does not allow overriding the Host header.
+					const req = http.get(
+						cliServer.serverUrl,
+						{ headers: { host } },
+						(res) => {
+							res.resume();
+							resolve(res);
+						}
+					);
+					req.on('error', reject);
+				});
+
+			const foreign = await requestWithHost('bar.example');
+			expect(foreign.statusCode).toBe(403);
+
+			// The first request served redirects to itself.
+			const expected = await requestWithHost('foo.example');
+			expect(expected.statusCode).toBe(302);
+		});
 	});
 
 	describe('phpMyAdmin CLI argument validation', () => {
