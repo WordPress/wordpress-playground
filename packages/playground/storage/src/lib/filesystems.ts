@@ -1,6 +1,6 @@
 import { StreamedFile } from '@php-wasm/stream-compression';
 import type { FileTree } from '@php-wasm/universal';
-import { normalizePath } from '@php-wasm/util';
+import { joinPaths, normalizePath } from '@php-wasm/util';
 import type { Entry } from '@zip.js/zip.js';
 import { ZipReader, BlobWriter, BlobReader } from '@zip.js/zip.js';
 
@@ -232,7 +232,8 @@ export class ZipFilesystem implements ReadableFilesystemBackend {
 
 	private async getEntry(relativePath: string): Promise<Entry> {
 		const entries = await this.getEntries();
-		const entry = entries.get(relativePath.replace(/^\//, ''));
+		const normalized = normalizePath(relativePath).replace(/^\//, '');
+		const entry = entries.get(normalized);
 		if (!entry) {
 			throw new Error(`File ${relativePath} not found in the zip.`);
 		}
@@ -247,6 +248,33 @@ export class ZipFilesystem implements ReadableFilesystemBackend {
 			}
 		}
 		return this.entries;
+	}
+
+	/**
+	 * Returns the paths of all entries in the zip (file and directory names).
+	 */
+	async getAllFilePaths(): Promise<string[]> {
+		const entries = await this.getEntries();
+		return Array.from(entries.keys());
+	}
+}
+
+/**
+ * A ReadableFilesystemBackend that exposes a subdirectory of another backend
+ * as the root, similar to chroot. Paths are resolved via joinPaths.
+ */
+export class ChrootFilesystem implements ReadableFilesystemBackend {
+	private readonly chroot: string;
+	private readonly backend: ReadableFilesystemBackend;
+
+	constructor(chroot: string, backend: ReadableFilesystemBackend) {
+		this.chroot = chroot;
+		this.backend = backend;
+	}
+
+	async read(path: string): Promise<StreamedFile> {
+		const chrootedPath = joinPaths(this.chroot, path);
+		return this.backend.read(chrootedPath);
 	}
 }
 

@@ -22,13 +22,15 @@ Inicie um ambiente de desenvolvimento sem configuração usando a [extensão do 
 
 <!-- :::info **Documentation** -->
 
-:::info **Documentação**
+<div class="callout callout-info">
+
+**Documentação**
 
 <!-- The VS Code extension is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md). -->
 
 A extensão do VS Code é mantida em um repositório GitHub diferente, [Playground Tools](https://github.com/WordPress/playground-tools/). Você pode encontrar a documentação mais recente no [arquivo README dedicado](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md).
 
-:::
+</div>
 
 <!-- ## Installation and Usage: -->
 

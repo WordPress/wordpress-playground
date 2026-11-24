@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<title>PHP 8.6 feature preview in WordPress Playground</title>
+		<meta
+			name="description"
+			content="Try selected PHP 8.6 features in the browser with WordPress Playground and PHP next WebAssembly builds."
+		/>
+		<style>
+			:root {
+				color-scheme: light;
+				--text: #1e1e1e;
+				--muted: #50575e;
+				--line: #dcdcde;
+				--soft: #f6f7f7;
+				--brand: #3858e9;
+				--brand-dark: #1d35b4;
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				margin: 0;
+				font-family:
+					-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+				line-height: 1.55;
+				color: var(--text);
+				background: #fff;
+			}
+			a {
+				color: var(--brand);
+			}
+			a:hover {
+				color: var(--brand-dark);
+			}
+			.hero {
+				background:
+					radial-gradient(
+						circle at 15% 15%,
+						rgba(56, 88, 233, 0.18),
+						transparent 28rem
+					),
+					linear-gradient(135deg, #f0f4ff 0%, #fff 65%);
+				border-bottom: 1px solid var(--line);
+			}
+			.wrap {
+				max-width: 1040px;
+				margin: 0 auto;
+				padding: 0 24px;
+			}
+			.hero .wrap {
+				padding-top: 72px;
+				padding-bottom: 56px;
+			}
+			.eyebrow {
+				margin: 0 0 12px;
+				color: var(--brand-dark);
+				font-size: 14px;
+				font-weight: 700;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+			}
+			h1 {
+				max-width: 760px;
+				margin: 0;
+				font-size: clamp(40px, 8vw, 72px);
+				line-height: 0.95;
+				letter-spacing: -0.05em;
+			}
+			.lede {
+				max-width: 760px;
+				margin: 24px 0 0;
+				font-size: 20px;
+				color: var(--muted);
+			}
+			.actions {
+				display: flex;
+				flex-wrap: wrap;
+				gap: 12px;
+				margin-top: 28px;
+			}
+			.button {
+				display: inline-flex;
+				align-items: center;
+				justify-content: center;
+				padding: 12px 18px;
+				border: 1px solid var(--brand);
+				border-radius: 6px;
+				background: var(--brand);
+				color: #fff;
+				font-weight: 600;
+				text-decoration: none;
+			}
+			.button:hover {
+				background: var(--brand-dark);
+				color: #fff;
+			}
+			.button.secondary {
+				background: #fff;
+				color: var(--brand);
+			}
+			.button.secondary:hover {
+				color: var(--brand-dark);
+			}
+			.notice {
+				margin-top: 28px;
+				max-width: 760px;
+				padding: 14px 16px;
+				border-left: 4px solid var(--brand);
+				background: rgba(56, 88, 233, 0.08);
+				color: var(--muted);
+			}
+			main.wrap {
+				padding-top: 48px;
+				padding-bottom: 72px;
+			}
+			.feature {
+				padding: 32px 0;
+				border-bottom: 1px solid var(--line);
+			}
+			.feature:last-child {
+				border-bottom: 0;
+			}
+			h2 {
+				margin: 0 0 8px;
+				font-size: 30px;
+				line-height: 1.15;
+				letter-spacing: -0.02em;
+			}
+			.feature p {
+				max-width: 760px;
+				margin: 0 0 18px;
+				color: var(--muted);
+			}
+			.references {
+				margin: 40px 0 0;
+				padding: 20px;
+				background: var(--soft);
+				border: 1px solid var(--line);
+				border-radius: 8px;
+			}
+			.references h2 {
+				font-size: 22px;
+			}
+			.references ul {
+				margin: 12px 0 0;
+				padding-left: 20px;
+			}
+			code {
+				padding: 2px 5px;
+				border-radius: 4px;
+				background: #f0f0f1;
+				font-size: 0.92em;
+			}
+			footer {
+				border-top: 1px solid var(--line);
+				background: var(--soft);
+			}
+			footer .wrap {
+				padding-top: 24px;
+				padding-bottom: 24px;
+				color: var(--muted);
+				font-size: 14px;
+			}
+		</style>
+	</head>
+	<body>
+		<header class="hero">
+			<div class="wrap">
+				<p class="eyebrow">WordPress Playground + PHP next</p>
+				<h1>Preview PHP 8.6 in your browser</h1>
+				<p class="lede">
+					These examples run on Playground's PHP <code>next</code>
+					WebAssembly build. Click Run to verify the output in the
+					same browser tab, without installing PHP locally.
+				</p>
+				<div class="actions">
+					<a class="button" href="./?php=next&wp=latest">
+						Open WordPress on PHP next
+					</a>
+					<a
+						class="button secondary"
+						href="./php-playground.html?php=next"
+					>
+						Open PHP Playground on Next
+					</a>
+				</div>
+				<p class="notice">
+					PHP 8.6 is still under development. This page focuses on
+					features that are already available in the current
+					<code>php-src</code> development build used by Playground.
+				</p>
+			</div>
+		</header>
+
+		<main class="wrap">
+			<section class="feature" id="clamp">
+				<h2><code>clamp()</code> keeps values inside a range</h2>
+				<p>
+					Use <code>clamp()</code> when user input, percentages,
+					ratings, or layout values must stay between a lower and
+					upper bound.
+				</p>
+				<php-snippet php="next" wp="none" name="clamp.php" readonly>
+					<script type="application/x-php">
+						<?php
+						foreach ([-15, 42, 130] as $score) {
+						    echo $score . ' => ' . clamp($score, 0, 100) . "\n";
+						}
+					</script>
+					<script type="text/expected-output">
+						-15 => 0
+						42 => 42
+						130 => 100
+					</script>
+				</php-snippet>
+			</section>
+
+			<section class="feature" id="sortdirection">
+				<h2><code>SortDirection</code> makes sort APIs type-safe</h2>
+				<p>
+					PHP 8.6 adds a global <code>SortDirection</code> unit enum
+					with <code>Ascending</code> and
+					<code>Descending</code> cases.
+				</p>
+				<php-snippet
+					php="next"
+					wp="none"
+					name="sort-direction.php"
+					readonly
+				>
+					<script type="application/x-php">
+						<?php
+						function sql_keyword(SortDirection $direction): string {
+						    return match ($direction) {
+						        SortDirection::Ascending => 'ASC',
+						        SortDirection::Descending => 'DESC',
+						    };
+						}
+
+						foreach (SortDirection::cases() as $direction) {
+						    echo $direction->name . ' => ' . sql_keyword($direction) . "\n";
+						}
+					</script>
+					<script type="text/expected-output">
+						Ascending => ASC
+						Descending => DESC
+					</script>
+				</php-snippet>
+			</section>
+
+			<section class="feature" id="reflection">
+				<h2>
+					Reflection can ask whether a property is readable or
+					writable
+				</h2>
+				<p>
+					<code>ReflectionProperty::isReadable()</code> and
+					<code>isWritable()</code> account for readonly and
+					asymmetric visibility rules that
+					<code>isPublic()</code> cannot express.
+				</p>
+				<php-snippet
+					php="next"
+					wp="none"
+					name="reflection-access.php"
+					readonly
+				>
+					<script type="application/x-php">
+						<?php
+						class Article {
+						    public string $title = 'Preview';
+						    public private(set) string $slug = 'php-86';
+						    public readonly string $id;
+
+						    public function __construct() {
+						        $this->id = 'post-86';
+						    }
+						}
+
+						$article = new Article();
+						foreach (['title', 'slug', 'id'] as $name) {
+						    $property = new ReflectionProperty(Article::class, $name);
+						    printf(
+						        "%s: read=%s write=%s\n",
+						        $name,
+						        $property->isReadable(null, $article) ? 'yes' : 'no',
+						        $property->isWritable(null, $article) ? 'yes' : 'no'
+						    );
+						}
+					</script>
+					<script type="text/expected-output">
+						title: read=yes write=yes
+						slug: read=yes write=no
+						id: read=yes write=no
+					</script>
+				</php-snippet>
+			</section>
+
+			<section class="feature" id="debuggable-enums">
+				<h2>Enums can customize <code>var_dump()</code></h2>
+				<p>
+					Enums may now implement <code>__debugInfo()</code>, so
+					debugging output can show the domain-specific details you
+					care about.
+				</p>
+				<php-snippet
+					php="next"
+					wp="none"
+					name="debuggable-enum.php"
+					readonly
+				>
+					<script type="application/x-php">
+						<?php
+						enum BuildStatus: string {
+						    case Green = 'ready';
+
+						    public function __debugInfo(): array {
+						        return [
+						            'label' => $this->name,
+						            'value' => $this->value,
+						        ];
+						    }
+						}
+
+						var_dump(BuildStatus::Green);
+					</script>
+					<script type="text/expected-output">
+						enum(BuildStatus::Green) (2) {
+						  ["label"]=>
+						  string(5) "Green"
+						  ["value"]=>
+						  string(5) "ready"
+						}
+					</script>
+				</php-snippet>
+			</section>
+
+			<section class="feature" id="trim-form-feed">
+				<h2><code>trim()</code> now removes form feed by default</h2>
+				<p>
+					PHP 8.6 treats <code>\f</code> like other default whitespace
+					in <code>trim()</code>, <code>ltrim()</code>,
+					<code>rtrim()</code>, and <code>chop()</code>.
+				</p>
+				<php-snippet
+					php="next"
+					wp="none"
+					name="trim-form-feed.php"
+					readonly
+				>
+					<script type="application/x-php">
+						<?php
+						$input = "\f\t WordPress Playground \f";
+
+						echo 'Before: ' . strlen($input) . " bytes\n";
+						echo 'After:  ' . strlen(trim($input)) . " bytes\n";
+						echo '[' . trim($input) . "]\n";
+					</script>
+					<script type="text/expected-output">
+						Before: 25 bytes
+						After:  20 bytes
+						[WordPress Playground]
+					</script>
+				</php-snippet>
+			</section>
+
+			<section class="references">
+				<h2>References</h2>
+				<ul>
+					<li>
+						<a href="https://wiki.php.net/rfc/clamp_v2">
+							PHP RFC: clamp v2
+						</a>
+					</li>
+					<li>
+						<a href="https://wiki.php.net/rfc/sort_direction_enum">
+							PHP RFC: enum SortDirection
+						</a>
+					</li>
+					<li>
+						<a href="https://php.watch/versions/8.6">
+							PHP.Watch: PHP 8.6 overview
+						</a>
+					</li>
+					<li>
+						<a
+							href="https://wiki.php.net/rfc/isreadable-iswriteable"
+						>
+							PHP RFC: isReadable/Writable reflection methods
+						</a>
+					</li>
+					<li>
+						<a href="https://wiki.php.net/rfc/debugable-enums">
+							PHP RFC: Debugable Enums
+						</a>
+					</li>
+					<li>
+						<a href="https://wiki.php.net/rfc/trim_form_feed">
+							PHP RFC: Add Form Feed in Trim Functions
+						</a>
+					</li>
+				</ul>
+			</section>
+		</main>
+
+		<footer>
+			<div class="wrap">
+				The snippets use <code>php="next"</code> and
+				<code>wp="none"</code> so they boot the PHP runtime only.
+			</div>
+		</footer>
+
+		<script>
+			for (const snippet of document.querySelectorAll('php-snippet')) {
+				snippet.setAttribute(
+					'playground-origin',
+					window.location.origin
+				);
+			}
+		</script>
+		<script type="module" src="./php-code-snippet.js"></script>
+	</body>
+</html>

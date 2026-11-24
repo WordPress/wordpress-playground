@@ -111,10 +111,11 @@ RUN set -euxo pipefail; \
 	cd /root/libmemcached; \
 	mkdir build && cd build; \
 	# Build with minimal features, disabling things that won't work in WASM
+
 	emcmake cmake .. \
 		-DCMAKE_INSTALL_PREFIX=/root/libmemcached-install \
-		-DCMAKE_C_FLAGS="-fPIC" \
-		-DCMAKE_CXX_FLAGS="-fPIC" \
+		-DCMAKE_C_FLAGS="-fPIC -D__x86_64__" \
+		-DCMAKE_CXX_FLAGS="-fPIC -D__x86_64__" \
 		-DBUILD_SHARED_LIBS=OFF \
 		-DBUILD_TESTING=OFF \
 		-DBUILD_DOCS=OFF \
@@ -125,6 +126,7 @@ RUN set -euxo pipefail; \
 		-DENABLE_HASH_MURMUR=ON \
 		-DENABLE_MEMASLAP=OFF \
 		-DENABLE_DTRACE=OFF; \
+
 	emmake make -j$(nproc); \
 	emmake make install;
 
@@ -135,14 +137,17 @@ RUN git clone https://github.com/php-memcached-dev/php-memcached.git /root/php-m
 	--single-branch \
 	--depth 1;
 
+COPY ./shared/memcached/shims/socket.c /root/php-memcached/wasm_socket_shims.c
 # Build php-memcached
 RUN set -euxo pipefail; \
 	cd /root/php-memcached; \
-	\
+
+	/root/replace.sh 's|PHP_NEW_EXTENSION\(memcached,|PHP_NEW_EXTENSION\(memcached, wasm_socket_shims.c|' /root/php-memcached/config.m4; \
+
 	phpize . ; \
-	\
+
 	source /root/emsdk/emsdk_env.sh; \
-	\
+
 	# Use non-linux host type or configure will try to require linux kernel
 	# features that are unsupported by emscripten (e.g., rtnetlink.h).
 	# ZEND_ENABLE_ZVAL_LONG64 is required to match PHP's zend_long type (64-bit)
@@ -161,22 +166,7 @@ RUN set -euxo pipefail; \
 		--disable-memcached-json \
 		--disable-memcached-msgpack \
 		--disable-memcached-protocol; \
-	\
-	# Build as a side module
-	export EMCC_FLAGS="-sSIDE_MODULE -fPIC -sWASM_BIGINT"; \
-	\
-	if [ "$DEBUG" = "yes" ]; then \
-		export EMCC_FLAGS="${EMCC_FLAGS} -O0 -g3"; \
-	else \
-		export EMCC_FLAGS="${EMCC_FLAGS} -O3"; \
-	fi; \
-	\
-	if [ "$JSPI" = "yes" ]; then \
-		export EMCC_FLAGS="${EMCC_FLAGS} -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI -sJSPI_IMPORTS=wasm_recv -sJSPI_EXPORTS=wasm_recv"; \
-	else \
-		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE -sASYNCIFY_IMPORTS=wasm_recv -sASYNCIFY_EXPORTS=wasm_recv"; \
-	fi; \
-	\
+
 	# Patch the libtool to use emcc for linking with static libraries.
 	# We must include all required static libraries with --whole-archive to ensure
 	# all symbols are available in the shared module.
@@ -187,8 +177,26 @@ RUN set -euxo pipefail; \
 	/root/replace.sh 's|^deplibs_check_method=.*|deplibs_check_method=pass_all|' libtool; \
 	# Remove the duplicate -l flags from the Makefile since we're already linking static libs
 	/root/replace.sh 's|-lz||g; s|-lmemcached||g; s|-lmemcachedutil||g' Makefile; \
-	\
+
+	# Build as a side module
+	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT"; \
+
+	if [ "$DEBUG" = "yes" ]; then \
+		export EMCC_FLAGS="${EMCC_FLAGS} -O0 -g3"; \
+	else \
+		export EMCC_FLAGS="${EMCC_FLAGS} -O3"; \
+	fi; \
+
+	if [ "$JSPI" = "yes" ]; then \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sSUPPORT_LONGJMP=wasm -fwasm-exceptions -sJSPI"; \
+	else \
+		export EMCC_FLAGS="${EMCC_FLAGS} -sASYNCIFY -sASYNCIFY_ADVISE"; \
+	fi; \
+
 	emmake make -j1;
+
+RUN	mkdir -p /root/memcached/modules; \
+	mv /root/php-memcached/modules/* /root/memcached/modules;
 
 # Post-process with wasm-opt
 RUN	/root/emsdk/upstream/bin/wasm-opt -Oz \
@@ -197,8 +205,5 @@ RUN	/root/emsdk/upstream/bin/wasm-opt -Oz \
 		--enable-sign-ext \
 		--enable-mutable-globals \
 		--enable-exception-handling \
-		/root/php-memcached/modules/memcached.so \
-		-o /root/php-memcached/modules/memcached.so;
-
-RUN	mkdir -p /root/memcached/modules; \
-	mv /root/php-memcached/modules/* /root/memcached/modules;
+		/root/memcached/modules/memcached.so \
+		-o /root/memcached/modules/memcached.so;

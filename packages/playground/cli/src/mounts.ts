@@ -76,10 +76,22 @@ export function parseMountDirArguments(mounts: string[]): Mount[] {
 
 export async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
-		await php.mount(
-			mount.vfsPath,
-			createNodeFsMountHandler(mount.hostPath)
-		);
+		try {
+			await php.mount(
+				mount.vfsPath,
+				createNodeFsMountHandler(mount.hostPath)
+			);
+		} catch (error) {
+			// Wrap the raw mount failure with the offending paths and a
+			// root-cause summary so callers that only read `.message`
+			// (e.g. the boot-failure path) still get an actionable error.
+			const errorSummary =
+				error instanceof Error ? error.message : String(error);
+			throw new Error(
+				`Error mounting path ${mount.hostPath} at ${mount.vfsPath}: ${errorSummary}`,
+				{ cause: error }
+			);
+		}
 	}
 }
 
@@ -107,7 +119,10 @@ const ACTIVATE_FIRST_THEME_STEP = {
  * Auto-mounts resolution logic:
  */
 export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
-	const path = args.autoMount!;
+	if (typeof args.autoMount !== 'string') {
+		return args;
+	}
+	const path = args.autoMount;
 
 	const mount = [...(args.mount || [])];
 	const mountBeforeInstall = [...(args['mount-before-install'] || [])];
@@ -141,17 +156,10 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			vfsPath,
 			autoMounted: true,
 		});
-		newArgs['additional-blueprint-steps'].push(
-			args['experimental-blueprints-v2-runner']
-				? {
-						step: 'activateTheme',
-						themeDirectoryName: themeName,
-					}
-				: {
-						step: 'activateTheme',
-						themeFolderName: themeName,
-					}
-		);
+		newArgs['additional-blueprint-steps'].push({
+			step: 'activateTheme',
+			themeFolderName: themeName,
+		});
 	} else if (containsWpContentDirectories(path)) {
 		/**
 		 * Mount each wp-content file and directory individually.
@@ -167,7 +175,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 				continue;
 			}
 			mount.push({
-				hostPath: `${path}/${file}`,
+				hostPath: join(path, file),
 				vfsPath: `/wordpress/wp-content/${file}`,
 				autoMounted: true,
 			});

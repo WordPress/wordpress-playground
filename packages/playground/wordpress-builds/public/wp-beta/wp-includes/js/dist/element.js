@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).element = (() => {
@@ -46,34 +47,10 @@ var wp;
     }
   });
 
-  // node_modules/react-dom/client.js
+  // vendor-external:react-dom/client
   var require_client = __commonJS({
-    "node_modules/react-dom/client.js"(exports) {
-      "use strict";
-      var m = require_react_dom();
-      if (false) {
-        exports.createRoot = m.createRoot;
-        exports.hydrateRoot = m.hydrateRoot;
-      } else {
-        i = m.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
-        exports.createRoot = function(c, o) {
-          i.usingClientEntryPoint = true;
-          try {
-            return m.createRoot(c, o);
-          } finally {
-            i.usingClientEntryPoint = false;
-          }
-        };
-        exports.hydrateRoot = function(c, h, o) {
-          i.usingClientEntryPoint = true;
-          try {
-            return m.hydrateRoot(c, h, o);
-          } finally {
-            i.usingClientEntryPoint = false;
-          }
-        };
-      }
-      var i;
+    "vendor-external:react-dom/client"(exports, module) {
+      module.exports = window.ReactDOM;
     }
   });
 
@@ -100,23 +77,23 @@ var wp;
     createContext: () => import_react.createContext,
     createElement: () => import_react.createElement,
     createInterpolateElement: () => create_interpolate_element_default,
-    createPortal: () => import_react_dom.createPortal,
+    createPortal: () => createPortal,
     createRef: () => import_react.createRef,
     createRoot: () => import_client.createRoot,
-    findDOMNode: () => import_react_dom.findDOMNode,
-    flushSync: () => import_react_dom.flushSync,
+    findDOMNode: () => findDOMNode,
+    flushSync: () => flushSync,
     forwardRef: () => import_react.forwardRef,
-    hydrate: () => import_react_dom.hydrate,
+    hydrate: () => hydrate,
     hydrateRoot: () => import_client.hydrateRoot,
     isEmptyElement: () => isEmptyElement,
     isValidElement: () => import_react.isValidElement,
     lazy: () => import_react.lazy,
     memo: () => import_react.memo,
-    render: () => import_react_dom.render,
+    render: () => render,
     renderToString: () => serialize_default,
     startTransition: () => import_react.startTransition,
     switchChildrenNodeName: () => switchChildrenNodeName,
-    unmountComponentAtNode: () => import_react_dom.unmountComponentAtNode,
+    unmountComponentAtNode: () => unmountComponentAtNode,
     useCallback: () => import_react.useCallback,
     useContext: () => import_react.useContext,
     useDebugValue: () => import_react.useDebugValue,
@@ -185,7 +162,7 @@ var wp;
       children: []
     };
   }
-  var createInterpolateElement = (interpolatedString, conversionMap) => {
+  function createInterpolateElement(interpolatedString, conversionMap) {
     indoc = interpolatedString;
     offset = 0;
     output = [];
@@ -199,7 +176,7 @@ var wp;
     do {
     } while (proceed(conversionMap));
     return (0, import_react.createElement)(import_react.Fragment, null, ...output);
-  };
+  }
   var isValidConversionMap = (conversionMap) => {
     const isObject2 = typeof conversionMap === "object" && conversionMap !== null;
     const values = isObject2 && Object.values(conversionMap);
@@ -254,6 +231,15 @@ var wp;
         offset = startOffset + tokenLength;
         return true;
       case "closer":
+        if (0 === stackDepth) {
+          if (true) {
+            console.warn(
+              `Unmatched closing tag '</${name}>' in createInterpolateElement. The rest of the string was not interpolated.`
+            );
+          }
+          addText();
+          return false;
+        }
         if (1 === stackDepth) {
           closeOuterElement(startOffset);
           offset = startOffset + tokenLength;
@@ -333,8 +319,22 @@ var wp;
   var create_interpolate_element_default = createInterpolateElement;
 
   // packages/element/build-module/react-platform.mjs
-  var import_react_dom = __toESM(require_react_dom(), 1);
+  var ReactDOM = __toESM(require_react_dom(), 1);
   var import_client = __toESM(require_client(), 1);
+  var {
+    createPortal,
+    flushSync,
+    /* eslint-disable react/no-deprecated */
+    // @ts-expect-error Removed from @types/react-dom; still present at runtime.
+    findDOMNode,
+    // @ts-expect-error Removed from @types/react-dom; still present at runtime.
+    render,
+    // @ts-expect-error Removed from @types/react-dom; still present at runtime.
+    hydrate,
+    // @ts-expect-error Removed from @types/react-dom; still present at runtime.
+    unmountComponentAtNode
+    /* eslint-enable react/no-deprecated */
+  } = ReactDOM;
 
   // packages/element/build-module/utils.mjs
   var isEmptyElement = (element) => {
@@ -366,7 +366,7 @@ var wp;
   };
   var platform_default = Platform;
 
-  // node_modules/is-plain-object/dist/is-plain-object.mjs
+  // node_modules/.store/is-plain-object@5.1.0-5G_-lUnpSwJHYfRbkIxLrw/node_modules/is-plain-object/dist/is-plain-object.mjs
   function isObject(o) {
     return Object.prototype.toString.call(o) === "[object Object]";
   }
@@ -383,7 +383,7 @@ var wp;
     return true;
   }
 
-  // node_modules/tslib/tslib.es6.mjs
+  // node_modules/.store/tslib@2.8.1-LT-dxu1EkVy7OUDyVf5glQ/node_modules/tslib/tslib.es6.mjs
   var __assign = function() {
     __assign = Object.assign || function __assign2(t) {
       for (var s, i = 1, n = arguments.length; i < n; i++) {
@@ -395,12 +395,12 @@ var wp;
     return __assign.apply(this, arguments);
   };
 
-  // node_modules/lower-case/dist.es2015/index.js
+  // node_modules/.store/lower-case@2.0.2-5YZP5nczP5_f_8Vt5KBPjA/node_modules/lower-case/dist.es2015/index.js
   function lowerCase(str) {
     return str.toLowerCase();
   }
 
-  // node_modules/no-case/dist.es2015/index.js
+  // node_modules/.store/no-case@3.0.4-R4Hzt6qn-erEsTak7ojDpg/node_modules/no-case/dist.es2015/index.js
   var DEFAULT_SPLIT_REGEXP = [/([a-z0-9])([A-Z])/g, /([A-Z])([A-Z][a-z])/g];
   var DEFAULT_STRIP_REGEXP = /[^A-Z0-9]+/gi;
   function noCase(input, options) {
@@ -425,7 +425,7 @@ var wp;
     }, input);
   }
 
-  // node_modules/dot-case/dist.es2015/index.js
+  // node_modules/.store/dot-case@3.0.4-hi-rLWlWmiZ169n4dWcbUA/node_modules/dot-case/dist.es2015/index.js
   function dotCase(input, options) {
     if (options === void 0) {
       options = {};
@@ -433,7 +433,7 @@ var wp;
     return noCase(input, __assign({ delimiter: "." }, options));
   }
 
-  // node_modules/param-case/dist.es2015/index.js
+  // node_modules/.store/param-case@3.0.4-rdAht_VwpGpefPRylN2bTA/node_modules/param-case/dist.es2015/index.js
   function paramCase(input, options) {
     if (options === void 0) {
       options = {};
@@ -463,6 +463,9 @@ var wp;
   Context.displayName = "ElementContext";
   var { Provider, Consumer } = Context;
   var ForwardRef = (0, import_react.forwardRef)(() => {
+    return null;
+  });
+  var Memo = (0, import_react.memo)(() => {
     return null;
   });
   var ATTRIBUTES_TYPES = /* @__PURE__ */ new Set(["string", "boolean", "number"]);
@@ -845,14 +848,21 @@ var wp;
       case Provider.$$typeof:
         return renderChildren(props.children, props.value, legacyContext);
       case Consumer.$$typeof:
+        const contextValue = context !== void 0 ? context : (type._context || type)._currentValue;
         return renderElement(
-          props.children(context || type._currentValue),
+          props.children(contextValue),
           context,
           legacyContext
         );
       case ForwardRef.$$typeof:
         return renderElement(
           type.render(props),
+          context,
+          legacyContext
+        );
+      case Memo.$$typeof:
+        return renderElement(
+          (0, import_react.createElement)(type.type, props),
           context,
           legacyContext
         );
@@ -964,3 +974,5 @@ is-plain-object/dist/is-plain-object.mjs:
    * Released under the MIT License.
    *)
 */
+(window.wp ||= {}).element = wp.element;
+})();

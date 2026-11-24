@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).autop = (() => {
@@ -153,8 +154,8 @@ var wp;
     );
     if (br) {
       text = text.replace(
-        /<(script|style).*?<\/\\1>/g,
-        (match) => match[0].replace(/\n/g, "<WPPreserveNewline />")
+        /<(script|style|svg|math)[\s\S]*?<\/\1>/g,
+        (match) => match.replace(/\n/g, "<WPPreserveNewline />")
       );
       text = text.replace(/<br>|<br\/>/g, "<br />");
       text = text.replace(
@@ -279,4 +280,6 @@ var wp;
     return html;
   }
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).autop = wp.autop;
 })();

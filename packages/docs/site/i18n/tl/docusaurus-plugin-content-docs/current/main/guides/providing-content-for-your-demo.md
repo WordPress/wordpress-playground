@@ -28,7 +28,8 @@ Gamit ang [`importWxr`](/blueprints/steps#importWxr) step, maaari mong i-import 
 
 [<kbd>   Patakbuhin ang Blueprint   </kbd>](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json) &nbsp; [<kbd>   Tignan ang <code>blueprint.json</code>   </kbd>](https://github.com/WordPress/blueprints/blob/eb6da7dfa295a095eea2e424c0ae83a219803a8d/blueprints/install-activate-setup-theme-from-gh-repo/blueprint.json#L43)
 
-:::info
+<div class="callout callout-info">
+
 Upang isama ang mga larawan sa iyong imported content, magandang paraan ang i-upload ang mga larawan sa iyong GitHub repo at gamitin ang path na `https://raw.githubusercontent.com/{repo}/{branch}/{image_path}` sa exported `.xml` file.
 
 ```html
@@ -39,7 +40,7 @@ Upang isama ang mga larawan sa iyong imported content, magandang paraan ang i-up
 <!-- /wp:image -->
 ```
 
-:::
+</div>
 
 Inirerekomenda na i-upload mo ang iyong na-export na `.xml` file at anumang naka-referensyang asset (tulad ng mga larawan) sa parehong directory kung saan naroon ang iyong `blueprint.json` sa iyong GitHub repository.
 
@@ -172,8 +173,8 @@ Maaari mo ring gamitin ang `wp-cli` step kasama ang `writeFile` step upang lumik
 
 [<kbd>  &nbsp; Patakbuhin ang Blueprint &nbsp;  </kbd>](<https://playground.wordpress.net/builder/builder.html#{%22landingPage%22:%22/wp-admin/edit.php%22,%22login%22:true,%22steps%22:[{%22step%22:%22runPHP%22,%22code%22:%22%3C?php%20require_once%20'/wordpress/wp-load.php';%20wp_insert_post(array('post_title'%20=%3E%20'Simple%20post%20from%20wp_insert_post',%20'post_content'%20%20=%3E%20'%3C!--%20wp:paragraph%20--%3E%3Cp%3EThis%20is%20a%20simple%20post%20inserted%20with%20wp_insert_post%3C/p%3E%3C!--%20/wp:paragraph%20--%3E',%20'post_author'%20%20%20=%3E%201,%20'post_status'%20=%3E%20'publish'));%20?%3E%22}]}>)
 
-:::tip
+<div class="callout callout-tip">
 
 Tingnan ang halimbawa na ["Use wp-cli to add a post with image"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) mula sa [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) upang makita ang buong halimbawa na nagpapakita ng ugnayan sa pagitan ng content at featured image.
 
-:::
+</div>

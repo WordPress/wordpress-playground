@@ -5,7 +5,13 @@ export default defineConfig(() =>
 	mergeConfig(
 		config,
 		defineConfig({
-			assetsInclude: ['**/*.wasm', '**/*.so', '**/*.dat'],
+			assetsInclude: ['**/*.so', '**/*.dat'],
+
+			server: {
+				fs: {
+					allow: ['../../'],
+				},
+			},
 
 			plugins: [
 				{

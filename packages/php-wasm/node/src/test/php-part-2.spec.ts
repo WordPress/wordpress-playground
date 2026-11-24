@@ -27,13 +27,13 @@ import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
 
-const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
+const phpLoaderOptions: PHPLoaderOptions[] = [{}, { extensions: ['xdebug'] }];
 
 phpLoaderOptions.forEach((options) => {
 	// Tests are skipped when Xdebug is enabled because Xdebug alters PHP's
 	// output format and process behavior, which breaks exact text assertions.
 	// These tests cover core features that only need to run once without Xdebug.
-	const skip = !!options.withXdebug;
+	const skip = options.extensions?.includes('xdebug') ?? false;
 
 	describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
@@ -1109,13 +1109,30 @@ phpLoaderOptions.forEach((options) => {
 			});
 
 			it('should return the correct free disk space', async () => {
+				const statfsBefore = statfsSync('/');
 				const response = await php.run({
 					code: `<?php echo json_encode(disk_free_space('/'));`,
 				});
-				const expectedStatfs = statfsSync('/');
-				const expectedFreeDiskSpace =
-					expectedStatfs.bavail * expectedStatfs.bsize;
-				expect(response.text).toBe(expectedFreeDiskSpace.toString());
+				const statfsAfter = statfsSync('/');
+				const freeDiskSpaceBefore =
+					statfsBefore.bavail * statfsBefore.bsize;
+				const freeDiskSpaceAfter =
+					statfsAfter.bavail * statfsAfter.bsize;
+				const blockSize = Math.max(
+					statfsBefore.bsize,
+					statfsAfter.bsize
+				);
+				const actualFreeDiskSpace = Number(response.text);
+
+				// Free disk space can change by a block while the test is running.
+				expect(actualFreeDiskSpace).toBeGreaterThanOrEqual(
+					Math.min(freeDiskSpaceBefore, freeDiskSpaceAfter) -
+						blockSize
+				);
+				expect(actualFreeDiskSpace).toBeLessThanOrEqual(
+					Math.max(freeDiskSpaceBefore, freeDiskSpaceAfter) +
+						blockSize
+				);
 			});
 
 			it('should return a hardcoded value from MEMFS for a file created in MEMFS', async () => {
@@ -1174,6 +1191,16 @@ describe('sandboxedSpawnHandlerFactory', () => {
 						processManager.acquirePHPInstance()
 					)
 				);
+				// Match production behavior (boot.ts): enable runtime
+				// rotation on subprocess instances. Rotation won't
+				// actually trigger for CLI-only instances (the C-level
+				// fixes allow repeated run_cli() calls), but we enable
+				// it to mirror the real configuration.
+				php.enableRuntimeRotation({
+					recreateRuntime: () =>
+						loadNodeRuntime(phpVersion as any, {}),
+					maxRequests: 400,
+				});
 				return php;
 			},
 			maxPhpInstances: 5,
@@ -1225,4 +1252,30 @@ describe('sandboxedSpawnHandlerFactory', () => {
 			['README.md', 'code', ''].join('\n')
 		);
 	});
+
+	it('Should be able to call proc_open(php ...) multiple times in a row', async () => {
+		const response = await php.run({
+			code: `<?php
+				$results = [];
+				for ($i = 1; $i <= 3; $i++) {
+					$descriptorspec = [
+						1 => ["pipe", "w"],
+						2 => ["pipe", "w"]
+					];
+					$proc = proc_open(
+						'php -r "echo ' . $i . ';"',
+						$descriptorspec,
+						$pipes
+					);
+					$stdout = stream_get_contents($pipes[1]);
+					fclose($pipes[1]);
+					fclose($pipes[2]);
+					proc_close($proc);
+					$results[] = $stdout;
+				}
+				echo implode(',', $results);
+			`,
+		});
+		expect(response.text).toEqual('1,2,3');
+	}, 60000);
 });

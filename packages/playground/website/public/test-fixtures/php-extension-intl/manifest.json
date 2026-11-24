@@ -1,0 +1,22 @@
+{
+	"name": "intl",
+	"mode": "php-extension",
+	"env": {
+		"ICU_DATA": "/internal/shared"
+	},
+	"artifacts": [
+		{
+			"phpVersion": "8.3",
+			"sourcePath": "https://raw.githubusercontent.com/WordPress/wordpress-playground/2d5ece933aa45abdafbcfc3b84b90fd7c3e1e98a/packages/php-wasm/web-builds/8-3/jspi/extensions/intl/intl.so",
+			"extraFiles": {
+				"vfsRoot": "/internal/shared",
+				"nodes": [
+					{
+						"vfsPath": "icudt74l.dat",
+						"sourcePath": "https://raw.githubusercontent.com/WordPress/wordpress-playground/2d5ece933aa45abdafbcfc3b84b90fd7c3e1e98a/packages/php-wasm/web/src/lib/extensions/intl/shared/icu.dat"
+					}
+				]
+			}
+		}
+	]
+}

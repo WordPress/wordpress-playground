@@ -53,33 +53,8 @@
 extern zend_module_entry dns_polyfill_module_entry;
 #define phpext_dns_polyfill_ptr &dns_polyfill_module_entry
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dns_check_record, 0, 0, 1)
-ZEND_ARG_INFO(0, host)
-ZEND_ARG_INFO(0, type)
-ZEND_END_ARG_INFO()
-
-#define arginfo_checkdnsrr arginfo_dns_check_record
-
 PHP_FUNCTION(dns_check_record);
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dns_get_record, 0, 0, 1)
-ZEND_ARG_INFO(0, hostname)
-ZEND_ARG_INFO(0, type)
-ZEND_ARG_ARRAY_INFO(1, authns, 1)
-ZEND_ARG_ARRAY_INFO(1, addtl, 1)
-ZEND_ARG_INFO(0, raw)
-ZEND_END_ARG_INFO()
-
 PHP_FUNCTION(dns_get_record);
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_dns_get_mx, 0, 0, 2)
-ZEND_ARG_INFO(0, hostname)
-ZEND_ARG_INFO(1, mxhosts) /* ARRAY_INFO(1, mxhosts, 1) */
-ZEND_ARG_INFO(1, weight)  /* ARRAY_INFO(1, weight, 1) */
-ZEND_END_ARG_INFO()
-
-#define arginfo_getmxrr arginfo_dns_get_mx
-
 PHP_FUNCTION(dns_get_mx);
 
 #define PHP_DNS_POLYFILL_VERSION "1.0.0"

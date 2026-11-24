@@ -18,8 +18,15 @@ import { buildVersionPlugin } from '../../vite-extensions/vite-build-version';
 import virtualModule from '../../vite-extensions/vite-virtual-module';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import viteGlobalExtensions from '../../vite-extensions/vite-global-extensions';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import { isomorphicGitBrowserAlias } from '../../vite-extensions/vite-resolve-isomorphic-git';
+// eslint-disable-next-line @nx/enforce-module-boundaries
+import {
+	getStaticReleaseBase,
+	staticReleaseOriginCheckPlugin,
+} from '../../vite-extensions/vite-static-release';
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ command, mode }) => {
 	const corsProxyUrl =
 		'CORS_PROXY_URL' in process.env
 			? process.env.CORS_PROXY_URL
@@ -29,12 +36,18 @@ export default defineConfig(({ mode }) => {
 
 	return {
 		root: __dirname,
-		base: mode === 'production' ? '/' : '/website-extras/',
+		base:
+			mode === 'production'
+				? (command === 'build' && getStaticReleaseBase()) || '/'
+				: '/website-extras/',
 
 		assetsInclude: ['**/*.so'],
 
 		cacheDir:
 			'../../../node_modules/.vite/packages-playground-website-extras',
+		resolve: {
+			alias: [isomorphicGitBrowserAlias()],
+		},
 
 		css: {
 			modules: {
@@ -57,6 +70,7 @@ export default defineConfig(({ mode }) => {
 		},
 
 		plugins: [
+			staticReleaseOriginCheckPlugin(),
 			react({
 				jsxRuntime: 'automatic',
 			}),
@@ -64,7 +78,7 @@ export default defineConfig(({ mode }) => {
 				root: '../../../',
 			}),
 			viteIgnoreImports({
-				extensions: ['wasm', 'dat'],
+				extensions: ['dat'],
 			}),
 			...viteGlobalExtensions,
 			buildVersionPlugin('website-config'),

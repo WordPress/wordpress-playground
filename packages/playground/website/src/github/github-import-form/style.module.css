@@ -1,16 +1,22 @@
-.screenreader-text {
-	display: none;
-}
-
-.modal-text-list {
-	padding-left: 15px;
-}
-
 .repo-input {
 	width: 100%;
 	font-size: 18px;
 	padding: 5px;
 	margin-top: 5px;
+}
+
+.inline-form {
+	display: flex;
+	flex-direction: column;
+	gap: 14px;
+}
+
+.inline-field-group {
+	margin-bottom: 0;
+}
+
+.inline-actions {
+	display: flex;
 }
 
 .notice {

@@ -370,24 +370,22 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * version of WordPress Playground does by default).
 	 *
 	 * In the request mode, you pass an object containing the request information
-	 * (method, headers, body, etc.) and the path to the PHP file to run:
+	 * (method, headers, body, etc.) and the URL to request:
 	 *
 	 * ```ts
-	 * const php = PHP.load('7.4', {
-	 * 	requestHandler: {
-	 * 		documentRoot: "/www"
-	 * 	}
-	 * })
-	 * php.writeFile("/www/index.php", `<?php echo file_get_contents("php://input");`);
-	 * const result = await php.request({
-	 * 	method: "GET",
+	 * await client.writeFile(
+	 * 	'/index.php',
+	 * 	`<?php echo file_get_contents('php://input');`
+	 * );
+	 * const result = await client.request({
+	 * 	url: '/index.php',
+	 * 	method: 'POST',
 	 * 	headers: {
-	 * 		"Content-Type": "text/plain"
+	 * 		'Content-Type': 'text/plain',
 	 * 	},
-	 * 	body: "Hello world!",
-	 * 	path: "/www/index.php"
+	 * 	body: 'Hello world!',
 	 * });
-	 * // result.text === "Hello world!"
+	 * // result.text === 'Hello world!'
 	 * ```
 	 *
 	 * The `request()` method cannot be used in conjunction with `cli()`.
@@ -496,7 +494,7 @@ export class PHPRequestHandler implements AsyncDisposable {
 				return StreamedPHPResponse.fromPHPResponse(
 					new PHPResponse(
 						301,
-						{ Location: [`${rewrittenRequestUrl.pathname}/`] },
+						{ location: [`${rewrittenRequestUrl.pathname}/`] },
 						new Uint8Array(0)
 					)
 				);
@@ -760,12 +758,13 @@ export class PHPRequestHandler implements AsyncDisposable {
 			headers,
 		});
 
-		// Handle cookies from streaming response
+		// Wait until the streamed response cookies arrive so they can be
+		// sent with the next request.
 		if (this.#cookieStore) {
-			const cookieStore = this.#cookieStore;
-			response.headers.then((responseHeaders) => {
-				cookieStore.rememberCookiesFromResponseHeaders(responseHeaders);
-			});
+			const responseHeaders = await response.headers;
+			this.#cookieStore.rememberCookiesFromResponseHeaders(
+				responseHeaders
+			);
 		}
 
 		return response;

@@ -1,0 +1,135 @@
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import {
+	getSqliteDriverModule,
+	getWordPressModule,
+} from '@wp-playground/wordpress-builds';
+import { enableMultisite } from '../../lib/steps/enable-multisite';
+import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
+import { loadNodeRuntime } from '@php-wasm/node';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { login } from '../../lib/steps/login';
+import type { PHPRequest, PHPRequestHandler } from '@php-wasm/universal';
+import { compileBlueprintForExecution } from '../../lib/compile';
+
+describe('Blueprint step enableMultisite', () => {
+	let handler: PHPRequestHandler;
+	async function doBootWordPress(options: { absoluteUrl: string }) {
+		handler = await bootWordPressAndRequestHandler({
+			createPhpRuntime: async () =>
+				await loadNodeRuntime(RecommendedPHPVersion),
+			siteUrl: options.absoluteUrl,
+			sapiName: 'cli',
+
+			wordPressZip: await getWordPressModule(),
+			sqliteIntegrationPluginZip: await getSqliteDriverModule(),
+			createFiles: {
+				'/tmp/wp-cli.phar': readFileSync(
+					join(__dirname, '/../fixtures/wp-cli.phar')
+				),
+			},
+		});
+		const php = await handler.getPrimaryPhp();
+
+		return { php, handler };
+	}
+
+	const requestFollowRedirects = async (request: PHPRequest) => {
+		let response = await handler.request(request);
+		while (response.httpStatusCode === 302) {
+			response = await handler.request({
+				url: response.headers['location'][0],
+			});
+		}
+		return response;
+	};
+
+	[
+		{
+			absoluteUrl: 'http://playground-domain/scope:987987/',
+			scoped: true,
+		},
+		{
+			absoluteUrl: 'http://playground-domain/',
+			scoped: false,
+		},
+	].forEach(({ absoluteUrl, scoped }) => {
+		it(`should set the WP_ALLOW_MULTISITE and SUBDOMAIN_INSTALL constants on a ${
+			scoped ? 'scoped' : 'scopeless'
+		} URL`, async () => {
+			const { php } = await doBootWordPress({
+				absoluteUrl,
+			});
+			await enableMultisite(php, {});
+
+			/**
+			 * Check if the multisite constants are set.
+			 */
+			const result = await php.run({
+				code: `
+				<?php
+				echo json_encode([
+					'WP_ALLOW_MULTISITE' => defined('WP_ALLOW_MULTISITE'),
+					'SUBDOMAIN_INSTALL' => defined('SUBDOMAIN_INSTALL'),
+				]);
+			`,
+			});
+			expect(result.json['WP_ALLOW_MULTISITE']).toEqual(true);
+			expect(result.json['SUBDOMAIN_INSTALL']).toEqual(false);
+
+			/**
+			 * Login and confirm that the site is a multisite by confirming
+			 * the admin bar includes the multisite menu.
+			 */
+			await login(php, {});
+			const response = await requestFollowRedirects({
+				url: absoluteUrl,
+			});
+			expect(response.httpStatusCode).toEqual(200);
+			expect(response.text).toContain('My Sites');
+			expect(response.text).toContain('Network Admin');
+		});
+	});
+
+	it('should run with later WP-CLI steps through the Blueprint v2 compiler', async () => {
+		const { php } = await doBootWordPress({
+			absoluteUrl: 'http://playground-domain/',
+		});
+		const wpCli = readFileSync(join(__dirname, '/../fixtures/wp-cli.phar'));
+		const fetchSpy = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response(wpCli, { status: 200 }));
+
+		try {
+			const compiled = await compileBlueprintForExecution({
+				version: 2,
+				additionalStepsAfterExecution: [
+					{ step: 'enableMultisite' },
+					{
+						step: 'wp-cli',
+						command:
+							"wp site create --slug=food --title='The Foodie' --email=editor@example.com",
+					},
+				],
+			});
+			await compiled.run(php);
+		} finally {
+			fetchSpy.mockRestore();
+		}
+
+		const result = await php.run({
+			code: `<?php
+				require '/wordpress/wp-load.php';
+				echo json_encode([
+					'isMultisite' => is_multisite(),
+					'siteCount' => count(get_sites()),
+				]);
+			`,
+		});
+
+		expect(result.json).toEqual({
+			isMultisite: true,
+			siteCount: 2,
+		});
+	});
+});

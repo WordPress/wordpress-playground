@@ -29,13 +29,17 @@ const php = new PHP(await loadNodeRuntime('8.0'));
 const php = new PHP(await loadWebRuntime('8.0'));
 ```
 
-Both of these classes extend the `BasePHP` class exposed by the `@php-wasm/universal` package and implement the `UniversalPHP` interface that standardizes the API across all PHP environments.
+Both platform loaders return a runtime ID accepted by the `PHP` class from
+`@php-wasm/universal`, which provides the shared API across environments. See
+[PHP.wasm packages](/developers/architecture/php-wasm-packages) for how the
+shared API, platform adapters, and version-specific binaries fit together.
 
 ### Loading the PHP runtime
 
-The load() method handles the entire PHP initialization pipeline. In particular, it:
+The `loadPHPRuntime()` function handles the PHP initialization pipeline. In
+particular, it:
 
--   Instantiates the Emscripten PHP module
--   Wires it together with the data dependencies and loads them
--   Ensures is all happens in a correct order
--   Waits until the entire loading sequence is finished
+- Instantiates the Emscripten PHP module
+- Wires it together with the data dependencies and loads them
+- Ensures it all happens in the correct order
+- Waits until the entire loading sequence is finished

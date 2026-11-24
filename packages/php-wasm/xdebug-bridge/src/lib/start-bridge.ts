@@ -1,5 +1,6 @@
 import { logger } from '@php-wasm/logger';
 import type { UniversalPHP } from '@php-wasm/universal';
+import dns from 'dns';
 import { readdirSync, readFileSync, lstatSync } from 'fs';
 import path from 'path';
 import { CDPServer } from './cdp-server';
@@ -7,26 +8,33 @@ import { DbgpSession } from './dbgp-session';
 import { XdebugCDPBridge } from './xdebug-cdp-bridge';
 
 export type StartBridgeConfig = {
-	cdpPort?: number;
 	cdpHost?: string;
+	cdpPort?: number;
+	dbgpHost?: string;
 	dbgpPort?: number;
 	phpRoot?: string;
+	excludedPaths?: string[];
 	phpInstance?: UniversalPHP;
 	getPHPFile?: (path: string) => string | Promise<string>;
 	breakOnFirstLine?: boolean;
 };
 
 export async function startBridge(config: StartBridgeConfig) {
+	const cdpHost = config.cdpHost || '127.0.0.1';
 	const cdpPort = config.cdpPort ?? 9229;
+	const { address: dbgpHost } = await dns.promises.lookup(
+		config.dbgpHost || '127.0.0.1',
+		{ family: 4 }
+	);
 	const dbgpPort = config.dbgpPort ?? 9003;
-	const cdpHost = config.cdpHost ?? 'localhost';
 	const phpRoot = config.phpRoot ?? process.cwd();
 	const breakOnFirstLine = config.breakOnFirstLine ?? false;
+	const excludedPaths = config.excludedPaths ?? [];
 
 	logger.log('Starting XDebug Bridge...');
 
 	// Entry point to start the service
-	const cdpServer = new CDPServer(cdpPort);
+	const cdpServer = new CDPServer(cdpHost, cdpPort);
 
 	logger.log('Connect Chrome DevTools to CDP at:');
 	logger.log(
@@ -38,19 +46,31 @@ export async function startBridge(config: StartBridgeConfig) {
 
 	logger.log('Chrome connected! Initializing Xdebug receiver...');
 
-	const dbgpSession = new DbgpSession(dbgpPort);
+	const dbgpSession = new DbgpSession(dbgpHost, dbgpPort);
 
-	logger.log(`XDebug receiver running on port ${dbgpPort}`);
+	logger.log(`XDebug receiver running on ${dbgpHost}:${dbgpPort}`);
 	logger.log('Running a PHP script with Xdebug enabled...');
+
+	function isExcluded(p: string): boolean {
+		return excludedPaths.some(
+			(prefix) => p === prefix || p.startsWith(prefix + '/')
+		);
+	}
 
 	// Recursively get a list of .php files in phpRoot
 	async function getPhpFiles(dir: string): Promise<string[]> {
+		if (isExcluded(dir)) {
+			return [];
+		}
 		const results: string[] = [];
 		const list = config.phpInstance
 			? await config.phpInstance!.listFiles(dir)
 			: readdirSync(dir);
 		for (const file of list) {
 			const filePath = path.join(dir, file);
+			if (isExcluded(filePath)) {
+				continue;
+			}
 			try {
 				// lstat avoids crashes when encountering symlinks
 				const stat = config.phpInstance
@@ -80,5 +100,6 @@ export async function startBridge(config: StartBridgeConfig) {
 		phpRoot,
 		getPHPFile,
 		breakOnFirstLine,
+		excludedPaths,
 	});
 }

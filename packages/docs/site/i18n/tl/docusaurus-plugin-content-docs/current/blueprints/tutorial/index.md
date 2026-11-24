@@ -13,6 +13,8 @@ Maligayang pagdating sa Blueprints crash course, kung saan matutunan mo ang laha
 2. [Paano i-load at patakbuhin ang Blueprints](/blueprints/tutorial/how-to-load-run-blueprints)
 3. [Gumawa ng iyong unang Blueprint](/blueprints/tutorial/build-your-first-blueprint)
 
-:::tip
+<div class="callout callout-tip">
+
 Kung makaranas ka ng anumang problema habang sinusundan ang tutorial na ito, tingnan ang seksyong [Pag-troubleshoot at pag-debug ng Blueprints](/blueprints/troubleshoot-and-debug) para sa mga tip at gamit na makakatulong sa pagresolba.
-:::
+
+</div>

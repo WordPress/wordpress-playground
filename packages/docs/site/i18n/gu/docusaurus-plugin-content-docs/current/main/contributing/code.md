@@ -16,18 +16,22 @@ description: કોડ યોગદાન માટેની માર્ગદ�
 Like all WordPress projects, Playground uses GitHub to manage code and track issues. The main repository is at [https://github.com/WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) and the Playground Tools repository is at [https://github.com/WordPress/playground-tools/](https://github.com/WordPress/playground-tools/).
 -->
 
-:::info પ્લેગ્રાઉન્ડ ટૂલ્સમાં યોગદાન આપો
+<div class="callout callout-info">
+
+**પ્લેગ્રાઉન્ડ ટૂલ્સમાં યોગદાન આપો**
 
 આ માર્ગદર્શિકામાં મુખ્ય ભંડારની લિંક્સ શામેલ છે, પરંતુ બધા પગલાં અને વિકલ્પો બંને માટે લાગુ પડે છે. જો તમને પ્લગઇન્સ અથવા [local development](/developers/local-development/) ટૂલ્સમાં રસ હોય તો - ત્યાંથી શરૂઆત કરો.
 
-:::
+</div>
 
 <!--
-:::info Contribute to Playground Tools
+<div class="callout callout-info">
+
+**Contribute to Playground Tools**
 
 This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or local development tools—start there.
 
-:::
+</div>
 -->
 
 શું કામ કરવું તે શોધવા માટે [ખુલ્લા મુદ્દાઓની યાદી] (https://github.com/wordpress/wordpress-playground/issues) બ્રાઉઝ કરો. [`Good First Issue`] (https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) લેબલ એ પહેલી વાર યોગદાન આપનારાઓ માટે ભલામણ કરાયેલ પ્રારંભિક બિંદુ છે.
@@ -42,10 +46,10 @@ Browse [the list of open issues](https://github.com/wordpress/wordpress-playgrou
 Be sure to review the following resources before you begin:
 -->
 
--   [કોડિંગ સિદ્ધાંતો](/contributing/coding-standards)
--   [સ્થાપત્ય](/developers/architecture)
--   [દ્રષ્ટિ અને તત્વજ્ઞાન](https://github.com/WordPress/wordpress-playground/issues/472)
--   [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ રોડમેપ](https://github.com/WordPress/wordpress-playground/issues/525)
+- [કોડિંગ સિદ્ધાંતો](/contributing/coding-standards)
+- [સ્થાપત્ય](/developers/architecture)
+- [દ્રષ્ટિ અને તત્વજ્ઞાન](https://github.com/WordPress/wordpress-playground/issues/472)
+- [વર્ડપ્રેસ પ્લેગ્રાઉન્ડ રોડમેપ](https://github.com/WordPress/wordpress-playground/issues/525)
 
 <!--
 -   [Coding principles](/contributing/coding-standards)
@@ -97,18 +101,22 @@ Playground will open in a new browser tab and refresh automatically with each ch
 When your'e ready, commit the changes and submit a Pull Request.
 -->
 
-:::info ફોર્મેટિંગ
+<div class="callout callout-info">
+
+**ફોર્મેટિંગ**
 
 અમે કોડ ફોર્મેટિંગ અને લિન્ટિંગ આપમેળે હેન્ડલ કરીએ છીએ. આરામ કરો, ટાઇપ કરો અને મશીનોને કામ કરવા દો.
 
-:::
+</div>
 
 <!--
-:::info Formatting
+<div class="callout callout-info">
+
+**Formatting**
 
 We handle code formatting and linting automatically. Relax, type away, and let the machines do the work.
 
-:::
+</div>
 -->
 
 ### સ્થાનિક મલ્ટીસાઇટ ચલાવવી
@@ -167,8 +175,8 @@ Your dev server is now available on https://playground.test.
 If you're using VS Code and have Chrome installed, you can debug Playground in the code editor:
 -->
 
--   VS કોડમાં પ્રોજેક્ટ ફોલ્ડર ખોલો.
--   મુખ્ય મેનુમાંથી, Run > Start Debugging પસંદ કરો, અથવા `F5`/`fn`+`F5` દબાવો.
+- VS કોડમાં પ્રોજેક્ટ ફોલ્ડર ખોલો.
+- મુખ્ય મેનુમાંથી, Run > Start Debugging પસંદ કરો, અથવા `F5`/`fn`+`F5` દબાવો.
 
 <!--
 -   Open the project folder in VS Code.

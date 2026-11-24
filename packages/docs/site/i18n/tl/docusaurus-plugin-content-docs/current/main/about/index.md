@@ -11,9 +11,9 @@ slug: /about
 
 Ang WordPress Playground ang iyong lugar para mag:
 
--   [Build](/about/build): Makakatulong ang WordPress Playground na lumikha ng mga produkto gamit ang WordPress. Gamitin ito kung saan ka pinakamahusay magtrabaho, maging sa browser, Node.js, mobile apps, VS Code, o iba pa.
--   [Test](/about/test): I-upgrade ang iyong QA process gamit ang WordPress Playground. Mabilis na subukan ang iyong mga plugin o theme, mag-eksperimento sa isang pribadong sandbox, at lumikha ng PRs mula sa iyong WP Playground instance papunta sa anumang repo.
--   [Launch](/about/launch): Gamitin ang WordPress Playground upang ipakita ang iyong produkto, hayaan ang mga user subukan ito nang live, o ilunsad ito sa App Store nang walang delay.
+- [Build](/about/build): Makakatulong ang WordPress Playground na lumikha ng mga produkto gamit ang WordPress. Gamitin ito kung saan ka pinakamahusay magtrabaho, maging sa browser, Node.js, mobile apps, VS Code, o iba pa.
+- [Test](/about/test): I-upgrade ang iyong QA process gamit ang WordPress Playground. Mabilis na subukan ang iyong mga plugin o theme, mag-eksperimento sa isang pribadong sandbox, at lumikha ng PRs mula sa iyong WP Playground instance papunta sa anumang repo.
+- [Launch](/about/launch): Gamitin ang WordPress Playground upang ipakita ang iyong produkto, hayaan ang mga user subukan ito nang live, o ilunsad ito sa App Store nang walang delay.
 
 ## Bakit WordPress Playground?
 
@@ -34,9 +34,11 @@ Pero tandaan! Maaari mo ring ikonekta ang iyong Playground instance sa isang Git
 
 Sa kabuuan, nagbibigay ang WordPress Playground ng isang walang risk na kapaligiran para sa mga baguhan upang matuto at magkaroon ng hands-on na karanasan sa WordPress. Tinutulungan ka nitong magkaroon ng kumpiyansa at kaalaman bago gumawa ng pagbabago sa iyong live na website.
 
-:::tip
+<div class="callout callout-tip">
+
 Tingnan ang [mga gabay section](/guides) upang malaman kung paano mas mapapakinabangan ang WordPress Playground sa pag-test ng iyong mga theme at plugin at paglikha ng content on the fly.
-:::
+
+</div>
 
 ## Paano gumagana ang WordPress Playground?
 

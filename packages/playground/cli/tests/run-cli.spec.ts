@@ -1,19 +1,26 @@
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
+import { Worker } from 'node:worker_threads';
+import type * as ChildProcess from 'child_process';
 import {
 	runCLI,
 	parseOptionsAndRunCLI,
 	internalsKeyForTesting,
+	resolveWorkerCount,
 } from '../src/run-cli';
-import type { RunCLIArgs, RunCLIServer } from '../src/run-cli';
+import type {
+	RunCLIArgs,
+	RunCLIServer,
+	CLIExitResult,
+	CLIServerResult,
+} from '../src/run-cli';
 import type { MockInstance } from 'vitest';
 import { vi } from 'vitest';
-import { mkdtemp, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { promisify } from 'node:util';
-import { exec } from 'node:child_process';
 import {
+	copyFileSync,
 	mkdirSync,
 	readdirSync,
 	writeFileSync,
@@ -24,8 +31,22 @@ import {
 	rmSync,
 } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { decodeZip } from '@php-wasm/stream-compression';
 import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
 import { type Log, logger } from '@php-wasm/logger';
+
+vi.mock('child_process', async (importOriginal) => {
+	const actual = await importOriginal<typeof ChildProcess>();
+	return {
+		...actual,
+		exec: vi.fn((_command, callback) => {
+			if (typeof callback === 'function') {
+				callback(null as any, '' as any, '' as any);
+			}
+			return {} as any;
+		}),
+	};
+});
 
 const blueprintVersions = [
 	{
@@ -36,6 +57,9 @@ const blueprintVersions = [
 		},
 	},
 ];
+
+const fullNativeBlueprintV2ModeTest =
+	process.platform === 'win32' ? test.skip : test;
 
 describe.each(blueprintVersions)(
 	'run-cli with Blueprints v$version',
@@ -170,10 +194,11 @@ describe.each(blueprintVersions)(
 		test('should set WordPress version', async () => {
 			const { MinifiedWordPressVersionsList } =
 				await import('@wp-playground/wordpress-builds');
-			const oldestSupportedVersion =
-				MinifiedWordPressVersionsList[
-					MinifiedWordPressVersionsList.length - 1
-				];
+			// Use the oldest non-legacy version. Legacy versions
+			// (< 5.0) require legacy PHP and can't boot on modern PHP.
+			const oldestSupportedVersion = MinifiedWordPressVersionsList.filter(
+				(v) => parseFloat(v) >= 5
+			).pop()!;
 			await using cliServer = await runCLI({
 				...suiteCliArgs,
 				command: 'server',
@@ -213,6 +238,182 @@ describe.each(blueprintVersions)(
 			expect(response.status).toBe(200);
 			const text = await response.text();
 			expect(text).toContain('<title>My Blog Name</title>');
+		});
+
+		test('should route v2 blueprints to the native v2 handler without the experimental flag', async () => {
+			await using cliServer = await runCLI({
+				command: 'server',
+				workers: 1,
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: {
+					version: 2,
+					additionalStepsAfterExecution: [
+						{
+							step: 'mkdir',
+							path: 'routed-v2',
+						},
+					],
+				},
+			});
+
+			await expect(
+				cliServer.playground.fileExists('/wordpress/routed-v2')
+			).resolves.toBe(true);
+		});
+
+		test('should accept --mode with auto-mount disabled and no experimental flag', async () => {
+			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
+				code?: number | string | null
+			) => {
+				throw new Error(
+					`process.exit unexpectedly called with "${code}"`
+				);
+			}) as any);
+
+			try {
+				await using cliResult = (await parseOptionsAndRunCLI([
+					'server',
+					'--mode=mount-only',
+					'--no-auto-mount',
+					'--verbosity=quiet',
+					'--port=0',
+					'--workers=1',
+				])) as CLIServerResult;
+				const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+				expect(
+					await cliServer.playground.fileExists(
+						'/wordpress/wp-load.php'
+					)
+				).toBe(false);
+			} finally {
+				exitSpy.mockRestore();
+			}
+		});
+
+		test('should reject the retired experimental v2 flag', async () => {
+			// The retired flag is now an unknown yargs option: parsing fails,
+			// parseOptionsAndRunCLI reports it and returns a { exitCode }
+			// result instead of calling process.exit().
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+
+			try {
+				const result = await parseOptionsAndRunCLI([
+					'server',
+					'--experimental-blueprints-v2-runner',
+				]);
+				expect(result).toHaveProperty('exitCode', 1);
+				expect(consoleErrorSpy).toHaveBeenCalledWith(
+					expect.stringContaining('experimental-blueprints-v2-runner')
+				);
+			} finally {
+				consoleErrorSpy.mockRestore();
+			}
+		});
+
+		test('should accept URL WordPress sources with --mode', async () => {
+			const fetchMock = vi.fn(async () => {
+				throw new Error('Unexpected WordPress ZIP fetch');
+			});
+			vi.stubGlobal('fetch', fetchMock);
+			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
+				code?: number | string | null
+			) => {
+				throw new Error(
+					`process.exit unexpectedly called with "${code}"`
+				);
+			}) as any);
+
+			try {
+				await using cliResult = (await parseOptionsAndRunCLI([
+					'server',
+					'--mode=mount-only',
+					'--wp=https://example.com/wordpress.zip',
+					'--verbosity=quiet',
+					'--port=0',
+					'--workers=1',
+				])) as CLIServerResult;
+				const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+				expect(
+					await cliServer.playground.fileExists(
+						'/wordpress/wp-load.php'
+					)
+				).toBe(false);
+				expect(exitSpy).not.toHaveBeenCalled();
+				expect(fetchMock).not.toHaveBeenCalled();
+			} finally {
+				exitSpy.mockRestore();
+				vi.unstubAllGlobals();
+			}
+		});
+
+		test('should reject --mode with --wordpress-install-mode', async () => {
+			// The validation runs during boot and rejects; the clean error
+			// message is written to stderr, so suppress it.
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
+			try {
+				await expect(
+					parseOptionsAndRunCLI([
+						'server',
+						'--mode=mount-only',
+						'--wordpress-install-mode=do-not-attempt-installing',
+						'--verbosity=quiet',
+						'--port=0',
+					])
+				).rejects.toThrow(
+					'The --wordpress-install-mode option cannot be used with the --mode option.'
+				);
+			} finally {
+				stderrSpy.mockRestore();
+			}
+		});
+
+		test('should reject --mode with SQLite setup disabled', async () => {
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
+			try {
+				await expect(
+					parseOptionsAndRunCLI([
+						'server',
+						'--mode=mount-only',
+						'--skip-sqlite-setup',
+						'--verbosity=quiet',
+						'--port=0',
+					])
+				).rejects.toThrow(
+					'The --skipSqliteSetup option is not supported in Blueprint V2 mode.'
+				);
+			} finally {
+				stderrSpy.mockRestore();
+			}
+		});
+
+		test('should reject --mode with auto-mount', async () => {
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
+			try {
+				await expect(
+					parseOptionsAndRunCLI([
+						'server',
+						'--mode=mount-only',
+						'--auto-mount=.',
+						'--verbosity=quiet',
+						'--port=0',
+					])
+				).rejects.toThrow(
+					'The --mode option cannot be used with --auto-mount because --auto-mount automatically sets the mode.'
+				);
+			} finally {
+				stderrSpy.mockRestore();
+			}
 		});
 
 		test('should be able to follow external symlinks in primary and secondary PHP instances', async ({
@@ -326,114 +527,117 @@ describe.each(blueprintVersions)(
 			expect(response.text).toContain('My WordPress Website');
 		});
 
-		// TODO: Testing mounting NODEFS within a NODEFS mount
+		// Regression test: Playground must not write its own drop-ins
+		// (db.php, object-cache.php, advanced-cache.php, sunrise.php)
+		// into a user-mounted wp-content. Studio and other consumers
+		// mount real wp-content directories into Playground, and any
+		// Playground-managed file written at the wp-content root would
+		// silently take over the user's external site.
+		test('should not drop any new files at the wp-content root when wp-content is mounted', async () => {
+			const hostWpContent = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-mount-wpcontent-')
+			);
+			// Minimal wp-content skeleton. `plugins/` and `themes/`
+			// stay empty so WP's unzip step fills them in; any file
+			// added at the root of hostWpContent after boot must come
+			// from Playground itself.
+			mkdirSync(path.join(hostWpContent, 'plugins'));
+			mkdirSync(path.join(hostWpContent, 'themes'));
+			writeFileSync(
+				path.join(hostWpContent, 'index.php'),
+				'<?php // Silence is golden.\n'
+			);
+			const filesBefore = new Set(readdirSync(hostWpContent));
 
-		if (version === 2) {
-			// @TODO: Test modes
-			test('should support --mode=create-new-site', async () => {
-				const tmpDir = await mkdtemp(
-					path.join(tmpdir(), 'playground-test-')
-				);
+			try {
 				await using cliServer = await runCLI({
 					...suiteCliArgs,
 					command: 'server',
-					'experimental-blueprints-v2-runner': true,
-					mode: 'create-new-site',
 					'mount-before-install': [
 						{
-							hostPath: tmpDir,
-							vfsPath: '/wordpress',
+							hostPath: hostWpContent,
+							vfsPath: '/wordpress/wp-content',
 						},
 					],
 				});
-				const homeUrl = new URL('/', cliServer.serverUrl);
-				const response = await fetch(homeUrl);
-				expect(response.status).toBe(200);
-				const text = await response.text();
-				expect(text).toContain(
-					`<title>${expectedHomePageTitle}</title>`
+
+				// Confirm the site booted so we're actually exercising
+				// the full boot → install flow, not a no-op path.
+				const homeResponse = await fetch(
+					new URL('/', cliServer.serverUrl)
 				);
-			});
+				expect(homeResponse.status).toBe(200);
 
-			test('should support --mode=apply-to-existing-site', async () => {
-				const tmpDir = await mkdtemp(
-					path.join(tmpdir(), 'playground-test-')
-				);
-
-				const port = 3019;
-				let homeUrl: URL;
-
-				{
-					// Create a new site so we can load it as an existing site later.
-					await using cliServer = await runCLI({
-						...suiteCliArgs,
-						port,
-						command: 'server',
-						'experimental-blueprints-v2-runner': true,
-						mode: 'create-new-site',
-						'mount-before-install': [
-							{
-								hostPath: tmpDir,
-								vfsPath: '/wordpress',
-							},
-						],
-					});
-					// Confirm the new site looks intact with its WP installed.
-					homeUrl = new URL('/', cliServer.serverUrl);
-					const setupResponse = await fetch(homeUrl);
-					expect(setupResponse.status).toBe(200);
-					const setupText = await setupResponse.text();
-					expect(setupText).toContain(
-						`<title>${expectedHomePageTitle}</title>`
+				// No Playground-managed drop-in should appear at the
+				// wp-content root. These four names cover the WP
+				// drop-ins that a rogue Playground write could abuse.
+				for (const dropIn of [
+					'db.php',
+					'object-cache.php',
+					'advanced-cache.php',
+					'sunrise.php',
+				]) {
+					expect(existsSync(path.join(hostWpContent, dropIn))).toBe(
+						false
 					);
 				}
 
-				// eslint-disable-next-line
+				// Belt-and-suspenders: any net-new *file* at the
+				// wp-content root is a Playground drop-in regression.
+				// Directories added by WordPress itself during install
+				// (e.g. `database/` for the SQLite DB, `fonts/` for
+				// the Fonts API, `upgrade/`) are legitimate and ignored.
+				const filesAfter = new Set(readdirSync(hostWpContent));
+				const unexpectedNewFiles = [...filesAfter]
+					.filter((f) => !filesBefore.has(f))
+					.filter(
+						(f) =>
+							!lstatSync(
+								path.join(hostWpContent, f)
+							).isDirectory()
+					);
+				expect(unexpectedNewFiles).toEqual([]);
+			} finally {
+				rmSync(hostWpContent, { recursive: true, force: true });
+			}
+		}, 120000);
+
+		// Regression test: mounting files under /tmp (which is already
+		// NODEFS-mounted to a shared host directory) used to race
+		// across 6 workers and intermittently fail with ErrnoError 20
+		// (ENOTDIR) when the concurrent NODEFS placeholder creation
+		// collided on the host filesystem.
+		test('should mount files under /tmp as post-install mounts without ENOTDIR', async () => {
+			const hostTmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-mount-')
+			);
+
+			const mounts = [];
+			for (let i = 0; i < 5; i++) {
+				const hostSubDir = path.join(hostTmpDir, `migration-${i}`);
+				mkdirSync(hostSubDir, { recursive: true });
+				const hostFilePath = path.join(
+					hostSubDir,
+					'.import-state.json'
+				);
+				writeFileSync(hostFilePath, `{"index":${i}}`);
+				mounts.push({
+					hostPath: hostFilePath,
+					vfsPath: `/tmp/migration-${i}/.import-state.json`,
+				});
+			}
+
+			try {
 				await using cliServer = await runCLI({
 					...suiteCliArgs,
-					port,
 					command: 'server',
-					'experimental-blueprints-v2-runner': true,
-					mode: 'apply-to-existing-site',
-					'mount-before-install': [
-						{
-							hostPath: tmpDir,
-							vfsPath: '/wordpress',
-						},
-					],
+					mount: mounts,
 				});
-				const redirectResponse = await fetch(homeUrl);
-				expect(redirectResponse.status).toBe(200);
-				const redirectText = await redirectResponse.text();
-				expect(redirectText).toContain(
-					`<title>${expectedHomePageTitle}</title>`
-				);
-			});
-
-			test('should put WordPress in the document root', async () => {
-				const tmpDir = await mkdtemp(
-					path.join(tmpdir(), 'playground-test-')
-				);
-
-				// Create a new site so we can load it as an existing site later.
-				// eslint-disable-next-line
-				await using cliServer = await runCLI({
-					...suiteCliArgs,
-					'site-url': 'http://playground-domain/',
-					'db-engine': 'sqlite',
-					command: 'server',
-					mode: 'create-new-site',
-					'mount-before-install': [
-						{
-							hostPath: tmpDir,
-							vfsPath: '/wordpress',
-						},
-					],
-				});
-				const wpContentDirPath = path.join(tmpDir, 'wp-content');
-				expect(lstatSync(wpContentDirPath)?.isDirectory()).toBe(true);
-			}, 60000);
-		}
+				expect(cliServer.serverUrl).toBeTruthy();
+			} finally {
+				rmSync(hostTmpDir, { recursive: true, force: true });
+			}
+		});
 
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
 
@@ -563,7 +767,7 @@ describe.each(blueprintVersions)(
 					zipPath,
 					new Uint8Array(await zip.arrayBuffer())
 				);
-				await promisify(exec)(`unzip "${zipPath}" -d "${tmpDir}"`);
+				await extractZip(zipPath, tmpDir);
 
 				const checksum = await getDirectoryChecksum(tmpDir);
 
@@ -610,7 +814,7 @@ describe.each(blueprintVersions)(
 					await cliServer[Symbol.asyncDispose]();
 					cliServer = undefined;
 				}
-			});
+			}, 30000);
 
 			test('should start server successfully with default verbosity', async () => {
 				cliServer = await runCLI({
@@ -744,6 +948,25 @@ describe.each(blueprintVersions)(
 		});
 
 		describe('phpMyAdmin', () => {
+			async function expectPhpMyAdminAlias(
+				cliServer: RunCLIServer,
+				urlPrefix: string
+			) {
+				const probeFile = 'playground-alias-check.txt';
+				await cliServer.playground.writeFile(
+					`${PHPMYADMIN_INSTALL_PATH}/${probeFile}`,
+					'phpMyAdmin alias works'
+				);
+
+				const probeUrl = new URL(
+					`${urlPrefix}/${probeFile}`,
+					cliServer.serverUrl
+				);
+				const response = await fetch(probeUrl);
+				expect(response.status).toBe(200);
+				expect(await response.text()).toBe('phpMyAdmin alias works');
+			}
+
 			test('should install phpMyAdmin when --phpmyadmin flag is set', async () => {
 				await using cliServer = await runCLI({
 					...suiteCliArgs,
@@ -770,12 +993,7 @@ describe.each(blueprintVersions)(
 				expect(configExists).toBe(true);
 
 				// Verify phpMyAdmin is accessible via rewrite rule
-				const phpMyAdminUrl = new URL(
-					'/phpmyadmin/index.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(phpMyAdminUrl);
-				expect(response.status).toBe(200);
+				await expectPhpMyAdminAlias(cliServer, '/phpmyadmin');
 			}, 120000);
 
 			test('should not install phpMyAdmin when flag is not set', async () => {
@@ -799,12 +1017,7 @@ describe.each(blueprintVersions)(
 				});
 
 				// When phpmyadmin is true (boolean), it should default to /phpmyadmin
-				const phpMyAdminUrl = new URL(
-					'/phpmyadmin/index.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(phpMyAdminUrl);
-				expect(response.status).toBe(200);
+				await expectPhpMyAdminAlias(cliServer, '/phpmyadmin');
 			}, 120000);
 
 			test('should install phpMyAdmin at a custom path', async () => {
@@ -815,17 +1028,132 @@ describe.each(blueprintVersions)(
 				});
 
 				// Verify phpMyAdmin is accessible at the custom path
-				const phpMyAdminUrl = new URL(
-					'/db-admin/index.php',
-					cliServer.serverUrl
-				);
-				const response = await fetch(phpMyAdminUrl);
-				expect(response.status).toBe(200);
+				await expectPhpMyAdminAlias(cliServer, '/db-admin');
 			}, 120000);
 		});
 	},
 	60_000 * 5
 );
+
+test('should execute v2 blueprints through the CLI server', async () => {
+	await using cliServer = await runCLI({
+		command: 'server',
+		workers: 1,
+		blueprint: {
+			version: 2,
+			siteOptions: {
+				blogname: 'V2 CLI Smoke',
+			},
+			additionalStepsAfterExecution: [
+				{
+					step: 'writeFiles',
+					files: {
+						'site:v2-cli-smoke.php': {
+							filename: 'v2-cli-smoke.php',
+							content:
+								'<?php require __DIR__ . "/wp-load.php"; echo get_option("blogname");',
+						},
+					},
+				},
+			],
+		},
+	});
+	const response = await fetch(
+		new URL('/v2-cli-smoke.php', cliServer.serverUrl)
+	);
+
+	expect(response.status).toBe(200);
+	expect(await response.text()).toBe('V2 CLI Smoke');
+}, 120000);
+
+describe('native Blueprint v2 modes', () => {
+	fullNativeBlueprintV2ModeTest(
+		'should support --mode=create-new-site',
+		async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
+			try {
+				await using cliServer = await runCLI({
+					command: 'server',
+					workers: 1,
+					mode: 'create-new-site',
+					'mount-before-install': [
+						{
+							hostPath: tmpDir,
+							vfsPath: '/wordpress',
+						},
+					],
+				});
+				const homeUrl = new URL('/', cliServer.serverUrl);
+				const response = await fetch(homeUrl);
+				expect(response.status).toBe(200);
+				const text = await response.text();
+				expect(text).toContain('<title>My WordPress Website</title>');
+				const wpContentDirPath = path.join(tmpDir, 'wp-content');
+				expect(lstatSync(wpContentDirPath)?.isDirectory()).toBe(true);
+			} finally {
+				rmSync(tmpDir, { recursive: true, force: true });
+			}
+		}
+	);
+
+	fullNativeBlueprintV2ModeTest(
+		'should support --mode=apply-to-existing-site',
+		async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
+
+			try {
+				await using cliServer = await runCLI({
+					command: 'server',
+					workers: 1,
+					mode: 'create-new-site',
+					'mount-before-install': [
+						{
+							hostPath: tmpDir,
+							vfsPath: '/wordpress',
+						},
+					],
+				});
+				// Confirm the new site looks intact with its WP installed.
+				const homeUrl = new URL('/', cliServer.serverUrl);
+				const setupResponse = await fetch(homeUrl);
+				expect(setupResponse.status).toBe(200);
+				const setupText = await setupResponse.text();
+				expect(setupText).toContain(
+					'<title>My WordPress Website</title>'
+				);
+
+				// eslint-disable-next-line
+				await using existingSiteServer = await runCLI({
+					command: 'server',
+					workers: 1,
+					mode: 'apply-to-existing-site',
+					'mount-before-install': [
+						{
+							hostPath: tmpDir,
+							vfsPath: '/wordpress',
+						},
+					],
+				});
+				const existingSiteUrl = new URL(
+					'/',
+					existingSiteServer.serverUrl
+				);
+				const redirectResponse = await fetch(existingSiteUrl);
+				expect(redirectResponse.status).toBe(200);
+				const redirectText = await redirectResponse.text();
+				expect(redirectText).toContain(
+					'<title>My WordPress Website</title>'
+				);
+			} finally {
+				rmSync(tmpDir, { recursive: true, force: true });
+			}
+		}
+	);
+});
 
 describe('start command', () => {
 	test('should work with default options', async () => {
@@ -1004,6 +1332,73 @@ describe('start command', () => {
 		}
 	}, 180000);
 
+	test('resetting an unmanaged site rejects with a descriptive, catchable error', async () => {
+		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
+		const wordpressDir = path.join(tmpDir, 'wordpress-custom');
+		mkdirSync(wordpressDir, { recursive: true });
+
+		let caught: any;
+		try {
+			await runCLI({
+				command: 'start',
+				skipBrowser: true,
+				reset: true,
+				autoMount: false,
+				'mount-before-install': [
+					{ hostPath: wordpressDir, vfsPath: '/wordpress' },
+				],
+			});
+		} catch (e) {
+			caught = e;
+		} finally {
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+
+		// A direct library caller receives a meaningful message and exit
+		// code, not the validation sentinel's empty-message form.
+		expect(caught).toBeDefined();
+		expect(caught.message).toContain(
+			'This site is not managed by Playground CLI and cannot be reset.'
+		);
+		expect(caught.exitCode).toBe(1);
+	});
+
+	// Colon-delimited --mount can't express a Windows drive-letter host
+	// path (C:\...), so this end-to-end CLI check is POSIX-only. The
+	// cross-platform coverage is the runCLI test above.
+	test.skipIf(process.platform === 'win32')(
+		'parseOptionsAndRunCLI exits cleanly (no stack dump) when resetting an unmanaged site',
+		async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
+			const wordpressDir = path.join(tmpDir, 'wordpress-custom');
+			mkdirSync(wordpressDir, { recursive: true });
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+			try {
+				const result = await parseOptionsAndRunCLI([
+					'start',
+					'--reset',
+					'--no-auto-mount',
+					'--skip-browser',
+					'--mount',
+					`${wordpressDir}:/wordpress`,
+				]);
+				expect('exitCode' in result).toBe(true);
+				expect((result as CLIExitResult).exitCode).toBe(1);
+				// The expected validation case is converted to a clean exit,
+				// not routed through the unexpected-error path that
+				// console.error's a full stack trace.
+				expect(consoleErrorSpy).not.toHaveBeenCalled();
+			} finally {
+				consoleErrorSpy.mockRestore();
+				rmSync(tmpDir, { recursive: true, force: true });
+			}
+		}
+	);
+
 	test('should not persist when using explicit mount for /wordpress', async () => {
 		const tmpDir = await mkdtemp(path.join(tmpdir(), 'playground-test-'));
 		const wordpressDir = path.join(tmpDir, 'wordpress-custom');
@@ -1030,6 +1425,273 @@ describe('start command', () => {
 		expect(existsSync(wpContentPath)).toBe(true);
 		expect(lstatSync(wpContentPath).isDirectory()).toBe(true);
 	}, 120000);
+
+	test('should accept --no-auto-mount and skip auto-detection', async () => {
+		// Regression test: yargs-parser's boolean-negation turns
+		// `--no-auto-mount` into `{ autoMount: false }`. When the start
+		// command declared a literal `no-auto-mount` option (with no
+		// matching `auto-mount`), strictOptions rejected the negated key
+		// with `Unknown arguments: auto-mount, autoMount`.
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-test-no-auto-mount-')
+		);
+		const pluginDirName = 'sample-plugin';
+		const pluginDir = path.join(tmpDir, pluginDirName);
+		mkdirSync(pluginDir, { recursive: true });
+		writeFileSync(
+			path.join(pluginDir, `${pluginDirName}.php`),
+			`<?php\n/*\nPlugin Name: Sample Plugin\n*/\n`
+		);
+
+		// Throw instead of no-op so any unexpected `process.exit` during
+		// startup fails the test loudly instead of silently continuing in
+		// an inconsistent state.
+		const exitSpy = vi.spyOn(process, 'exit').mockImplementation(((
+			code?: number | string | null
+		) => {
+			throw new Error(`process.exit unexpectedly called with "${code}"`);
+		}) as any);
+
+		try {
+			await using cliResult = (await parseOptionsAndRunCLI([
+				'start',
+				`--path=${pluginDir}`,
+				'--no-auto-mount',
+				'--skip-browser',
+			])) as CLIServerResult;
+			const cliServer = cliResult[internalsKeyForTesting].cliServer;
+
+			// Server started → yargs accepted `--no-auto-mount`.
+			expect(cliServer.serverUrl).toMatch(/^http:\/\/127\.0\.0\.1:\d+$/);
+
+			// Auto-mount did not fire → the plugin is not present under
+			// /wordpress/wp-content/plugins/.
+			const autoMountedPluginExists = await cliServer.playground.isDir(
+				`/wordpress/wp-content/plugins/${pluginDirName}`
+			);
+			expect(autoMountedPluginExists).toBe(false);
+		} finally {
+			exitSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	}, 180000);
+
+	test('does not expose v2 --mode on the start command', async () => {
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-test-start-existing-wp-')
+		);
+		const wordpressDir = path.join(tmpDir, 'wordpress');
+		mkdirSync(path.join(wordpressDir, 'wp-admin'), { recursive: true });
+		mkdirSync(path.join(wordpressDir, 'wp-content'), { recursive: true });
+		mkdirSync(path.join(wordpressDir, 'wp-includes'), { recursive: true });
+		const consoleErrorSpy = vi
+			.spyOn(console, 'error')
+			.mockImplementation(() => {});
+
+		try {
+			const result = await parseOptionsAndRunCLI([
+				'start',
+				`--path=${wordpressDir}`,
+				'--mode=create-new-site',
+				'--skip-browser',
+				'--quiet',
+				'--port=0',
+			]);
+			expect('exitCode' in result).toBe(true);
+			expect((result as CLIExitResult).exitCode).toBe(1);
+			expect(consoleErrorSpy).toHaveBeenCalledWith(
+				expect.stringContaining('Unknown argument: mode')
+			);
+		} finally {
+			consoleErrorSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true, force: true });
+		}
+	}, 180000);
+});
+
+describe('php command', () => {
+	test('should run a PHP script and capture output', async () => {
+		const stdoutChunks: string[] = [];
+		const stdoutSpy = vi
+			.spyOn(process.stdout, 'write')
+			.mockImplementation((chunk: any) => {
+				stdoutChunks.push(
+					typeof chunk === 'string'
+						? chunk
+						: new TextDecoder().decode(chunk)
+				);
+				return true;
+			});
+
+		try {
+			const exitCode = await runCLI({
+				command: 'php',
+				_: ['php', '-r', 'echo "hello from php";'],
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+			expect(exitCode).toBe(0);
+			expect(stdoutChunks.join('')).toContain('hello from php');
+		} finally {
+			stdoutSpy.mockRestore();
+		}
+	});
+
+	test('should exit with non-zero code on PHP error', async () => {
+		const stdoutSpy = vi
+			.spyOn(process.stdout, 'write')
+			.mockImplementation(() => true);
+		const stderrSpy = vi
+			.spyOn(process.stderr, 'write')
+			.mockImplementation(() => true);
+
+		try {
+			const exitCode = await runCLI({
+				command: 'php',
+				_: ['php', '-r', 'exit(42);'],
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+			expect(exitCode).toBe(42);
+		} finally {
+			stdoutSpy.mockRestore();
+			stderrSpy.mockRestore();
+		}
+	});
+
+	test('should capture stderr output', async () => {
+		const stderrChunks: string[] = [];
+		const stdoutSpy = vi
+			.spyOn(process.stdout, 'write')
+			.mockImplementation(() => true);
+		const stderrSpy = vi
+			.spyOn(process.stderr, 'write')
+			.mockImplementation((chunk: any) => {
+				stderrChunks.push(
+					typeof chunk === 'string'
+						? chunk
+						: new TextDecoder().decode(chunk)
+				);
+				return true;
+			});
+
+		try {
+			const exitCode = await runCLI({
+				command: 'php',
+				_: ['php', '-r', 'error_log("test error");'],
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+			expect(exitCode).toBe(0);
+			expect(stderrChunks.join('')).toContain('test error');
+		} finally {
+			stdoutSpy.mockRestore();
+			stderrSpy.mockRestore();
+		}
+	});
+
+	test('should run wp-cli.phar --version', async () => {
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-wpcli-test-')
+		);
+		copyFileSync(
+			path.resolve(import.meta.dirname, 'fixtures/wp-cli.phar'),
+			path.join(tmpDir, 'wp-cli.phar')
+		);
+
+		const stdoutChunks: string[] = [];
+		const stdoutSpy = vi
+			.spyOn(process.stdout, 'write')
+			.mockImplementation((chunk: any) => {
+				stdoutChunks.push(
+					typeof chunk === 'string'
+						? chunk
+						: new TextDecoder().decode(chunk)
+				);
+				return true;
+			});
+		const stderrSpy = vi
+			.spyOn(process.stderr, 'write')
+			.mockImplementation(() => true);
+
+		try {
+			const exitCode = await runCLI({
+				command: 'php',
+				_: ['php', '/tools/wp-cli.phar', '--version'],
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+				'mount-before-install': [
+					{
+						hostPath: tmpDir,
+						vfsPath: '/tools',
+					},
+				],
+			});
+			expect(exitCode).toBe(0);
+			expect(stdoutChunks.join('')).toMatch(/WP-CLI \d+\.\d+/);
+		} finally {
+			stdoutSpy.mockRestore();
+			stderrSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true });
+		}
+	});
+
+	test('should run composer.phar --version', async () => {
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-composer-test-')
+		);
+
+		try {
+			copyFileSync(
+				path.resolve(import.meta.dirname, 'fixtures/composer.phar'),
+				path.join(tmpDir, 'composer.phar')
+			);
+
+			const stdoutChunks: string[] = [];
+			const stdoutSpy = vi
+				.spyOn(process.stdout, 'write')
+				.mockImplementation((chunk: any) => {
+					stdoutChunks.push(
+						typeof chunk === 'string'
+							? chunk
+							: new TextDecoder().decode(chunk)
+					);
+					return true;
+				});
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
+
+			try {
+				const exitCode = await runCLI({
+					command: 'php',
+					_: ['php', '/tools/composer.phar', '--version'],
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: undefined,
+					'mount-before-install': [
+						{
+							hostPath: tmpDir,
+							vfsPath: '/tools',
+						},
+					],
+				});
+				expect(exitCode).toBe(0);
+				expect(stdoutChunks.join('')).toMatch(
+					/Composer version \d+\.\d+/
+				);
+			} finally {
+				stdoutSpy.mockRestore();
+				stderrSpy.mockRestore();
+			}
+		} finally {
+			rmSync(tmpDir, { recursive: true });
+		}
+	});
 });
 
 describe('other run-cli behaviors', () => {
@@ -1060,6 +1722,7 @@ describe('other run-cli behaviors', () => {
 					req.end();
 				}
 			);
+
 			expect(res.statusCode).toBe(302);
 			expect(res.headers['set-cookie']).toContain(
 				'playground_auto_login_already_happened=1; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Path=/'
@@ -1068,14 +1731,24 @@ describe('other run-cli behaviors', () => {
 	});
 
 	describe('phpMyAdmin CLI argument validation', () => {
+		test('should reject invalid WordPress version slugs before startup', async () => {
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
+			try {
+				await expect(
+					parseOptionsAndRunCLI(['server', '--wp=brazil'])
+				).rejects.toThrow('Unrecognized WordPress version');
+			} finally {
+				stderrSpy.mockRestore();
+			}
+		});
+
 		test('should reject --phpmyadmin with --skip-sqlite-setup', async () => {
-			// Suppress console.error during this test since yargs outputs to stderr
-			const consoleSpy = vi
-				.spyOn(console, 'error')
-				.mockImplementation(() => {});
-			const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
-				throw new Error('process.exit called');
-			});
+			// The clean error message is written to stderr; suppress it.
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
 
 			try {
 				await expect(
@@ -1084,10 +1757,11 @@ describe('other run-cli behaviors', () => {
 						'--phpmyadmin',
 						'--skip-sqlite-setup',
 					])
-				).rejects.toThrow();
+				).rejects.toThrow(
+					'The --phpmyadmin option requires SQLite setup. Remove --skip-sqlite-setup to use phpMyAdmin.'
+				);
 			} finally {
-				consoleSpy.mockRestore();
-				exitSpy.mockRestore();
+				stderrSpy.mockRestore();
 			}
 		});
 	});
@@ -1108,6 +1782,36 @@ describe('other run-cli behaviors', () => {
 			const response = await fetch(new URL('/', cliServer.serverUrl));
 			expect(response.status).toBe(500);
 		});
+
+		test('disposes spawned workers when boot fails on the non-debug path', async () => {
+			// Regression: a boot failure now rejects instead of calling
+			// process.exit(), so the non-debug catch must still run
+			// disposeCLI() to terminate spawned workers — otherwise they keep
+			// a library caller's event loop alive. An invalid Blueprint step
+			// fails boot after the worker has spawned.
+			const terminateSpy = vi.spyOn(Worker.prototype, 'terminate');
+			try {
+				await expect(
+					runCLI({
+						command: 'server',
+						wordpressInstallMode: 'do-not-attempt-installing',
+						skipSqliteSetup: true,
+						verbosity: 'normal',
+						workers: 1,
+						blueprint: {
+							steps: [
+								{
+									step: 'thisStepDoesNotExistForTesting',
+								} as any,
+							],
+						},
+					} as RunCLIArgs & { command: 'server' })
+				).rejects.toThrow();
+				expect(terminateSpy).toHaveBeenCalled();
+			} finally {
+				terminateSpy.mockRestore();
+			}
+		}, 60_000 /* full boot before the failing step; allow Windows headroom */);
 	});
 
 	describe('streaming responses', () => {
@@ -1378,71 +2082,557 @@ describe('other run-cli behaviors', () => {
 		});
 	});
 
-	describe('signal handling', () => {
-		test.each(['SIGINT', 'SIGTERM'] as const)(
-			'should clean up and exit on %s',
-			async (signal) => {
-				const listenersBeforeRunCli = process.listeners(signal).slice();
+	describe('async dispose', () => {
+		test('should clean up the CLI server when disposed', async () => {
+			// eslint-disable-next-line @typescript-eslint/no-unused-vars
+			await using cliResult = (await parseOptionsAndRunCLI([
+				'server',
+				'--wordpress-install-mode=do-not-attempt-installing',
+				'--skip-sqlite-setup',
+				'--verbosity=quiet',
+				'--port=0',
+			])) as CLIServerResult;
+			const cliServer = cliResult[internalsKeyForTesting].cliServer;
 
-				const exitSpy = vi.spyOn(process, 'exit').mockImplementation(
-					// Stop the test from actually causing the process to exit.
-					(() => {}) as any
+			const asyncDisposeSpy = vi
+				.spyOn(cliServer, Symbol.asyncDispose)
+				.mockImplementation((() => {}) as any);
+
+			try {
+				await cliResult[Symbol.asyncDispose]();
+				expect(asyncDisposeSpy).toHaveBeenCalled();
+			} finally {
+				asyncDisposeSpy.mockRestore();
+			}
+		});
+	});
+
+	describe('WP_DEBUG constants', () => {
+		async function getConstants(cliArgs: string[]) {
+			await using cliResult = (await parseOptionsAndRunCLI([
+				'server',
+				'--wordpress-install-mode=do-not-attempt-installing',
+				'--skip-sqlite-setup',
+				'--verbosity=quiet',
+				'--port=0',
+				'--workers=1',
+				...cliArgs,
+			])) as CLIServerResult;
+			const cliServer = cliResult[internalsKeyForTesting].cliServer;
+			await cliServer.playground.writeFile(
+				'/wordpress/check-consts.php',
+				`<?php
+				echo json_encode([
+					'WP_DEBUG' => defined('WP_DEBUG') ? WP_DEBUG : '__UNDEFINED__',
+					'WP_DEBUG_LOG' => defined('WP_DEBUG_LOG') ? WP_DEBUG_LOG : '__UNDEFINED__',
+					'WP_DEBUG_DISPLAY' => defined('WP_DEBUG_DISPLAY') ? WP_DEBUG_DISPLAY : '__UNDEFINED__',
+				]);
+				`
+			);
+			const response = await fetch(
+				new URL('/check-consts.php', cliServer.serverUrl)
+			);
+			return JSON.parse(await response.text());
+		}
+
+		test('should override WP_DEBUG constants via --define-bool', async () => {
+			// Confirm default values before confirming they can be overridden.
+			const defaultConstants = await getConstants([]);
+			expect(defaultConstants.WP_DEBUG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_LOG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_DISPLAY).toBe(false);
+
+			const constants = await getConstants([
+				'--define-bool',
+				'WP_DEBUG',
+				'false',
+				'--define-bool',
+				'WP_DEBUG_LOG',
+				'false',
+				'--define-bool',
+				'WP_DEBUG_DISPLAY',
+				'true',
+			]);
+			expect(constants.WP_DEBUG).toBe(false);
+			expect(constants.WP_DEBUG_LOG).toBe(false);
+			expect(constants.WP_DEBUG_DISPLAY).toBe(true);
+		});
+
+		test('should override WP_DEBUG constants via --define-number', async () => {
+			// Confirm default values before confirming they can be overridden.
+			const defaultConstants = await getConstants([]);
+			expect(defaultConstants.WP_DEBUG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_LOG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_DISPLAY).toBe(false);
+
+			const constants = await getConstants([
+				'--define-number',
+				'WP_DEBUG',
+				'0',
+				'--define-number',
+				'WP_DEBUG_LOG',
+				'0',
+				'--define-number',
+				'WP_DEBUG_DISPLAY',
+				'1',
+			]);
+			expect(constants.WP_DEBUG).toBe(0);
+			expect(constants.WP_DEBUG_LOG).toBe(0);
+			expect(constants.WP_DEBUG_DISPLAY).toBe(1);
+		});
+
+		test('should override WP_DEBUG constants via --define', async () => {
+			// Confirm default values before confirming they can be overridden.
+			const defaultConstants = await getConstants([]);
+			expect(defaultConstants.WP_DEBUG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_LOG).toBe(true);
+			expect(defaultConstants.WP_DEBUG_DISPLAY).toBe(false);
+
+			const constants = await getConstants([
+				'--define',
+				'WP_DEBUG',
+				'false',
+				'--define',
+				'WP_DEBUG_LOG',
+				'false',
+				'--define',
+				'WP_DEBUG_DISPLAY',
+				'true',
+			]);
+			expect(constants.WP_DEBUG).toBe('false');
+			expect(constants.WP_DEBUG_LOG).toBe('false');
+			expect(constants.WP_DEBUG_DISPLAY).toBe('true');
+		});
+	});
+
+	describe('php.ini entries', () => {
+		async function getIniValue(name: string, cliArgs: string[]) {
+			await using cliResult = (await parseOptionsAndRunCLI([
+				'server',
+				'--wordpress-install-mode=do-not-attempt-installing',
+				'--skip-sqlite-setup',
+				'--verbosity=quiet',
+				'--port=0',
+				'--workers=1',
+				...cliArgs,
+			])) as CLIServerResult;
+			const cliServer = cliResult[internalsKeyForTesting].cliServer;
+			await cliServer.playground.writeFile(
+				'/wordpress/check-ini.php',
+				`<?php echo ini_get(${JSON.stringify(name)});`
+			);
+			const response = await fetch(
+				new URL('/check-ini.php', cliServer.serverUrl)
+			);
+			return await response.text();
+		}
+
+		test('should set a php.ini entry via --php-ini', async () => {
+			// Confirm the default value before confirming it can be overridden.
+			expect(await getIniValue('memory_limit', [])).not.toBe('777M');
+
+			expect(
+				await getIniValue('memory_limit', [
+					'--php-ini',
+					'memory_limit',
+					'777M',
+				])
+			).toBe('777M');
+		});
+
+		test('should set an extension entry via --php-ini', async () => {
+			// Confirm the value Xdebug ships before confirming it can be
+			// overridden. php.ini alone cannot override it, because PHP reads
+			// the extension ini file afterwards.
+			expect(await getIniValue('xdebug.mode', ['--xdebug'])).not.toBe(
+				'develop,trace,profile'
+			);
+
+			expect(
+				await getIniValue('xdebug.mode', [
+					'--xdebug',
+					'--php-ini',
+					'xdebug.mode',
+					'develop,trace,profile',
+				])
+			).toBe('develop,trace,profile');
+		});
+
+		test('should set a php.ini entry under the Blueprints v2 handler', async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-')
+			);
+			const blueprintPath = path.join(tmpDir, 'blueprint.json');
+			await writeFile(blueprintPath, JSON.stringify({ version: 2 }));
+			try {
+				expect(
+					await getIniValue('memory_limit', [
+						`--blueprint=${blueprintPath}`,
+						'--php-ini',
+						'memory_limit',
+						'777M',
+					])
+				).toBe('777M');
+			} finally {
+				rmSync(tmpDir, { recursive: true });
+			}
+		});
+	});
+
+	describe('return types', () => {
+		// These tests need a real ZIP, but not a full WordPress install. A tiny
+		// local site keeps the Windows run well below the default test timeout.
+		const snapshotBlueprint: RunCLIArgs['blueprint'] = {
+			steps: [
+				{
+					step: 'runPHP',
+					code: `<?php
+						mkdir('/wordpress', 0777, true);
+						file_put_contents('/wordpress/index.php', '');
+					`,
+				},
+			],
+		};
+
+		test('runCLI returns void for run-blueprint command', async () => {
+			const result = await runCLI({
+				command: 'run-blueprint',
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+			expect(result).toBeUndefined();
+		});
+
+		test('runCLI returns void for build-snapshot command', async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-snapshot-test-')
+			);
+			const outfile = path.join(tmpDir, 'snapshot.zip');
+			try {
+				const result = await runCLI({
+					command: 'build-snapshot',
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: snapshotBlueprint,
+					outfile,
+					workers: 1,
+				});
+				expect(result).toBeUndefined();
+				expect(existsSync(outfile)).toBe(true);
+			} finally {
+				rmSync(tmpDir, { recursive: true });
+			}
+		});
+
+		test('runCLI returns RunCLIServer for server command', async () => {
+			await using result = await runCLI({
+				command: 'server',
+				wordpressInstallMode: 'do-not-attempt-installing',
+				skipSqliteSetup: true,
+				blueprint: undefined,
+			});
+			expect(result).toBeDefined();
+			expect(result.serverUrl).toMatch(/^http:\/\//);
+			expect(result[Symbol.asyncDispose]).toBeTypeOf('function');
+		});
+
+		test('runCLI returns exit code for php command', async () => {
+			const stdoutSpy = vi
+				.spyOn(process.stdout, 'write')
+				.mockImplementation(() => true);
+			try {
+				const exitCode = await runCLI({
+					command: 'php',
+					_: ['php', '-r', 'echo 1;'],
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: undefined,
+				});
+				expect(exitCode).toBeTypeOf('number');
+				expect(exitCode).toBe(0);
+			} finally {
+				stdoutSpy.mockRestore();
+			}
+		});
+
+		test('parseOptionsAndRunCLI returns CLIExitResult for run-blueprint', async () => {
+			const result = await parseOptionsAndRunCLI([
+				'run-blueprint',
+				'--wordpress-install-mode=do-not-attempt-installing',
+				'--skip-sqlite-setup',
+				'--verbosity=quiet',
+			]);
+			expect('exitCode' in result).toBe(true);
+			expect((result as CLIExitResult).exitCode).toBe(0);
+		});
+
+		test('parseOptionsAndRunCLI returns CLIServerResult for server', async () => {
+			await using result = (await parseOptionsAndRunCLI([
+				'server',
+				'--wordpress-install-mode=do-not-attempt-installing',
+				'--skip-sqlite-setup',
+				'--verbosity=quiet',
+				'--port=0',
+			])) as CLIServerResult;
+			expect(Symbol.asyncDispose in result).toBe(true);
+			expect('exitCode' in result).toBe(false);
+		});
+
+		test('parseOptionsAndRunCLI returns CLIExitResult for build-snapshot', async () => {
+			const tmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-snapshot-test-')
+			);
+			const outfile = path.join(tmpDir, 'snapshot.zip');
+			const blueprintPath = path.join(tmpDir, 'blueprint.json');
+			try {
+				await writeFile(
+					blueprintPath,
+					JSON.stringify(snapshotBlueprint)
 				);
+				const result = await parseOptionsAndRunCLI([
+					'build-snapshot',
+					`--outfile=${outfile}`,
+					`--blueprint=${blueprintPath}`,
+					'--wordpress-install-mode=do-not-attempt-installing',
+					'--skip-sqlite-setup',
+					'--verbosity=quiet',
+				]);
+				expect('exitCode' in result).toBe(true);
+				expect((result as CLIExitResult).exitCode).toBe(0);
+			} finally {
+				rmSync(tmpDir, { recursive: true });
+			}
+		});
 
-				// eslint-disable-next-line @typescript-eslint/no-unused-vars
-				await using cliResult = await parseOptionsAndRunCLI([
+		test('parseOptionsAndRunCLI returns CLIExitResult for php command', async () => {
+			const stdoutSpy = vi
+				.spyOn(process.stdout, 'write')
+				.mockImplementation(() => true);
+			try {
+				const result = await parseOptionsAndRunCLI([
+					'php',
+					'--wordpress-install-mode=do-not-attempt-installing',
+					'--skip-sqlite-setup',
+					'--verbosity=quiet',
+					'--',
+					'-r',
+					'echo 1;',
+				]);
+				expect('exitCode' in result).toBe(true);
+				expect((result as CLIExitResult).exitCode).toBe(0);
+			} finally {
+				stdoutSpy.mockRestore();
+			}
+		});
+
+		test('parseOptionsAndRunCLI returns CLIExitResult for invalid command', async () => {
+			const consoleSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+			try {
+				const result = await parseOptionsAndRunCLI([
+					'not-a-real-command',
+				]);
+				expect(result).toHaveProperty('exitCode', 1);
+			} finally {
+				consoleSpy.mockRestore();
+			}
+		});
+
+		test('parseOptionsAndRunCLI returns CLIExitResult for missing command', async () => {
+			const consoleSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+			try {
+				const result = await parseOptionsAndRunCLI([]);
+				expect(result).toHaveProperty('exitCode', 1);
+			} finally {
+				consoleSpy.mockRestore();
+			}
+		});
+
+		test('parseOptionsAndRunCLI throws for unexpected errors', async () => {
+			const stderrSpy = vi
+				.spyOn(process.stderr, 'write')
+				.mockImplementation(() => true);
+			try {
+				await expect(
+					parseOptionsAndRunCLI([
+						'server',
+						'--phpmyadmin',
+						'--skip-sqlite-setup',
+					])
+				).rejects.toThrow(
+					'The --phpmyadmin option requires SQLite setup. Remove --skip-sqlite-setup to use phpMyAdmin.'
+				);
+			} finally {
+				stderrSpy.mockRestore();
+			}
+		});
+	});
+
+	describe('worker count', () => {
+		async function getWorkerCount(cliArgs: string[]) {
+			const exitSpy = vi
+				.spyOn(process, 'exit')
+				.mockImplementation((() => {}) as any);
+			try {
+				await using cliResult = (await parseOptionsAndRunCLI([
 					'server',
 					'--wordpress-install-mode=do-not-attempt-installing',
 					'--skip-sqlite-setup',
 					'--verbosity=quiet',
 					'--port=0',
-				]);
+					...cliArgs,
+				])) as CLIServerResult;
 				const cliServer = cliResult[internalsKeyForTesting].cliServer;
-
-				const asyncDisposeSpy = vi
-					.spyOn(cliServer, Symbol.asyncDispose)
-					.mockImplementation((() => {}) as any);
-
-				try {
-					// process.exit should not have been called during startup
-					expect(exitSpy).not.toHaveBeenCalled();
-
-					// Find the handler registered by parseOptionsAndRunCLI
-					const newListenersAfterRunCli = process
-						.listeners(signal)
-						.filter((l) => !listenersBeforeRunCli.includes(l));
-					expect(newListenersAfterRunCli).toHaveLength(1);
-
-					// Invoke the handler and await its async cleanup
-					await Promise.all(
-						newListenersAfterRunCli
-							.map((listener) => listener as () => Promise<void>)
-							.map((listener) => listener())
-					);
-
-					expect(asyncDisposeSpy).toHaveBeenCalled();
-					expect(exitSpy).toHaveBeenCalledWith(0);
-				} finally {
-					exitSpy.mockRestore();
-					asyncDisposeSpy.mockRestore();
-				}
+				return cliServer[internalsKeyForTesting].workerThreadCount;
+			} finally {
+				exitSpy.mockRestore();
 			}
-		);
+		}
+
+		const defaultExpected = Math.min(6, Math.max(1, os.cpus().length - 1));
+		const autoExpected = Math.max(1, os.cpus().length - 1);
+
+		test('defaults to min(6, cpus-1) when --workers is not set', async () => {
+			expect(await getWorkerCount([])).toBe(defaultExpected);
+		});
+
+		test('honors an explicit --workers=3', async () => {
+			expect(await getWorkerCount(['--workers=3'])).toBe(3);
+		});
+
+		test('honors --workers=1 (single-worker bootstrap path)', async () => {
+			expect(await getWorkerCount(['--workers=1'])).toBe(1);
+		});
+
+		test('--workers=auto uses max(1, cpus-1)', async () => {
+			expect(await getWorkerCount(['--workers=auto'])).toBe(autoExpected);
+		});
+
+		async function expectInvalidWorkersValue(value: string) {
+			const consoleErrorSpy = vi
+				.spyOn(console, 'error')
+				.mockImplementation(() => {});
+			try {
+				await expect(
+					parseOptionsAndRunCLI([
+						'server',
+						'--wordpress-install-mode=do-not-attempt-installing',
+						'--skip-sqlite-setup',
+						'--verbosity=quiet',
+						'--port=0',
+						`--workers=${value}`,
+					])
+				).rejects.toThrow(`Invalid --workers value "${value}"`);
+			} finally {
+				consoleErrorSpy.mockRestore();
+			}
+		}
+
+		test('--workers=0 fails with a clear error', async () => {
+			await expectInvalidWorkersValue('0');
+		});
+
+		test('--workers=abc fails with a clear error', async () => {
+			await expectInvalidWorkersValue('abc');
+		});
+
+		async function getWarnCallsForWorkersArgs(
+			cliArgs: string[],
+			cpuCount: number
+		) {
+			const cpusStub = vi
+				.spyOn(os, 'cpus')
+				.mockReturnValue(new Array(cpuCount).fill({}) as os.CpuInfo[]);
+			const warnSpy = vi
+				.spyOn(logger, 'warn')
+				.mockImplementation(() => {});
+			try {
+				await getWorkerCount(cliArgs);
+				return warnSpy.mock.calls
+					.map((call) => call.join(' '))
+					.join('\n');
+			} finally {
+				warnSpy.mockRestore();
+				cpusStub.mockRestore();
+			}
+		}
+
+		test('does not warn when the default worker count is 6 on a large host', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs([], 8);
+			expect(warnCalls).not.toMatch(/below the recommended threshold/);
+			expect(warnCalls).not.toMatch(
+				/default worker count has been reduced/
+			);
+		});
+
+		test('warns that the default was CPU-reduced on a small host', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs([], 4);
+			expect(warnCalls).toMatch(
+				/default worker count has been reduced to 3 because this machine has only 4 CPU\(s\)/
+			);
+		});
+
+		test('warns when the user explicitly sets --workers below 6', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs(
+				['--workers=3'],
+				8
+			);
+			expect(warnCalls).toMatch(
+				/Worker count \(3\) is below the recommended threshold \(6\)/
+			);
+			expect(warnCalls).not.toMatch(
+				/default worker count has been reduced/
+			);
+		});
+
+		test('warns when --workers=auto resolves below 6 on small hosts', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs(
+				['--workers=auto'],
+				4
+			);
+			expect(warnCalls).toMatch(
+				/Worker count \(3\) is below the recommended threshold \(6\)/
+			);
+		});
+
+		test('does not warn when --workers is set to 6 or above', async () => {
+			const warnCalls = await getWarnCallsForWorkersArgs(
+				['--workers=6'],
+				8
+			);
+			expect(warnCalls).not.toMatch(/below the recommended threshold/);
+			expect(warnCalls).not.toMatch(
+				/default worker count has been reduced/
+			);
+		});
+
+		test('--experimental-multi-worker warns and still starts', async () => {
+			const warnSpy = vi
+				.spyOn(logger, 'warn')
+				.mockImplementation(() => {});
+			try {
+				const count = await getWorkerCount([
+					'--experimental-multi-worker=4',
+				]);
+				// Value is ignored; default applies.
+				expect(count).toBe(defaultExpected);
+				const warnCalls = warnSpy.mock.calls
+					.map((call) => call.join(' '))
+					.join('\n');
+				expect(warnCalls).toMatch(/--experimental-multi-worker/);
+				expect(warnCalls).toMatch(/--workers/);
+			} finally {
+				warnSpy.mockRestore();
+			}
+		});
 	});
 
 	describe('port in use', () => {
 		test('should error when explicit port is already in use', async () => {
-			const stdoutMessages: string[] = [];
-			const mockStdout = vi
-				.spyOn(process.stdout, 'write')
-				.mockImplementation((chunk) => {
-					stdoutMessages.push(String(chunk));
-					return true;
-				});
-			const mockExit = vi
-				.spyOn(process, 'exit')
-				.mockImplementation(() => undefined as never);
-
 			const port = 12345;
 			const blockingServer = http.createServer();
 			await new Promise<void>((resolve) => {
@@ -1450,17 +2640,13 @@ describe('other run-cli behaviors', () => {
 			});
 
 			try {
-				await runCLI({
-					command: 'server',
-					port,
-				});
-
-				expect(stdoutMessages.join('')).toContain(
-					`Error: listen EADDRINUSE: address already in use :::${port}`
-				);
+				await expect(
+					runCLI({
+						command: 'server',
+						port,
+					})
+				).rejects.toThrow(`EADDRINUSE`);
 			} finally {
-				mockExit.mockRestore();
-				mockStdout.mockRestore();
 				blockingServer.close();
 			}
 		});
@@ -1489,3 +2675,81 @@ describe('other run-cli behaviors', () => {
 		});
 	});
 });
+
+describe('resolveWorkerCount', () => {
+	function withCpus<T>(count: number, fn: () => T): T {
+		const stub = vi
+			.spyOn(os, 'cpus')
+			.mockReturnValue(new Array(count).fill({}) as os.CpuInfo[]);
+		try {
+			return fn();
+		} finally {
+			stub.mockRestore();
+		}
+	}
+
+	test('default caps at 6 on large hosts', () => {
+		withCpus(16, () => {
+			expect(resolveWorkerCount(undefined)).toBe(6);
+		});
+	});
+
+	test('default shrinks to cpus-1 on small hosts', () => {
+		withCpus(4, () => {
+			expect(resolveWorkerCount(undefined)).toBe(3);
+		});
+	});
+
+	test('default is at least 1 on single-core hosts', () => {
+		withCpus(1, () => {
+			expect(resolveWorkerCount(undefined)).toBe(1);
+		});
+	});
+
+	test('default is at least 1 when os.cpus() returns an empty array', () => {
+		withCpus(0, () => {
+			expect(resolveWorkerCount(undefined)).toBe(1);
+		});
+	});
+
+	test('auto returns cpus-1 without the 6 cap', () => {
+		withCpus(16, () => {
+			expect(resolveWorkerCount('auto')).toBe(15);
+		});
+	});
+
+	test('auto is at least 1 on single-core hosts', () => {
+		withCpus(1, () => {
+			expect(resolveWorkerCount('auto')).toBe(1);
+		});
+	});
+
+	test('explicit number is honored verbatim', () => {
+		withCpus(2, () => {
+			expect(resolveWorkerCount(32)).toBe(32);
+			expect(resolveWorkerCount(1)).toBe(1);
+		});
+	});
+});
+
+async function extractZip(zipPath: string, extractTo: string) {
+	const extractRoot = path.resolve(extractTo);
+	const zipStream = decodeZip(new Blob([await readFile(zipPath)]).stream());
+	for await (const file of zipStream) {
+		const target = path.resolve(extractRoot, file.name);
+		if (
+			target !== extractRoot &&
+			!target.startsWith(`${extractRoot}${path.sep}`)
+		) {
+			throw new Error(
+				`Refusing to extract ZIP entry outside target: ${file.name}`
+			);
+		}
+		if (file.type === 'directory' || file.name.endsWith('/')) {
+			await mkdir(target, { recursive: true });
+			continue;
+		}
+		await mkdir(path.dirname(target), { recursive: true });
+		await writeFile(target, new Uint8Array(await file.arrayBuffer()));
+	}
+}

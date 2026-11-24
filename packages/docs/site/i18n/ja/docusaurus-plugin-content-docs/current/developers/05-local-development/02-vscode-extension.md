@@ -28,18 +28,22 @@ Key Features:
 -   **Ease of Use**: Simplifies the development workflow with integrated tools.
 -->
 
-:::info **ドキュメント**
+<div class="callout callout-info">
+
+**ドキュメント**
 
 VS Code 拡張機能は、別の GitHub リポジトリ[Playground Tools](https://github.com/WordPress/playground-tools/)で管理されています。最新のドキュメントは[専用の README ファイル](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md)をご覧ください。
 
-:::
+</div>
 
 <!--
-:::info **Documentation**
+<div class="callout callout-info">
+
+**Documentation**
 
 The VS Code extension is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://github.com/WordPress/playground-tools/blob/trunk/packages/vscode-extension/README.md).
 
-:::
+</div>
 -->
 
 ## インストールと使用方法:

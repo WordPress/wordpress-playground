@@ -4,9 +4,13 @@ import uiReducer, {
 	__internal_uiSlice,
 	listenToOnlineOfflineEventsMiddleware,
 } from './slice-ui';
+import { siteManagementMiddleware } from './site-management-api-middleware';
+import { mcpBridgeMiddleware } from './init-mcp-bridge';
 import type { SiteInfo } from './slice-sites';
 import sitesReducer, {
+	isStoredSite,
 	selectSiteBySlug,
+	selectTemporarySite,
 	selectTemporarySites,
 } from './slice-sites';
 import { PlaygroundRoute, redirectTo } from '../url/router';
@@ -40,12 +44,14 @@ function ignoreSerializableCheck<S>(
 			// Ignore these field paths in all actions
 			ignoredActionPaths: [
 				/payload\.(changes\.)?client/,
+				/payload\.email/,
 				/payload\.(changes\.)?opfsMountDescriptor\.device\.handle/,
 				/.+\.originalBlueprint/,
 			],
 			// Ignore these paths in the state
 			ignoredPaths: [
 				/clients\.entities\.[^.]+\.client/,
+				/clients\.entities\.[^.]+\.emails/,
 				/clients\.entities\.[^.]+\.opfsMountDescriptor\.device\.handle/,
 				/.+\.originalBlueprint/,
 			],
@@ -60,9 +66,10 @@ const store = configureStore({
 		clients: clientsReducer,
 	},
 	middleware: (getDefaultMiddleware) =>
-		ignoreSerializableCheck(getDefaultMiddleware).concat(
-			listenToOnlineOfflineEventsMiddleware
-		),
+		ignoreSerializableCheck(getDefaultMiddleware)
+			.concat(listenToOnlineOfflineEventsMiddleware)
+			.concat(siteManagementMiddleware.middleware)
+			.concat(mcpBridgeMiddleware.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;
@@ -84,6 +91,16 @@ export const selectActiveSite = (
 		? state.sites.entities[state.ui.activeSite.slug]
 		: undefined;
 
+/**
+ * Returns the active site only when it has durable storage. Autosaves count as
+ * stored; callers that need an explicit save should use isExplicitlySavedSite.
+ */
+export const selectActiveStoredSite = createSelector(
+	[selectActiveSite],
+	(activeSite) =>
+		activeSite && isStoredSite(activeSite) ? activeSite : undefined
+);
+
 export const selectActiveSiteError = (
 	state: PlaygroundReduxState
 ): SiteError | undefined =>
@@ -96,7 +113,48 @@ export const selectActiveSiteErrorDetails = (
 
 export const useActiveSite = () => useAppSelector(selectActiveSite);
 
-export const setActiveSite = (slug: string | undefined) => {
+/**
+ * Returns the active site only when it has a durable storage backend.
+ */
+export const useActiveStoredSite = () => useAppSelector(selectActiveStoredSite);
+
+const YOU_HAVE_AUTOSAVE_NUDGE_ENABLED_STORAGE_KEY =
+	'playground-you-have-autosave-nudge-enabled';
+
+/** Reads whether matching autosaves should be offered on the current device. */
+export function isYouHaveAutosaveNudgeEnabled(): boolean {
+	try {
+		return (
+			localStorage.getItem(
+				YOU_HAVE_AUTOSAVE_NUDGE_ENABLED_STORAGE_KEY
+			) !== 'false'
+		);
+	} catch {
+		return true;
+	}
+}
+
+/** Persists whether matching autosaves should be offered on the current device. */
+export function setYouHaveAutosaveNudgeEnabled(enabled: boolean): void {
+	try {
+		localStorage.setItem(
+			YOU_HAVE_AUTOSAVE_NUDGE_ENABLED_STORAGE_KEY,
+			String(enabled)
+		);
+	} catch {
+		// The current dismissal still succeeds when private storage is unavailable.
+	}
+}
+
+/**
+ * Returns the temporary site for the current browser session, when one exists.
+ */
+export const useTemporarySite = () => useAppSelector(selectTemporarySite);
+
+export const setActiveSite = (
+	slug: string | undefined,
+	options: { updateUrl?: boolean } = {}
+) => {
 	return (
 		dispatch: PlaygroundDispatch,
 		getState: () => PlaygroundReduxState
@@ -107,7 +165,7 @@ export const setActiveSite = (slug: string | undefined) => {
 			return;
 		}
 		dispatch(__internal_uiSlice.actions.setActiveSite(slug));
-		if (slug) {
+		if (slug && options.updateUrl !== false) {
 			const site = selectSiteBySlug(getState(), slug);
 			redirectTo(PlaygroundRoute.site(site));
 		}

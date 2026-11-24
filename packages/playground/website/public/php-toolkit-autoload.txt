@@ -1,0 +1,95 @@
+<?php
+class WP_HTML_Tag_Processor {
+    private $html;
+    private $offset = 0;
+    private $tag_start = -1;
+    private $tag_end = -1;
+    private $attrs = [];
+
+    public function __construct($html) {
+        $this->html = $html;
+    }
+
+    public function next_tag($name) {
+        $name = strtolower($name);
+        $len = strlen($this->html);
+
+        while ($this->offset < $len) {
+            $lt = strpos($this->html, '<', $this->offset);
+            if ($lt === false) {
+                return false;
+            }
+            if (substr($this->html, $lt, 4) === '<!--') {
+                $e = strpos($this->html, '-->', $lt + 4);
+                $this->offset = $e === false ? $len : $e + 3;
+                continue;
+            }
+
+            $nx = isset($this->html[$lt + 1]) ? $this->html[$lt + 1] : '';
+            if ($nx === '/' || $nx === '!' || $nx === '?') {
+                $this->offset = $lt + 1;
+                continue;
+            }
+
+            $en = $lt + 1;
+            while ($en < $len && ctype_alnum($this->html[$en])) {
+                $en++;
+            }
+            $tag = strtolower(substr($this->html, $lt + 1, $en - $lt - 1));
+            $gt = strpos($this->html, '>', $en);
+            if ($gt === false) {
+                return false;
+            }
+
+            $this->offset = $gt + 1;
+            if ($tag !== $name) {
+                continue;
+            }
+
+            $this->tag_start = $lt;
+            $this->tag_end = $gt;
+            $this->attrs = [];
+            $attr_str = substr($this->html, $en, $gt - $en);
+            preg_match_all('/([a-zA-Z_:][a-zA-Z0-9:_.-]*)\s*=\s*"([^"]*)"/', $attr_str, $m, PREG_SET_ORDER);
+            foreach ($m as $a) {
+                $this->attrs[strtolower($a[1])] = $a[2];
+            }
+            return true;
+        }
+
+        return false;
+    }
+
+    public function get_attribute($name) {
+        $k = strtolower($name);
+        return array_key_exists($k, $this->attrs) ? $this->attrs[$k] : null;
+    }
+
+    public function set_attribute($name, $value) {
+        $tag_str = substr($this->html, $this->tag_start, $this->tag_end - $this->tag_start + 1);
+        $self_close = '';
+        $body = substr($tag_str, 1, -1);
+        if (substr($body, -1) === '/') {
+            $self_close = ' /';
+            $body = substr($body, 0, -1);
+        }
+        $body = rtrim($body);
+        $k = strtolower($name);
+        $attr_pat = '/\s+' . preg_quote($name, '/') . '\s*=\s*"[^"]*"/i';
+        if (array_key_exists($k, $this->attrs)) {
+            $body = preg_replace($attr_pat, ' ' . $name . '="' . htmlspecialchars($value, ENT_QUOTES) . '"', $body, 1);
+        } else {
+            $body .= ' ' . $name . '="' . htmlspecialchars($value, ENT_QUOTES) . '"';
+        }
+        $new_tag = '<' . $body . $self_close . '>';
+        $delta = strlen($new_tag) - strlen($tag_str);
+        $this->html = substr($this->html, 0, $this->tag_start) . $new_tag . substr($this->html, $this->tag_end + 1);
+        $this->tag_end += $delta;
+        $this->offset += $delta;
+        $this->attrs[$k] = $value;
+    }
+
+    public function get_updated_html() {
+        return $this->html;
+    }
+}

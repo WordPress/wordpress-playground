@@ -2,6 +2,7 @@ import { logger } from '@php-wasm/logger';
 import { EmscriptenDownloadMonitor, ProgressTracker } from '@php-wasm/progress';
 import {
 	consumeAPI,
+	isLegacyPHPVersion,
 	type Pooled,
 	type UniversalPHP,
 } from '@php-wasm/universal';
@@ -31,6 +32,7 @@ import {
 	mergeDefinedConstants,
 } from '../run-cli';
 import type { CLIOutput } from '../cli-output';
+import { cliExtensionArgsToExtensionsArray } from '../php-extensions';
 
 /**
  * Boots Playground CLI workers using Blueprint version 1.
@@ -63,6 +65,9 @@ export class BlueprintsV1Handler {
 		playground: Pooled<PlaygroundCliWorker>,
 		workerPostInstallMountsPort: NodeMessagePort
 	) {
+		const runtimeConfiguration = await resolveRuntimeConfiguration(
+			this.getEffectiveBlueprint()
+		);
 		let wpDetails: any = undefined;
 		let wordPressZip: any = undefined;
 		let preinstalledWpContentPath: string | undefined = undefined;
@@ -93,7 +98,9 @@ export class BlueprintsV1Handler {
 				);
 			}) as any);
 
-			wpDetails = await resolveWordPressRelease(this.args.wp);
+			wpDetails = await resolveWordPressRelease(
+				runtimeConfiguration.wpVersion
+			);
 			preinstalledWpContentPath = path.join(
 				CACHE_FOLDER,
 				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
@@ -116,20 +123,23 @@ export class BlueprintsV1Handler {
 			sqliteIntegrationPluginZip = undefined;
 		} else {
 			this.cliOutput.updateProgress('Preparing SQLite database');
-			sqliteIntegrationPluginZip = await fetchSqliteIntegration();
+			// Use pre-patched v3.0.0-rc.3 for legacy PHP (closures replaced
+			// with named functions, PHP 5.2 polyfills added offline).
+			const phpVersion = runtimeConfiguration.phpVersion;
+			const isLegacyPhp = isLegacyPHPVersion(phpVersion);
+			const sqliteVersion = isLegacyPhp ? 'v3.0.0-rc.3-php52' : 'trunk';
+			sqliteIntegrationPluginZip =
+				await fetchSqliteIntegration(sqliteVersion);
 		}
 
 		this.cliOutput.updateProgress('Booting WordPress');
-
-		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			this.getEffectiveBlueprint()
-		);
 
 		// TODO: Fix this type issue that requires the cast to unknown
 		await (
 			playground as unknown as PlaygroundCliBlueprintV1Worker
 		).bootWordPress(
 			{
+				phpVersion: runtimeConfiguration.phpVersion,
 				wpVersion: runtimeConfiguration.wpVersion,
 				siteUrl: this.siteUrl,
 				wordpressInstallMode:
@@ -184,15 +194,13 @@ export class BlueprintsV1Handler {
 		await playground.bootRequestHandler({
 			phpVersion: runtimeConfiguration.phpVersion,
 			siteUrl: this.siteUrl,
+			phpIniEntries: this.args['php-ini'],
 			mountsBeforeWpInstall: this.args['mount-before-install'] || [],
 			mountsAfterWpInstall: this.args['mount'] || [],
 			processId: worker.processId,
 			followSymlinks: this.args.followSymlinks === true,
 			trace: this.args.experimentalTrace === true,
-			withIntl: this.args.intl,
-			withRedis: this.args.redis,
-			withMemcached: this.args.memcached,
-			withXdebug: !!this.args.xdebug,
+			extensions: cliExtensionArgsToExtensionsArray(this.args),
 			nativeInternalDirPath,
 			pathAliases: this.args.pathAliases,
 		});

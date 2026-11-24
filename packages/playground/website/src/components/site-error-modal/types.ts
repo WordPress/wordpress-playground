@@ -15,6 +15,7 @@ export type BlueprintStepError = {
 
 export type PresentationHelpers = {
 	deleteSite: () => void;
+	reloadPage: () => void;
 	restartWithoutPr: () => void;
 	reloadWithoutBlueprint: () => Promise<void> | void;
 };

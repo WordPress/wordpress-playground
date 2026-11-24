@@ -46,7 +46,9 @@ Pode parecer que nada está acontecendo, mas este Blueprint já inicia um site W
 
 If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file: -->
 
-:::tip **Autocompletar**
+<div class="callout callout-tip">
+
+**Autocompletar**
 
 Se você usar uma IDE, como VS Code ou PHPStorm, pode usar o [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) para uma experiência de desenvolvimento Blueprint com autocompletar. Adicione a seguinte linha no topo do seu arquivo `blueprint.json`:
 
@@ -58,13 +60,13 @@ Se você usar uma IDE, como VS Code ou PHPStorm, pode usar o [Blueprint JSON Sch
 
 <!-- ::: -->
 
-:::
+</div>
 
 <!-- Here's what it looks like in VS Code: -->
 
 Veja como fica no VS Code:
 
-![Autocompletion visualized](@site/static/img/blueprints/schema-autocompletion.webp)
+![Autocompletion visualized](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/schema-autocompletion.webp)
 
 <!-- ## 2. Set the site title to "My first Blueprint"
 
@@ -165,7 +167,7 @@ The site should now look like the screenshot below: -->
 
 O site agora deve se parecer com a captura de tela abaixo:
 
-![Site with the adventurer theme](@site/static/img/blueprints/installed-adventurer-theme.webp)
+![Site with the adventurer theme](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-adventurer-theme.webp)
 
 <!-- ### Resources
 
@@ -181,9 +183,12 @@ The example uses the `wordpress.org/themes` resource, which requires a `slug` id
 
 In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.org/themes/adventurer/`.
 
-:::note
+<div class="callout callout-info">
+
 Learn more about the supported resources in the [Blueprint Resources API Reference](/blueprints/steps/resources/).
-::: -->
+
+</div>
+-->
 
 ### Recursos
 
@@ -199,9 +204,11 @@ O exemplo usa o recurso `wordpress.org/themes`, que requer um `slug` idêntico a
 
 Neste caso, `https://wordpress.org/themes/<slug>/` se torna `https://wordpress.org/themes/adventurer/`.
 
-:::note
+<div class="callout callout-info">
+
 Saiba mais sobre os recursos suportados em [Blueprint Resources API Reference](/blueprints/steps/resources/).
-:::
+
+</div>
 
 <!-- ## 4. Install the _Hello Dolly_ plugin
 
@@ -373,7 +380,7 @@ That's what it looks like when you navigate to the dashboard: -->
 
 Veja como fica quando você navega para o painel:
 
-![Site with the custom plugin](@site/static/img/blueprints/installed-custom-plugin.webp)
+![Site with the custom plugin](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp)
 
 <!-- ### Create a plugin and zip it
 
@@ -495,13 +502,13 @@ Para executar esse código durante a configuração do site, use a etapa [`runPH
 
 <!-- ### Import the new content
 
-Let's use the [`importWxr` step](/blueprints/steps#ImportWXRStep) to import a WordPress export (`WXR`) file that helps test WordPress themes. The file is available in the [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) repository, and you can access it via its `raw.githubusercontent.com` address: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
+Let's use the [`importWxr` step](/blueprints/steps#ImportWxrStep) to import a WordPress export (`WXR`) file that helps test WordPress themes. The file is available in the [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) repository, and you can access it via its `raw.githubusercontent.com` address: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
 
 Here's what the final Blueprint looks like: -->
 
 ### Importe o novo conteúdo
 
-Vamos usar a etapa [`importWxr`](/blueprints/steps#ImportWXRStep) para importar um arquivo de exportação do WordPress (`WXR`) que ajuda a testar temas do WordPress. O arquivo está disponível no repositório [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data), e você pode acessá-lo através de seu endereço `raw.githubusercontent.com`: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
+Vamos usar a etapa [`importWxr`](/blueprints/steps#ImportWxrStep) para importar um arquivo de exportação do WordPress (`WXR`) que ajuda a testar temas do WordPress. O arquivo está disponível no repositório [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data), e você pode acessá-lo através de seu endereço `raw.githubusercontent.com`: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
 
 Veja como fica o Blueprint final:
 

@@ -54,7 +54,7 @@
 			"options": {
 				"commands": [
 					"nx run playground-php-cors-proxy:start",
-					"nx dev playground-remote --configuration=development-for-website",
+					"nx dev playground-remote --configuration=development",
 					"nx dev:standalone playground-personal-wp --configuration=development --output-style=stream-without-prefixes"
 				],
 				"parallel": true,
@@ -93,6 +93,15 @@
 			"options": {
 				"passWithNoTests": true,
 				"reportsDirectory": "../../../coverage/packages/playground/personal-wp"
+			}
+		},
+		"e2e:playwright": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"npx playwright test --config=packages/playground/personal-wp/playwright/playwright.config.ts"
+				],
+				"parallel": false
 			}
 		},
 		"lint": {

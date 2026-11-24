@@ -4,7 +4,7 @@
 	"plugins": ["@nx", "playground-dev"],
 	"overrides": [
 		{
-			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+			"files": ["*.ts", "*.mts", "*.tsx", "*.js", "*.jsx"],
 			"extends": ["plugin:comment-length/recommended"],
 			"rules": {
 				"@nx/enforce-module-boundaries": [
@@ -21,6 +21,12 @@
 								"sourceTag": "scope:independent-from-php-binaries",
 								"notDependOnLibsWithTags": [
 									"scope:php-binaries"
+								]
+							},
+							{
+								"sourceTag": "scope:cli",
+								"notDependOnLibsWithTags": [
+									"scope:browser-only"
 								]
 							}
 						]
@@ -65,7 +71,7 @@
 			}
 		},
 		{
-			"files": ["*.ts", "*.tsx"],
+			"files": ["*.ts", "*.mts", "*.tsx"],
 			"extends": ["plugin:@nx/typescript"],
 			"rules": {
 				"@typescript-eslint/ban-ts-comment": 0,

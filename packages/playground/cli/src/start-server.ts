@@ -14,7 +14,10 @@ const exec = promisify(execCb);
 
 export interface ServerOptions {
 	port: number;
-	onBind: (server: Server, port: number) => Promise<RunCLIServer | void>;
+	onBind: (
+		server: Server,
+		port: number
+	) => Promise<RunCLIServer | number | void>;
 	/**
 	 * Handler for requests. Always returns StreamedPHPResponse.
 	 */
@@ -36,7 +39,7 @@ export function isPortInUse(port: number): Promise<boolean> {
 
 export async function startServer(
 	options: ServerOptions
-): Promise<RunCLIServer | void> {
+): Promise<RunCLIServer | number | void> {
 	const app = express();
 
 	const server = await new Promise<
@@ -84,7 +87,22 @@ export async function startServer(
 		setCodespacesPortPublic(port, codespaceName);
 	}
 
-	return await options.onBind(server, port);
+	try {
+		return await options.onBind(server, port);
+	} catch (error) {
+		// The server is already listening when onBind runs. If onBind
+		// throws (e.g., a blueprint file is missing, port allocation
+		// races, etc.), the listening socket would otherwise stay open
+		// and keep library callers' processes alive. Close it here so
+		// callers only need to handle the rejection.
+		if (server.listening) {
+			await new Promise<void>((resolve) => {
+				server.close(() => resolve());
+				server.closeAllConnections();
+			});
+		}
+		throw error;
+	}
 }
 
 /**
@@ -109,7 +127,23 @@ async function handleStreamedResponse(
 
 	// Cast needed: Web ReadableStream and Node.js ReadableStream types differ
 	const nodeStream = Readable.fromWeb(streamedResponse.stdout as any);
-	await pipeline(nodeStream, res);
+	try {
+		await pipeline(nodeStream, res);
+	} catch (error: unknown) {
+		// Ignore client-disconnect errors. These occur when the browser
+		// navigates away or refreshes before the response finishes:
+		// - ERR_STREAM_PREMATURE_CLOSE: stream was open but closed early
+		// - ERR_STREAM_UNABLE_TO_PIPE: stream was already destroyed
+		if (
+			error instanceof Error &&
+			'code' in error &&
+			(error.code === 'ERR_STREAM_PREMATURE_CLOSE' ||
+				error.code === 'ERR_STREAM_UNABLE_TO_PIPE')
+		) {
+			return;
+		}
+		throw error;
+	}
 }
 
 const bufferRequestBody = async (req: Request): Promise<Uint8Array> =>
@@ -123,10 +157,7 @@ const bufferRequestBody = async (req: Request): Promise<Uint8Array> =>
 		});
 	});
 
-async function setCodespacesPortPublic(
-	port: number,
-	codespaceName: string
-) {
+async function setCodespacesPortPublic(port: number, codespaceName: string) {
 	logger.log(`Publishing port ${port}...`);
 	const cmd = `gh codespace ports visibility ${port}:public -c ${codespaceName}`;
 	for (let i = 0; i < 10; i++) {

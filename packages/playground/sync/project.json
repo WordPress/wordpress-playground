@@ -39,7 +39,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"nx dev playground-remote --configuration=development-for-website",
+					"nx dev playground-remote --configuration=development",
 					"sleep 1; nx dev:standalone playground-sync --hmr --output-style=stream-without-prefixes"
 				],
 				"parallel": true,

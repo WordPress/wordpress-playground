@@ -10,7 +10,7 @@ import wpConfigTransformer from '../wp-config-transformer.php?raw';
 
 // load wp-config-sample.php
 const wpConfigSample = fs.readFileSync(
-	path.join(import.meta.dirname, 'wp-config-sample.php'),
+	path.join(import.meta.dirname, 'fixtures/wp-config-sample.php'),
 	'utf8'
 );
 

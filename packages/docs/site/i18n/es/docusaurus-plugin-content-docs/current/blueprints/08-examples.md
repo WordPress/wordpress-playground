@@ -14,12 +14,13 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <!-- # Blueprints Examples -->
 
-:::tip
+<div class="callout callout-tip">
+
 Consulta la [Galería de Blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) para explorar ejemplos de código del mundo real usando WordPress Playground para lanzar un sitio WordPress con una variedad de configuraciones.
 
 <!-- Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups. -->
 
-:::
+</div>
 
 Veamos algunas cosas geniales que puedes hacer con Blueprints.
 
@@ -159,12 +160,13 @@ Para usar tu terminal, primero debes montar el directorio `/wordpress/` y asegur
 
 <!-- To use your terminal, you must first mount the `/wordpress/` directory and ensure the SQLite database integration is configured. This is because Playground's internal database doesn't persist on a mounted site, so you must explicitly install the database plugin via a Blueprint. This allows WP-CLI to recognize the WordPress installation and connect to its database. -->
 
-:::note
+<div class="callout callout-info">
+
 Si ejecutas comandos WP-CLI como pasos dentro de tu archivo Blueprint, esta configuración manual no es necesaria.
 
 <!-- If you run WP-CLI commands as steps within your Blueprint file, this manual setup is not needed. -->
 
-:::
+</div>
 
 El siguiente fragmento de Blueprint maneja esta configuración:
 
@@ -394,13 +396,13 @@ Este bundle de Blueprint sería un archivo zip que contiene los siguientes archi
 <!-- This Blueprint bundle would be zip file containing the following files: -->
 
 - `/blueprint.json` - La declaración del blueprint descrita anteriormente
-  <!-- - `/blueprint.json` - The blueprint declaration outlined above -->
+      <!-- - `/blueprint.json` - The blueprint declaration outlined above -->
 - `/my-theme.zip` - Un paquete de tema
-  <!-- - `/my-theme.zip` - A theme package -->
+      <!-- - `/my-theme.zip` - A theme package -->
 - `/my-plugin.zip` - Un paquete de plugin
-  <!-- - `/my-plugin.zip` - A plugin package -->
+      <!-- - `/my-plugin.zip` - A plugin package -->
 - `/assets/custom-page.html` - Un archivo HTML personalizado
-  <!-- - `/assets/custom-page.html` - A custom HTML file -->
+      <!-- - `/assets/custom-page.html` - A custom HTML file -->
 
 Puedes usar este bundle de Blueprint:
 

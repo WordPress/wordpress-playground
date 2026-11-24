@@ -14,7 +14,7 @@ Em um nível alto, o WordPress Playground funciona em navegadores web da seguint
 
 Visualmente, isso se parece com isto:
 
-![Visão geral da arquitetura](@site/static/img/architecture-overview.webp)
+![Visão geral da arquitetura](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/architecture-overview.webp)
 
 ## Ideias de alto nível
 

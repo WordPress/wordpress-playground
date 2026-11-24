@@ -18,14 +18,15 @@ WordPress Playground consists of the following high-level components:
 - [WordPress](/developers/architecture/wordpress)
 - [WebAssembly PHP](/developers/architecture/wasm-php-overview)
 - [Browser bindings](/developers/architecture/browser-concepts)
-- [@php-wasm/node](https://npmjs.com/package/@php-wasm/node) 経由の Node.js バインディング
+- 共有 API、プラットフォーム バインディング、バージョン固有のバイナリのための [PHP.wasm パッケージ](/developers/architecture/php-wasm-packages)
 - [Public API](/developers/apis/)
 
 <!--
 -   [WordPress](/developers/architecture/wordpress)
 -   [WebAssembly PHP](/developers/architecture/wasm-php-overview)
 -   [Browser bindings](/developers/architecture/browser-concepts)
--   Node.js bindings via [@php-wasm/node](https://npmjs.com/package/@php-wasm/node)
+-   [PHP.wasm packages](/developers/architecture/php-wasm-packages) for the shared
+    API, platform bindings, and version-specific binaries
 -   [Public API](/developers/apis/)
  -->
 
@@ -54,11 +55,11 @@ WordPress Playground uses [NX](https://nx.dev/), a build system designed for mon
  -->
 
 Playground パッケージとプロジェクト間の依存関係は、Webpack のようなバンドラーにとっては [複雑すぎる](https://github.com/WordPress/wordpress-playground/pull/151) ですが、NX はこの複雑さをはるかに適切に処理します。
-![Dependency graph](@site/static/img/dependencies.webp)
+![Dependency graph](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dependencies.webp)
 
 <!--
 The dependencies between Playground packages and projects [are too complex](https://github.com/WordPress/wordpress-playground/pull/151) for a bundler like Webpack, and NX handles this complexity much better:
-![Dependency graph](@site/static/img/dependencies.webp)
+![Dependency graph](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dependencies.webp)
  -->
 
 詳細については、[NX 開発者ドキュメント](https://nx.dev/getting-started/intro)をご覧ください。

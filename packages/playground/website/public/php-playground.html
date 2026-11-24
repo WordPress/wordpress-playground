@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
@@ -101,8 +101,9 @@
 			}
 
 			#editor .cm-content {
-				font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
-					Consolas, 'Courier New', monospace;
+				font-family:
+					'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+					'Courier New', monospace;
 			}
 
 			/* Enhanced PHP syntax highlighting */
@@ -246,8 +247,9 @@
 				background: #f5f5f5;
 				padding: 2px 4px;
 				border-radius: 3px;
-				font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono',
-					Consolas, 'Courier New', monospace;
+				font-family:
+					'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas,
+					'Courier New', monospace;
 				font-size: 14px;
 			}
 
@@ -517,6 +519,15 @@
 		</div>
 
 		<script>
+			const phpNextVersion = 'next';
+			const phpVersionLabels = {
+				[phpNextVersion]: 'Next (development)',
+			};
+
+			function getPhpVersionLabel(version) {
+				return phpVersionLabels[version] || version;
+			}
+
 			// Function to restore code, PHP version, and WordPress version from URL fragment
 			function loadStateFromURL() {
 				const fragment = window.location.hash.slice(1); // Remove #
@@ -540,7 +551,12 @@
 						}
 					}
 				}
-				return { code: null, phpVersion: null, wpVersion: null };
+				const query = new URLSearchParams(window.location.search);
+				return {
+					code: null,
+					phpVersion: query.get('php'),
+					wpVersion: query.get('wp'),
+				};
 			}
 
 			/**
@@ -704,10 +720,9 @@
 				defaultHighlightStyle,
 			} from 'https://esm.sh/@codemirror/language';
 			import { php } from 'https://esm.sh/@codemirror/lang-php';
-			import {
-				startPlaygroundWeb,
-				SupportedPHPVersionsList,
-			} from 'https://playground.wordpress.net/client/index.js';
+
+			const { startPlaygroundWeb, SupportedPHPVersionsList } =
+				await importPlaygroundClient();
 
 			const editorEl = document.getElementById('editor');
 			const phpCompartment = new Compartment();
@@ -722,10 +737,10 @@
 
 			// Populate PHP version select options from SupportedPHPVersionsList
 			phpVersionSelect.innerHTML = ''; // Clear existing options
-			SupportedPHPVersionsList.forEach((version) => {
+			[phpNextVersion, ...SupportedPHPVersionsList].forEach((version) => {
 				const option = document.createElement('option');
 				option.value = version;
-				option.textContent = version;
+				option.textContent = getPhpVersionLabel(version);
 				phpVersionSelect.appendChild(option);
 			});
 
@@ -857,7 +872,7 @@ var_dump($html_processor->get_tag());
 
 			async function bootPlayground(phpVersion, wpVersion) {
 				// Point the iframe at the appropriate PHP and WordPress versions using the Query API
-				previewIframe.src = `https://playground.wordpress.net/remote.html`;
+				previewIframe.src = getPlaygroundRemoteUrl();
 				client = await startPlaygroundWeb({
 					iframe: previewIframe,
 					remoteUrl: previewIframe.src,
@@ -891,12 +906,41 @@ var_dump($html_processor->get_tag());
 						e
 					);
 				}
-				await client.isReady;
+				await waitForPlaygroundReady(client);
 				await client.writeFile('/wordpress/code.php', startingCode);
 				await client.goTo('/code.php'); // Blank document
 				// Sync current versions after boot to avoid unnecessary reboots on first run
 				currentPhpVersion = phpVersionSelect.value;
 				currentWpVersion = wpVersionSelect.value;
+			}
+
+			async function importPlaygroundClient() {
+				try {
+					return await import(getPlaygroundClientUrl());
+				} catch (e) {
+					return await import('https://playground.wordpress.net/client/index.js');
+				}
+			}
+
+			function getPlaygroundClientUrl() {
+				if (window.location.pathname.startsWith('/website-server/')) {
+					return `${window.location.origin}/website-server/client/index.js`;
+				}
+				return new URL('./client/index.js', window.location.href).href;
+			}
+
+			function getPlaygroundRemoteUrl() {
+				if (window.location.pathname.startsWith('/website-server/')) {
+					return `${window.location.origin}/remote.html`;
+				}
+				return new URL('./remote.html', window.location.href).href;
+			}
+
+			function waitForPlaygroundReady(client) {
+				if (typeof client.isReady === 'function') {
+					return client.isReady();
+				}
+				return client.isReady;
 			}
 
 			async function executeCode() {

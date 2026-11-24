@@ -71,6 +71,14 @@
 				"reportsDirectory": "../../../coverage/packages/playground/wordpress"
 			}
 		},
+		"test-legacy-wp-version-boot": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": [
+					"node packages/playground/wordpress/tests/test-legacy-wp-version-boot.mjs"
+				]
+			}
+		},
 		"lint": {
 			"executor": "@nx/eslint:lint",
 			"outputs": ["{options.outputFile}"],

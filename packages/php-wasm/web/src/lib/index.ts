@@ -1,4 +1,9 @@
 export type { LoaderOptions as PHPWebLoaderOptions } from './load-runtime';
+export type {
+	BuiltInPHPWebExtensionName,
+	PHPWebExtension,
+	RuntimePHPWebExtensionSource,
+} from './extensions/load-extensions';
 
 export { loadWebRuntime } from './load-runtime';
 export { getPHPLoaderModule } from './get-php-loader-module';
@@ -7,6 +12,7 @@ export { setupPostMessageRelay } from './setup-post-message-relay';
 export { spawnPHPWorkerThread } from './worker-thread/spawn-php-worker-thread';
 export { createDirectoryHandleMountHandler } from './directory-handle-mount';
 export type {
+	DirectoryHandleMount,
 	MountDevice,
 	MountOptions,
 	SyncProgress,

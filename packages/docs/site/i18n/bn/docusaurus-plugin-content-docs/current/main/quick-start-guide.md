@@ -4,8 +4,6 @@ slug: /quick-start-guide
 description: প্লেগ্রাউন্ড দিয়ে শুরু করার একটি ৫ মিনিটের গাইড। প্লাগইন পরীক্ষা করা, থিম ট্রাই করা এবং বিভিন্ন WP/PHP সংস্করণ ব্যবহার করার পদ্ধতি শিখুন।
 ---
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 <!--
 # Start using WordPress Playground in 5 minutes
 -->
@@ -34,7 +32,9 @@ This page will guide you through each of these. Oh, and if you're a visual learn
 ## Start a new WordPress site
 -->
 
-## একটি নতুন ওয়ার্ডপ্রেস সাইট শুরু করুন
+<a id="একটি-নতুন-ওয়ার্ডপ্রেস-সাইট-শুরু-করুন"></a>
+
+## একটি নতুন ওয়ার্ডপ্রেস সাইট শুরু করুন {#start-a-new-wordpress-site}
 
 <!--
 Every time you visit the [official demo on playground.wordpress.net](https://playground.wordpress.net/), you get a fresh WordPress site.
@@ -61,24 +61,30 @@ The entire site lives in your browser and is scraped when you close the tab. Wan
 পুরো সাইটটি আপনার ব্রাউজারেই থাকে এবং আপনি ট্যাবটি বন্ধ করলে তা মুছে যায়। নতুন করে শুরু করতে চান? শুধু পেজটি রিফ্রেশ করুন!
 
 <!--
-:::info WordPress Playground is private
+<div class="callout callout-info">
+
+**WordPress Playground is private**
 
 Everything you build stays in your browser and is **not** sent anywhere. Once you're finished, you can export your site as a zip file. Or just refresh the page and start over!
 
-:::
+</div>
 -->
 
-:::তথ্য ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্যক্তিগত
+<div class="callout callout-info">
+
+**ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্যক্তিগত**
 
 আপনি যা কিছু তৈরি করেন তা আপনার ব্রাউজারেই থাকে এবং কোথাও পাঠানো হয় না। আপনার কাজ শেষ হয়ে গেলে, আপনি আপনার সাইটটিকে একটি জিপ ফাইল হিসেবে এক্সপোর্ট করতে পারেন। অথবা শুধু পেজটি রিফ্রেশ করে নতুন করে শুরু করতে পারেন!
 
-:::
+</div>
 
 <!--
 ## Try a block, a theme, or a plugin
 -->
 
-## একটি ব্লক, থিম বা প্লাগইন ট্রাই করুন
+<a id="একটি-ব্লক-থিম-বা-প্লাগইন-ট্রাই-করুন"></a>
+
+## একটি ব্লক, থিম বা প্লাগইন ট্রাই করুন {#try-a-block-a-theme-or-a-plugin}
 
 <!--
 You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
@@ -118,7 +124,7 @@ You can also mix and match these parameters and even add multiple plugins:
 
 https://playground.wordpress.net/?plugin=coblocks&plugin=friends&theme=pendant
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 <!--
 ## Save your site
@@ -138,7 +144,7 @@ To keep your WordPress Playground site for longer than a single browser session,
 
 ১. প্লেগ্রাউন্ড সাইট ম্যানেজার প্যানেলটি খুলুন:
 
-![Site Manager](@site/static/img/site-manager/open-site-manager.webp)
+![Site Manager](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/open-site-manager.webp)
 
 <!--
 2. Use the "Download as .zip" button in the additional actions menu
@@ -146,7 +152,7 @@ To keep your WordPress Playground site for longer than a single browser session,
 
 ২. অতিরিক্ত অ্যাকশন মেনু থেকে "Download as .zip" বাটনটি ব্যবহার করুন
 
-![Export button](@site/static/img/site-manager/export-zip-file.webp)
+![Export button](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/site-manager/export-zip-file.webp)
 
 <!--
 The exported file contains the complete site you've built. You could host it on any server that supports PHP and SQLite. All WordPress core files, plugins, themes, and everything else you've added to your site are in there.
@@ -178,7 +184,7 @@ You can restore the saved site using the "Import from .zip" button in the Playgr
 
 ১. প্লেগ্রাউন্ড ড্যাশবোর্ড প্যানেলটি খুলুন:
 
-![Open Playground Dashboard](@site/static/img/dashboard/open-playground-dashboard.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/open-playground-dashboard.webp)
 
 <!--
 1. Use the "Import .zip" button at the end of the "Start a new Playground" section
@@ -186,7 +192,7 @@ You can restore the saved site using the "Import from .zip" button in the Playgr
 
 ২. "Start a new Playground" সেকশনের শেষে থাকা "Import .zip" বাটনটি ব্যবহার করুন
 
-![Open Playground Dashboard](@site/static/img/dashboard/import-playground.webp)
+![Open Playground Dashboard](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dashboard/import-playground.webp)
 
 <!--
 ## Use a specific WordPress or PHP version
@@ -200,21 +206,25 @@ The quickest way to change the version of WordPress or PHP is by using the setti
 
 ওয়ার্ডপ্রেস বা PHP-এর সংস্করণ পরিবর্তন করার দ্রুততম উপায় হলো [অফিশিয়াল ডেমো সাইটে](https://playground.wordpress.net/) সেটিংস প্যানেল ব্যবহার করা:
 
-![WordPress Playground Settings menu](@site/static/img/playground-settings-menu.webp)
+![WordPress Playground Settings menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/playground-settings-menu.webp)
 
 <!--
-:::info Test your plugin or theme
+<div class="callout callout-info">
+
+**Test your plugin or theme**
 
 Compatibility testing with so many WordPress and PHP versions was always a pain. WordPress Playground makes this process effortless – use it to your advantage!
 
-:::
+</div>
 -->
 
-:::তথ্য আপনার প্লাগইন বা থিম পরীক্ষা করুন
+<div class="callout callout-info">
+
+**আপনার প্লাগইন বা থিম পরীক্ষা করুন**
 
 এতগুলো ওয়ার্ডপ্রেস এবং PHP সংস্করণের সাথে সামঞ্জস্যতা পরীক্ষা করা সবসময়ই ঝামেলার কাজ ছিল। ওয়ার্ডপ্রেস প্লেগ্রাউন্ড এই প্রক্রিয়াটিকে একদম সহজ করে দেয় – এর সুবিধা নিন!
 
-:::
+</div>
 
 <!--
 You can also use the `wp` and `php` [query parameters](/developers/apis/query-api) to open Playground with the right versions already loaded:
@@ -226,7 +236,7 @@ You can also use the `wp` and `php` [query parameters](/developers/apis/query-ap
 - https://playground.wordpress.net/?php=8.3
 - https://playground.wordpress.net/?php=8.2&wp=6.2
 
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 <!--
 To learn more about preparing content for demos, see the [providing content for your demo guide](/guides/providing-content-for-your-demo).
@@ -235,24 +245,30 @@ To learn more about preparing content for demos, see the [providing content for 
 ডেমোর জন্য কন্টেন্ট তৈরি সম্পর্কে আরও জানতে, [আপনার ডেমো গাইডের জন্য কন্টেন্ট প্রদান](./guides/providing-content-for-your-demo) দেখুন।
 
 <!--
-:::info Major versions only
+<div class="callout callout-info">
+
+**Major versions only**
 
 You can specify major versions like `wp=6.2` or `php=8.1` and expect the most recent release in that line. You cannot, however, request older minor versions so neither `wp=6.1.2` nor `php=7.4.9` will work.
 
-:::
+</div>
 -->
 
-:::তথ্য শুধুমাত্র মেজর সংস্করণগুলো
+<div class="callout callout-info">
+
+**শুধুমাত্র মেজর সংস্করণগুলো**
 
 আপনি `wp=6.2` বা `php=8.1`-এর মতো মেজর সংস্করণগুলো নির্দিষ্ট করতে পারেন এবং সেই লাইনের সাম্প্রতিক রিলিজটি আশা করতে পারেন। তবে, আপনি পুরনো মাইনর সংস্করণগুলোর অনুরোধ করতে পারবেন না, তাই `wp=6.1.2` বা `php=7.4.9` কাজ করবে না।
 
-:::
+</div>
 
 <!--
 ## Import a WXR file
 -->
 
-## একটি WXR ফাইল ইমপোর্ট করুন
+<a id="একটি-wxr-ফাইল-ইমপোর্ট-করুন"></a>
+
+## একটি WXR ফাইল ইমপোর্ট করুন {#use-a-specific-wordpress-or-php-version}
 
 <!--
 You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php).

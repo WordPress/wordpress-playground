@@ -91,6 +91,12 @@ var actions = {
       slug,
       config
     };
+  },
+  unregisterConnector(slug) {
+    return {
+      type: "UNREGISTER_CONNECTOR",
+      slug
+    };
   }
 };
 function reducer(state = DEFAULT_STATE, action) {
@@ -101,19 +107,31 @@ function reducer(state = DEFAULT_STATE, action) {
         connectors: {
           ...state.connectors,
           [action.slug]: {
+            ...state.connectors[action.slug],
             slug: action.slug,
             ...action.config
           }
         }
       };
+    case "UNREGISTER_CONNECTOR": {
+      if (!state.connectors[action.slug]) {
+        return state;
+      }
+      const { [action.slug]: _, ...rest } = state.connectors;
+      return {
+        ...state,
+        connectors: rest
+      };
+    }
     default:
       return state;
   }
 }
 var selectors = {
-  getConnectors(state) {
-    return Object.values(state.connectors);
-  },
+  getConnectors: (0, import_data.createSelector)(
+    (state) => Object.values(state.connectors),
+    (state) => [state.connectors]
+  ),
   getConnector(state, slug) {
     return state.connectors[slug];
   }
@@ -129,6 +147,9 @@ unlock(store).registerPrivateSelectors(selectors);
 function registerConnector(slug, config) {
   unlock((0, import_data2.dispatch)(store)).registerConnector(slug, config);
 }
+function unregisterConnector(slug) {
+  unlock((0, import_data2.dispatch)(store)).unregisterConnector(slug);
+}
 
 // packages/connectors/build-module/connector-item.mjs
 var import_components = __toESM(require_components(), 1);
@@ -137,17 +158,27 @@ var import_i18n = __toESM(require_i18n(), 1);
 var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
 function ConnectorItem({
   className,
-  icon,
+  logo,
   name,
   description,
   actionArea,
   children
 }) {
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.__experimentalItem, { className, children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_components.__experimentalVStack, { spacing: 4, children: [
-    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_components.__experimentalHStack, { alignment: "center", spacing: 4, children: [
-      icon,
+  const headingId = (0, import_element.useId)();
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.__experimentalItem, { className, role: "listitem", children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_components.__experimentalVStack, { spacing: 4, role: "group", "aria-labelledby": headingId, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_components.__experimentalHStack, { alignment: "center", spacing: 4, wrap: true, children: [
+      logo,
       /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.FlexBlock, { children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_components.__experimentalVStack, { spacing: 0, children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.__experimentalText, { weight: 600, size: 15, children: name }),
+        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+          import_components.__experimentalText,
+          {
+            weight: "var(--wpds-typography-font-weight-emphasis, 600)",
+            size: 15,
+            id: headingId,
+            as: "h2",
+            children: name
+          }
+        ),
         /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.__experimentalText, { variant: "muted", size: 12, children: description })
       ] }) }),
       actionArea
@@ -155,54 +186,58 @@ function ConnectorItem({
     children
   ] }) });
 }
-function DefaultConnectorSettings({
-  onSave,
-  onRemove,
-  initialValue = "",
-  helpUrl,
-  helpLabel,
-  readOnly = false
-}) {
-  const [apiKey, setApiKey] = (0, import_element.useState)(initialValue);
+function getHelpLinkLabel(helpUrl, helpLabel) {
+  if (helpLabel) {
+    return helpLabel;
+  }
+  if (!helpUrl) {
+    return void 0;
+  }
+  try {
+    return new URL(helpUrl).hostname;
+  } catch {
+    return helpUrl;
+  }
+}
+function createConnectorHelpLink(helpUrl, helpLabel, message) {
+  if (!helpUrl) {
+    return void 0;
+  }
+  return (0, import_element.createInterpolateElement)(
+    (0, import_i18n.sprintf)(message, "<a></a>"),
+    {
+      a: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.ExternalLink, { href: helpUrl, children: getHelpLinkLabel(helpUrl, helpLabel) })
+    }
+  );
+}
+function useConnectorSettingsSave(onSave, fallbackErrorMessage) {
   const [isSaving, setIsSaving] = (0, import_element.useState)(false);
   const [saveError, setSaveError] = (0, import_element.useState)(null);
-  const helpLinkLabel = helpLabel || helpUrl?.replace(/^https?:\/\//, "");
-  const helpLink = helpUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-    (0, import_i18n.__)("Get your API key at"),
-    " ",
-    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.ExternalLink, { href: helpUrl, children: helpLinkLabel })
-  ] }) : void 0;
-  const getHelp = () => {
-    if (readOnly) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(import_jsx_runtime.Fragment, { children: [
-        (0, import_i18n.__)(
-          "Your API key is stored securely. You can reset it at"
-        ),
-        " ",
-        helpUrl ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.ExternalLink, { href: helpUrl, children: helpLinkLabel }) : void 0
-      ] });
-    }
-    if (saveError) {
-      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { style: { color: "#cc1818" }, children: saveError });
-    }
-    return helpLink;
-  };
-  const handleSave = async () => {
+  const handleSave = async (value) => {
     setSaveError(null);
     setIsSaving(true);
     try {
-      await onSave?.(apiKey);
+      await onSave?.(value);
     } catch (error) {
       setSaveError(
-        error instanceof Error ? error.message : (0, import_i18n.__)(
-          "It was not possible to connect to the provider using this key."
-        )
+        error instanceof Error ? error.message : fallbackErrorMessage
       );
     } finally {
       setIsSaving(false);
     }
   };
-  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(
+  return {
+    isSaving,
+    saveError,
+    setSaveError,
+    handleSave
+  };
+}
+function ConnectorSettingsFrame({
+  readOnly,
+  children
+}) {
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
     import_components.__experimentalVStack,
     {
       spacing: 4,
@@ -210,48 +245,212 @@ function DefaultConnectorSettings({
       style: readOnly ? {
         "--wp-components-color-background": "#f0f0f0"
       } : void 0,
-      children: [
-        /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          import_components.TextControl,
-          {
-            __nextHasNoMarginBottom: true,
-            __next40pxDefaultSize: true,
-            label: (0, import_i18n.__)("API Key"),
-            value: apiKey,
-            onChange: (value) => {
-              if (!readOnly) {
-                setSaveError(null);
-                setApiKey(value);
-              }
-            },
-            placeholder: "YOUR_API_KEY",
-            disabled: readOnly || isSaving,
-            help: getHelp()
-          }
-        ),
-        readOnly ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.Button, { variant: "link", isDestructive: true, onClick: onRemove, children: (0, import_i18n.__)("Remove and replace") }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.__experimentalHStack, { justify: "flex-start", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
-          import_components.Button,
-          {
-            __next40pxDefaultSize: true,
-            variant: "primary",
-            disabled: !apiKey || isSaving,
-            accessibleWhenDisabled: true,
-            isBusy: isSaving,
-            onClick: handleSave,
-            children: (0, import_i18n.__)("Save")
-          }
-        ) })
-      ]
+      children
     }
   );
+}
+function ConnectorSettingsFooter({
+  readOnly,
+  onRemove,
+  canSave,
+  isSaving,
+  onSave
+}) {
+  if (readOnly) {
+    if (!onRemove) {
+      return null;
+    }
+    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.__experimentalHStack, { justify: "flex-start", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.Button, { variant: "link", isDestructive: true, onClick: onRemove, children: (0, import_i18n.__)("Remove and replace") }) });
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)(import_components.__experimentalHStack, { justify: "flex-start", children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+    import_components.Button,
+    {
+      __next40pxDefaultSize: true,
+      variant: "primary",
+      disabled: !canSave || isSaving,
+      accessibleWhenDisabled: true,
+      isBusy: isSaving,
+      onClick: onSave,
+      children: (0, import_i18n.__)("Save")
+    }
+  ) });
+}
+function DefaultConnectorSettings({
+  onSave,
+  onRemove,
+  initialValue = "",
+  helpUrl,
+  helpLabel,
+  readOnly = false,
+  keySource
+}) {
+  const [apiKey, setApiKey] = (0, import_element.useState)(initialValue);
+  const { isSaving, saveError, setSaveError, handleSave } = useConnectorSettingsSave(
+    onSave,
+    (0, import_i18n.__)(
+      "It was not possible to connect to the provider using this key."
+    )
+  );
+  const helpLink = createConnectorHelpLink(
+    helpUrl,
+    helpLabel,
+    /* translators: %s: Link to provider settings. */
+    (0, import_i18n.__)("Get your API key at %s")
+  );
+  const isExternallyConfigured = keySource === "env" || keySource === "constant";
+  const getHelp = () => {
+    if (isExternallyConfigured) {
+      if (keySource === "env") {
+        return (0, import_i18n.__)(
+          "This API key is configured using an environment variable."
+        );
+      }
+      if (keySource === "constant") {
+        return (0, import_i18n.__)("This API key is configured as a constant.");
+      }
+    }
+    if (readOnly) {
+      return helpUrl ? createConnectorHelpLink(
+        helpUrl,
+        helpLabel,
+        /* translators: %s: Link to provider settings. */
+        (0, import_i18n.__)(
+          "Your API key is stored securely. You can manage it at %s"
+        )
+      ) : (0, import_i18n.__)("Your API key is stored securely.");
+    }
+    if (saveError) {
+      return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { role: "alert", className: "connector-settings__error", children: saveError });
+    }
+    return helpLink;
+  };
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(ConnectorSettingsFrame, { readOnly, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      import_components.TextControl,
+      {
+        label: (0, import_i18n.__)("API Key"),
+        value: apiKey,
+        onChange: (value) => {
+          if (!readOnly) {
+            setSaveError(null);
+            setApiKey(value);
+          }
+        },
+        placeholder: (0, import_i18n.__)("Enter your API key"),
+        disabled: readOnly || isSaving,
+        autoComplete: "off",
+        help: getHelp()
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      ConnectorSettingsFooter,
+      {
+        readOnly,
+        onRemove,
+        canSave: !!apiKey,
+        isSaving,
+        onSave: () => handleSave(apiKey)
+      }
+    )
+  ] });
+}
+function ApplicationPasswordConnectorSettings({
+  onSave,
+  onRemove,
+  initialUsername = "",
+  helpUrl,
+  helpLabel,
+  readOnly = false,
+  keySource
+}) {
+  const [username, setUsername] = (0, import_element.useState)(initialUsername);
+  const [applicationPassword, setApplicationPassword] = (0, import_element.useState)("");
+  const { isSaving, saveError, setSaveError, handleSave } = useConnectorSettingsSave(
+    onSave,
+    (0, import_i18n.__)("It was not possible to save these credentials.")
+  );
+  const help = createConnectorHelpLink(
+    helpUrl,
+    helpLabel,
+    /* translators: %s: Link to the remote site's application passwords screen. */
+    (0, import_i18n.__)("Create an application password at %s")
+  );
+  let applicationPasswordHelp = help;
+  if (keySource === "env") {
+    applicationPasswordHelp = (0, import_i18n.__)(
+      "These credentials are configured using an environment variable."
+    );
+  } else if (keySource === "constant") {
+    applicationPasswordHelp = (0, import_i18n.__)(
+      "These credentials are configured as a constant."
+    );
+  } else if (readOnly) {
+    applicationPasswordHelp = (0, import_i18n.__)(
+      "Your application password is stored securely."
+    );
+  }
+  if (saveError) {
+    applicationPasswordHelp = /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", { role: "alert", className: "connector-settings__error", children: saveError });
+  }
+  return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)(ConnectorSettingsFrame, { readOnly, children: [
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      import_components.TextControl,
+      {
+        label: (0, import_i18n.__)("Username"),
+        value: username,
+        onChange: (value) => {
+          if (!readOnly) {
+            setSaveError(null);
+            setUsername(value);
+          }
+        },
+        placeholder: (0, import_i18n.__)("Enter your username"),
+        disabled: readOnly || isSaving,
+        autoComplete: "username"
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      import_components.TextControl,
+      {
+        label: (0, import_i18n.__)("Application password"),
+        value: readOnly ? "••••••••••••••••" : applicationPassword,
+        onChange: (value) => {
+          if (!readOnly) {
+            setSaveError(null);
+            setApplicationPassword(value);
+          }
+        },
+        type: "password",
+        placeholder: (0, import_i18n.__)("Enter your application password"),
+        disabled: readOnly || isSaving,
+        autoComplete: "new-password",
+        help: applicationPasswordHelp
+      }
+    ),
+    /* @__PURE__ */ (0, import_jsx_runtime.jsx)(
+      ConnectorSettingsFooter,
+      {
+        readOnly,
+        onRemove,
+        canSave: !!username.trim() && !!applicationPassword,
+        isSaving,
+        onSave: () => handleSave({
+          username: username.trim(),
+          applicationPassword
+        })
+      }
+    )
+  ] });
 }
 
 // packages/connectors/build-module/private-apis.mjs
 var privateApis = {};
 lock(privateApis, { store, STORE_NAME });
 export {
+  ApplicationPasswordConnectorSettings as __experimentalApplicationPasswordConnectorSettings,
   ConnectorItem as __experimentalConnectorItem,
   DefaultConnectorSettings as __experimentalDefaultConnectorSettings,
   registerConnector as __experimentalRegisterConnector,
+  unregisterConnector as __experimentalUnregisterConnector,
   privateApis
 };

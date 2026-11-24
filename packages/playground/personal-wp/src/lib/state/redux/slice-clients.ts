@@ -22,7 +22,6 @@ export interface ClientInfo {
 		mountpoint: string;
 	};
 	opfsSync?: OpfsSync;
-	isDependentMode?: boolean;
 }
 
 // Create an entity adapter for ClientInfo

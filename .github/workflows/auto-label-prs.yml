@@ -1,0 +1,92 @@
+name: Auto-label PRs
+
+# Applies the repository's PR labels in a single flow:
+#
+#   - [Aspect] / [Focus] / [Feature] / [Type] Documentation — from path globs.
+#     No count limit; a wide refactor can match many of them legitimately.
+#   - [Package][...] — ranks packages by total lines changed (additions +
+#     deletions, file count as tiebreaker) and applies at most the top 3.
+#     Without this cap a cross-cutting change gets a wall of package labels.
+#   - [Type] — from the PR title's conventional-commit prefix (fix:/feat:/
+#     perf:/docs:), applied only when the signal is unambiguous. refactor:/
+#     chore:/test: are skipped because they have no clean target label.
+#
+# WHY this is bespoke instead of actions/labeler + a second github-script job:
+# both of those list a PR's changed files via GitHub's pulls.listFiles API,
+# which makes GitHub generate the full PR diff. That request times out ("Sorry,
+# this diff is taking too long to generate") on PRs with heavy binary churn
+# (recompiled PHP.wasm builds), failing this required check and blocking merges.
+# Instead we list changed files with `git diff` (size-independent — it compares
+# tree hashes and never serializes blob content). One `git diff --numstat` feeds
+# every label set, so there is one labeling flow, not two.
+#
+# The labeling logic AND the label rules (which globs/prefixes map to which
+# labels) — plus their unit tests — live in packages/meta/src/pr-labels/*.mjs.
+# This workflow only gathers the PR facts and invokes
+# packages/meta/bin/label-pr.mjs, which reads nothing on its own (no config
+# file, no event payload) and gets everything via env.
+#
+# History note: an earlier version used GitHub Models (actions/ai-inference) to
+# suggest labels. It returned 403 because GitHub Models access in Actions is
+# gated by an org-level toggle we can't flip. Path + PR-title heuristics cover
+# the structured labels without any external service.
+
+on:
+    pull_request_target:
+        types: [opened, synchronize, reopened, ready_for_review]
+
+# Disable permissions for all available scopes by default.
+# Any needed permissions should be configured at the job level.
+permissions: {}
+
+jobs:
+    label:
+        if: github.repository == 'WordPress/wordpress-playground'
+        runs-on: ubuntu-latest
+        timeout-minutes: 10
+        permissions:
+            contents: read # Required for actions/checkout to read the repo.
+            pull-requests: write # Required to apply labels to pull requests.
+        steps:
+            # Actions are pinned to commit SHAs, not tags: this job runs with
+            # pull-requests:write, so a moved tag would be a supply-chain
+            # foothold. Bump deliberately when upgrading. `git diff` runs no PR
+            # code — it only reads paths and line counts — so reading the fork
+            # head is safe.
+            - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+              with:
+                  # Minimal fetch for `git diff base...head` (three-dot, see
+                  # git-numstat.mjs). It needs the merge-base of the base and
+                  # head, plus the blobs of the files that actually changed —
+                  # nothing else.
+                  #   fetch-depth: 0  — full COMMIT+TREE graph so the merge-base
+                  #     is present. A stale PR's merge-base can be far back, so a
+                  #     fixed shallow depth would break the diff.
+                  #   filter: blob:none — blobless partial clone: skip every
+                  #     historical blob (this repo commits huge PHP.wasm/
+                  #     WordPress binaries across all history) and let git lazily
+                  #     fetch only the changed blobs the diff reads.
+                  #   sparse-checkout — materialize only the label scripts this
+                  #     job runs, so checkout doesn't pull HEAD's big binaries
+                  #     into the working tree either. The diff reads the object
+                  #     DB, not the tree, so this doesn't affect it.
+                  fetch-depth: 0
+                  filter: blob:none
+                  sparse-checkout: packages/meta
+            # Install the label modules' dependencies from their own
+            # package.json + lockfile. Scoped to that dir, so it does not touch
+            # the repo's workspaces. --ignore-scripts: this job has
+            # pull-requests:write and the deps need no lifecycle scripts, so
+            # don't run any (defense-in-depth against a supply-chain foothold).
+            - name: Install label matcher dependencies
+              run: npm ci --no-audit --no-fund --ignore-scripts --prefix packages/meta/src/pr-labels
+            - name: Apply labels
+              run: node packages/meta/bin/label-pr.mjs
+              env:
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
+                  # Passed as env (not interpolated into the shell), so an
+                  # attacker-controlled title can't inject commands.
+                  PR_TITLE: ${{ github.event.pull_request.title }}
+                  GITHUB_REPOSITORY: ${{ github.repository }}
+                  GITHUB_TOKEN: ${{ github.token }}

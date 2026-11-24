@@ -1,4 +1,4 @@
-import type { SupportedPHPVersion } from '@php-wasm/universal';
+import type { AllPHPVersion } from '@php-wasm/universal';
 import type { StepDefinition } from '../steps';
 import type { FileReference } from './resources';
 import type { StreamedFile } from '@php-wasm/stream-compression';
@@ -19,7 +19,7 @@ export type BlueprintV1 = BlueprintV1Declaration | BlueprintBundle;
  * Includes deprecated versions (7.2, 7.3) which are automatically
  * upgraded to 7.4 during compilation.
  */
-export type BlueprintPHPVersion = SupportedPHPVersion | '7.2' | '7.3';
+export type BlueprintPHPVersion = AllPHPVersion | '7.2' | '7.3';
 
 /**
  * The Blueprint declaration, typically stored in a blueprint.json file.
@@ -65,16 +65,22 @@ export type BlueprintV1Declaration = {
 	preferredVersions?: {
 		/**
 		 * The preferred PHP version to use.
-		 * If not specified, the latest supported version will be used.
+		 * If not specified, the recommended PHP version for WordPress will be used.
+		 * Use `latest` for the latest supported version.
 		 *
 		 * Note: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.
 		 */
 		php: BlueprintPHPVersion | 'latest';
 		/**
-		 * The preferred WordPress version to use.
-		 * If not specified, the latest supported version will be used
+		 * The preferred WordPress version to use, or `false` to boot a
+		 * PHP-only Playground without downloading or installing WordPress.
+		 * If not specified, the latest supported version will be used.
+		 *
+		 * When set to `false`, WordPress-specific Blueprint fields
+		 * (`plugins`, `siteOptions`, `login`, and WordPress-only steps)
+		 * are rejected at compile time.
 		 */
-		wp: string | 'latest';
+		wp: string | 'latest' | false;
 	};
 	features?: {
 		/** Should boot with support for Intl dynamic extension */

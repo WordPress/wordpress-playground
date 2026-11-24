@@ -68,6 +68,12 @@
  * Focus styles.
  */
 /**
+ * Standard focus rings for the WordPress Design System.
+ *
+ * Apply `outset-ring__focus` inside the relevant pseudo-class at the call site,
+ * e.g. `&:focus { @include outset-ring__focus(); }`.
+ */
+/**
  * Applies editor left position to the selector passed as argument
  */
 /**
@@ -92,6 +98,21 @@
   --wp-block-synced-color--rgb: 122, 0, 223;
   --wp-bound-block-color: var(--wp-block-synced-color);
   --wp-editor-canvas-background: #ddd;
+  --wp-admin-theme-color: #3858e9;
+  --wp-admin-theme-color--rgb: 56, 88, 233;
+  --wp-admin-theme-color-darker-10: rgb(33.0384615385, 68.7307692308, 230.4615384615);
+  --wp-admin-theme-color-darker-10--rgb: 33.0384615385, 68.7307692308, 230.4615384615;
+  --wp-admin-theme-color-darker-20: rgb(23.6923076923, 58.1538461538, 214.3076923077);
+  --wp-admin-theme-color-darker-20--rgb: 23.6923076923, 58.1538461538, 214.3076923077;
+  --wp-admin-border-width-focus: 2px;
+}
+@media (min-resolution: 192dpi) {
+  :root {
+    --wp-admin-border-width-focus: 1.5px;
+  }
+}
+
+body.admin-color-fresh {
   --wp-admin-theme-color: #007cba;
   --wp-admin-theme-color--rgb: 0, 124, 186;
   --wp-admin-theme-color-darker-10: rgb(0, 107, 160.5);
@@ -101,7 +122,7 @@
   --wp-admin-border-width-focus: 2px;
 }
 @media (min-resolution: 192dpi) {
-  :root {
+  body.admin-color-fresh {
     --wp-admin-border-width-focus: 1.5px;
   }
 }
@@ -119,16 +140,16 @@
 }
 .wp-block-legacy-widget__edit-form .wp-block-legacy-widget__edit-form-title {
   color: #000;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  font-family: -apple-system, system-ui, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
   margin: 0 0 12px 0;
 }
 .wp-block-legacy-widget__edit-form .widget-inside.widget-inside {
   border: none;
   box-shadow: none;
   display: block;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  font-family: -apple-system, system-ui, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
 }
 .wp-block-legacy-widget__edit-form .widget-inside.widget-inside p {
   margin: 8px 0;
@@ -141,7 +162,7 @@
 .wp-block-legacy-widget__edit-form .widget-inside.widget-inside input,
 .wp-block-legacy-widget__edit-form .widget-inside.widget-inside a {
   font-family: system-ui;
-  font-weight: normal;
+  font-weight: 400;
   color: #000;
 }
 .wp-block-legacy-widget__edit-form .widget-inside.widget-inside input[type=text],
@@ -169,7 +190,7 @@
   margin: 0;
   width: 100%;
   font-size: 13px;
-  font-weight: normal;
+  font-weight: 400;
   line-height: 1;
   min-height: 30px;
   padding-left: 8px;
@@ -191,7 +212,7 @@
 
 .wp-block-legacy-widget__edit-preview,
 .wp-block-legacy-widget__edit-no-preview {
-  cursor: pointer;
+  cursor: var(--wpds-cursor-control, pointer);
 }
 .wp-block-legacy-widget__edit-preview:hover::after,
 .wp-block-legacy-widget__edit-no-preview:hover::after {
@@ -218,7 +239,7 @@
 }
 
 .wp-block-legacy-widget__edit-no-preview.wp-block-legacy-widget__edit-no-preview.wp-block-legacy-widget__edit-no-preview, .wp-block-legacy-widget__edit-no-preview.wp-block-legacy-widget__edit-no-preview.wp-block-legacy-widget__edit-no-preview h3, .wp-block-legacy-widget__edit-no-preview.wp-block-legacy-widget__edit-no-preview.wp-block-legacy-widget__edit-no-preview p {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  font-family: -apple-system, system-ui, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   font-size: 13px;
 }
 .wp-block-legacy-widget__edit-no-preview.wp-block-legacy-widget__edit-no-preview.wp-block-legacy-widget__edit-no-preview {
@@ -227,7 +248,7 @@
 }
 .wp-block-legacy-widget__edit-no-preview.wp-block-legacy-widget__edit-no-preview.wp-block-legacy-widget__edit-no-preview h3 {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
   margin: 4px 0;
 }
 .wp-block-legacy-widget__edit-no-preview.wp-block-legacy-widget__edit-no-preview.wp-block-legacy-widget__edit-no-preview p {
@@ -240,7 +261,7 @@
 
 .interface-complementary-area .wp-block-legacy-widget-inspector-card__name {
   margin: 0 0 5px;
-  font-weight: 499;
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
 }
 
 .is-selected .wp-block-legacy-widget__container {
@@ -253,9 +274,9 @@
 }
 
 .wp-block-widget-group .widget-title {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  font-family: -apple-system, system-ui, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
   font-size: 18px;
-  font-weight: 600;
+  font-weight: var(--wpds-typography-font-weight-emphasis, 600);
 }
 
 .wp-block-widget-group__placeholder .block-editor-inserter {
@@ -263,6 +284,6 @@
 }
 
 .is-dark-theme .wp-block-widget-group__placeholder .block-editor-button-block-appender {
-  box-shadow: inset 0 0 0 1px #1e1e1e;
+  border-color: currentColor;
   color: #1e1e1e;
 }

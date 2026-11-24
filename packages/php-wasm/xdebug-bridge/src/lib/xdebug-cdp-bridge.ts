@@ -34,6 +34,7 @@ export interface XdebugCDPBridgeConfig {
 	phpRoot?: string;
 	getPHPFile(path: string): string | Promise<string>;
 	breakOnFirstLine?: boolean;
+	excludedPaths?: string[];
 }
 
 export class XdebugCDPBridge {
@@ -51,6 +52,7 @@ export class XdebugCDPBridge {
 	private phpRoot: string;
 	private readPHPFile: (path: string) => string | Promise<string>;
 	private breakOnFirstLine;
+	private excludedPaths: string[];
 
 	constructor(
 		dbgp: DbgpSession,
@@ -61,6 +63,7 @@ export class XdebugCDPBridge {
 		this.cdp = cdp;
 		this.readPHPFile = config.getPHPFile;
 		this.phpRoot = config.phpRoot || '';
+		this.excludedPaths = config.excludedPaths || [];
 		for (const url of config.knownScriptUrls) {
 			this.scriptIdByUrl.set(url, this.getOrCreateScriptId(url));
 		}
@@ -194,7 +197,14 @@ export class XdebugCDPBridge {
 				.map((_value, index) => (index === 0 ? 'AAAA' : 'AACA'))
 				.join(';');
 
-			const sourceMap = {
+			const sourceMap: {
+				version: number;
+				file: string;
+				sources: string[];
+				sourcesContent: string[];
+				mappings: string;
+				x_google_ignoreList?: number[];
+			} = {
 				version: 3,
 				// File uri has to match the script parsed url
 				// While the sources url has to match the syntax
@@ -204,6 +214,10 @@ export class XdebugCDPBridge {
 				sourcesContent: [phpContent],
 				mappings,
 			};
+
+			if (this.isExcludedPath(url)) {
+				sourceMap.x_google_ignoreList = [0];
+			}
 
 			const encodedMap = Buffer.from(
 				JSON.stringify(sourceMap),
@@ -253,6 +267,12 @@ export class XdebugCDPBridge {
 			this.scriptIdByUrl.set(url, scriptId);
 		}
 		return scriptId;
+	}
+
+	private isExcludedPath(fileUri: string): boolean {
+		return this.excludedPaths.some(
+			(prefix) => fileUri === prefix || fileUri.startsWith(prefix + '/')
+		);
 	}
 
 	// Utility: escape and quote Xdebug fullname for property_get
@@ -885,7 +905,7 @@ export class XdebugCDPBridge {
 											? this.objectHandles.get(
 													pending.params
 														.parentObjectId
-											  )?.contextId || 0
+												)?.contextId || 0
 											: 0;
 									const depth =
 										pending.cdpMethod ===
@@ -894,7 +914,7 @@ export class XdebugCDPBridge {
 											? this.objectHandles.get(
 													pending.params
 														.parentObjectId
-											  )?.depth || 0
+												)?.depth || 0
 											: 0;
 									// Use same depth/context as parent
 									this.objectHandles.set(childObjectId, {

@@ -22,18 +22,17 @@ export interface DefineWpConfigConstsStep {
 	/** The constants to define */
 	consts: Record<string, unknown>;
 	/**
-	 * The method of defining the constants in wp-config.php. Possible values are:
+	 * How Playground defines the constants.
 	 *
-	 * - rewrite-wp-config: Default. Rewrites the wp-config.php file to
-	 *                      explicitly call define() with the requested
-	 *                      name and value. This method alters the file
-	 *                      on the disk, but it doesn't conflict with
-	 *                      existing define() calls in wp-config.php.
+	 * - `define-before-run` (default) uses PHP's `auto_prepend_file` setting to define
+	 *   constants with string, number, or boolean values before the requested script
+	 *   runs. These values take precedence over later definitions in `wp-config.php`.
+	 *   This method skips `null`, arrays, and objects. Use it to keep `wp-config.php`
+	 *   intact, for example when working with a mounted project.
 	 *
-	 * - define-before-run: Defines the constant before running the requested
-	 *                      script. It doesn't alter any files on the disk, but
-	 *                      constants defined this way may conflict with existing
-	 *                      define() calls in wp-config.php.
+	 * - `rewrite-wp-config` adds or updates the corresponding `define()` calls in
+	 *   `wp-config.php`. Use it to replace an existing definition in that file or to
+	 *   keep the constants in a `wp-config.php` you plan to use outside Playground.
 	 */
 	method?: 'rewrite-wp-config' | 'define-before-run';
 	/**
@@ -45,7 +44,8 @@ export interface DefineWpConfigConstsStep {
 }
 
 /**
- * Defines constants in a [`wp-config.php`](https://developer.wordpress.org/advanced-administration/wordpress/wp-config/) file.
+ * Defines PHP constants for WordPress. Use the `method` option to write them to
+ * [`wp-config.php`](https://developer.wordpress.org/advanced-administration/wordpress/wp-config/).
  *
  * This step can be called multiple times, and the constants will be merged.
  *

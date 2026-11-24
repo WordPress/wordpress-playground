@@ -1,4 +1,4 @@
-import { concatUint8Arrays } from '@php-wasm/util';
+import { concatUint8Arrays, encodeUint8ArrayAsBase64 } from '@php-wasm/util';
 
 /**
  * Generates an X.509 certificate from the given description.
@@ -24,14 +24,14 @@ export function generateCertificate(
 
 export function certificateToPEM(certificate: Uint8Array): string {
 	return `-----BEGIN CERTIFICATE-----\n${formatPEM(
-		encodeUint8ArrayAsBase64(certificate.buffer)
+		encodeUint8ArrayAsBase64(certificate)
 	)}\n-----END CERTIFICATE-----`;
 }
 
 export async function privateKeyToPEM(privateKey: CryptoKey): Promise<string> {
 	const pkcs8 = await crypto.subtle.exportKey('pkcs8', privateKey);
 	return `-----BEGIN PRIVATE KEY-----\n${formatPEM(
-		encodeUint8ArrayAsBase64(pkcs8)
+		encodeUint8ArrayAsBase64(new Uint8Array(pkcs8))
 	)}\n-----END PRIVATE KEY-----`;
 }
 
@@ -520,7 +520,26 @@ class ASN1Encoder {
 	}
 
 	static integer(number: Uint8Array): Uint8Array {
-		// Ensure number is positive and first bit is 0
+		// DER requires INTEGER values to be encoded in the minimum number
+		// of octets (X.690 §8.3.2): a leading 0x00 byte is only allowed
+		// when the next byte's high bit is set (to signal a positive
+		// number). Random serial numbers occasionally start with 0x00
+		// followed by a byte < 0x80, which OpenSSL rejects with
+		// "c2i_ibuf:illegal padding" — strip those redundant zeros.
+		let start = 0;
+		while (
+			start < number.length - 1 &&
+			number[start] === 0x00 &&
+			number[start + 1] < 0x80
+		) {
+			start++;
+		}
+		if (start > 0) {
+			number = number.subarray(start);
+		}
+		// Conversely, if the high bit of the first byte is set, prepend
+		// 0x00 so the value isn't interpreted as a negative two's
+		// complement integer.
 		if (number[0] > 0x7f) {
 			const extendedNumber = new Uint8Array(number.length + 1);
 			extendedNumber[0] = 0x00;
@@ -689,11 +708,6 @@ export type GeneratedCertificate = {
 	tbsDescription: TBSCertificateDescription;
 	tbsCertificate: TBSCertificate;
 };
-
-// Helper functions
-function encodeUint8ArrayAsBase64(bytes: ArrayBuffer) {
-	return btoa(String.fromCodePoint(...new Uint8Array(bytes)));
-}
 
 function formatPEM(pemString: string): string {
 	return pemString.match(/.{1,64}/g)?.join('\n') || pemString;

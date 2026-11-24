@@ -1,0 +1,610 @@
+import {
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	it,
+	vi,
+} from 'vitest';
+import { fetchWithCorsProxy } from '../lib/fetch-with-cors-proxy';
+import { FirewallInterferenceError } from '../lib/firewall-interference-error';
+import { __testing, supportsReadableStreamBody } from '../lib/utils';
+
+describe('fetchWithCorsProxy', () => {
+	beforeAll(async () => {
+		// Pre-warm the one-time ReadableStream body feature detection cache so
+		// its internal fetch() probe doesn't consume test-specific mock calls.
+		const tempMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response(''));
+		await supportsReadableStreamBody();
+		tempMock.mockRestore();
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it('upgrades plain HTTP requests to HTTPS before fetching directly', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+
+		await fetchWithCorsProxy('http://example.com/resource.zip');
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const directRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(directRequest.url).toBe('https://example.com/resource.zip');
+	});
+
+	it('upgrades HTTP URLs before retrying via the CORS proxy', async () => {
+		const corsProxyHeaders = new Headers();
+		corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
+
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValueOnce(new Error('network fail'))
+			.mockResolvedValueOnce(
+				new Response('proxied', { headers: corsProxyHeaders })
+			);
+
+		await fetchWithCorsProxy(
+			'http://example.com/wp-cron.php',
+			undefined,
+			'https://proxy.test/?url='
+		);
+
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		const initialRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(initialRequest.url).toBe('https://example.com/wp-cron.php');
+
+		const proxiedRequest = fetchMock.mock.calls[1][0] as Request;
+		expect(proxiedRequest.url).toBe(
+			'https://proxy.test/?url=https://example.com/wp-cron.php'
+		);
+	});
+
+	it('throws FirewallInterferenceError when CORS proxy response lacks identification header', async () => {
+		vi.spyOn(globalThis, 'fetch')
+			.mockRejectedValueOnce(new Error('network fail'))
+			.mockResolvedValueOnce(
+				new Response('blocked', {
+					status: 403,
+					statusText: 'Forbidden',
+					// Note: no X-Playground-Cors-Proxy header
+				})
+			);
+
+		await expect(
+			fetchWithCorsProxy(
+				'https://example.com/resource.zip',
+				undefined,
+				'https://proxy.test/?url='
+			)
+		).rejects.toThrow(FirewallInterferenceError);
+	});
+
+	it('returns response normally when CORS proxy header is present', async () => {
+		const headers = new Headers();
+		headers.set('X-Playground-Cors-Proxy', 'true');
+
+		vi.spyOn(globalThis, 'fetch')
+			.mockRejectedValueOnce(new Error('network fail'))
+			.mockResolvedValueOnce(
+				new Response('proxied', {
+					status: 200,
+					headers,
+				})
+			);
+
+		const response = await fetchWithCorsProxy(
+			'https://example.com/resource.zip',
+			undefined,
+			'https://proxy.test/?url='
+		);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe('proxied');
+	});
+
+	it('never proxies localhost requests even if direct fetch fails', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValue(new Error('connection refused'));
+
+		await expect(
+			fetchWithCorsProxy(
+				'http://localhost:8080/api',
+				undefined,
+				'https://proxy.test/?url='
+			)
+		).rejects.toThrow('connection refused');
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const request = fetchMock.mock.calls[0][0] as Request;
+		expect(request.url).toBe('http://localhost:8080/api');
+	});
+
+	it.each(['playground.localhost', 'wp.playground.localhost'])(
+		'keeps HTTP downloads on the local subdomain %s without a proxy',
+		async (hostname) => {
+			const fetchMock = vi
+				.spyOn(globalThis, 'fetch')
+				.mockResolvedValue(new Response('ok'));
+			const url = `http://${hostname}:9500/toolkit.txt`;
+			await fetchWithCorsProxy(url, undefined, 'https://proxy.test/?');
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+			expect((fetchMock.mock.calls[0][0] as Request).url).toBe(url);
+		}
+	);
+
+	it('does not treat a hostname containing localhost as a loopback suffix', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		await fetchWithCorsProxy(
+			'http://playground.localhost.example.org/toolkit.txt'
+		);
+		expect((fetchMock.mock.calls[0][0] as Request).url).toBe(
+			'https://playground.localhost.example.org/toolkit.txt'
+		);
+	});
+
+	it('never proxies 127.0.0.1 requests', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+
+		await fetchWithCorsProxy(
+			'http://127.0.0.1:3000/endpoint',
+			undefined,
+			'https://proxy.test/?url='
+		);
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const request = fetchMock.mock.calls[0][0] as Request;
+		expect(request.url).toBe('http://127.0.0.1:3000/endpoint');
+	});
+
+	it.each([
+		[
+			'https://api.anthropic.com/v1/messages',
+			{
+				'anthropic-dangerous-direct-browser-access': 'true',
+			},
+		],
+		['https://api.openai.com/v1/responses', {}],
+		[
+			'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+			{},
+		],
+	])(
+		'never proxies known CORS-enabled host %s even if direct fetch fails',
+		async (url, expectedHeaders) => {
+			const fetchMock = vi
+				.spyOn(globalThis, 'fetch')
+				.mockRejectedValue(new Error('direct fetch failed'));
+
+			await expect(
+				fetchWithCorsProxy(url, undefined, 'https://proxy.test/?url=')
+			).rejects.toThrow('direct fetch failed');
+
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+			const request = fetchMock.mock.calls[0][0] as Request;
+			expect(request.url).toBe(url);
+			for (const [name, value] of Object.entries(expectedHeaders)) {
+				expect(request.headers.get(name)).toBe(value);
+			}
+			if (url !== 'https://api.anthropic.com/v1/messages') {
+				expect(
+					request.headers.has(
+						'anthropic-dangerous-direct-browser-access'
+					)
+				).toBe(false);
+			}
+		}
+	);
+
+	it('does not overwrite caller-provided CORS-enabled host headers', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValue(new Error('direct fetch failed'));
+
+		await expect(
+			fetchWithCorsProxy(
+				'https://api.anthropic.com/v1/messages',
+				{
+					headers: {
+						'anthropic-dangerous-direct-browser-access': 'custom',
+					},
+				},
+				'https://proxy.test/?url='
+			)
+		).rejects.toThrow('direct fetch failed');
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const request = fetchMock.mock.calls[0][0] as Request;
+		expect(
+			request.headers.get('anthropic-dangerous-direct-browser-access')
+		).toBe('custom');
+	});
+
+	it('does not treat HTTP URLs as known CORS-enabled hosts', async () => {
+		const corsProxyHeaders = new Headers();
+		corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValueOnce(new Error('direct fetch failed'))
+			.mockResolvedValueOnce(
+				new Response('proxied', { headers: corsProxyHeaders })
+			);
+
+		await fetchWithCorsProxy(
+			'http://api.openai.com/v1/responses',
+			undefined,
+			'https://proxy.test/?url='
+		);
+
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		const initialRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(initialRequest.url).toBe('https://api.openai.com/v1/responses');
+		const proxiedRequest = fetchMock.mock.calls[1][0] as Request;
+		expect(proxiedRequest.url).toBe(
+			'https://proxy.test/?url=https://api.openai.com/v1/responses'
+		);
+	});
+
+	it('does not upgrade localhost HTTP to HTTPS when corsProxyUrl is configured', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+
+		await fetchWithCorsProxy(
+			'http://localhost:1234/v1/chat/completions',
+			undefined,
+			'https://proxy.test/?url='
+		);
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const request = fetchMock.mock.calls[0][0] as Request;
+		// Should stay as http, not upgraded to https
+		expect(request.url).toBe('http://localhost:1234/v1/chat/completions');
+	});
+
+	it('buffers streamed uploads to localhost HTTP/1.1 servers', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+
+		const body = new ReadableStream({
+			start(controller) {
+				controller.enqueue(new TextEncoder().encode('streamed data'));
+				controller.close();
+			},
+		});
+		const request = new Request('http://localhost:8080/api', {
+			method: 'POST',
+			body,
+			// @ts-expect-error duplex is required for streaming bodies
+			duplex: 'half',
+		});
+
+		await fetchWithCorsProxy(request);
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const sentRequest = fetchMock.mock.calls[0][0] as Request;
+		// Buffer before direct fetch: Chrome cannot stream to an HTTP/1.1 server.
+		expect(sentRequest).not.toBe(request);
+		expect(sentRequest.url).toBe(request.url);
+		expect(sentRequest.method).toBe('POST');
+		expect(await sentRequest.text()).toBe('streamed data');
+		expect(request.bodyUsed).toBe(true);
+	});
+
+	it('preserves keepalive when buffering a localhost upload', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		const request = new Request('http://localhost:8080/api', {
+			method: 'POST',
+			body: 'complete this upload after unload',
+			keepalive: true,
+		});
+
+		await fetchWithCorsProxy(request);
+
+		const sentRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(sentRequest.keepalive).toBe(true);
+		expect(await sentRequest.text()).toBe(
+			'complete this upload after unload'
+		);
+	});
+
+	it('retains earlier bytes when a localhost stream reuses its buffer', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		const chunk = new Uint8Array(1);
+		let nextByte = 65;
+		const body = new ReadableStream(
+			{
+				/** Reuse the producer's buffer only when the reader asks for the next chunk. */
+				pull(controller) {
+					if (nextByte === 67) {
+						controller.close();
+						return;
+					}
+					chunk[0] = nextByte++;
+					controller.enqueue(chunk);
+				},
+			},
+			{ highWaterMark: 0 }
+		);
+		const request = new Request('http://localhost:8080/api', {
+			method: 'POST',
+			body,
+			// @ts-expect-error duplex is required for streaming bodies.
+			duplex: 'half',
+		});
+
+		await fetchWithCorsProxy(request);
+
+		const sentRequest = fetchMock.mock.calls[0][0] as Request;
+		expect(await sentRequest.text()).toBe('AB');
+	});
+
+	it('stops buffering a localhost upload whose body never closes when aborted', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+		const controller = new AbortController();
+		const request = new Request('http://127.0.0.1:8181/?reprint-api', {
+			method: 'POST',
+			body: new ReadableStream({
+				start(stream) {
+					stream.enqueue(new TextEncoder().encode('partial'));
+					// Never closes: a stalled producer.
+				},
+			}),
+			signal: controller.signal,
+			// @ts-expect-error duplex is required for streamed bodies.
+			duplex: 'half',
+		});
+		const pending = fetchWithCorsProxy(request, undefined, undefined);
+		setTimeout(() => controller.abort(), 10);
+		await expect(pending).rejects.toMatchObject({ name: 'AbortError' });
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
+	it('passes request through to fetch for https:// URLs without proxy', async () => {
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockResolvedValue(new Response('ok'));
+
+		const body = new ReadableStream({
+			start(controller) {
+				controller.enqueue(new TextEncoder().encode('streamed data'));
+				controller.close();
+			},
+		});
+		const request = new Request('https://example.com/api', {
+			method: 'POST',
+			body,
+			// @ts-expect-error duplex is required for streaming bodies
+			duplex: 'half',
+		});
+
+		// No corsProxyUrl → direct fetch, no retry-preparation pipeline involved.
+		await fetchWithCorsProxy(request);
+
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+		const sentRequest = fetchMock.mock.calls[0][0] as Request;
+		// Direct fetch — no buffering, same Request passed through.
+		expect(sentRequest).toBe(request);
+		expect(request.bodyUsed).toBe(false);
+	});
+
+	it('buffers the request body when retrying via an http:// CORS proxy', async () => {
+		const corsProxyHeaders = new Headers();
+		corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
+
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValueOnce(new Error('CORS'))
+			.mockResolvedValueOnce(
+				new Response('proxied', { headers: corsProxyHeaders })
+			);
+
+		const body = new ReadableStream({
+			start(controller) {
+				controller.enqueue(new TextEncoder().encode('upload payload'));
+				controller.close();
+			},
+		});
+		const request = new Request('https://example.com/api', {
+			method: 'POST',
+			body,
+			// @ts-expect-error duplex is required for streaming bodies
+			duplex: 'half',
+		});
+
+		const response = await fetchWithCorsProxy(
+			request,
+			undefined,
+			'http://localhost:5400/cors-proxy/?url='
+		);
+
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		const proxyRequest = fetchMock.mock.calls[1][0] as Request;
+		expect(proxyRequest.url).toBe(
+			'http://localhost:5400/cors-proxy/?url=https://example.com/api'
+		);
+		// The content should survive request preparation and proxy retry intact.
+		expect(await new Response(proxyRequest.body).text()).toBe(
+			'upload payload'
+		);
+		expect(await response.text()).toBe('proxied');
+	});
+
+	it('wraps multipart/form-data Content-Type when retrying via CORS proxy', async () => {
+		const corsProxyHeaders = new Headers();
+		corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
+
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValueOnce(new Error('CORS'))
+			.mockResolvedValueOnce(
+				new Response('proxied', { headers: corsProxyHeaders })
+			);
+
+		const boundary = '----WebKitFormBoundary7MA4YWxk';
+		const body = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="data.json"\r\nContent-Type: application/json\r\n\r\n["/path/to/file"]\r\n--${boundary}--\r\n`;
+		const request = new Request('https://example.com/api', {
+			method: 'POST',
+			headers: {
+				'Content-Type': `multipart/form-data; boundary=${boundary}`,
+			},
+			body,
+		});
+
+		await fetchWithCorsProxy(
+			request,
+			undefined,
+			'https://proxy.test/?url='
+		);
+
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		const proxyRequest = fetchMock.mock.calls[1][0] as Request;
+		// Content-Type should be wrapped to prevent PHP auto-parsing
+		expect(proxyRequest.headers.get('content-type')).toBe(
+			'application/octet-stream'
+		);
+		expect(proxyRequest.headers.get('x-cors-proxy-content-type')).toBe(
+			`multipart/form-data; boundary=${boundary}`
+		);
+		// The body should survive intact
+		expect(await new Response(proxyRequest.body).text()).toBe(body);
+	});
+
+	it('applies init values in the CORS proxy retry path', async () => {
+		const corsProxyHeaders = new Headers();
+		corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
+
+		const fetchMock = vi
+			.spyOn(globalThis, 'fetch')
+			.mockRejectedValueOnce(new Error('CORS'))
+			.mockResolvedValueOnce(
+				new Response('proxied', { headers: corsProxyHeaders })
+			);
+
+		// When input is a string, init builds the initial request used in
+		// direct fetch and proxy retry preparation.
+		const response = await fetchWithCorsProxy(
+			'https://example.com/api',
+			{ method: 'POST', body: 'form data' },
+			'http://localhost:5400/cors-proxy/?url='
+		);
+
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+		const proxyRequest = fetchMock.mock.calls[1][0] as Request;
+		expect(proxyRequest.url).toBe(
+			'http://localhost:5400/cors-proxy/?url=https://example.com/api'
+		);
+		// The body from init should survive request preparation and retry.
+		expect(await new Response(proxyRequest.body).text()).toBe('form data');
+		expect(await response.text()).toBe('proxied');
+	});
+
+	/**
+	 * These tests exercise the non-streaming fallback path (Safari/Firefox)
+	 * by forcing `supportsReadableStreamBody()` to return `false` in
+	 * beforeEach, then asserting it before each test runs. Because the cached
+	 * result is already set, no probe fetch fires during the retry path — mock
+	 * ordering is just: [direct fetch, CORS proxy fetch].
+	 */
+	describe('non-streaming fallback (Safari/Firefox)', () => {
+		beforeEach(async () => {
+			__testing.setStreamBodySupported(false);
+			expect(await supportsReadableStreamBody()).toBe(false);
+		});
+
+		afterEach(() => {
+			__testing.resetStreamBodySupported();
+		});
+
+		it('succeeds on direct POST fetch without needing the streaming probe', async () => {
+			const fetchMock = vi
+				.spyOn(globalThis, 'fetch')
+				.mockResolvedValue(new Response('ok'));
+
+			const request = new Request('https://example.com/api', {
+				method: 'POST',
+				body: 'payload',
+			});
+
+			await fetchWithCorsProxy(
+				request,
+				undefined,
+				'https://proxy.test/?url='
+			);
+
+			// Direct fetch succeeds — no retry, so no probe fires.
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+			const directReq = fetchMock.mock.calls[0][0] as Request;
+			expect(directReq.url).toBe('https://example.com/api');
+		});
+
+		it('preserves the POST body through to the CORS proxy fallback', async () => {
+			const corsProxyHeaders = new Headers();
+			corsProxyHeaders.set('X-Playground-Cors-Proxy', 'true');
+
+			// Streaming is already forced unsupported in beforeEach, so no
+			// probe fires — mock ordering is just: direct fetch → CORS proxy.
+			const fetchMock = vi
+				.spyOn(globalThis, 'fetch')
+				.mockRejectedValueOnce(new Error('CORS'))
+				.mockResolvedValueOnce(
+					new Response('proxied', { headers: corsProxyHeaders })
+				);
+
+			const request = new Request('https://example.com/upload', {
+				method: 'POST',
+				body: 'safari payload',
+			});
+
+			const response = await fetchWithCorsProxy(
+				request,
+				undefined,
+				'https://proxy.test/?url='
+			);
+
+			expect(fetchMock).toHaveBeenCalledTimes(2);
+			const proxyReq = fetchMock.mock.calls[1][0] as Request;
+			expect(proxyReq.url).toBe(
+				'https://proxy.test/?url=https://example.com/upload'
+			);
+			expect(await new Response(proxyReq.body).text()).toBe(
+				'safari payload'
+			);
+			expect(await response.text()).toBe('proxied');
+		});
+
+		it('handles GET requests with no body in non-streaming mode', async () => {
+			const fetchMock = vi
+				.spyOn(globalThis, 'fetch')
+				.mockResolvedValue(new Response('ok'));
+
+			await fetchWithCorsProxy(
+				'https://example.com/page',
+				undefined,
+				'https://proxy.test/?url='
+			);
+
+			// GET: no body → no probe. Direct fetch succeeds.
+			expect(fetchMock).toHaveBeenCalledTimes(1);
+			const directReq = fetchMock.mock.calls[0][0] as Request;
+			expect(directReq.url).toBe('https://example.com/page');
+		});
+	});
+});

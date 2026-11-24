@@ -1,0 +1,13 @@
+{
+	"viewport": { "cssWidth": 1440, "cssHeight": 900, "deviceScaleFactor": 2 },
+	"screenshot": "examples/sample-shot.webp",
+	"boxes": {
+		"editSite": [216, 0, 91, 32],
+		"editPage": [424, 0, 98, 32],
+		"refreshButton": [409, 800, 32, 32],
+		"urlBar": [449, 803, 404, 26],
+		"autosavedChip": [861, 799, 88, 34],
+		"dockPanesRow": [409, 839, 622, 53],
+		"dockPanel": [389, 766, 660, 126]
+	}
+}

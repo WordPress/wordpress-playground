@@ -54,7 +54,7 @@ describe.each(phpVersionsToTest)('PHP %s: PROXYFS mmap', (phpVersion) => {
 			using php2 = new PHP(await loadNodeRuntime(phpVersion));
 
 			// Mount PROXYFS on php2, pointing to php1's filesystem
-			proxyFileSystem(php1, php2, [vfsMountPoint]);
+			await proxyFileSystem(php1, php2, [vfsMountPoint]);
 
 			const result = await php2.run({
 				code: `<?php
@@ -77,7 +77,7 @@ describe.each(phpVersionsToTest)('PHP %s: PROXYFS mmap', (phpVersion) => {
 			using php1 = await createPhpWithTestMount();
 			using php2 = new PHP(await loadNodeRuntime(phpVersion));
 
-			proxyFileSystem(php1, php2, [vfsMountPoint]);
+			await proxyFileSystem(php1, php2, [vfsMountPoint]);
 
 			const result = await php2.run({
 				code: `<?php
@@ -100,7 +100,7 @@ describe.each(phpVersionsToTest)('PHP %s: PROXYFS mmap', (phpVersion) => {
 			using php1 = await createPhpWithTestMount();
 			using php2 = new PHP(await loadNodeRuntime(phpVersion));
 
-			proxyFileSystem(php1, php2, [vfsMountPoint]);
+			await proxyFileSystem(php1, php2, [vfsMountPoint]);
 
 			const result = await php2.run({
 				code: `<?php
@@ -121,7 +121,7 @@ describe.each(phpVersionsToTest)('PHP %s: PROXYFS mmap', (phpVersion) => {
 			using php1 = await createPhpWithTestMount();
 			using php2 = new PHP(await loadNodeRuntime(phpVersion));
 
-			proxyFileSystem(php1, php2, [vfsMountPoint]);
+			await proxyFileSystem(php1, php2, [vfsMountPoint]);
 
 			const result = await php2.run({
 				code: `<?php
@@ -146,7 +146,7 @@ describe.each(phpVersionsToTest)('PHP %s: PROXYFS mmap', (phpVersion) => {
 			using php1 = await createPhpWithTestMount();
 			using php2 = new PHP(await loadNodeRuntime(phpVersion));
 
-			proxyFileSystem(php1, php2, [vfsMountPoint]);
+			await proxyFileSystem(php1, php2, [vfsMountPoint]);
 
 			const [result1, result2] = await Promise.all([
 				php1.run({
@@ -184,12 +184,12 @@ describe.each(phpVersionsToTest)(
 		it('should use Collator through PROXYFS', async () => {
 			// Create php1 with Intl support - it has the ICU data file
 			using php1 = new PHP(
-				await loadNodeRuntime(phpVersion, { withIntl: true })
+				await loadNodeRuntime(phpVersion, { extensions: ['intl'] })
 			);
 
 			// Create php2 with Intl support
 			using php2 = new PHP(
-				await loadNodeRuntime(phpVersion, { withIntl: true })
+				await loadNodeRuntime(phpVersion, { extensions: ['intl'] })
 			);
 
 			// Mount PROXYFS on php2, sharing /internal/shared from php1.
@@ -197,7 +197,7 @@ describe.each(phpVersionsToTest)(
 			// ICU uses mmap to read this file, so this tests that our
 			// PROXYFS mmap implementation works correctly.
 			// proxyFileSystem() automatically adds mmap support to PROXYFS.
-			proxyFileSystem(php1, php2, ['/internal/shared']);
+			await proxyFileSystem(php1, php2, ['/internal/shared']);
 
 			// Test that Collator works in php2 through PROXYFS.
 			// This would fail without mmap support because ICU's uprv_mapFile
@@ -223,14 +223,14 @@ describe.each(phpVersionsToTest)(
 
 		it('should use NumberFormatter through PROXYFS', async () => {
 			using php1 = new PHP(
-				await loadNodeRuntime(phpVersion, { withIntl: true })
+				await loadNodeRuntime(phpVersion, { extensions: ['intl'] })
 			);
 
 			using php2 = new PHP(
-				await loadNodeRuntime(phpVersion, { withIntl: true })
+				await loadNodeRuntime(phpVersion, { extensions: ['intl'] })
 			);
 
-			proxyFileSystem(php1, php2, ['/internal/shared']);
+			await proxyFileSystem(php1, php2, ['/internal/shared']);
 
 			const result = await php2.run({
 				code: `<?php

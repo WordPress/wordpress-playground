@@ -14,7 +14,7 @@ export type SiteError =
 	| 'blueprint-filesystem-required'
 	| 'blueprint-validation-failed'
 	| 'network-firewall-interference'
-	| 'tab-superseded';
+	| 'resource-download-failed';
 
 export type SiteManagerSection = 'sidebar' | 'site-details' | 'blueprints';
 
@@ -149,6 +149,13 @@ export interface UIState {
 	offline: boolean;
 	siteManagerIsOpen: boolean;
 	siteManagerSection: SiteManagerSection;
+	blueprintInstallMessage: string | null;
+	/**
+	 * Set when the active site's backup interval has elapsed. The viewport
+	 * shows a speech bubble on the Site Tools latch inviting the user to
+	 * download a backup; nothing leaves the device until they click it.
+	 */
+	autoBackupDue: boolean;
 }
 
 const query = new URL(document.location.href).searchParams;
@@ -179,8 +186,6 @@ const initialState: UIState = {
 	// specific reasons for the manager to be closed.
 	siteManagerIsOpen:
 		shouldOpenSiteManagerByDefault &&
-		// The site manager should not be shown at all in seamless mode.
-		query.get('mode') !== 'seamless' &&
 		// We do not expect to render the Playground app UI in an iframe.
 		!isEmbeddedInAnIframe &&
 		// Don't default to the site manager on mobile, as that would mean
@@ -188,6 +193,8 @@ const initialState: UIState = {
 		// quite a confusing experience.
 		!isMobile,
 	siteManagerSection: 'site-details',
+	blueprintInstallMessage: null,
+	autoBackupDue: false,
 };
 
 const uiSlice = createSlice({
@@ -258,6 +265,15 @@ const uiSlice = createSlice({
 		) => {
 			state.siteManagerSection = action.payload;
 		},
+		setBlueprintInstallMessage: (
+			state,
+			action: PayloadAction<string | null>
+		) => {
+			state.blueprintInstallMessage = action.payload;
+		},
+		setAutoBackupDue: (state, action: PayloadAction<boolean>) => {
+			state.autoBackupDue = action.payload;
+		},
 		setSiteSlugToRename: (
 			state,
 			action: PayloadAction<string | undefined>
@@ -306,6 +322,8 @@ export const {
 	clearActiveSiteError,
 	setGitHubAuthRepoUrl,
 	setOffline,
+	setBlueprintInstallMessage,
+	setAutoBackupDue,
 	setSiteManagerOpen,
 	setSiteManagerSection,
 	setSiteSlugToRename,

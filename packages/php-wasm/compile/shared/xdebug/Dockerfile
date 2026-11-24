@@ -109,7 +109,7 @@ RUN	cd xdebug; \
 	# with the main module.
 	/root/replace.sh 's/^(XDEBUG_SHARED_LIBADD\s*=.*\s*)-lm\b/$1/' Makefile; \
 
-	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv"; \
+	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv -Dgetpid=__wrap_getpid"; \
 
 	if [ "$DEBUG" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O0 -g3"; \

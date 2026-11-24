@@ -86,7 +86,10 @@ const httpsServer = https.createServer(
 			file_get_contents: `file_get_contents(${js['httpUrl']}, false, ${sslContext});`,
 		};
 
-		const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
+		const phpLoaderOptions: PHPLoaderOptions[] = [
+			{},
+			{ extensions: ['xdebug'] },
+		];
 
 		phpLoaderOptions.forEach((options) => {
 			describe.each(phpVersions)(
@@ -102,7 +105,7 @@ const httpsServer = https.createServer(
 							error_reporting: 'E_ALL & ~E_DEPRECATED',
 						});
 
-						if (options.withXdebug) {
+						if (options.extensions?.includes('xdebug')) {
 							const xdebugIniPath =
 								'/internal/shared/extensions/xdebug.ini';
 

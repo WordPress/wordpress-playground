@@ -967,11 +967,26 @@ function generatePreferenceKey(kind, name, slug) {
 }
 
 // packages/views/build-module/filter-utils.mjs
+var SCALAR_VALUES = [
+  "titleField",
+  "mediaField",
+  "descriptionField",
+  "showTitle",
+  "showMedia",
+  "showDescription",
+  "showLevels",
+  "infiniteScrollEnabled"
+];
 function mergeActiveViewOverrides(view, activeViewOverrides, defaultView) {
   if (!activeViewOverrides) {
     return view;
   }
   let result = view;
+  for (const key of SCALAR_VALUES) {
+    if (key in activeViewOverrides) {
+      result = { ...result, [key]: activeViewOverrides[key] };
+    }
+  }
   if (activeViewOverrides.filters && activeViewOverrides.filters.length > 0) {
     const activeFields = new Set(
       activeViewOverrides.filters.map((f2) => f2.field)
@@ -993,6 +1008,21 @@ function mergeActiveViewOverrides(view, activeViewOverrides, defaultView) {
       };
     }
   }
+  if (activeViewOverrides.layout) {
+    result = {
+      ...result,
+      layout: {
+        ...result.layout,
+        ...activeViewOverrides.layout
+      }
+    };
+  }
+  if (activeViewOverrides.groupBy) {
+    result = {
+      ...result,
+      groupBy: activeViewOverrides.groupBy
+    };
+  }
   return result;
 }
 function stripActiveViewOverrides(view, activeViewOverrides, defaultView) {
@@ -1000,6 +1030,12 @@ function stripActiveViewOverrides(view, activeViewOverrides, defaultView) {
     return view;
   }
   let result = view;
+  for (const key of SCALAR_VALUES) {
+    if (key in activeViewOverrides) {
+      const { [key]: _, ...rest } = result;
+      result = rest;
+    }
+  }
   if (activeViewOverrides.filters && activeViewOverrides.filters.length > 0) {
     const activeFields = new Set(
       activeViewOverrides.filters.map((f2) => f2.field)
@@ -1016,6 +1052,20 @@ function stripActiveViewOverrides(view, activeViewOverrides, defaultView) {
       ...result,
       sort: defaultView?.sort
     };
+  }
+  if (activeViewOverrides.layout && "layout" in result && result.layout) {
+    const layout = { ...result.layout };
+    for (const key of Object.keys(activeViewOverrides.layout)) {
+      delete layout[key];
+    }
+    result = {
+      ...result,
+      layout: Object.keys(layout).length > 0 ? layout : void 0
+    };
+  }
+  if (activeViewOverrides.groupBy && "groupBy" in result) {
+    const { groupBy: _, ...rest } = result;
+    result = rest;
   }
   return result;
 }
@@ -2984,6 +3034,15 @@ function useDelayedLoading(isLoading, options = { delay: 400 }) {
 
 // packages/dataviews/build-module/components/dataviews-layouts/table/index.mjs
 var import_jsx_runtime35 = __toESM(require_jsx_runtime(), 1);
+function getEffectiveAlign(explicitAlign, fieldType) {
+  if (explicitAlign) {
+    return explicitAlign;
+  }
+  if (fieldType === "integer" || fieldType === "number") {
+    return "end";
+  }
+  return void 0;
+}
 function TableColumnField({
   item,
   fields,
@@ -3089,6 +3148,8 @@ function TableRow({
         ) }),
         columns.map((column) => {
           const { width, maxWidth, minWidth, align } = view.layout?.styles?.[column] ?? {};
+          const field = fields.find((f2) => f2.id === column);
+          const effectiveAlign = getEffectiveAlign(align, field?.type);
           return /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(
             "td",
             {
@@ -3103,7 +3164,7 @@ function TableRow({
                   fields,
                   item,
                   column,
-                  align
+                  align: effectiveAlign
                 }
               )
             },
@@ -3313,6 +3374,13 @@ function ViewTable({
             ) }),
             columns.map((column, index) => {
               const { width, maxWidth, minWidth, align } = view.layout?.styles?.[column] ?? {};
+              const field = fields.find(
+                (f2) => f2.id === column
+              );
+              const effectiveAlign = getEffectiveAlign(
+                align,
+                field?.type
+              );
               const canInsertOrMove = view.layout?.enableMoving ?? true;
               return /* @__PURE__ */ (0, import_jsx_runtime35.jsx)(
                 "th",
@@ -3321,7 +3389,7 @@ function ViewTable({
                     width,
                     maxWidth,
                     minWidth,
-                    textAlign: align
+                    textAlign: effectiveAlign
                   },
                   "aria-sort": view.sort?.direction && view.sort?.field === column ? sortValues[view.sort.direction] : void 0,
                   scope: "col",
@@ -12979,11 +13047,10 @@ function FiltersToggle() {
     },
     [onChangeView, setIsShowingFilter]
   );
-  const visibleFilters = filters.filter((filter) => filter.isVisible);
-  const hasVisibleFilters = !!visibleFilters.length;
   if (filters.length === 0) {
     return null;
   }
+  const hasVisibleFilters = filters.some((filter) => filter.isVisible);
   const addFilterButtonProps = {
     label: (0, import_i18n27.__)("Add filter"),
     "aria-expanded": false,
@@ -13000,6 +13067,9 @@ function FiltersToggle() {
       setIsShowingFilter(!isShowingFilter);
     }
   };
+  const hasPrimaryOrLockedFilters = filters.some(
+    (filter) => filter.isPrimary || filter.isLocked
+  );
   const buttonComponent = /* @__PURE__ */ (0, import_jsx_runtime65.jsx)(
     import_components26.Button,
     {
@@ -13007,6 +13077,8 @@ function FiltersToggle() {
       className: "dataviews-filters__visibility-toggle",
       size: "compact",
       icon: funnel_default,
+      disabled: hasPrimaryOrLockedFilters,
+      accessibleWhenDisabled: true,
       ...hasVisibleFilters ? toggleFiltersButtonProps : addFilterButtonProps
     }
   );
@@ -13760,14 +13832,11 @@ function parseDateTime(dateTimeString) {
 // packages/dataviews/build-module/components/dataform-controls/datetime.mjs
 var import_jsx_runtime75 = __toESM(require_jsx_runtime(), 1);
 var { DateCalendar, ValidatedInputControl } = unlock(import_components33.privateApis);
-var formatDateTime = (date) => {
-  if (!date) {
+var formatDateTime = (value) => {
+  if (!value) {
     return "";
   }
-  if (typeof date === "string") {
-    return date;
-  }
-  return format(date, "yyyy-MM-dd'T'HH:mm");
+  return (0, import_date3.dateI18n)("Y-m-d\\TH:i", (0, import_date3.getDate)(value));
 };
 function CalendarDateTimeControl({
   data,
@@ -13802,17 +13871,14 @@ function CalendarDateTimeControl({
     (newDate) => {
       let dateTimeValue;
       if (newDate) {
-        let finalDateTime = newDate;
+        const wpDate = (0, import_date3.dateI18n)("Y-m-d", newDate);
+        let wpTime;
         if (value) {
-          const currentDateTime = parseDateTime(value);
-          if (currentDateTime) {
-            finalDateTime = new Date(newDate);
-            finalDateTime.setHours(currentDateTime.getHours());
-            finalDateTime.setMinutes(
-              currentDateTime.getMinutes()
-            );
-          }
+          wpTime = (0, import_date3.dateI18n)("H:i", (0, import_date3.getDate)(value));
+        } else {
+          wpTime = (0, import_date3.dateI18n)("H:i", newDate);
         }
+        const finalDateTime = (0, import_date3.getDate)(`${wpDate}T${wpTime}`);
         dateTimeValue = finalDateTime.toISOString();
         onChangeCallback(dateTimeValue);
         if (validationTimeoutRef.current) {
@@ -13838,7 +13904,7 @@ function CalendarDateTimeControl({
   const handleManualDateTimeChange = (0, import_element43.useCallback)(
     (newValue) => {
       if (newValue) {
-        const dateTime = new Date(newValue);
+        const dateTime = (0, import_date3.getDate)(newValue);
         onChangeCallback(dateTime.toISOString());
         const parsedDate = parseDateTime(dateTime.toISOString());
         if (parsedDate) {
@@ -13891,9 +13957,7 @@ function CalendarDateTimeControl({
             type: "datetime-local",
             label: (0, import_i18n33.__)("Date time"),
             hideLabelFromVision: true,
-            value: value ? formatDateTime(
-              parseDateTime(value) || void 0
-            ) : "",
+            value: formatDateTime(value),
             onChange: handleManualDateTimeChange
           }
         )

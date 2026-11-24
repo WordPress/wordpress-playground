@@ -4,7 +4,11 @@
  * whenever making changes here.
  */
 
-// Used during deployment to identify files that need to be served in a custom way via PHP
+/**
+ * Keep root requests on PHP when existing routing, headers or setup require it.
+ * activate() uses these rules to decide which HTML pages it can copy to the root
+ * for Nginx to serve. PHP endpoints are moved to private files separately.
+ */
 function playground_is_static_file_needing_special_treatment( $path ) {
 	if ( str_ends_with( $path, '.php' ) ) {
 		return false;
@@ -18,7 +22,45 @@ function playground_is_static_file_needing_special_treatment( $path ) {
 	);
 }
 
-function playground_handle_request() {
+/**
+ * Apply the deployed website's rewrites, redirects, headers, and PHP setup.
+ *
+ * Nginx serves files that exist in the web root, including every public
+ * releases/<id>/ directory, on both hostnames. Only requests for missing files
+ * reach this handler. On the configured sandbox host it serves the request
+ * bridge for versioned bridge URLs, sends scoped navigations to the app, and
+ * returns 404 for everything else: never app files, redirects, or PHP endpoints.
+ *
+ * The deployment script passes the active public release directory and its
+ * private PHP directory. Personal WP passes no argument and keeps its existing
+ * public/static-files-to-serve-via-php layout. A missing release must fail
+ * rather than fall back to other files.
+ *
+ * Deployment writes the configured origins into the release entry. Request
+ * headers and query parameters must not change that configuration.
+ *
+ * @param string|null $build_directory Public release directory, or null for the public layout.
+ * @param string|null $wordpress_origin Configured sandbox origin; null for Personal WP's layout.
+ * @param string|null $app_origin Configured app origin; null for Personal WP's layout.
+ * @param string|null $php_directory Private directory holding the release's PHP endpoints.
+ */
+function playground_handle_request( $build_directory = null, $wordpress_origin = null, $app_origin = null, $php_directory = null ) {
+	// Endpoints and range handling can fail after setting cacheable headers.
+	// Check the final status before output. PHP has only one header callback;
+	// native endpoints must not replace this callback.
+	header_register_callback( function () {
+		if ( http_response_code() >= 400 ) {
+			header( 'A8C-Edge-Cache: no-cache' );
+			header( 'Cache-Control: no-store' );
+		}
+	} );
+
+	$directory = realpath( $build_directory ?? __DIR__ );
+	if ( false === $directory || ! is_dir( $directory ) ) {
+		http_response_code( 503 );
+		exit;
+	}
+
 	$may_edge_cache = true;
 
 	// TODO: If needed, switch to a printf style signature
@@ -38,11 +80,59 @@ function playground_handle_request() {
 	$original_requested_path = $url['path'];
 	$log( "Requested path: '$original_requested_path'" );
 
+	$is_scoped_navigation = null !== $app_origin &&
+		str_starts_with( $original_requested_path, '/scope:' ) &&
+		'GET' === $_SERVER['REQUEST_METHOD'] &&
+		'document' === ( $_SERVER['HTTP_SEC_FETCH_DEST'] ?? '' );
+
+	// Do not let this host reach the normal app handler, including its redirects
+	// and PHP endpoints.
+	$request_host = parse_url( 'https://' . ( $_SERVER['HTTP_HOST'] ?? '' ), PHP_URL_HOST );
+	if ( null !== $wordpress_origin && is_string( $request_host ) &&
+		0 === strcasecmp( $request_host, parse_url( $wordpress_origin, PHP_URL_HOST ) )
+	) {
+		if ( $is_scoped_navigation ) {
+			header( 'Cache-Control: no-store' );
+			header( 'A8C-Edge-Cache: no-cache' );
+			header( 'Location: ' . $app_origin . $_SERVER['REQUEST_URI'], true, 302 );
+			exit;
+		}
+		// PRE_RELEASE_BRIDGE_URL_COMPAT: tabs opened before release directories use
+		// root bridge aliases. Serve the active bridge until those clients are retired.
+		// Nginx already served current managed releases' /releases/<id>/ bridge files.
+		if ( '/wordpress-bridge.html' === $original_requested_path ||
+			preg_match( '~^/wordpress-bridge-[a-f0-9]+\.html$~D', $original_requested_path )
+		) {
+			header( 'Content-Type: text/html' );
+			header( 'Cache-Control: private, no-store' );
+			header( 'X-Content-Type-Options: nosniff' );
+			header_remove( 'X-Frame-Options' );
+			playground_serve_static_file( $directory . '/wordpress-bridge.html' );
+			exit;
+		}
+		http_response_code( 404 );
+		if ( str_starts_with( $original_requested_path, '/scope:' ) ) {
+			header( 'Content-Type: text/plain; charset=utf-8' );
+			echo 'This browser could not connect to the Playground site. Open it in Playground and try again.';
+		}
+		exit;
+	}
+
+	if ( null !== $app_origin && str_starts_with( $original_requested_path, '/scope:' ) ) {
+		if ( ! $is_scoped_navigation ) {
+			http_response_code( 404 );
+			exit;
+		}
+		$may_edge_cache = false;
+		header( 'A8C-Edge-Cache: no-cache' );
+		header( 'Cache-Control: no-store' );
+	}
+
 	//
 	// REWRITES
 	//
-	$requested_path = $original_requested_path;
-	$rewritten_path = playground_maybe_rewrite( $original_requested_path );
+	$requested_path = $is_scoped_navigation ? '/wordpress-popup.html' : $original_requested_path;
+	$rewritten_path = playground_maybe_rewrite( $requested_path );
 	if ( $rewritten_path ) {
 		$requested_path = $rewritten_path;
 		$log( "Rewrote '$original_requested_path' to '$requested_path'" );
@@ -85,17 +175,45 @@ function playground_handle_request() {
 	//
 	// PATH RESOLUTION
 	//
-	$resolved_path = realpath( __DIR__ . $requested_path );
+	$served_path = $requested_path;
+	// PHP endpoints stay out of the public release, where Nginx would run them on
+	// both hostnames. Resolve them, and only them, in the private directory.
+	if ( null !== $php_directory && str_ends_with( $served_path, '.php' ) ) {
+		$directory = realpath( $php_directory );
+		if ( false === $directory ) {
+			http_response_code( 503 );
+			exit;
+		}
+	}
+	$resolved_path = realpath( $directory . $served_path );
 	if ( is_dir( $resolved_path ) ) {
+		if ( null !== $build_directory &&
+			str_starts_with( $resolved_path, $directory . '/' ) &&
+			! str_ends_with( $served_path, '/' )
+		) {
+			// Nginx normally adds the trailing slash for public directories. It
+			// cannot see private build directories, so preserve that redirect here.
+			$location = './' . rawurlencode( basename( $served_path ) ) . '/';
+			if ( isset( $url['query'] ) ) {
+				$location .= '?' . $url['query'];
+			}
+			header( 'Location: ' . $location, true, 301 );
+			die();
+		}
 		$resolved_path = playground_resolve_to_index_file( $resolved_path );
 	}
 
-	if ( false === $resolved_path && ! str_ends_with( $requested_path, '.php' ) ) {
+	if ( false === $resolved_path && ! str_ends_with( $served_path, '.php' ) ) {
 		// Static files that need special treatment are served from a different directory.
-		$resolved_path = realpath( __DIR__ . '/static-files-to-serve-via-php' . $requested_path );
+		$resolved_path = realpath( $directory . '/static-files-to-serve-via-php' . $served_path );
 		if ( is_dir( $resolved_path ) ) {
 			$resolved_path = playground_resolve_to_index_file( $resolved_path );
 		}
+	}
+
+	if ( false === $resolved_path && playground_is_my_wordpress_net_request() ) {
+		$served_path = '/index.html';
+		$resolved_path = playground_resolve_my_wordpress_net_index_fallback();
 	}
 
 	$log( "Resolved '$original_requested_path' to '$resolved_path'." );
@@ -106,7 +224,7 @@ function playground_handle_request() {
 		die();
 	}
 
-	if ( ! str_starts_with( $resolved_path, '/srv/htdocs/' ) ) {
+	if ( ! str_starts_with( $resolved_path, $directory . '/' ) ) {
 		$log( "This looks like attempted path traversal: '$original_requested_path'" );
 		http_response_code( 403 );
 		die();
@@ -139,7 +257,27 @@ function playground_handle_request() {
 		header( "Content-Type: $content_type" );
 	}
 
-	$custom_response_headers = playground_get_custom_response_headers( $requested_path );
+	// PRE_RELEASE_ASSETS_COMPAT: tabs loaded before release directories fetch
+	// /wp-<version> and root scripts
+	// from the app host. Keep their CORS headers until those tabs are retired.
+	// Other public API URLs also need CORS; do not remove this entire rule.
+	// Personal WP keeps its existing public-file headers.
+	$is_shared_asset = null !== $build_directory && 'php' !== $extension && (
+		str_starts_with( $served_path, '/assets/' ) ||
+		str_ends_with( $served_path, '.js' ) || preg_match( '~^/wp-[^/]+/~', $served_path )
+	);
+	if ( $is_shared_asset ) {
+		header( 'Access-Control-Allow-Origin: *' );
+		header( 'Access-Control-Allow-Headers: *' );
+		header( 'Access-Control-Allow-Methods: GET, HEAD' );
+		header( 'Cross-Origin-Resource-Policy: cross-origin' );
+		if ( 'OPTIONS' === $_SERVER['REQUEST_METHOD'] ) {
+			http_response_code( 204 );
+			die();
+		}
+	}
+
+	$custom_response_headers = playground_get_custom_response_headers( $served_path );
 	if ( ! empty( $custom_response_headers ) ) {
 		foreach ( $custom_response_headers as $custom_header ) {
 			header( $custom_header );
@@ -148,6 +286,9 @@ function playground_handle_request() {
 		if ( $may_edge_cache ) {
 			$log( "Marking for cache: '$resolved_path'" );
 			header( 'A8C-Edge-Cache: cache' );
+			if ( $is_shared_asset && 'html' !== $extension ) {
+				header( 'Cache-Control: public, max-age=3600' );
+			}
 		} else {
 			$log( "Skipping edge cache: '$resolved_path'" );
 			header( 'Cache-Control: no-cache' );
@@ -155,6 +296,9 @@ function playground_handle_request() {
 	}
 
 	if ( 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
+		if ( 'php' !== $extension ) {
+			playground_serve_static_file( $resolved_path );
+		}
 		die();
 	}
 
@@ -164,13 +308,75 @@ function playground_handle_request() {
 
 	if ( 'php' === $extension ) {
 		$log( "Running PHP: '$original_requested_path'" );
-		playground_maybe_set_environment( $requested_path );
+		playground_maybe_set_environment( $served_path );
+		if ( null !== $build_directory ) {
+			// Nginx cannot execute a private endpoint directly. Run the resolved
+			// file only after the same headers and persistent-data setup as before.
+			require $resolved_path;
+			die();
+		}
 		// Let the web server continue executing PHP in a complete environment
 	} else {
 		$log( "Reading static file: '$resolved_path'" );
-		readfile( $resolved_path );
+		playground_serve_static_file( $resolved_path );
 		die();
 	}
+}
+
+/**
+ * Send a validated static file, including a single byte range for download retries.
+ *
+ * For example, GET with Range: bytes=1024- returns only the bytes still missing
+ * from a PHP runtime download, with status 206 and Content-Range. Bounded ranges
+ * work too; an end beyond the file is clamped to its last byte. A supported
+ * range with no valid bytes returns 416 and the current file size.
+ *
+ * Multiple ranges, suffix ranges, unknown units, and unrecognized syntax are
+ * ignored: send the normal full response, not a multipart body or a false 416.
+ * Requests with If-Range also get a full response; this handler does not compare
+ * validators. Only GET uses ranges. HEAD sends the full length without a body.
+ *
+ * The caller must already have resolved and checked the path and set MIME/cache
+ * headers. Full responses still use readfile(); partial responses seek directly
+ * to the requested offset and stream only the requested bytes.
+ *
+ * @param string $path Existing static file selected by playground_handle_request().
+ */
+function playground_serve_static_file( $path ) {
+	$size = filesize( $path );
+	$start = 0;
+	$end = $size - 1;
+	$range = null;
+	header( 'Accept-Ranges: bytes' );
+	if (
+		'GET' === $_SERVER['REQUEST_METHOD'] &&
+		! isset( $_SERVER['HTTP_IF_RANGE'] ) &&
+		isset( $_SERVER['HTTP_RANGE'] ) &&
+		preg_match( '/\Abytes=(\d+)-(\d*)\z/i', trim( $_SERVER['HTTP_RANGE'] ), $range )
+	) {
+		$start = (int) $range[1];
+		$end = '' === $range[2] ? $end : min( $end, (int) $range[2] );
+		if ( $start > $end ) {
+			header( "Content-Range: bytes */$size", true, 416 );
+			header( 'Content-Length: 0' );
+			return;
+		}
+		http_response_code( 206 );
+		header( "Content-Range: bytes $start-$end/$size" );
+	}
+	$length = $end - $start + 1;
+	header( "Content-Length: $length" );
+	if ( 'HEAD' === $_SERVER['REQUEST_METHOD'] ) {
+		return;
+	}
+	if ( ! $range ) {
+		readfile( $path );
+		return;
+	}
+	$stream = fopen( $path, 'rb' );
+	fseek( $stream, $start );
+	stream_copy_to_stream( $stream, fopen( 'php://output', 'wb' ), $length );
+	fclose( $stream );
 }
 
 function playground_maybe_rewrite( $original_requested_path ) {
@@ -180,11 +386,43 @@ function playground_maybe_rewrite( $original_requested_path ) {
 		$requested_path = '/plugin-proxy.php';
 	}
 
+	if (
+		playground_is_my_wordpress_net_request() &&
+		(
+			'/relay' === $requested_path ||
+			str_starts_with( $requested_path, '/relay/' )
+		)
+	) {
+		$requested_path = '/relay.php';
+	}
+
 	if ( $requested_path !== $original_requested_path ) {
 		return $requested_path;
 	}
 
 	return false;
+}
+
+function playground_is_my_wordpress_net_request() {
+	if ( empty( $_SERVER['HTTP_HOST'] ) ) {
+		return false;
+	}
+
+	if ( ! preg_match( '/^my\.wordpress\.net(:\d+)?$/i', $_SERVER['HTTP_HOST'] ) ) {
+		return false;
+	}
+
+	return true;
+}
+
+function playground_resolve_my_wordpress_net_index_fallback() {
+	$resolved_path = realpath( __DIR__ . '/index.html' );
+	if ( false === $resolved_path ) {
+		// Deployment may move index.html aside so PHP can apply custom cache headers.
+		$resolved_path = realpath( __DIR__ . '/static-files-to-serve-via-php/index.html' );
+	}
+
+	return $resolved_path;
 }
 
 function playground_maybe_redirect( $requested_path ) {
@@ -316,6 +554,47 @@ function playground_maybe_set_environment( $requested_path ) {
 		return true;
 	}
 
+	if ( str_ends_with( $requested_path, 'mywp-event.php' ) ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
+		return true;
+	}
+
+	if ( str_ends_with( $requested_path, 'mywp-event-dashboard.php' ) ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
+		$secrets = new Atomic_Persistent_Data;
+		$github_client_id =
+			$secrets->MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_ID ??
+			$secrets->GITHUB_APP_CLIENT_ID ??
+			null;
+		$github_client_secret =
+			$secrets->MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_SECRET ??
+			$secrets->GITHUB_APP_CLIENT_SECRET ??
+			null;
+		if (
+			isset(
+				$github_client_id,
+				$github_client_secret,
+				$secrets->MYWP_EVENT_DASHBOARD_GITHUB_USERS,
+			)
+		) {
+			putenv( "MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_ID=$github_client_id" );
+			putenv( "MYWP_EVENT_DASHBOARD_GITHUB_CLIENT_SECRET=$github_client_secret" );
+			putenv( "MYWP_EVENT_DASHBOARD_GITHUB_USERS={$secrets->MYWP_EVENT_DASHBOARD_GITHUB_USERS}" );
+		} else {
+			error_log( 'PLAYGROUND: Missing secrets for mywp-event-dashboard.php' );
+		}
+
+		return true;
+	}
+
+	if ( basename( $requested_path ) === 'relay.php' ) {
+		// Define DB_PASSWORD early so Atomic_Persistent_Data can work.
+		__atomic_env_define( 'DB_PASSWORD' );
+		return true;
+	}
+
 	return false;
 }
 
@@ -324,6 +603,8 @@ function playground_get_custom_response_headers( $requested_path ) {
 
 	if ( 'iframe-worker.html' === $filename ) {
 		return array( 'Origin-Agent-Cluster: ?1' );
+	} elseif ( in_array( $filename, array( 'mywp-event.php', 'mywp-event-dashboard.php', 'relay.php' ), true ) ) {
+		return array( 'Cache-Control: no-store' );
 	} elseif ( str_ends_with( $filename, 'store.zip' ) ) {
 		// Disable compression so zip file can be read piece by piece
 		// using file offsets embedded in the zip's metadata.
@@ -333,7 +614,9 @@ function playground_get_custom_response_headers( $requested_path ) {
 		);
 	} elseif (
 		'/' === $requested_path ||
-		'/index.html' === $requested_path
+		'/index.html' === $requested_path ||
+		'/builder/builder.html' === $requested_path ||
+		'/api.html' === $requested_path
 	) {
 		return array( 'Cache-Control: max-age=0, no-cache, no-store, must-revalidate' );
 	} elseif (
@@ -341,6 +624,7 @@ function playground_get_custom_response_headers( $requested_path ) {
 			$filename,
 			array(
 				'index.js',
+				'php-code-snippet.js',
 				'blueprint-schema.json',
 				'logger.php',
 				'oauth.php',

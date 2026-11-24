@@ -24,6 +24,10 @@ describe('Playground CLI file locking', () => {
 			command: 'server',
 			// Use a unique port to avoid conflicts with other test suites
 			port: 9600,
+			// The `multi shared locks` test runs three PHP scripts in
+			// parallel; with fewer than 3 workers it deadlocks and poisons
+			// every subsequent test via the shared beforeAll server.
+			workers: 3,
 			mount: [
 				{
 					hostPath: nativeTestDir,

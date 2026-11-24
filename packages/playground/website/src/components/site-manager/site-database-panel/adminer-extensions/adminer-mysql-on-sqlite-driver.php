@@ -13,13 +13,17 @@
 namespace Adminer;
 
 // Load the SQLite driver.
-require_once '/internal/shared/sqlite-database-integration/wp-pdo-mysql-on-sqlite.php';
+global $wp_env;
+$wp_env = require '/internal/shared/wp-env.php';
+if ($wp_env['db']['type'] === 'sqlite') {
+	require_once $wp_env['db']['driver_path'];
+} else {
+	die('Error: Unsupported database type: ' . $wp_env['db']['type']);
+}
 
 use Throwable;
 use WP_SQLite_Driver;
 use WP_SQLite_Connection;
-use PDO;
-
 SqlDriver::$drivers = array("server" => "MySQL / MariaDB") + SqlDriver::$drivers;
 
 if (!defined('Adminer\DRIVER')) {
@@ -96,10 +100,9 @@ if (!defined('Adminer\DRIVER')) {
 		public $driver;
 
 		function attach($server, $username, $password) {
-			$pdo = new PDO('sqlite:/wordpress/wp-content/database/.ht.sqlite');
-			$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+			global $wp_env;
 			$this->driver = new WP_SQLite_Driver(
-				new WP_SQLite_Connection(array('pdo' => $pdo)),
+				new WP_SQLite_Connection(array('path' => $wp_env['db']['path'])),
 				'wordpress'
 			);
 			return $this;

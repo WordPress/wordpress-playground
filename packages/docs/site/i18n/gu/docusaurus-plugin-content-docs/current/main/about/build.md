@@ -30,7 +30,9 @@ WordPress Playground can help you to create and learn WordPress quickly, even on
 You can seamlessly integrate Playground into your development workflow to launch a local WordPress environment quickly for testing your code. You can do this directly [from the terminal](/developers/local-development/wp-playground-cli) or [your preferred IDE.](/developers/local-development/vscode-extension)
 -->
 
-## બ્લોક થીમ પર કરેલા ફેરફારો સાચવો અને GitHub Pull Requests બનાવો
+<a id="બ્લોક-થીમ-પર-કરેલા-ફેરફારો-સાચવો-અને-github-pull-requests-બનાવો"></a>
+
+## બ્લોક થીમ પર કરેલા ફેરફારો સાચવો અને GitHub Pull Requests બનાવો {#save-changes-done-on-a-block-theme-and-create-github-pull-requests}
 
 <!--
 ## Save changes done on a Block Theme and create GitHub Pull Requests
@@ -59,21 +61,23 @@ With this workflow, you could build a block theme completely in your browser and
 Some more examples of this workflow:
 -->
 
--   [ડેવલપર અવર્સ: ટેસ્ટિંગ અને ડેમોઝ માટે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ બ્લૂપ્રિન્ટ્સ બનાવવું](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
--   [રીકૅપ હોલવે હેંગઆઉટ: પ્લેગ્રાઉન્ડ સાથે થીમ બિલ્ડિંગ, ક્રિએટ-બ્લોક-થીમ પ્લગિન અને GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
+- [ડેવલપર અવર્સ: ટેસ્ટિંગ અને ડેમોઝ માટે વર્ડપ્રેસ પ્લેગ્રાઉન્ડ બ્લૂપ્રિન્ટ્સ બનાવવું](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
+- [રીકૅપ હોલવે હેંગઆઉટ: પ્લેગ્રાઉન્ડ સાથે થીમ બિલ્ડિંગ, ક્રિએટ-બ્લોક-થીમ પ્લગિન અને GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
 <!--
 -   [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
 -   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 -->
 
-## તમારા પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને લોકલ ફોલ્ડર સાથે સિંક્રોનાઈઝ કરો અને GitHub Pull Requests બનાવો
+<a id="તમારા-પ્લેગ્રાઉન્ડ-ઇન્સ્ટન્સને-લોકલ-ફોલ્ડર-સાથે-સિંક્રોનાઈઝ-કરો-અને-github-pull-requests-બનાવો"></a>
+
+## તમારા પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને લોકલ ફોલ્ડર સાથે સિંક્રોનાઈઝ કરો અને GitHub Pull Requests બનાવો {#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests}
 
 <!--
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
 -->
 
-![સ્ટોરેજ ટાઈપ ડિવાઈસ સ્નેપશોટ](@site/static/img/about/storage-type-device.webp)
+![સ્ટોરેજ ટાઈપ ડિવાઈસ સ્નેપશોટ](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
 
 <!--
 [Storage Type Device Snapshot](../_assets/storage-type-device.png)
@@ -85,26 +89,26 @@ Google Chrome સાથે તમે તમારી પ્લેગ્રાઉ
 With Google Chrome you can synchronize your Playground instance with a local directory, that can be either:
 -->
 
--   ખાલી ડિરેક્ટરી – આ પ્લેગ્રાઉન્ડ સાચવવા અને સિંક શરૂ કરવા માટે
--   એકઝિસ્ટિંગ ડિરેક્ટરી – તેને અહીં લોડ કરવા અને સિંક શરૂ કરવા માટે
+- ખાલી ડિરેક્ટરી – આ પ્લેગ્રાઉન્ડ સાચવવા અને સિંક શરૂ કરવા માટે
+- એકઝિસ્ટિંગ ડિરેક્ટરી – તેને અહીં લોડ કરવા અને સિંક શરૂ કરવા માટે
 
 <!--
 -   And empty directory – to save this Playground and start syncing
 -   An existing directory – to load it here and start syncing
 -->
 
-:::info
+<div class="callout callout-info">
 
 આ ફીચર હાલમાં માત્ર Google Chrome માટે જ ઉપલબ્ધ છે. હજી સુધી આ અન્ય બ્રાઉઝર્સ સાથે કામ કરશે નહીં.
 
-:::
+</div>
 
 <!--
-:::info
+<div class="callout callout-info">
 
 This feature is only available for Google Chrome for now. It won't work with other browsers, yet.
 
-:::
+</div>
 -->
 
 કનેક્શનની બંને બાજુએ કરેલા ફેરફારો અંગે:
@@ -113,8 +117,8 @@ This feature is only available for Google Chrome for now. It won't work with oth
 Regarding changes done on both sides of the connection:
 -->
 
--   પ્લેગ્રાઉન્ડમાં બદલાયેલી ફાઈલો તમારા કમ્પ્યુટરમાં સિંક્રોનાઈઝ થશે.
--   તમારા કમ્પ્યુટરમાં બદલાયેલી ફાઈલો પ્લેગ્રાઉન્ડમાં સિંક્રોનાઈઝ નહીં થાય. તેના માટે તમને "Sync local files" બટન ક્લિક કરવું પડશે.
+- પ્લેગ્રાઉન્ડમાં બદલાયેલી ફાઈલો તમારા કમ્પ્યુટરમાં સિંક્રોનાઈઝ થશે.
+- તમારા કમ્પ્યુટરમાં બદલાયેલી ફાઈલો પ્લેગ્રાઉન્ડમાં સિંક્રોનાઈઝ નહીં થાય. તેના માટે તમને "Sync local files" બટન ક્લિક કરવું પડશે.
 
 <!--
 -   Files changed in Playground will be synchronized to your computer.
@@ -159,7 +163,7 @@ You can [use WordPress Playground in Node.js](/developers/local-development/php-
 પ્લેગ્રાઉન્ડ પર બનેલી બીજી એક રસપ્રદ એપ્લિકેશન છે **ટ્રાન્સલેટ લાઈવ** ([ઉદાહરણ](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) જે, ઓપન એઆઈ સાથે મળીને, એક "ઇન-પ્લેસ" વર્ડપ્રેસ ટ્રાન્સલેશન ટૂલ પૂરું પાડે છે જ્યાં ટ્રાન્સલેશન્સ તેમના વાસ્તવિક સંદર્ભમાં જોઈ અને સંશોધિત કરી શકાય છે (ઉદાહરણ જુઓ). આ ટૂલ વિશે વધુ વાંચો [ટ્રાન્સલેટ લાઈવ: ટ્રાન્સલેશન પ્લેગ્રાઉન્ડમાં અપડેટ્સ](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/) પર.
 
 <!--
-Another interesting app built on top of Playground is **Translate Live** (see [example](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) which, in combination with Open AI provides a WordPress translations tool “in place” where translations can be seen and modified in their real context (see example). Read more about this tool at [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
+Another interesting app built on top of Playground is **Translate Live** (see [example](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) which, in combination with OpenAI provides a WordPress translations tool “in place” where translations can be seen and modified in their real context (see example). Read more about this tool at [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 -->
 
 ## ઓફલાઈન કામ કરો અને નેટિવ એપ્લિકેશન તરીકે

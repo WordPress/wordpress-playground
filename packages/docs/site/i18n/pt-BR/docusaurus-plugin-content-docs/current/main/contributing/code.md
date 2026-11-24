@@ -17,18 +17,22 @@ Like all WordPress projects, Playground uses GitHub to manage code and track iss
 Como todos os projetos WordPress, o Playground usa o GitHub para gerenciar o código e rastrear problemas. O repositório principal está em [https://github.com/WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) e o repositório de Ferramentas do Playground está em [https://github.com/WordPress/playground-tools/](https://github.com/WordPress/playground-tools/).
 
 <!--
-:::info Contribute to Playground Tools
+<div class="callout callout-info">
+
+**Contribute to Playground Tools**
 
 This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or local development tools—start there.
 
-:::
+</div>
 -->
 
-:::info Contribua para as Ferramentas do Playground
+<div class="callout callout-info">
+
+**Contribua para as Ferramentas do Playground**
 
 Este guia inclui links para o repositório principal, mas todos os passos e opções se aplicam a ambos. Se você estiver interessado nos plugins ou nas ferramentas de desenvolvimento local, comece por aí.
 
-:::
+</div>
 
 <!--
 Browse [the list of open issues](https://github.com/wordpress/wordpress-playground/issues) to find what to work on. The [`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) label is a recommended starting point for first-time contributors.
@@ -49,10 +53,10 @@ Certifique-se de revisar os seguintes recursos antes de começar:
 -   [WordPress Playground Roadmap](https://github.com/WordPress/wordpress-playground/issues/525)
 -->
 
--   [Princípios de codificação](/contributing/coding-standards)
--   [Arquitetura](/developers/architecture)
--   [Visão e Filosofia](https://github.com/WordPress/wordpress-playground/issues/472)
--   [Roteiro do WordPress Playground](https://github.com/WordPress/wordpress-playground/issues/525)
+- [Princípios de codificação](/contributing/coding-standards)
+- [Arquitetura](/developers/architecture)
+- [Visão e Filosofia](https://github.com/WordPress/wordpress-playground/issues/472)
+- [Roteiro do WordPress Playground](https://github.com/WordPress/wordpress-playground/issues/525)
 
 <!--
 ## Contribute Pull Requests
@@ -98,18 +102,22 @@ When your'e ready, commit the changes and submit a Pull Request.
 Quando estiver pronto, faça o commit das alterações e envie um Pull Request.
 
 <!--
-:::info Formatting
+<div class="callout callout-info">
+
+**Formatting**
 
 We handle code formatting and linting automatically. Relax, type away, and let the machines do the work.
 
-:::
+</div>
 -->
 
-:::info Formatação
+<div class="callout callout-info">
+
+**Formatação**
 
 Nós lidamos com a formatação de código e o linting automaticamente. Relaxe, digite e deixe as máquinas fazerem o trabalho.
 
-:::
+</div>
 
 <!--
 ### Running a local Multisite
@@ -172,8 +180,8 @@ Se você estiver usando o VS Code e tiver o Chrome instalado, poderá depurar o 
 -   Select Run > Start Debugging from the main menu or press `F5`/`fn`+`F5`.
 -->
 
--   Abra a pasta do projeto no VS Code.
--   Selecione Executar > Iniciar Depuração no menu principal ou pressione `F5`/`fn`+`F5`.
+- Abra a pasta do projeto no VS Code.
+- Selecione Executar > Iniciar Depuração no menu principal ou pressione `F5`/`fn`+`F5`.
 
 <!--
 ### Debugging PHP

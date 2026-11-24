@@ -18,7 +18,7 @@ A car simulator gives you a steering wheel, pedals, and virtual streets. Practic
 
 WordPress Playground works the same way. It gives you a complete WordPress site to experiment with, but nothing you do affects any real website. Make changes, break things, learn from mistakes — then start fresh whenever you want.
 
-![WordPress Playground Landing Page](@site/static/img/guides/wordpress-playground-landing-page.webp)
+![WordPress Playground Landing Page](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/wordpress-playground-landing-page.webp)
 
 ## What Can You Do with Playground?
 
@@ -29,13 +29,9 @@ When you visit [playground.wordpress.net](https://playground.wordpress.net), you
 - Change WordPress and PHP versions
 - Explore features you've never tried before
 
-By default, WordPress Playground loads a landing page to introduce some of the features of Playground and where you can learn more about it. But you can also load a vanilla WordPress version without the landing page. At the Launching Playground panel, one option is to load a vanilla WordPress version.
+By default, WordPress Playground loads a landing page that introduces Playground. To start with a plain WordPress install, open **New** in the Dock and choose **Vanilla WordPress** from the Blueprint gallery.
 
-1. Open Launch WordPress Panel
-   ![Launch WordPress Panel](@site/static/img/about/open-playground-dashboard.webp)
-
-2. Select to load a Vanilla WordPress version
-   ![Launching Vanilla WordPress](@site/static/img/guides/launch-vanilla-wordpress.webp)
+![The New Playground pane with Vanilla WordPress first in the Blueprint gallery](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 ## If You're Learning WordPress
 
@@ -45,27 +41,25 @@ Are you new to WordPress or trying to understand features like the Site Editor o
 
 Playground logs you in as an administrator, so you can edit any page. Click **Edit** for editing posts and **Edit Site** to update the website layout in the top toolbar to open the editor.
 
-![Editing WordPress websites](@site/static/img/guides/edit-sites-with-playground.webp)
+![Editing WordPress websites](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/edit-sites-with-playground.webp)
 
 Want to understand how a page layout was created? Open the **List View** (the three horizontal lines icon) to see every block that makes up the page.
 
-![Site Editor List view](@site/static/img/guides/site-editor-list-view.webp)
+![Site Editor List view](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/site-editor-list-view.webp)
 
 You can inspect columns, headings, images, and buttons — and see exactly how they're arranged. This is a powerful way to learn by example.
 
 #### Explore the Blueprint Library
 
-At the Launch WordPress Playground panel, you will have access to the Blueprint Library, a set of more than 40 blueprints to inspire you and try different types of websites with WordPress Playground, Art Gallery, E-commerce, and Web Portfolio are some of the examples.
+Open **New** in the Dock to browse the Blueprint gallery. The gallery has examples for art galleries, stores, portfolios, learning environments, and many other starting points.
 
-1. Open the Blueprint gallery at the Playground Launch Panel
-   ![Open blueprint Gallery](@site/static/img/guides/open-blueprints-gallery.webp)
-
-1. Navigate and select the Blueprint to launch at WordPress Playground
-   ![Open blueprint Gallery](@site/static/img/guides/list-of-blueprints.webp)
+![The Blueprint gallery in the New Playground pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 
 ### Try New Features Safely
 
-When the WordPress team releases new features, you can test them in Playground before they affect your real site. Select any WordPress version from the settings panel to explore what's new — or what's coming next.
+When the WordPress team releases new features, you can test them in Playground before they affect your real site. Open **Site Settings** from the Dock to choose a WordPress or PHP version.
+
+![The Site Settings pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-site-settings.webp)
 
 ## If You Own a WordPress Site
 
@@ -82,7 +76,7 @@ Curious about a new SEO plugin? Want to compare two contact form options? Instal
 
 Your real site stays untouched while you evaluate whether the plugin fits your needs.
 
-![Installing Plugins](@site/static/img/guides/installing-plugins.webp)
+![Installing Plugins](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/guides/installing-plugins.webp)
 
 ### Preview Theme Changes
 
@@ -92,9 +86,13 @@ Thinking about switching themes? Test your new theme in Playground to see how it
 
 Open multiple browser tabs with different Playground setups. Compare plugin A versus plugin B, or see how your content looks in different themes. Make informed decisions before touching your production site.
 
-:::info Your Real Site Stays Safe
+<div class="callout callout-info">
+
+**Your Real Site Stays Safe**
+
 Every Playground runs independently in your browser. Nothing syncs to any external server, and nothing affects your live WordPress installation.
-:::
+
+</div>
 
 ## If You Use WordPress Daily
 
@@ -108,7 +106,9 @@ Want to try a different font size? Adjust spacing? Change colors? Load a Playgro
 2. Select a block and modify its settings
 3. See the results immediately
 
-If you like what you see, recreate those changes on your real site. If not, just close the tab — no cleanup required.
+If you like what you see, recreate those changes on your real site. If not,
+start another Playground. The experiment may remain as a recent autosave until
+newer autosaves replace it.
 
 ## Yes, You Can Save Your Work
 
@@ -116,21 +116,27 @@ If you like what you see, recreate those changes on your real site. If not, just
 
 ### Save to Your Browser
 
-1. Now WordPress Playground teels you if your Playground instance is unsaved on the top right
-2. Click on **Save** (yellow button)
-3. Set the name of your instance
+New Playgrounds are autosaved when browser storage is available. Open **Your Playgrounds** from the Dock to return to recent autosaves. Playground keeps up to five recent autosaves.
 
-![Saving Playgrounds](@site/static/img/guides/unsaved-playground-warning.webp)
+![The Your Playgrounds pane with the current Playground](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/your-playgrounds.webp)
 
-Playground generates a unique link for your saved site. Bookmark it, and you can return to exactly where you left off.
+To keep an autosave permanently, click the **Autosaved** status in the Dock, choose **Save in browser storage**, and save it.
+
+![The Store permanently pane with browser storage selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-browser.webp)
 
 ### Download as a ZIP File
 
-Need to move your work elsewhere? Choose **Download as .zip** to export your entire Playground — including plugins, themes, and content. You can restore it later or even host it on a real server.
+Need to move your work elsewhere? Open **Export** and choose **Download as .zip**. The ZIP contains the current files, database, plugins, themes, uploads, and edits. You can restore it later with **New → Import zip** or host it on a server that supports PHP and SQLite.
 
-:::tip Keep Your Playground Link
-When you save to the browser, copy the unique URL it generates. That link is your way back to your saved work.
-:::
+![The Export pane](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-export-playground.webp)
+
+<div class="callout callout-tip">
+
+**Keep a portable backup**
+
+Browser storage belongs to your browser profile and can be cleared or evicted. Export a ZIP when you need a file you can move or archive.
+
+</div>
 
 ## Next Steps
 

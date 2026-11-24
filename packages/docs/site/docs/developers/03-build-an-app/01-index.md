@@ -22,26 +22,30 @@ Playground can be embedded on your website using the HTML `<iframe>` tag as foll
 
 Every visitor will get their own private WordPress instance for free. You can then customize it using one of the [Playground APIs](/developers/apis/).
 
-import PlaygroundWpNetWarning from '@site/docs/\_fragments/\_playground_wp_net_may_stop_working.md';
+<div class="callout callout-warning">
 
-<PlaygroundWpNetWarning />
+**Careful with the demo site**
+
+The site at https://playground.wordpress.net is there to support the community, but there are no guarantees it will continue to work if the traffic grows significantly.
+
+If you need certain availability, you should [host your own WordPress Playground](/developers/architecture/host-your-own-playground).
+
+</div>
 
 ## Control the embedded website
 
 WordPress Playground provides three APIs you can use to control the iframed website. All the examples in this section are built using one of these:
 
-import APIList from '@site/docs/\_fragments/\_api_list.mdx';
-
-<APIList />
+- [Query API](/developers/apis/query-api) enable basic operations using only query parameters
+- [Blueprints API](/blueprints) give you a great degree of control with a simple JSON file
+- [JavaScript API](/developers/apis/javascript-api) gives you full control via a JavaScript client loaded from `playground.wordpress.net` or installed from npm
 
 Learn more about each of these APIs in the [APIs overview section](/developers/apis/).
 
 ## Showcase a plugin or theme from WordPress directory
 
-import ThisIsQueryApi from '@site/docs/\_fragments/\_this_is_query_api.md';
-
 You can install plugins and themes from the WordPress directory with only URL parameters. This iframe preinstalls the `coblocks` and `friends` plugins and the `pendant` theme.
-<ThisIsQueryApi />
+This is called [Query API](/developers/apis/query-api/) and you can learn more about it [here](/developers/apis/query-api/).
 
 ```html
 <iframe src="https://playground.wordpress.net/?plugin=coblocks"></iframe>
@@ -111,9 +115,11 @@ You can preview repository code two ways: directly with `git:directory`, or by p
 
 In the code above, it will install a plugin from a repository located at the `url`, and the reference to find the branch is `refType`; in this case, it will use `refname`, but it can also use `branch`, `tag`, and `commit`.
 
-:::tip
+<div class="callout callout-tip">
+
 You can automate this process using the [GitHub Action to generate preview links](/guides/github-action-pr-preview), which will help streamline the process.
-:::
+
+</div>
 
 Loading a `.zip` file is another alternative for previewing your project. See the [live example of Gutenberg PR previewer](https://playground.wordpress.net/gutenberg.html).
 
@@ -152,32 +158,23 @@ blueprint={{
 			"password": "password"
 		},
 		{
-			"step": "mkdir",
-			"path": "/wordpress/pr"
-		},
-		{
 			"step": "writeFile",
-			"path": "/wordpress/pr/pr.zip",
+			"path": "/tmp/gutenberg.zip",
 			"data": {
 				"resource": "url",
-				"url": "/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&pr=60819",
-				"caption": "Downloading Gutenberg PR 47739"
+				"url": "/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg.zip&pr=60819",
+				"caption": "Downloading Gutenberg PR 60819"
 			},
 			"progress": {
 				"weight": 2,
-				"caption": "Applying Gutenberg PR 47739"
+				"caption": "Applying Gutenberg PR 60819"
 			}
-		},
-		{
-			"step": "unzip",
-			"zipPath": "/wordpress/pr/pr.zip",
-			"extractToPath": "/wordpress/pr"
 		},
 		{
 			"step": "installPlugin",
 			"pluginData": {
 				"resource": "vfs",
-				"path": "/wordpress/pr/gutenberg.zip"
+				"path": "/tmp/gutenberg.zip"
 			}
 		}
 	]
@@ -214,16 +211,18 @@ With JSON Blueprints, you'd use the `preferredVersions` property:
 
 ## Run PHP code in the browser
 
-The JavaScript API provides the `run()` method which you can use to run PHP code in the browser:
+The JavaScript API provides the `run()` method which you can use to run PHP code in the browser. This example loads the client directly from `playground.wordpress.net`, so no npm installation or build step is required. See the [JavaScript API quick start](/developers/apis/javascript-api#quick-start) for setup instructions and the npm alternative.
 
 ```html
 <iframe id="wp"></iframe>
 <script type="module">
+	const { startPlaygroundWeb } = await import('https://playground.wordpress.net/client/index.js');
+
 	const client = await startPlaygroundWeb({
 		iframe: document.getElementById('wp'),
 		remoteUrl: 'https://playground.wordpress.net/remote.html',
 	});
-	await client.isReady;
+	await client.isReady();
 	await client.run({
 		code: `<?php
 		require("/wordpress/wp-load.php");
@@ -232,7 +231,7 @@ The JavaScript API provides the `run()` method which you can use to run PHP code
 		echo "Site title updated!";
 		`,
 	});
-	client.goTo('/');
+	await client.goTo('/');
 </script>
 ```
 

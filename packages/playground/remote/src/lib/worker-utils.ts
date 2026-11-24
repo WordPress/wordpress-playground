@@ -4,6 +4,7 @@ import { joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { unzipFile } from '@wp-playground/common';
 import { hasCachedResponse } from './offline-mode-cache';
+import { releaseBase } from './config';
 import { getLoadedWordPressVersion } from '@wp-playground/wordpress';
 
 /**
@@ -62,8 +63,8 @@ import { getLoadedWordPressVersion } from '@wp-playground/wordpress';
  * By skipping existing files, we ensure that the backfill process doesn't overwrite any user
  * changes.
  */
-export async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
-	if (!php.requestHandler) {
+export async function backfillStaticFilesRemovedFromMinifiedBuild(php?: PHP) {
+	if (!php?.requestHandler) {
 		logger.warn('No PHP request handler available');
 		return;
 	}
@@ -114,7 +115,11 @@ export async function backfillStaticFilesRemovedFromMinifiedBuild(php: PHP) {
 	}
 }
 
-export async function hasCachedStaticFilesRemovedFromMinifiedBuild(php: PHP) {
+export async function hasCachedStaticFilesRemovedFromMinifiedBuild(php?: PHP) {
+	if (!php?.requestHandler) {
+		logger.warn('No PHP request handler available');
+		return false;
+	}
 	const staticAssetsUrl = await getWordPressStaticZipUrl(php);
 	if (!staticAssetsUrl) {
 		return false;
@@ -132,10 +137,28 @@ export async function hasCachedStaticFilesRemovedFromMinifiedBuild(php: PHP) {
  * See backfillStaticFilesRemovedFromMinifiedBuild for more details.
  */
 export async function getWordPressStaticZipUrl(php: PHP) {
-	const wpVersion = await getLoadedWordPressVersion(php.requestHandler!);
+	if (!php.requestHandler) {
+		logger.warn('No PHP request handler available');
+		return false;
+	}
+	// PHP-only mode (Blueprint `preferredVersions.wp: false`): no WP files exist, so
+	// `getLoadedWordPressVersion` would crash trying to require
+	// wp-includes/version.php. There's nothing to backfill — bail out.
+	const versionPhpPath = joinPaths(
+		php.requestHandler.documentRoot,
+		'wp-includes/version.php'
+	);
+	if (!php.isFile(versionPhpPath)) {
+		return false;
+	}
+	const wpVersion = await getLoadedWordPressVersion(php.requestHandler);
 	const staticAssetsDirectory = wpVersionToStaticAssetsDirectory(wpVersion);
 	if (!staticAssetsDirectory) {
 		return false;
 	}
-	return joinPaths('/', staticAssetsDirectory, 'wordpress-static.zip');
+	return joinPaths(
+		releaseBase,
+		staticAssetsDirectory,
+		'wordpress-static.zip'
+	);
 }

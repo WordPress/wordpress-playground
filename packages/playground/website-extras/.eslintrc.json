@@ -24,12 +24,7 @@
 			}
 		},
 		{
-			"files": [
-				"demos/**/*",
-				"cypress/**/*",
-				"builder/**/*",
-				"vite.oauth.ts"
-			],
+			"files": ["demos/**/*", "builder/**/*", "vite.oauth.ts"],
 			"rules": {
 				"no-console": 0
 			}
@@ -47,18 +42,6 @@
 		},
 		{
 			"files": ["*.js", "*.jsx"],
-			"rules": {}
-		},
-		{
-			"files": ["*.cy.{ts,js,tsx,jsx}", "cypress/**/*.{ts,js,tsx,jsx}"],
-			"rules": {}
-		},
-		{
-			"files": ["*.cy.{ts,js,tsx,jsx}", "cypress/**/*.{ts,js,tsx,jsx}"],
-			"rules": {}
-		},
-		{
-			"files": ["*.cy.{ts,js,tsx,jsx}", "cypress/**/*.{ts,js,tsx,jsx}"],
 			"rules": {}
 		}
 	]

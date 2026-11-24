@@ -1,13 +1,23 @@
-import type { SupportedPHPVersion } from '@php-wasm/universal';
-import { SupportedPHPVersionsList } from '@php-wasm/universal';
+import type { AllPHPVersion } from '@php-wasm/universal';
+import { PHPNextVersion, SupportedPHPVersionsList } from '@php-wasm/universal';
 import css from './style.module.css';
 import { CheckboxControl, SelectControl } from '@wordpress/components';
-import { useEffect } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useEffect, useMemo, useState } from 'react';
+import {
+	Controller,
+	type UseFormHandleSubmit,
+	useForm,
+	useWatch,
+} from 'react-hook-form';
 import classNames from 'classnames';
 import { __experimentalVStack as VStack } from '@wordpress/components';
 import { useSupportedWordPressVersions } from './use-supported-wordpress-versions';
 import { RecommendedPHPVersion } from '@wp-playground/common';
+import {
+	getForcedPhpVersionForWordPress,
+	isOlderWordPressVersion,
+} from './older-wordpress-versions';
+import { getWordPressVersionOptions } from './wordpress-version-options';
 
 type ConfigurableFields = Record<
 	keyof SiteFormData & ('wpVersion' | 'language' | 'multisite'),
@@ -17,18 +27,26 @@ type ConfigurableFields = Record<
 export interface SiteSettingsFormProps {
 	onSubmit: (data: any) => void;
 	header?: React.ReactNode;
-	footer?: React.ReactNode;
+	footer?:
+		| React.ReactNode
+		| ((context: SiteSettingsFormFooterContext) => React.ReactNode);
 	className?: string;
 	enabledFields?: ConfigurableFields;
 	defaultValues?: Partial<SiteFormData>;
 }
 
 export interface SiteFormData {
-	phpVersion: SupportedPHPVersion;
+	phpVersion: AllPHPVersion;
 	wpVersion: string;
 	language: string;
 	withNetworking: boolean;
 	multisite: boolean;
+}
+
+export interface SiteSettingsFormFooterContext {
+	values: SiteFormData;
+	defaultValues: SiteFormData;
+	submit: UseFormHandleSubmit<SiteFormData>;
 }
 
 export function UnconnectedSiteSettingsForm({
@@ -43,14 +61,17 @@ export function UnconnectedSiteSettingsForm({
 		multisite: true,
 	},
 }: SiteSettingsFormProps) {
-	defaultValues = {
-		phpVersion: RecommendedPHPVersion,
-		wpVersion: 'latest',
-		language: '',
-		withNetworking: true,
-		multisite: false,
-		...defaultValues,
-	};
+	const mergedDefaults = useMemo<SiteFormData>(
+		() => ({
+			phpVersion: RecommendedPHPVersion as AllPHPVersion,
+			wpVersion: 'latest',
+			language: '',
+			withNetworking: true,
+			multisite: false,
+			...defaultValues,
+		}),
+		[defaultValues]
+	);
 	const {
 		handleSubmit,
 		setValue,
@@ -58,11 +79,34 @@ export function UnconnectedSiteSettingsForm({
 		control,
 		formState: { errors },
 	} = useForm<SiteFormData>({
-		defaultValues,
+		defaultValues: mergedDefaults,
+		values: mergedDefaults,
 	});
 
 	const { supportedWPVersions, latestWPVersion } =
 		useSupportedWordPressVersions();
+	const comparableDefaults = useMemo<SiteFormData>(
+		() => ({
+			...mergedDefaults,
+			wpVersion:
+				latestWPVersion &&
+				['', 'latest'].includes(mergedDefaults.wpVersion)
+					? latestWPVersion
+					: mergedDefaults.wpVersion,
+		}),
+		[latestWPVersion, mergedDefaults]
+	);
+
+	// If the caller restored a stored site running an older WP
+	// version, expand the dropdown automatically so the current
+	// value is visible in the list.
+	const [includeOlderVersions, setIncludeOlderVersions] = useState(() =>
+		isOlderWordPressVersion(mergedDefaults.wpVersion)
+	);
+
+	const values = useWatch({ control }) as SiteFormData;
+	const currentWpVersion = values.wpVersion;
+	const forcedPhpVersion = getForcedPhpVersionForWordPress(currentWpVersion);
 
 	useEffect(() => {
 		if (
@@ -72,6 +116,60 @@ export function UnconnectedSiteSettingsForm({
 			setValue('wpVersion', latestWPVersion);
 		}
 	}, [latestWPVersion, setValue, getValues]);
+
+	// Lock phpVersion to whatever is compatible with the selected
+	// WordPress release. The callback fires on every wpVersion
+	// change, so picking a different modern version (say 6.5 → 4.9)
+	// correctly downgrades PHP, and picking 4.9 → 6.5 releases the
+	// lock back to the recommended default.
+	useEffect(() => {
+		const current = getValues('phpVersion');
+		if (forcedPhpVersion) {
+			if (current !== forcedPhpVersion) {
+				setValue('phpVersion', forcedPhpVersion);
+			}
+			return;
+		}
+		// Unlocking: if the current value isn't one of the available
+		// selectable versions (e.g. it was just 5.2 or 7.4 for a
+		// locked older WP), reset to the recommended default so the
+		// dropdown doesn't render a value that isn't in its options.
+		if (
+			current !== PHPNextVersion &&
+			!(SupportedPHPVersionsList as readonly string[]).includes(current)
+		) {
+			setValue('phpVersion', RecommendedPHPVersion as AllPHPVersion);
+		}
+	}, [forcedPhpVersion, setValue, getValues]);
+
+	const wpVersionOptions = useMemo(() => {
+		return getWordPressVersionOptions({
+			supportedWPVersions,
+			includeOlderVersions,
+			selectedVersion: mergedDefaults.wpVersion,
+		});
+	}, [supportedWPVersions, includeOlderVersions, mergedDefaults.wpVersion]);
+
+	const phpVersionOptions = useMemo(() => {
+		if (forcedPhpVersion) {
+			return [
+				{
+					label: `PHP ${forcedPhpVersion}`,
+					value: forcedPhpVersion,
+				},
+			];
+		}
+		return [
+			{
+				label: 'PHP Next',
+				value: PHPNextVersion,
+			},
+			...SupportedPHPVersionsList.map((version) => ({
+				label: `PHP ${version}`,
+				value: version,
+			})),
+		];
+	}, [forcedPhpVersion]);
 
 	return (
 		<form
@@ -101,25 +199,7 @@ export function UnconnectedSiteSettingsForm({
 								className={classNames(css.addSiteInput, {
 									[css.invalidInput]: !!errors.wpVersion,
 								})}
-								options={
-									/*
-									 * Without an empty option, React sometimes says
-									 * the current selected version is "trunk" when
-									 * `wp` is actually "6.4".
-									 */
-									[
-										{
-											label: '-- Select a version --',
-											value: '',
-										},
-										...Object.keys(
-											supportedWPVersions || {}
-										).map((version) => ({
-											label: `${supportedWPVersions[version]}`,
-											value: version,
-										})),
-									]
-								}
+								options={wpVersionOptions}
 								onChange={(value, extra) => {
 									onChange(extra?.event);
 								}}
@@ -127,14 +207,17 @@ export function UnconnectedSiteSettingsForm({
 							/>
 
 							{enabledFields.wpVersion && (
-								<a
-									href="https://wordpress.github.io/wordpress-playground/blueprints/examples#load-an-older-wordpress-version"
-									target="_blank"
-									rel="noreferrer"
-									style={{ fontSize: '0.9em' }}
-								>
-									Need an older version?
-								</a>
+								<CheckboxControl
+									className={css.subOption}
+									label="Include older versions"
+									help={
+										includeOlderVersions
+											? 'Selecting an older version locks the PHP version to the one it runs on.'
+											: undefined
+									}
+									checked={includeOlderVersions}
+									onChange={setIncludeOlderVersions}
+								/>
 							)}
 						</div>
 					)}
@@ -155,16 +238,16 @@ export function UnconnectedSiteSettingsForm({
 							__nextHasNoMarginBottom={true}
 							label="PHP Version"
 							labelPosition="side"
-							help={errors.phpVersion?.message}
+							disabled={!!forcedPhpVersion}
+							help={
+								forcedPhpVersion
+									? `Locked to PHP ${forcedPhpVersion} for this WordPress version.`
+									: errors.phpVersion?.message
+							}
 							className={classNames(css.addSiteInput, {
 								[css.invalidInput]: !!errors.phpVersion,
 							})}
-							options={SupportedPHPVersionsList.map(
-								(version) => ({
-									label: `PHP ${version}`,
-									value: version,
-								})
-							)}
+							options={phpVersionOptions}
 							onChange={(value, extra) => {
 								onChange(extra?.event);
 							}}
@@ -474,7 +557,13 @@ export function UnconnectedSiteSettingsForm({
 					)}
 				/>
 			</VStack>
-			{footer}
+			{typeof footer === 'function'
+				? footer({
+						values,
+						defaultValues: comparableDefaults,
+						submit: handleSubmit,
+					})
+				: footer}
 		</form>
 	);
 }

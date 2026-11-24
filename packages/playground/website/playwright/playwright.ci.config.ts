@@ -1,11 +1,16 @@
 import { defineConfig } from '@playwright/test';
 import playwrightConfig from './playwright.config';
 
+import { getTestGroupOptions } from './playwright-test-groups';
+
+const testGroupOptions = getTestGroupOptions(process.env.PLAYWRIGHT_TEST_GROUP);
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
 export default defineConfig({
 	...playwrightConfig,
+	...testGroupOptions,
 	use: {
 		...playwrightConfig.use,
 		baseURL: 'http://127.0.0.1/',

@@ -50,20 +50,29 @@ var { state, actions } = store(
       get menuOpenedBy() {
         const ctx = getContext();
         return ctx.type === "overlay" ? ctx.overlayOpenedBy : ctx.submenuOpenedBy;
+      },
+      get isSubmenuOpen() {
+        const ctx = getContext();
+        const isDefaultOverlayOpen = !ctx.hasCustomOverlay && Object.values(ctx.overlayOpenedBy || {}).filter(Boolean).length > 0;
+        return isDefaultOverlayOpen || state.isMenuOpen;
       }
     },
     actions: {
-      openMenuOnHover() {
-        const { type, overlayOpenedBy } = getContext();
-        if (type === "submenu" && // Only open on hover if the overlay is closed.
-        Object.values(overlayOpenedBy || {}).filter(Boolean).length === 0) {
+      openMenuOnHover(event) {
+        if (event?.pointerType === "touch") {
+          return;
+        }
+        const { type } = getContext();
+        if (type === "submenu") {
           actions.openMenu("hover");
         }
       },
-      closeMenuOnHover() {
-        const { type, overlayOpenedBy } = getContext();
-        if (type === "submenu" && // Only close on hover if the overlay is closed.
-        Object.values(overlayOpenedBy || {}).filter(Boolean).length === 0) {
+      closeMenuOnHover(event) {
+        if (event?.pointerType === "touch") {
+          return;
+        }
+        const { type } = getContext();
+        if (type === "submenu") {
           actions.closeMenu("hover");
         }
       },
@@ -90,6 +99,7 @@ var { state, actions } = store(
         if (menuOpenedBy.click || menuOpenedBy.focus) {
           actions.closeMenu("click");
           actions.closeMenu("focus");
+          actions.closeMenu("hover");
         } else {
           ctx.previousFocus = ref;
           actions.openMenu("click");

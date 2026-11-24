@@ -83,14 +83,18 @@ With this block you have a straightforward and effective way to create live Word
 এই ব্লকের মাধ্যমে আপনার কাছে লাইভ ওয়ার্ডপ্রেস পরিবেশ তৈরি করার একটি সহজ এবং কার্যকর উপায় আছে যা আপনার ব্লগ পোস্টের মধ্যে এম্বেড করা যেতে পারে।
 
 <!--
-:::info
+<div class="callout callout-info">
+
 For any issues or questions about the WordPress Playground Block, please open a GitHub issue in the [playground-tools](https://github.com/WordPress/playground-tools) repository.
-:::
+
+</div>
 -->
 
-:::তথ্য
+<div class="callout callout-info">
+
 ওয়ার্ডপ্রেস প্লেগ্রাউন্ড ব্লক সম্পর্কে যেকোনো সমস্যা বা প্রশ্নের জন্য, অনুগ্রহ করে [playground-tools](https://github.com/WordPress/playground-tools) রিপোজিটরিতে একটি গিটহাব ইস্যু খুলুন।
-:::
+
+</div>
 
 <!--
 ## Put a native app running WordPress in the App Store.

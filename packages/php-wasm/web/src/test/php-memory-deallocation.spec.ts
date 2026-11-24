@@ -21,7 +21,7 @@ test.describe(`Memory Deallocation - PHP ${LatestSupportedPHPVersion}`, () => {
 
 		await page.addScriptTag({
 			type: 'module',
-			url: '/src/test/playwright/globals.ts',
+			url: '/src/test/playwright/browser-globals.ts',
 		});
 	});
 

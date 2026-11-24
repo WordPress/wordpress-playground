@@ -25,7 +25,9 @@ It may seem like nothing is happening, but this Blueprint already spins up a Wor
 
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{})
 
-:::tip **Autocomplete**
+<div class="callout callout-tip">
+
+**Autocomplete**
 
 If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Schema](https://playground.wordpress.net/blueprint-schema.json) for an autocompleted Blueprint development experience. Add the following line at the top of your `blueprint.json` file:
 
@@ -35,10 +37,10 @@ If you use an IDE, like VS Code or PHPStorm, you can use the [Blueprint JSON Sch
 }
 ```
 
-:::
+</div>
 Here's what it looks like in VS Code:
 
-![Autocompletion visualized](@site/static/img/blueprints/schema-autocompletion.webp)
+![Autocompletion visualized](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/schema-autocompletion.webp)
 
 ## 2. Set the site title to "My first Blueprint"
 
@@ -113,25 +115,27 @@ Adventurer is an open-source theme [available in the WordPress theme directory](
 
 The site should now look like the screenshot below:
 
-![Site with the adventurer theme](@site/static/img/blueprints/installed-adventurer-theme.webp)
+![Site with the adventurer theme](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-adventurer-theme.webp)
 
 ### Resources
 
 The `themeData` defines a [resource](/blueprints/steps/resources) and references an external file required to complete the step. Playground supports different types of resources, including
 
--   `url`,
--   `wordpress.org/themes`,
--   `wordpress.org/plugins`,
--   `vfs`(virtual file system), or
--   `literal`.
+- `url`,
+- `wordpress.org/themes`,
+- `wordpress.org/plugins`,
+- `vfs`(virtual file system), or
+- `literal`.
 
 The example uses the `wordpress.org/themes` resource, which requires a `slug` identical to the one used in WordPress theme directory:
 
 In this case, `https://wordpress.org/themes/<slug>/` becomes `https://wordpress.org/themes/adventurer/`.
 
-:::note
+<div class="callout callout-info">
+
 Learn more about the supported resources in the [Blueprint Resources API Reference](/blueprints/steps/resources/).
-:::
+
+</div>
 
 ## 4. Install the _Hello Dolly_ plugin
 
@@ -273,7 +277,7 @@ Here's the complete Blueprint:
 
 That's what it looks like when you navigate to the dashboard:
 
-![Site with the custom plugin](@site/static/img/blueprints/installed-custom-plugin.webp)
+![Site with the custom plugin](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/blueprints/installed-custom-plugin.webp)
 
 ### Create a plugin and zip it
 
@@ -377,7 +381,7 @@ To run that code during the site setup, use the [`runPHP` step](/blueprints/step
 
 ### Import the new content
 
-Let's use the [`importWxr` step](/blueprints/steps#ImportWXRStep) to import a WordPress export (`WXR`) file that helps test WordPress themes. The file is available in the [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) repository, and you can access it via its `raw.githubusercontent.com` address: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
+Let's use the [`importWxr` step](/blueprints/steps#ImportWxrStep) to import a WordPress export (`WXR`) file that helps test WordPress themes. The file is available in the [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) repository, and you can access it via its `raw.githubusercontent.com` address: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
 
 Here's what the final Blueprint looks like:
 

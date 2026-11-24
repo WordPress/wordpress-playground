@@ -14,6 +14,8 @@ import type { PHPLoaderOptions } from '..';
 import { loadNodeRuntime } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 import { spawn } from 'child_process';
+import { EventEmitter } from 'events';
+import { PassThrough } from 'stream';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -77,13 +79,13 @@ would not suffer fools gladly.`;
 const phpVersions =
 	'PHP' in process.env ? [process.env['PHP']!] : SupportedPHPVersions;
 
-const phpLoaderOptions: PHPLoaderOptions[] = [{}, { withXdebug: true }];
+const phpLoaderOptions: PHPLoaderOptions[] = [{}, { extensions: ['xdebug'] }];
 
 phpLoaderOptions.forEach((options) => {
 	// Tests are skipped when Xdebug is enabled because Xdebug alters PHP's
 	// output format and process behavior, which breaks exact text assertions.
 	// These tests cover core features that only need to run once without Xdebug.
-	const skip = !!options.withXdebug;
+	const skip = options.extensions?.includes('xdebug') ?? false;
 
 	describe.each(phpVersions)('PHP %s', (phpVersion) => {
 		let php: PHP;
@@ -632,7 +634,7 @@ phpLoaderOptions.forEach((options) => {
 						fwrite($fp, "WordPress\n");
 						fclose($fp);
 
-						sleep(1); // @TODO: call js_wait_until_process_exits() in fclose();
+						sleep(1);
 
 						$fp = popen("cat out", "r");
 						echo 'stdout: ' . fread($fp, 1024);
@@ -645,16 +647,132 @@ phpLoaderOptions.forEach((options) => {
 					rmSync('out', { force: true });
 				}
 			});
+
+			it('concurrent popen("w") calls use correct PIDs', async () => {
+				try {
+					const result = await php.run({
+						code: `<?php
+						$firstWriter = popen(
+							"cat > concurrent-popen-first-output.txt",
+							"w"
+						);
+						$secondWriter = popen(
+							"cat > concurrent-popen-second-output.txt",
+							"w"
+						);
+						fwrite($firstWriter, "first");
+						fwrite($secondWriter, "second");
+						$firstExitCode = pclose($firstWriter);
+						$secondExitCode = pclose($secondWriter);
+
+						$firstReader = popen(
+							"cat concurrent-popen-first-output.txt",
+							"r"
+						);
+						$firstOutput = fread($firstReader, 1024);
+						pclose($firstReader);
+
+						$secondReader = popen(
+							"cat concurrent-popen-second-output.txt",
+							"r"
+						);
+						$secondOutput = fread($secondReader, 1024);
+						pclose($secondReader);
+
+						echo "$firstExitCode,$secondExitCode|$firstOutput|$secondOutput";
+					`,
+					});
+					expect(result.text).toEqual('0,0|first|second');
+				} finally {
+					rmSync('concurrent-popen-first-output.txt', {
+						force: true,
+					});
+					rmSync('concurrent-popen-second-output.txt', {
+						force: true,
+					});
+				}
+			});
+			it('concurrent popen("w") pclose returns correct exit codes', async () => {
+				try {
+					const result = await php.run({
+						code: `<?php
+						$successfulWriter = popen(
+							"cat > concurrent-popen-successful-output.txt",
+							"w"
+						);
+						$failingWriter = popen(
+							"sh -c 'cat > /dev/null; exit 42'",
+							"w"
+						);
+						$secondSuccessfulWriter = popen(
+							"cat > concurrent-popen-second-successful-output.txt",
+							"w"
+						);
+						fwrite($successfulWriter, "a");
+						fwrite($failingWriter, "b");
+						fwrite($secondSuccessfulWriter, "c");
+						$successfulExitCode = pclose($successfulWriter);
+						$failingExitCode = pclose($failingWriter);
+						$secondSuccessfulExitCode = pclose($secondSuccessfulWriter);
+						echo "$successfulExitCode,$failingExitCode,$secondSuccessfulExitCode";
+					`,
+					});
+					expect(result.text).toEqual('0,42,0');
+				} finally {
+					rmSync('concurrent-popen-successful-output.txt', {
+						force: true,
+					});
+					rmSync('concurrent-popen-second-successful-output.txt', {
+						force: true,
+					});
+				}
+			});
 		});
 
 		describe('proc_open()', () => {
-			// This test applies only to these PHP versions
-			// due to a new patch that replaces the use of
-			// EMULATE_FUNCTION_POINTER_CASTS option.
-			if (phpVersion === '7.4') {
-				it('resolves without crashing with unknown function signature mismatch', async () => {
-					const promise = php.runStream({
-						code: `<?php
+			it('closes child stdin when descriptor 0 is omitted', async () => {
+				let stdinFinished = false;
+				const handler = createSpawnHandler(
+					async (command: string[], processApi: any) => {
+						const stdin = processApi.childProcess.stdin;
+						stdinFinished =
+							stdin.ended ||
+							(await new Promise<boolean>((resolve) => {
+								const timeout = setTimeout(
+									() => resolve(false),
+									1000
+								);
+								stdin.once('finish', () => {
+									clearTimeout(timeout);
+									resolve(true);
+								});
+							}));
+						processApi.exit(stdinFinished ? 0 : 1);
+					}
+				);
+				php.setSpawnHandler(handler);
+
+				const result = await php.run({
+					code: `<?php
+						$proc = proc_open(
+							"wait-for-stdin-eof",
+							array(
+								1 => array("pipe", "w"),
+								2 => array("pipe", "w"),
+							),
+							$pipes
+						);
+						echo proc_close($proc);
+					`,
+				});
+
+				expect(result.text).toBe('0');
+				expect(stdinFinished).toBe(true);
+			});
+
+			it('resolves without crashing with unknown function signature mismatch', async () => {
+				const promise = php.runStream({
+					code: `<?php
 						$descriptorspec = array(
 							1 => array("pipe","w")
 						);
@@ -671,13 +789,12 @@ phpLoaderOptions.forEach((options) => {
 							$pipes
 						);
 						`,
-					});
-
-					await expect(promise).resolves.not.toThrow(
-						/null function or function signature mismatch/
-					);
 				});
-			}
+
+				await expect(promise).resolves.not.toThrow(
+					/null function or function signature mismatch/
+				);
+			});
 
 			it('echo "WordPress"; stdin=file (empty), stdout=file, stderr=file, file_get_contents', async () => {
 				const result = await php.run({
@@ -1395,46 +1512,168 @@ phpLoaderOptions.forEach((options) => {
 				expect(spawnHandlerCalled).toBe(true);
 			}, 10000);
 
-			it('Handle process spawn timeout gracefully', async () => {
-				let spawnHandlerCalled = false;
-				const handler = createSpawnHandler(async () => {
-					spawnHandlerCalled = true;
-					// Don't call processApi.notifySpawn() or processApi.exit()
-					// to simulate a hanging process that never starts
-					await new Promise(() => {}); // Never resolves
+			it(
+				'blocking fread waits for slow pipe output',
+				{ timeout: 10_000 },
+				async () => {
+					const handler = createSpawnHandler(
+						async (command: string[], processApi: any) => {
+							processApi.notifySpawn();
+							await new Promise((resolve) =>
+								setTimeout(resolve, 6_000)
+							);
+							processApi.stdout(
+								new TextEncoder().encode('delayed data')
+							);
+							await new Promise((resolve) =>
+								setTimeout(resolve, 500)
+							);
+							processApi.exit(0);
+						}
+					);
+
+					php.setSpawnHandler(handler);
+
+					const result = await php.run({
+						code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = proc_open("delayed_command", $descriptorspec, $pipes);
+					$data = fread($pipes[1], 1024);
+					echo $data;
+					proc_close($proc);
+					`,
+					});
+
+					expect(result.text).toEqual('delayed data');
+				}
+			);
+
+			it('blocking fread returns when the spawn handler never signals spawn', async () => {
+				const child = Object.assign(new EventEmitter(), {
+					pid: 1,
+					stdout: new PassThrough(),
+					stderr: new PassThrough(),
+					stdin: new PassThrough(),
+				});
+				php.setSpawnHandler((() => child) as any);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = proc_open("foo", $descriptorspec, $pipes);
+					echo json_encode(fread($pipes[1], 1024));
+					`,
 				});
 
-				php.setSpawnHandler(handler);
-
-				const startTime = Date.now();
-				try {
-					await php.run({
-						code: `<?php
-							$res = proc_open(
-								"hanging_command",
-								array(
-									array("pipe","r"),
-									array("pipe","w"),
-									array("pipe","w"),
-								),
-								$pipes
-							);
-							// This will block – it's a blocking pipe and will never
-							// output any data.
-							fread($pipes[1], 1024);
-						`,
-					});
-					// Should not reach here
-					expect(false).toBe(true);
-				} catch (e) {
-					console.log(e);
-					const elapsed = Date.now() - startTime;
-					// Should timeout around 5 seconds (allowing some margin)
-					expect(elapsed).toBeGreaterThan(4500);
-					expect(elapsed).toBeLessThan(6000);
-					expect(spawnHandlerCalled).toBe(true);
-				}
+				expect(result.text).toEqual('""');
 			}, 10000);
+
+			it('delivers the stderr message of a spawn program that throws', async () => {
+				php.setSpawnHandler(
+					createSpawnHandler(async () => {
+						await new Promise((resolve) =>
+							setTimeout(resolve, 100)
+						);
+						throw new Error('spawn program failed');
+					})
+				);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						2 => array("pipe","w")
+					);
+					$proc = proc_open("foo", $descriptorspec, $pipes);
+					echo stream_get_contents($pipes[2]);
+					`,
+				});
+
+				expect(result.text).toEqual('spawn program failed');
+			}, 10000);
+
+			it('does not close reused fds when a failed spawn exits late', async () => {
+				const child = Object.assign(new EventEmitter(), {
+					pid: 1,
+					stdout: new PassThrough(),
+					stderr: new PassThrough(),
+					stdin: new PassThrough(),
+				});
+				php.setSpawnHandler((() => {
+					setTimeout(() => {
+						child.emit('error', new Error('foo'));
+						setTimeout(() => child.emit('exit', 1), 200);
+					});
+					return child;
+				}) as any);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = proc_open("foo", $descriptorspec, $pipes);
+					file_put_contents("/tmp/fd-reuse.txt", "still open");
+					$file = fopen("/tmp/fd-reuse.txt", "r");
+					// Wait for the late 'exit' event.
+					usleep(500000);
+					echo fread($file, 1024);
+					`,
+				});
+
+				expect(result.text).toEqual('still open');
+			}, 10000);
+
+			it('returns from a blocking fread when the spawn fails without exiting', async () => {
+				const child = Object.assign(new EventEmitter(), {
+					pid: 1,
+					stdout: new PassThrough(),
+					stderr: new PassThrough(),
+					stdin: new PassThrough(),
+				});
+				php.setSpawnHandler((() => {
+					setTimeout(() => child.emit('error', new Error('foo')));
+					return child;
+				}) as any);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = proc_open("foo", $descriptorspec, $pipes);
+					echo json_encode(fread($pipes[1], 1024));
+					`,
+				});
+
+				expect(result.text).toEqual('""');
+			}, 10000);
+
+			it('reports the spawn error when the process never starts', async () => {
+				php.setSpawnHandler(spawn as any);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = @proc_open(
+						"echo foo",
+						$descriptorspec,
+						$pipes,
+						"/nonexistent-foo"
+					);
+					echo json_encode(array($proc, error_get_last()['message']));
+					`,
+				});
+
+				expect(result.text).toEqual(
+					'[false,"proc_open(): proc_open() failed - No such file or directory"]'
+				);
+			});
 		});
 
 		describe('Filesystem', { skip }, () => {

@@ -18,6 +18,7 @@
 		"src/**/*.spec.tsx",
 		"src/**/*.spec.js",
 		"src/**/*.spec.jsx",
+		"src/test/playwright/browser-globals.ts",
 		"src/**/*.d.ts"
 	]
 }

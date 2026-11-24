@@ -9,7 +9,9 @@ import type {
 	Remote,
 } from '@php-wasm/universal';
 import {
+	isLegacyPHPVersion,
 	PHP,
+	PHP_EXTENSIONS_DIR,
 	PHPRequestHandler,
 	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
@@ -26,6 +28,12 @@ import {
 import { basename, dirname, joinPaths } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import { ensureWpConfig } from './wp-config';
+import { assertDatabasePrerequisites } from './database-prerequisites';
+import {
+	applyLegacyPhpIniOverrides,
+	bootLegacyWordPress,
+} from './legacy-wp/legacy-boot';
+import { backportWpPreV62MysqlCheck } from './legacy-wp/legacy-fixes';
 
 export type PhpIniOptions = Record<string, string>;
 export type Hook = (php: PHP) => void | Promise<void>;
@@ -51,6 +59,11 @@ export async function bootWordPressAndRequestHandler(
 
 export interface BootRequestHandlerOptions {
 	createPhpRuntime: (isPrimary?: boolean) => Promise<number>;
+	/**
+	 * PHP version string (e.g. '8.3', '5.2'). Used to gate
+	 * legacy-PHP-specific behavior in the boot chain.
+	 */
+	phpVersion?: string;
 	onPHPInstanceCreated?: PHPInstanceCreatedHook;
 	maxPhpInstances?: number;
 	/**
@@ -141,6 +154,8 @@ export type WordPressInstallMode =
 	| 'do-not-attempt-installing';
 
 export interface BootWordPressOptions {
+	/** PHP version string (e.g. '8.3', '5.2'). */
+	phpVersion?: string;
 	/**
 	 * Mounting and Copying is handled via hooks for starters.
 	 *
@@ -153,8 +168,20 @@ export interface BootWordPressOptions {
 	dataSqlPath?: string;
 	/** How to handle WordPress installation. */
 	wordpressInstallMode?: WordPressInstallMode;
-	/** Zip with the WordPress installation to extract in /wordpress. */
+	/**
+	 * Core bundle with the WordPress installation to extract in /wordpress.
+	 * Either a solid `tar.zst` (stream-extracted) or a ZIP (wordpress.org
+	 * release, custom URL, GitHub artifact); the format is detected from the
+	 * bundle's magic bytes.
+	 */
 	wordPressZip?: File | Promise<File> | undefined;
+	/**
+	 * Expected regular-file count of the `tar.zst` core bundle, used for a
+	 * streaming-extraction parity check (fails loud on a truncated/corrupt
+	 * download). Ignored for ZIP bundles. Sourced from the bundle descriptor
+	 * (`getWordPressModuleDetails().fileCount`).
+	 */
+	wordPressBundleFileCount?: number;
 	/** Preloaded SQLite integration plugin. */
 	sqliteIntegrationPluginZip?: File | Promise<File>;
 	/**
@@ -188,6 +215,8 @@ export interface BootWordPressOptions {
 	 * and WP_SITEURL constants in WordPress.
 	 */
 	siteUrl: string;
+	/** Called when WordPress boot advances to a new high-level step. */
+	onProgress?: (caption: string) => void;
 }
 
 /**
@@ -209,22 +238,35 @@ export async function bootWordPress(
 	requestHandler: PHPRequestHandler,
 	options: BootWordPressOptions
 ) {
+	if (isLegacyPHPVersion(options.phpVersion)) {
+		return bootLegacyWordPress(requestHandler, options);
+	}
+
+	options.onProgress?.('Creating PHP runtime');
 	const php = await requestHandler.getPrimaryPhp();
 	if (options.hooks?.beforeWordPressFiles) {
+		options.onProgress?.('Mounting WordPress files');
 		await options.hooks.beforeWordPressFiles(php);
 	}
 
 	if (options.wordPressZip) {
-		await unzipWordPress(php, await options.wordPressZip);
+		options.onProgress?.('Extracting WordPress files');
+		await unzipWordPress(php, await options.wordPressZip, {
+			expectedFileCount: options.wordPressBundleFileCount,
+		});
 	}
 
 	if (options.constants) {
+		options.onProgress?.('Defining WordPress constants');
 		for (const key in options.constants) {
 			php.defineConstant(key, options.constants[key]);
 		}
 	}
 
 	if (options.dataSqlPath) {
+		php.defineConstant('DB_PATH', options.dataSqlPath);
+
+		// Older SQLite integrations only understand these legacy constants.
 		php.defineConstant('DB_DIR', dirname(options.dataSqlPath));
 		php.defineConstant('DB_FILE', basename(options.dataSqlPath));
 	}
@@ -233,13 +275,18 @@ export async function bootWordPress(
 	php.defineConstant('WP_SITEURL', options.siteUrl);
 
 	/*
-	 * Add required constants to "wp-config.php" if they are not already defined.
-	 * This is needed, because some WordPress backups and exports may not include
-	 * definitions for some of the necessary constants.
+	 * Ensure required constants are defined if "wp-config.php" doesn't define
+	 * them. This is needed because some WordPress backups and exports may not
+	 * include definitions for some of the necessary constants.
 	 */
+	// This is the first PHP script of the boot, so it also pays for PHP
+	// module startup and (on V8) lazy WASM compilation. Say so in the caption
+	// rather than blaming wp-config.php for a multi-second pause on mobile.
+	options.onProgress?.('Starting PHP');
 	await ensureWpConfig(php, requestHandler.documentRoot);
 	// Run "before database" hooks to mount/copy more files in
 	if (options.hooks?.beforeDatabaseSetup) {
+		options.onProgress?.('Preparing database files');
 		await options.hooks.beforeDatabaseSetup(php);
 	}
 
@@ -248,10 +295,13 @@ export async function bootWordPress(
 	let usesSqlite = false;
 	if (options.sqliteIntegrationPluginZip) {
 		usesSqlite = true;
+		options.onProgress?.('Installing SQLite integration');
 		await preloadSqliteIntegration(
 			php,
-			await options.sqliteIntegrationPluginZip
+			await options.sqliteIntegrationPluginZip,
+			{ phpVersion: options.phpVersion }
 		);
+		await backportWpPreV62MysqlCheck(php, requestHandler.documentRoot);
 	}
 
 	const installationMode =
@@ -264,12 +314,14 @@ export async function bootWordPress(
 		)
 	) {
 		// Check database prerequisites before attempting installation
+		options.onProgress?.('Checking database prerequisites');
 		await assertDatabasePrerequisites(requestHandler, {
 			usesSqlite,
 			hasCustomDatabasePath,
 		});
 		// Install WordPress if it's not installed.
 		try {
+			options.onProgress?.('Running WordPress installer');
 			await installWordPress(php);
 		} catch (error) {
 			// If installation failed, check if it's a database issue
@@ -282,17 +334,21 @@ export async function bootWordPress(
 		}
 		// Validate the database connection after installation (skip if user provided custom DB path)
 		if (!hasCustomDatabasePath) {
+			options.onProgress?.('Validating database connection');
 			await assertValidDatabaseConnection(requestHandler);
 		}
 	} else if ('install-from-existing-files-if-needed' === installationMode) {
 		// Check database prerequisites before attempting installation
+		options.onProgress?.('Checking database prerequisites');
 		await assertDatabasePrerequisites(requestHandler, {
 			usesSqlite,
 			hasCustomDatabasePath,
 		});
+		options.onProgress?.('Checking existing WordPress installation');
 		if (!(await isWordPressInstalled(php))) {
 			// Install WordPress if it's not installed.
 			try {
+				options.onProgress?.('Running WordPress installer');
 				await installWordPress(php);
 			} catch (error) {
 				// If installation failed, check if it's a database issue
@@ -306,61 +362,13 @@ export async function bootWordPress(
 		}
 		// Validate the database connection after installation (skip if user provided custom DB path)
 		if (!hasCustomDatabasePath) {
+			options.onProgress?.('Validating database connection');
 			await assertValidDatabaseConnection(requestHandler);
 		}
 	}
 
+	options.onProgress?.('WordPress boot complete');
 	return requestHandler;
-}
-
-/**
- * Checks if database prerequisites are in place before attempting WordPress installation.
- * This performs lightweight checks that don't require WordPress to be installed.
- */
-async function assertDatabasePrerequisites(
-	requestHandler: PHPRequestHandler,
-	{
-		usesSqlite,
-		hasCustomDatabasePath,
-	}: {
-		usesSqlite: boolean;
-		hasCustomDatabasePath: boolean;
-	}
-) {
-	const php = await requestHandler.getPrimaryPhp();
-
-	// If SQLite integration is preloaded via core, we're good
-	if (php.isFile('/internal/shared/preload/0-sqlite.php')) {
-		return;
-	}
-
-	// Check if a SQLite integration plugin directory exists (even if not provided via zip)
-	// This handles cases where the directory is mounted via hooks
-	const sqlitePluginPath = joinPaths(
-		requestHandler.documentRoot,
-		'wp-content/mu-plugins/sqlite-database-integration'
-	);
-
-	if (php.isDir(sqlitePluginPath)) {
-		// The directory exists, we'll validate it after WordPress is installed
-		return;
-	}
-
-	// Check if we provided a SQLite integration zip
-	if (usesSqlite) {
-		// We provided a zip, so SQLite will be set up during boot
-		return;
-	}
-
-	// If we have a custom database path (dataSqlPath option was provided),
-	// assume it's configured - the actual connection will be validated after installation
-	if (hasCustomDatabasePath) {
-		return;
-	}
-
-	// No SQLite integration and no MySQL support available
-	// Throw early to avoid attempting installation with no database
-	throw new Error('Error connecting to the MySQL database.');
 }
 
 async function assertValidDatabaseConnection(
@@ -397,6 +405,7 @@ async function assertValidDatabaseConnection(
 }
 
 export async function bootRequestHandler(options: BootRequestHandlerOptions) {
+	defaultSqliteJournalMode(options);
 	const createSpawnHandler =
 		options.spawnHandler ?? sandboxedSpawnHandlerFactory;
 	async function createPhp(
@@ -412,47 +421,74 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			php.requestHandler = requestHandler;
 		}
 		if (options.phpIniEntries) {
-			setPhpIniEntries(php, options.phpIniEntries);
-		}
-
-		// Use the new AST-based SQLite driver.
-		// TODO: Remove this once the new driver is the default; when this is closed:
-		//         https://github.com/WordPress/sqlite-database-integration/issues/195
-		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
-
-		// Define any custom constants provided via CLI or configuration
-		if (options.constants) {
-			for (const key in options.constants) {
-				php.defineConstant(key, options.constants[key]);
+			// PHP reads php.ini first and the extension ini files after, so an
+			// entry such as `xdebug.mode` set in php.ini loses to the value
+			// xdebug.ini ships. Entries named after an extension that has its
+			// own ini file go to that file. Every other entry goes to php.ini.
+			const entriesByPath = new Map<string | undefined, PhpIniOptions>();
+			for (const [key, value] of Object.entries(options.phpIniEntries)) {
+				const [extensionName, setting] = key.split('.');
+				const extensionIniPath = setting
+					? joinPaths(PHP_EXTENSIONS_DIR, `${extensionName}.ini`)
+					: undefined;
+				const path =
+					extensionIniPath && (await php.fileExists(extensionIniPath))
+						? extensionIniPath
+						: undefined;
+				entriesByPath.set(path, {
+					...entriesByPath.get(path),
+					[key]: value,
+				});
+			}
+			for (const [path, pathEntries] of entriesByPath) {
+				await setPhpIniEntries(php, pathEntries, path);
 			}
 		}
 
+		await applyLegacyPhpIniOverrides(php, {
+			phpVersion: options.phpVersion,
+			phpIniEntries: options.phpIniEntries,
+		});
+
 		/**
-		 * Set up mu-plugins in /internal/mu-plugins
-		 * using auto_prepend_file to provide platform-level
-		 * customization without altering the installed WordPress
-		 * site.
+		 * Only the first boot of the primary PHP instance writes the
+		 * boot constants and the platform-level files below. Other
+		 * workers and proc_open() children share `/internal` and its
+		 * constants, so they must not rewrite them and race with
+		 * concurrent writers.
 		 *
-		 * We only do that in the primary PHP instance –
-		 * the filesystem there is the source of truth
-		 * for all other PHP instances.
+		 * The `.boot-files-written` file is our primitive synchronization
+		 * mechanism. It works, because secondary workers are only booted
+		 * once the primary worker has fully booted.
+		 *
+		 * Secondary PHP instances read these files through the
+		 * `/internal/shared` mount set up in `onPHPInstanceCreated`
+		 * (proxyFileSystem in the web worker).
 		 */
-		if (
-			isPrimary &&
-			/**
-			 * Only the first PHP instance of the first worker created
-			 * during WordPress boot writes these files – otherwise we'll keep
-			 * overwriting them with concurrent writers living in other worker
-			 * threads.
-			 *
-			 * The `.boot-files-written` file is our primitive synchronization
-			 * mechanism. It works, because secondary workers are only booted
-			 * once the primary worker has fully booted.
-			 */
-			!php.isFile('/internal/.boot-files-written')
-		) {
+		const isFirstBoot =
+			isPrimary && !php.isFile('/internal/.boot-files-written');
+
+		if (isFirstBoot) {
+			// Use the new AST-based SQLite driver.
+			// TODO: Remove this once the new driver is the default; when this is closed:
+			//         https://github.com/WordPress/sqlite-database-integration/issues/195
+			php.defineConstant('WP_SQLITE_AST_DRIVER', true);
+
+			// Define any custom constants provided via CLI or configuration
+			if (options.constants) {
+				for (const [key, value] of Object.entries(options.constants)) {
+					php.defineConstant(key, value);
+				}
+			}
+
 			// TODO: There is a race here when multiple workers are calling bootRequestHandler(). Fix it.
-			await setupPlatformLevelMuPlugins(php);
+
+			// Set up mu-plugins in /internal/mu-plugins using
+			// auto_prepend_file to provide platform-level customization
+			// without altering the installed WordPress site.
+			await setupPlatformLevelMuPlugins(php, {
+				phpVersion: options.phpVersion,
+			});
 			await writeFiles(php, '/', options.createFiles || {});
 			await preloadPhpInfoRoute(
 				php,
@@ -522,6 +558,21 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 	});
 
 	return requestHandler;
+}
+
+function defaultSqliteJournalMode(options: BootRequestHandlerOptions) {
+	if ('SQLITE_JOURNAL_MODE' in (options.constants ?? {})) {
+		return;
+	}
+
+	/*
+	 * Blueprint constants are applied after SQLite may have opened the first
+	 * connection. Define Playground's default through auto-prepend first.
+	 */
+	options.constants = {
+		...options.constants,
+		SQLITE_JOURNAL_MODE: 'DELETE',
+	};
 }
 
 /**

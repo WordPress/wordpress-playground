@@ -16,18 +16,22 @@ description: リポジトリをフォークする方法、ローカル環境を�
 Like all WordPress projects, Playground uses GitHub to manage code and track issues. The main repository is at [https://github.com/WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground) and the Playground Tools repository is at [https://github.com/WordPress/playground-tools/](https://github.com/WordPress/playground-tools/).
 -->
 
-:::info Playground Tools への貢献
+<div class="callout callout-info">
+
+**Playground Tools への貢献**
 
 このガイドにはメインリポジトリへのリンクが含まれていますが、すべての手順とオプションは両方に適用されます。プラグインやローカル開発ツールにご興味がある場合は、まずそちらから始めてください。
 
-:::
+</div>
 
 <!--
-:::info Contribute to Playground Tools
+<div class="callout callout-info">
+
+**Contribute to Playground Tools**
 
 This guide includes links to the main repository, but all the steps and options apply for both. If you're interested in the plugins or local development tools—start there.
 
-:::
+</div>
 -->
 
 [オープンな問題の一覧](https://github.com/wordpress/wordpress-playground/issues)を参照して、取り組むべき問題を見つけてください。初めて貢献する方は、[`Good First Issue`](https://github.com/wordpress/wordpress-playground/issues?q=is%3Aopen+is%3Aissue+label%3A%22Good+First+Issue%22) ラベルから始めることをお勧めします。
@@ -42,10 +46,10 @@ Browse [the list of open issues](https://github.com/wordpress/wordpress-playgrou
 Be sure to review the following resources before you begin:
 -->
 
--   [コーディング原則](/contributing/coding-standards)
--   [アーキテクチャ](/developers/architecture)
--   [ビジョンと理念](https://github.com/WordPress/wordpress-playground/issues/472)
--   [WordPress Playground ロードマップ](https://github.com/WordPress/wordpress-playground/issues/525)
+- [コーディング原則](/contributing/coding-standards)
+- [アーキテクチャ](/developers/architecture)
+- [ビジョンと理念](https://github.com/WordPress/wordpress-playground/issues/472)
+- [WordPress Playground ロードマップ](https://github.com/WordPress/wordpress-playground/issues/525)
 
 <!--
 -   [Coding principles](/contributing/coding-standards)
@@ -97,18 +101,22 @@ Playground will open in a new browser tab and refresh automatically with each ch
 When your'e ready, commit the changes and submit a Pull Request.
 -->
 
-:::info フォーマッティング
+<div class="callout callout-info">
+
+**フォーマッティング**
 
 コードのフォーマッティングとリンティングは自動的に行われます。安心して入力し、あとは機械に任せましょう。
 
-:::
+</div>
 
 <!--
-:::info Formatting
+<div class="callout callout-info">
+
+**Formatting**
 
 We handle code formatting and linting automatically. Relax, type away, and let the machines do the work.
 
-:::
+</div>
 -->
 
 ### ローカルマルチサイトの実行
@@ -167,8 +175,8 @@ VS Code を使用しており、Chrome がインストールされている場�
 If you're using VS Code and have Chrome installed, you can debug Playground in the code editor:
 -->
 
--   VS Code でプロジェクト フォルダーを開きます。
--   メイン メニューから [実行] > [デバッグの開始] を選択するか、`F5`/`fn`+`F5` を押します。
+- VS Code でプロジェクト フォルダーを開きます。
+- メイン メニューから [実行] > [デバッグの開始] を選択するか、`F5`/`fn`+`F5` を押します。
 
 <!--
 -   Open the project folder in VS Code.

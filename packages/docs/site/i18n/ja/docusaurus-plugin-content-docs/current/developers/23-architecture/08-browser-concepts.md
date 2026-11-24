@@ -34,7 +34,7 @@ On a high level, WordPress Playground works in web browsers as follows:
 Visually, it looks like this:
 -->
 
-![Architecture overview](@site/static/img/architecture-overview.webp)
+![Architecture overview](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/architecture-overview.webp)
 
 ## 高レベルのアイデア
 

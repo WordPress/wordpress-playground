@@ -36,7 +36,7 @@ https://github.com/WordPress/wordpress-playground/blob/15a660940ee9b4a332965ba2a
 Unfortunately, missing even a single item from that list results in a WebAssembly crash whenever that function is a part of the call stack when an asynchronous call is made. It looks like this:
 -->
 
-![A screenshot of an asyncify error in the terminal](@site/static/img/developers/asyncify-error.webp)
+![A screenshot of an asyncify error in the terminal](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/asyncify-error.webp)
 
 Asyncify は `ASYNCIFY_ONLY` なしでビルドした場合、必要な C 関数をすべて自動リスト化できますが、この自動検出は過剰であり、最終的に約 70,000 個の C 関数がリスト化され、起動時間が 4.5 秒にまで増加します。そのため、リストは手動で管理しています。
 

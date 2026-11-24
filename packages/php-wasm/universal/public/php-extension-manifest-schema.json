@@ -1,0 +1,121 @@
+{
+	"$schema": "http://json-schema.org/schema",
+	"$ref": "#/definitions/PHPExtensionManifest",
+	"definitions": {
+		"PHPExtensionManifest": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"version": {
+					"type": "string"
+				},
+				"mode": {
+					"type": "string",
+					"const": "php-extension"
+				},
+				"loadWithIniDirective": {
+					"$ref": "#/definitions/PHPExtensionLoadDirective",
+					"description": "The first directive of the generated startup `.ini` file. Defaults to `extension`; use `zend_extension` for Zend extensions like Xdebug. Use `false` to stage the `.so` without registering it in php.ini."
+				},
+				"iniEntries": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					},
+					"description": "Additional `key=value` lines for the generated startup `.ini` file."
+				},
+				"env": {
+					"type": "object",
+					"additionalProperties": {
+						"type": "string"
+					},
+					"description": "Environment variables added before the extension is loaded."
+				},
+				"extensionDir": {
+					"type": "string",
+					"description": "VFS directory where PHP.wasm writes the extension `.so` file and its per-extension ini file. Defaults to `PHP_EXTENSIONS_DIR`."
+				},
+				"artifacts": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"phpVersion": {
+								"type": "string",
+								"description": "PHP major/minor version, e.g. `8.4`."
+							},
+							"sourcePath": {
+								"type": "string",
+								"description": "Relative to the manifest URL/base URL, or an absolute URL."
+							},
+							"extraFiles": {
+								"$ref": "#/definitions/PHPExtensionManifestExtraFiles",
+								"description": "URL-backed files needed only by this artifact."
+							}
+						},
+						"required": ["phpVersion", "sourcePath"],
+						"additionalProperties": false
+					}
+				},
+				"extraFiles": {
+					"$ref": "#/definitions/PHPExtensionManifestExtraFiles",
+					"description": "URL-backed files shared by every artifact in this manifest."
+				}
+			},
+			"required": ["name", "artifacts"],
+			"additionalProperties": false,
+			"description": "Extension artifact manifest. Lets callers publish a matrix of `.so` files and lets `resolvePHPExtension()` select the artifact matching the current PHP version. External extension artifacts are JSPI-only."
+		},
+		"PHPExtensionLoadDirective": {
+			"anyOf": [
+				{
+					"$ref": "#/definitions/PHPExtensionIniDirective"
+				},
+				{
+					"type": "boolean",
+					"const": false
+				}
+			]
+		},
+		"PHPExtensionIniDirective": {
+			"type": "string",
+			"enum": ["extension", "zend_extension"],
+			"description": "The php.ini directive used to load the extension. Use `extension` for regular PHP extensions and `zend_extension` for Zend extensions like Xdebug."
+		},
+		"PHPExtensionManifestExtraFiles": {
+			"type": "object",
+			"properties": {
+				"vfsRoot": {
+					"type": "string",
+					"description": "Absolute VFS path where files and directories are written. When a manifest declares both top-level and per-artifact `extraFiles`, the first declared `targetPath` wins. Defaults to `<extensionDir>/<name>-assets`."
+				},
+				"nodes": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"vfsPath": {
+								"type": "string",
+								"description": "Joined with the group's `vfsRoot` to form the final VFS path."
+							},
+							"type": {
+								"type": "string",
+								"enum": ["file", "directory"],
+								"description": "Defaults to \"file\". Only file nodes need a `sourcePath`."
+							},
+							"sourcePath": {
+								"type": "string",
+								"description": "Relative to the manifest URL/base URL, or an absolute URL."
+							}
+						},
+						"required": ["vfsPath"],
+						"additionalProperties": false
+					}
+				}
+			},
+			"additionalProperties": false
+		}
+	}
+}

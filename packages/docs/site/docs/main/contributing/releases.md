@@ -35,7 +35,7 @@ cd packages/your-new-package
 npm publish --access public
 ```
 
-This creates the package on the npm registry under your account.
+This creates the package on the npm registry, under the organization that owns its scope (`wp-playground` for `@wp-playground/*` packages, `php-wasm` for `@php-wasm/*` packages).
 
 ### 2. Configure trusted publishing
 
@@ -43,17 +43,19 @@ After the initial publish, go to the package's settings on npmjs.com and set up 
 
 1. Navigate to your package on [npmjs.com](https://www.npmjs.com)
 2. Go to **Settings** → **Configure Trusted Publishers**
-3. Add a new trusted publisher with these settings:
+3. Add a new trusted publisher with these settings. All of them are case-sensitive!
     - **Repository owner**: `WordPress`
     - **Repository name**: `wordpress-playground`
     - **Workflow filename**: `publish-npm-packages.yml`
     - **Environment**: `npm`
+4. Under **Allowed actions**, select `npm publish`. A new trusted publisher allows only `npm stage publish` by default, and the release workflow publishes directly.
+5. Run the release workflow within 48 hours, for example with the workflow dispatch. A new trusted publisher expires if it doesn't complete a publish in that time, and you then need to delete it and create a new one.
 
 ![Setting up OIDC trusted publishing on npm](/img/php-wasm-node-oidc.webp)
 
-### 3. Transfer ownership (if needed)
+### 3. Check team access
 
-If you published under your personal account, transfer the package to the `@aspect` organization or ensure the appropriate team has publish access.
+Make sure the appropriate team in the package's npm organization has publish access.
 
 Once configured, subsequent releases will work automatically through the CI workflow.
 

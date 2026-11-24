@@ -60,15 +60,19 @@ Para executá-lo, acesse `https://playground.wordpress.net/#{"preferredVersions"
 
 Use este método para executar o código de exemplo no próximo capítulo, [**Crie seu primeiro Blueprint**](/blueprints/tutorial/build-your-first-blueprint).
 
-<!-- Base64 encoded Blueprints
+<!-- Encoded Blueprint fragments
 
-Some tools, including GitHub, might not format the Blueprint correctly when pasted into the URL. In such cases, [encode your Blueprint in Base64](https://www.base64encode.org) and append it to the URL. For example, that's the above Blueprint in Base64 format: `eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19`.
+When you build a Playground link from JavaScript or an automation tool, encode the Blueprint JSON once with `encodeURIComponent(JSON.stringify(blueprint))` and append it after `#`.
+
+Playground also supports [Base64-encoded Blueprints](https://www.base64encode.org), which are useful when a platform modifies JSON fragments or when you want a compact, copyable link. For example, that's the above Blueprint in Base64 format: `eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19`.
 
 To run it, go to [https://playground.wordpress.net/#eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19](https://playground.wordpress.net/#eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19) -->
 
-### Blueprints codificados em Base64
+### Fragmentos de Blueprint codificados
 
-Algumas ferramentas, incluindo o GitHub, podem não formatar o Blueprint corretamente quando colado na URL. Nesses casos, [codifique seu Blueprint em Base64](https://www.base64encode.org) e anexe-o à URL. Por exemplo, esse é o Blueprint acima em formato Base64: `eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19`.
+Ao criar um link do Playground a partir de JavaScript ou de uma ferramenta de automação, codifique o JSON do Blueprint uma vez com `encodeURIComponent(JSON.stringify(blueprint))` e adicione-o depois de `#`.
+
+O Playground também oferece suporte a [Blueprints codificados em Base64](https://www.base64encode.org), que são úteis quando uma plataforma modifica fragmentos JSON ou quando você quer um link compacto e fácil de copiar. Por exemplo, esse é o Blueprint acima em formato Base64: `eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19`.
 
 Para executá-lo, acesse [https://playground.wordpress.net/#eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19](https://playground.wordpress.net/#eyJwcmVmZXJyZWRWZXJzaW9ucyI6IHsicGhwIjoiNy40IiwgIndwIjoiNS45In19)
 

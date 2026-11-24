@@ -4,17 +4,14 @@ import {
 	addSocketOptionsSupportToWebSocketClass,
 } from './outbound-ws-to-tcp-proxy';
 import { addTCPServerToWebSocketServerClass } from './inbound-tcp-to-ws-proxy';
-import { findFreePorts } from './utils';
+import { getServerPort } from './utils';
 
 export async function withNetworking(
 	phpModuleArgs: EmscriptenOptions = {}
 ): Promise<EmscriptenOptions> {
-	const [inboundProxyWsServerPort, outboundProxyWsServerPort] =
-		await findFreePorts(2);
-
-	const outboundNetworkProxyServer = await initOutboundWebsocketProxyServer(
-		outboundProxyWsServerPort
-	);
+	const outboundNetworkProxyServer =
+		await initOutboundWebsocketProxyServer(0);
+	const outboundProxyWsServerPort = getServerPort(outboundNetworkProxyServer);
 
 	return {
 		...phpModuleArgs,
@@ -30,10 +27,7 @@ export async function withNetworking(
 			},
 			subprotocol: 'binary',
 			decorator: addSocketOptionsSupportToWebSocketClass,
-			serverDecorator: addTCPServerToWebSocketServerClass.bind(
-				null,
-				inboundProxyWsServerPort
-			),
+			serverDecorator: addTCPServerToWebSocketServerClass,
 		},
 	};
 }

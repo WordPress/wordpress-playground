@@ -1,5 +1,9 @@
 /* eslint-disable comment-length/limit-multi-line-comments */
-import { test, expect } from '../playground-fixtures';
+import { test, expect, serveBuiltWpCli } from '../playground-fixtures';
+import type { BrowserContext, Page } from '@playwright/test';
+import type { Blueprint } from '@wp-playground/blueprints';
+import { resolve } from 'node:path';
+import { encodeStringAsBase64 } from '@php-wasm/util';
 
 // We can't import the WordPress versions directly from the remote package
 // because of ESModules vs CommonJS incompatibilities. Let's just import the
@@ -11,32 +15,174 @@ const LatestSupportedWordPressVersion = Object.keys(
 	(MinifiedWordPressVersions as any).default ?? MinifiedWordPressVersions
 ).filter((x) => !['trunk', 'beta'].includes(x))[0];
 
+const fileBrowserTestPath =
+	'wp-content/plugins/filebrowser-query-test/index.php';
+const fileBrowserTestAbsoluteDir =
+	'/wordpress/wp-content/plugins/filebrowser-query-test';
+const fileBrowserTestAbsolutePath =
+	'/wordpress/wp-content/plugins/filebrowser-query-test/index.php';
+const fileBrowserTestContent = `<?php
+echo 'filebrowser query api';
+echo 'before requested line';
+echo 'filebrowser active line';
+echo 'after requested line';
+`;
+
+function getFileBrowserBlueprintHash(data = fileBrowserTestContent) {
+	return encodeURIComponent(
+		JSON.stringify({
+			steps: [
+				{
+					step: 'mkdir',
+					path: fileBrowserTestAbsoluteDir,
+				},
+				{
+					step: 'writeFile',
+					path: fileBrowserTestAbsolutePath,
+					data,
+				},
+			],
+		})
+	);
+}
+
+function getFileBrowserQueryUrl(value: string, blueprintHash?: string) {
+	const query = new URLSearchParams();
+	query.set('filebrowser', value);
+	return `./?${query.toString()}${blueprintHash ? `#${blueprintHash}` : ''}`;
+}
+
 test('should load PHP 8.3 by default', async ({ website, wordpress }) => {
 	// Navigate to the website
-	await website.goto('./?url=/phpinfo.php');
+	await website.goto('./?storage=temp&url=/phpinfo.php');
 	await expect(wordpress.locator('h1.p').first()).toContainText(
 		'PHP Version 8.3'
 	);
+});
+
+test('should load PHP 7.4 when requested', async ({ website, wordpress }) => {
+	await website.goto('./?storage=temp&php=7.4&url=/phpinfo.php');
+	await expect(wordpress.locator('h1.p').first()).toContainText(
+		'PHP Version 7.4'
+	);
+});
+
+test.describe('option `php-extension`', () => {
+	test.skip(
+		({ browserName }) => browserName !== 'chromium',
+		'External PHP extensions require JSPI support.'
+	);
+
+	test('should load an extension from a manifest URL', async ({
+		website,
+	}) => {
+		await routeIntlExtension(website.page.context());
+
+		await gotoPHPOnlyPlayground(website.page, {
+			'php-extension': intlManifestUrl,
+		});
+		await waitForPlaygroundClient(website.page);
+
+		const probe = await website.page.evaluate(async () => {
+			const playground = (window as any).playground;
+			const response = await playground.run({
+				code: `<?php
+				echo json_encode([
+					'loaded' => extension_loaded('intl'),
+					'has_formatter' => class_exists('IntlDateFormatter'),
+					'formatted' => (new IntlDateFormatter(
+						'pl_PL',
+						IntlDateFormatter::FULL,
+						IntlDateFormatter::NONE,
+						'UTC'
+					))->format(0),
+				]);`,
+			});
+			return JSON.parse(response.text);
+		});
+
+		expect(probe.loaded).toBe(true);
+		expect(probe.has_formatter).toBe(true);
+		expect(probe.formatted).toContain('1970');
+	});
+
+	test('should reject unsupported manifest URL schemes', async ({
+		website,
+	}) => {
+		await gotoPHPOnlyPlayground(website.page, {
+			'php-extension': 'file:///tmp/xdebug/manifest.json',
+		});
+
+		await expectSiteBootError(
+			website.page,
+			'manifest URL must use http: or https:'
+		);
+	});
+
+	test('should reject malformed extension manifests', async ({ website }) => {
+		await website.page
+			.context()
+			.route(invalidManifestUrl, async (route) => {
+				await route.fulfill({ json: { name: 'xdebug' } });
+			});
+
+		await gotoPHPOnlyPlayground(website.page, {
+			'php-extension': invalidManifestUrl,
+		});
+
+		await expectSiteBootError(website.page);
+	});
+
+	test('should reject manifests without an artifact for the active PHP version', async ({
+		website,
+	}) => {
+		await website.page
+			.context()
+			.route(noArtifactManifestUrl, async (route) => {
+				await route.fulfill({
+					json: {
+						name: 'xdebug',
+						loadWithIniDirective: 'zend_extension',
+						artifacts: [
+							{
+								phpVersion: '8.4',
+								sourcePath: 'xdebug.so',
+							},
+						],
+					},
+				});
+			});
+
+		await gotoPHPOnlyPlayground(website.page, {
+			'php-extension': noArtifactManifestUrl,
+		});
+
+		await expectSiteBootError(website.page);
+	});
 });
 
 test('should load WordPress latest by default', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?url=/wp-admin/');
+	await website.goto('./?storage=temp&url=/wp-admin/');
 
-	const expectedBodyClass =
-		'branch-' + LatestSupportedWordPressVersion.replace('.', '-');
-	await expect(wordpress.locator(`body.${expectedBodyClass}`)).toContainText(
-		'Dashboard'
-	);
+	// WordPress derives the admin body branch class from (float) $wp_version.
+	const expectedBranchClass =
+		'branch-' +
+		parseFloat(LatestSupportedWordPressVersion)
+			.toString()
+			.replace('.', '-');
+	await expect(
+		wordpress.locator(`body.${expectedBranchClass}`)
+	).toContainText('Dashboard');
 });
 
 test('should load WordPress 6.3 when requested', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?wp=6.3&url=/wp-admin/');
+	await website.goto('./?storage=temp&wp=6.3&url=/wp-admin/');
 	await expect(wordpress.locator(`body.branch-6-3`)).toContainText(
 		'Dashboard'
 	);
@@ -46,7 +192,9 @@ test('should disable networking when requested', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?networking=no&url=/wp-admin/plugin-install.php');
+	await website.goto(
+		'./?storage=temp&networking=no&url=/wp-admin/plugin-install.php'
+	);
 	await expect(wordpress.locator('.notice.error')).toContainText(
 		'Network access is an experimental, opt-in feature'
 	);
@@ -56,22 +204,306 @@ test('should enable networking when requested', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?networking=yes&url=/wp-admin/plugin-install.php');
+	await website.goto(
+		'./?storage=temp&networking=yes&url=/wp-admin/plugin-install.php'
+	);
 	await expect(wordpress.locator('body')).toContainText('Install Now');
 });
 
+test('should open the Files pane when requested', async ({ website }) => {
+	await website.goto('./?filebrowser');
+
+	await expect(
+		website.page.getByRole('dialog', { name: 'Files pane', exact: true })
+	).toBeVisible();
+	await expect(website.page.locator('.cm-editor')).toHaveCount(0);
+});
+
+test('should open a file from the filebrowser query parameter', async ({
+	website,
+}) => {
+	await website.goto(
+		getFileBrowserQueryUrl(
+			fileBrowserTestPath,
+			getFileBrowserBlueprintHash()
+		)
+	);
+
+	await expect(
+		website.page.locator('[aria-label="Files pane"] .cm-editor')
+	).toBeVisible();
+	await expect(
+		website.page.locator('[aria-label="Files pane"] .cm-content')
+	).toContainText('filebrowser query api');
+	await expect(
+		website.page.locator(`[title="${fileBrowserTestAbsolutePath}"]`)
+	).toBeVisible();
+	await expect(
+		website.page
+			.locator(`button[data-path="${fileBrowserTestAbsolutePath}"]`)
+			.first()
+	).toHaveClass(/_selected_/);
+});
+
+for (const viewport of [
+	{ width: 1280, height: 800 },
+	{ width: 390, height: 844 },
+]) {
+	for (const [name, separator] of [
+		['LF', '\n'],
+		['CRLF', '\r\n'],
+		['CR', '\r'],
+	]) {
+		test(`should activate the requested filebrowser line with ${name} at ${viewport.width}px`, async ({
+			website,
+		}) => {
+			await website.page.setViewportSize(viewport);
+			await website.goto(
+				getFileBrowserQueryUrl(
+					`${fileBrowserTestPath}:4`,
+					getFileBrowserBlueprintHash(
+						fileBrowserTestContent.replaceAll('\n', separator)
+					)
+				)
+			);
+			await expect(
+				website.page.getByRole('dialog', {
+					name: 'Files pane',
+					exact: true,
+				})
+			).toBeVisible();
+			await expect
+				.poll(async () => getCodeMirrorSelection(website.page))
+				.toEqual({
+					text: "echo 'filebrowser active line';",
+					offset: 0,
+				});
+		});
+	}
+}
+
+test('should show a notice for an invalid filebrowser path', async ({
+	website,
+}) => {
+	await website.goto(getFileBrowserQueryUrl('../wp-config.php'));
+	await expect(
+		website.page
+			.getByRole('dialog', { name: 'Files pane', exact: true })
+			.getByText('The requested file path is invalid.', {
+				exact: false,
+			})
+	).toBeVisible();
+	await expect(website.page.locator('.cm-editor')).toHaveCount(0);
+});
+
+test('should show a notice for an out-of-range filebrowser line', async ({
+	website,
+}) => {
+	await website.goto(
+		getFileBrowserQueryUrl(
+			`${fileBrowserTestPath}:999`,
+			getFileBrowserBlueprintHash()
+		)
+	);
+	await expect(
+		website.page
+			.getByRole('dialog', { name: 'Files pane', exact: true })
+			.getByText('Line 999 is outside this file.', {
+				exact: false,
+			})
+	).toBeVisible();
+	await expect(
+		website.page.locator('[aria-label="Files pane"] .cm-content')
+	).toContainText('filebrowser query api');
+});
+
+test('should show a notice for a missing filebrowser target', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto(
+		getFileBrowserQueryUrl(
+			'wp-content/plugins/filebrowser-query-test/missing.php'
+		)
+	);
+
+	await expect(
+		website.page.getByRole('dialog', { name: 'Files pane', exact: true })
+	).toBeVisible();
+	await expect(
+		website.page
+			.locator('.components-notice__content')
+			.filter({ hasText: /Could not open .*missing\.php/ })
+	).toBeVisible();
+	await expect(wordpress.locator('body')).not.toBeEmpty();
+});
+
+async function getCodeMirrorSelection(page: Page) {
+	return page
+		.locator('[aria-label="Files pane"] .cm-content')
+		.evaluate((content) => {
+			const selection = content.ownerDocument.getSelection();
+			if (
+				!selection?.anchorNode ||
+				!content.contains(selection.anchorNode)
+			) {
+				return null;
+			}
+
+			let current: Node | null = selection.anchorNode;
+			while (current && current !== content) {
+				if (
+					current instanceof HTMLElement &&
+					current.classList.contains('cm-line')
+				) {
+					const range = content.ownerDocument.createRange();
+					range.selectNodeContents(current);
+					range.setEnd(selection.anchorNode, selection.anchorOffset);
+					return {
+						text: current.textContent ?? '',
+						offset: range.toString().length,
+					};
+				}
+				current = current.parentNode;
+			}
+			return null;
+		});
+}
+
+/**
+ * @see https://github.com/WordPress/wordpress-playground/pull/819
+ * @TODO: Turn this into a unit test once WordPress modules are available
+ *        for import.
+ */
+test('should return true from wp_http_supports(array( "ssl" ))', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/test.php',
+		features: { networking: true },
+		steps: [
+			{
+				step: 'writeFile',
+				path: '/wordpress/test.php',
+				data: `<?php
+					require '/wordpress/wp-load.php';
+					echo wp_http_supports(array( "ssl" )) ? "true" : "false";
+				`,
+			},
+		],
+	};
+	await website.goto(`./?storage=temp#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toHaveText('true');
+});
+
 test('should install the specified plugin', async ({ website, wordpress }) => {
-	await website.goto('./?plugin=gutenberg&url=/wp-admin/plugins.php');
+	await website.goto(
+		'./?storage=temp&plugin=gutenberg&url=/wp-admin/plugins.php'
+	);
 	await expect(wordpress.locator('#deactivate-gutenberg')).toContainText(
 		'Deactivate'
 	);
+});
+
+test('should install the specified theme', async ({ website, wordpress }) => {
+	await website.goto(
+		'./?storage=temp&theme=twentytwentyone&url=/wp-admin/themes.php'
+	);
+	await expect(
+		wordpress.locator('[data-slug="twentytwentyone"].active')
+	).toBeVisible();
+});
+
+test('should show the simulated browser by default', async ({ website }) => {
+	await website.goto('./?storage=temp');
+	await expect(
+		website.page.locator('[data-cy="simulated-browser"]')
+	).toBeVisible();
+});
+
+test('should hide the simulated browser in seamless mode', async ({
+	website,
+}) => {
+	await website.goto('./?storage=temp&mode=seamless');
+	await expect(
+		website.page.locator('[data-cy="simulated-browser"]')
+	).toHaveCount(0);
+});
+
+test('should enable a multisite when requested', async ({
+	context,
+	website,
+	wordpress,
+}) => {
+	await serveBuiltWpCli(context);
+	await website.goto('./?storage=temp&multisite=yes&url=/wp-admin/');
+	await expect(wordpress.locator('#wp-admin-bar-my-sites')).toContainText(
+		'My Sites'
+	);
+});
+
+test('should defer loading Playground until Run is clicked', async ({
+	website,
+	wordpress,
+}) => {
+	// Specify initial WP URL because the Playground has changed
+	// its default WP URL in the past.
+	// Use page.goto because website.goto waits for WordPress to boot.
+	await website.page.goto('./?storage=temp&lazy&url=%2F');
+	const runButton = website.page.getByRole('link', {
+		name: 'Run Playground',
+	});
+	await expect(runButton).toBeVisible();
+	await expect(website.page.locator('.playground-viewport')).toHaveCount(0);
+
+	await runButton.click();
+	await expect(wordpress.locator('body')).toHaveClass(/\bhome\b/);
+});
+
+test.describe('Patching Gutenberg editor frame', () => {
+	// TODO: Cover Gutenberg brought over by importing
+	// test-fixtures/site-with-unpatched-gutenberg.zip. That case was disabled
+	// in the previous suite and still needs an active regression test.
+	for (const { name, query } of [
+		{ name: 'WordPress', query: '' },
+		{ name: 'the Gutenberg plugin', query: '&plugin=gutenberg' },
+	]) {
+		test(`should patch the editor frame in ${name}`, async ({
+			website,
+			wordpress,
+		}) => {
+			// The default post has content blocks in every tested editor version.
+			await website.goto(
+				`./?storage=temp${query}&url=${encodeURIComponent('/wp-admin/post.php?post=1&action=edit')}`
+			);
+			// Check that the editor canvas loaded its stylesheets. If the
+			// canvas frame wasn't correctly patched, its CSS requests 404
+			// and blocks render with browser-default styles. The
+			// `overflow-wrap` rule comes from block-editor's content.css
+			// and the browser default is `normal`.
+			//
+			// Target a content block inside the layout. The post title is
+			// outside it and does not match the content.css rule.
+			// Using an existing post also avoids depending on the default block
+			// appender, which Gutenberg 23.8 replaced with a (ghost) paragraph.
+			await expect(
+				wordpress
+					.frameLocator('iframe[name="editor-canvas"]')
+					.locator(
+						'.block-editor-block-list__layout .block-editor-block-list__block'
+					)
+					.first()
+			).toHaveCSS('overflow-wrap', 'break-word');
+		});
+	}
 });
 
 test('should login the user in by default if no login query parameter is provided', async ({
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?url=/wp-admin/');
+	await website.goto('./?storage=temp&url=/wp-admin/');
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
@@ -79,7 +511,7 @@ test('should login the user in if the login query parameter is set to yes', asyn
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?login=yes&url=/wp-admin/');
+	await website.goto('./?storage=temp&login=yes&url=/wp-admin/');
 	await expect(wordpress.locator('body')).toContainText('Dashboard');
 });
 
@@ -87,7 +519,7 @@ test('should not login the user in if the login query parameter is set to no', a
 	website,
 	wordpress,
 }) => {
-	await website.goto('./?login=no&url=/wp-admin/');
+	await website.goto('./?storage=temp&login=no&url=/wp-admin/');
 	await expect(wordpress.locator('input[type="submit"]')).toContainText(
 		'Log In'
 	);
@@ -98,7 +530,7 @@ test('should not login the user in if the login query parameter is set to no', a
 	['/wp-admin/post.php?post=1&action=edit', 'should redirect to post editor'],
 ].forEach(([path, description]) => {
 	test(description, async ({ website, wordpress }) => {
-		await website.goto(`./?url=${encodeURIComponent(path)}`);
+		await website.goto(`./?storage=temp&url=${encodeURIComponent(path)}`);
 		expect(
 			await wordpress
 				.locator('body')
@@ -117,7 +549,7 @@ test('should translate WP-admin to Spanish using the language query parameter', 
 		`It's unclear why this test fails on Safari. The root cause of the failure is unknown as the feature ` +
 			`seems to be working in manual testing.`
 	);
-	await website.goto('./?language=es_ES&url=/wp-admin/');
+	await website.goto('./?storage=temp&language=es_ES&url=/wp-admin/');
 	await expect(wordpress.locator('body')).toContainText('Escritorio');
 });
 
@@ -184,7 +616,7 @@ test('should retain encoded control characters in the URL', async ({
 	// most wp-admin pages enforce a redirect to a sanitized (broken)
 	// version of the URL.
 	await website.goto(
-		`./?url=${encodeURIComponent(
+		`./?storage=temp&url=${encodeURIComponent(
 			path
 		)}&plugin=html-api-debugger#${JSON.stringify(blueprint)}`
 	);
@@ -194,3 +626,103 @@ test('should retain encoded control characters in the URL', async ({
 			.evaluate((body) => body.ownerDocument.location.href)
 	).toContain(path);
 });
+
+const intlManifestUrl = 'https://extensions.test/intl/manifest.json';
+const invalidManifestUrl = 'https://extensions.test/invalid/manifest.json';
+const noArtifactManifestUrl =
+	'https://extensions.test/no-artifact/manifest.json';
+const intlSoPath = resolve(
+	process.cwd(),
+	'packages/php-wasm/web-builds/8-3/jspi/extensions/intl/intl.so'
+);
+const icuDataPath = resolve(
+	process.cwd(),
+	'packages/php-wasm/web/src/lib/extensions/intl/shared/icu.dat'
+);
+
+async function routeIntlExtension(context: BrowserContext) {
+	await context.route(intlManifestUrl, async (route) => {
+		await route.fulfill({
+			json: {
+				name: 'intl',
+				env: {
+					ICU_DATA: '/internal/shared',
+				},
+				artifacts: [
+					{
+						phpVersion: '8.3',
+						sourcePath: 'intl.so',
+						extraFiles: {
+							vfsRoot: '/internal/shared',
+							nodes: [
+								{
+									vfsPath: 'icudt74l.dat',
+									sourcePath: 'icu.dat',
+								},
+							],
+						},
+					},
+				],
+			},
+		});
+	});
+	await context.route(
+		'https://extensions.test/intl/intl.so',
+		async (route) => {
+			await route.fulfill({
+				path: intlSoPath,
+				contentType: 'application/octet-stream',
+			});
+		}
+	);
+	await context.route(
+		'https://extensions.test/intl/icu.dat',
+		async (route) => {
+			await route.fulfill({
+				path: icuDataPath,
+				contentType: 'application/octet-stream',
+			});
+		}
+	);
+}
+
+async function gotoPHPOnlyPlayground(
+	page: Page,
+	queryParams: Record<string, string>
+) {
+	const query = new URLSearchParams({
+		php: '8.3',
+		storage: 'temp',
+		...queryParams,
+	});
+	const blueprint: Blueprint = {
+		preferredVersions: {
+			php: '8.3',
+			wp: false,
+		},
+	};
+	await page.goto(
+		`./?${query}#${encodeStringAsBase64(JSON.stringify(blueprint))}`
+	);
+}
+
+async function waitForPlaygroundClient(page: Page) {
+	await page.waitForFunction(
+		() => Boolean((window as any).playground),
+		null,
+		{
+			timeout: 240_000,
+		}
+	);
+}
+
+async function expectSiteBootError(page: Page, technicalDetails?: string) {
+	await expect(page.getByText('Playground crashed')).toBeVisible({
+		timeout: 240_000,
+	});
+	if (!technicalDetails) {
+		return;
+	}
+	await page.getByText('Error details').click();
+	await expect(page.locator('pre')).toContainText(technicalDetails);
+}

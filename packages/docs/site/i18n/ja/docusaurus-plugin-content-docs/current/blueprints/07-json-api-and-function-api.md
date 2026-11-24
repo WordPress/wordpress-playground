@@ -27,20 +27,26 @@ Blueprints は、WordPress Playground の Web バージョンと node.js バー�
 You can use Blueprints both with the web and the node.js versions of WordPress Playground.
 -->
 
-:::info ブループリント バージョン 2
+<div class="callout callout-info">
+
+**ブループリント バージョン 2**
 
 チームは、Blueprints を TypeScript ライブラリから PHP ライブラリに移行する方法を検討しています。これにより、Playground、ホストされたサイト、ローカル環境など、あらゆる WordPress 環境で Blueprints を実行できるようになります。
 
 提案されている [新しい仕様](https://github.com/WordPress/blueprints-library/issues/6) については、別の [GitHub リポジトリ](https://github.com/WordPress/blueprints-library/) で議論されています。ぜひご参加ください（GitHub リポジトリまたは [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) Slack チャンネルで）。次世代の Playground の策定にご協力ください。
-:::
+
+</div>
 
 <!--
-:::info Blueprints version 2
+<div class="callout callout-info">
+
+**Blueprints version 2**
 
 The team is exploring ways to transition Blueprints from a TypeScript library to a PHP library. This would allow people to run Blueprints in any WordPress environments: Playground, a hosted site, or a local setup.
 
 The proposed [new specification](https://github.com/WordPress/blueprints-library/issues/6) is discussed on a separate [GitHub repository](https://github.com/WordPress/blueprints-library/), and you’re more than welcome to join (there or on the [#playground](https://wordpress.slack.com/archives/C04EWKGDJ0K) Slack channel) and help shape the next generation of Playground.
-:::
+
+</div>
 -->
 
 ## JSON API と関数 API の違い
@@ -63,12 +69,16 @@ There are two main differences between the JSON and Function APIs:
 2. The function API requires importing the API client library while Blueprints may be just pasted into the URL fragment.
 -->
 
-:::note
+<div class="callout callout-info">
+
 このトピックの詳細については、[wordpress-playground](https://github.com/WordPress/wordpress-playground) リポジトリの [Blueprint JSON 定義とステップ ハンドラーに同じ構造を使用する](https://github.com/WordPress/wordpress-playground/pull/215) の問題を確認してください。
-:::
+
+</div>
 
 <!--
-:::note
+<div class="callout callout-info">
+
 Check the [Use the same structure for Blueprint JSON definitions and step handlers](https://github.com/WordPress/wordpress-playground/pull/215) issue at [wordpress-playground](https://github.com/WordPress/wordpress-playground) repo for more detailed info about this topic
-:::
+
+</div>
 -->

@@ -49,9 +49,18 @@ const responseTexts: Record<number, string> = {
 
 export class StreamedPHPResponse {
 	/**
-	 * Response headers stream (internal).
+	 * Headers stream that doesn't get locked when the consumer
+	 * reads the parsed headers. api.ts transfers the obj.getHeadersStream(),
+	 * and boot-playground-remote.ts copies the streamedResponse.headers.
+	 * Both streams must be readable when the StreamedPHPResponse is transferred
+	 * from the worker thread into the service worker.
 	 */
-	readonly #headersStream: ReadableStream<Uint8Array>;
+	readonly #rawHeadersStream: ReadableStream<Uint8Array>;
+
+	/**
+	 * Headers stream reserved for internal parsing.
+	 */
+	readonly #copiedHeadersStreamForParsing: ReadableStream<Uint8Array>;
 
 	/**
 	 * Response body. Contains the output from `echo`,
@@ -70,7 +79,7 @@ export class StreamedPHPResponse {
 	 */
 	readonly exitCode: Promise<number>;
 
-	private parsedHeaders: Promise<{
+	private cachedParsedHeaders: Promise<{
 		headers: Record<string, string[]>;
 		httpStatusCode: number;
 	}> | null = null;
@@ -84,7 +93,9 @@ export class StreamedPHPResponse {
 		stderr: ReadableStream<Uint8Array>,
 		exitCode: Promise<number>
 	) {
-		this.#headersStream = headers;
+		const [forTransport, forParsing] = headers.tee();
+		this.#rawHeadersStream = forTransport;
+		this.#copiedHeadersStreamForParsing = forParsing;
 		this.stdout = stdout;
 		this.stderr = stderr;
 		this.exitCode = exitCode;
@@ -136,21 +147,12 @@ export class StreamedPHPResponse {
 			},
 		});
 
-		const streamed = new StreamedPHPResponse(
+		return new StreamedPHPResponse(
 			headersStream,
 			stdout,
 			stderr,
 			Promise.resolve(response.exitCode)
 		);
-
-		// Set pre-parsed headers as a fast-path for same-thread
-		// access (avoids re-parsing the stream we just created)
-		streamed.parsedHeaders = Promise.resolve({
-			headers: response.headers,
-			httpStatusCode: response.httpStatusCode,
-		});
-
-		return streamed;
 	}
 
 	/**
@@ -168,7 +170,7 @@ export class StreamedPHPResponse {
 	 * For parsed headers, use the `headers` property instead.
 	 */
 	getHeadersStream(): ReadableStream<Uint8Array> {
-		return this.#headersStream;
+		return this.#rawHeadersStream;
 	}
 
 	/**
@@ -249,10 +251,12 @@ export class StreamedPHPResponse {
 	}
 
 	private async getParsedHeaders() {
-		if (!this.parsedHeaders) {
-			this.parsedHeaders = parseHeadersStream(this.#headersStream);
+		if (!this.cachedParsedHeaders) {
+			this.cachedParsedHeaders = parseHeadersStream(
+				this.#copiedHeadersStreamForParsing
+			);
 		}
-		return await this.parsedHeaders;
+		return await this.cachedParsedHeaders;
 	}
 }
 
