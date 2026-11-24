@@ -152,7 +152,6 @@ export const getActiveClientInfo = (
 		? state.clients.entities[state.ui.activeSite.slug]
 		: undefined;
 
-// Define RootState type
 export type PlaygroundReduxState = ReturnType<typeof store.getState>;
 
 // Define AppDispatch type
