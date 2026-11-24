@@ -224,7 +224,13 @@ export function Dock({
 	const [isFolding, setIsFolding] = useState(false);
 	const [isUnfolding, setIsUnfolding] = useState(false);
 	const [isMaximizing, setIsMaximizing] = useState(false);
+	const [isPaneExpanded, setIsPaneExpanded] = useState(false);
 	const [paneExitComplete, setPaneExitComplete] = useState(!dockPaneIsOpen);
+	const isExpandedEditorPane = !isMobile && isEditorSection && isPaneExpanded;
+	const togglePaneExpanded = useCallback(
+		() => setIsPaneExpanded((expanded) => !expanded),
+		[]
+	);
 	// Retain the full pane body until its exit motion finishes. Hiding it when
 	// close starts would collapse the surface to its header before it can leave.
 	const paneContentVisible = dockPaneIsOpen || !paneExitComplete;
@@ -359,6 +365,12 @@ export function Dock({
 			root.removeAttribute('data-dock-full-width');
 		};
 	}, [dockSize.height, isCollapsed, isFullWidth, isMobile, toolsHeight]);
+
+	useEffect(() => {
+		if (!dockPaneIsOpen || !isEditorSection || isMobile) {
+			setIsPaneExpanded(false);
+		}
+	}, [dockPaneIsOpen, isEditorSection, isMobile]);
 
 	useEffect(() => {
 		// Opening Store permanently from the visible status must not unfold a
@@ -1001,6 +1013,7 @@ export function Dock({
 		isWideSection,
 		isFixedHeightSection,
 		isPlaygroundsSection: section === 'playgrounds',
+		isExpanded: isExpandedEditorPane,
 	});
 	const operationToastStyle = getDockOperationToastStyle({
 		isMobile,
@@ -1014,6 +1027,7 @@ export function Dock({
 		paneOpen: dockPaneIsOpen,
 		isEditorSection,
 		isWideSection,
+		isExpanded: isExpandedEditorPane,
 	});
 
 	function renderTool(item: (typeof DOCK_TOOLS)[number]) {
@@ -1173,6 +1187,7 @@ export function Dock({
 					})}
 					style={paneStyle}
 					isEditor={isEditorSection}
+					isExpanded={isExpandedEditorPane}
 					isFixedHeight={isFixedHeightSection}
 					isCompact={paneCopy.layout === 'compact'}
 					showHeader={showSharedHeader}
@@ -1187,6 +1202,11 @@ export function Dock({
 							dispatch(setDockPaneOpen(false));
 						}
 					}}
+					onToggleExpanded={
+						!isMobile && isEditorSection
+							? togglePaneExpanded
+							: undefined
+					}
 				>
 					<SiteManager
 						isVisible={paneContentVisible}

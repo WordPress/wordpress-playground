@@ -10,6 +10,7 @@ import {
 	BlueprintBundleEditor,
 	type BlueprintBundleEditorHandle,
 } from './BlueprintBundleEditor';
+import { DockPane } from '../dock/dock-pane';
 
 type SiteInfo = SliceSitesModule.SiteInfo;
 
@@ -610,6 +611,67 @@ describe('BlueprintBundleEditor Run barrier', () => {
 				JSON.stringify({ marker: 'second' }, null, 2)
 			);
 		});
+	});
+
+	it('closes the Dock pane when running a Blueprint on a temporary site', async () => {
+		await renderEditor({ dockPresentation: true, site: temporarySite });
+
+		await act(async () => {
+			getRunButton().click();
+			await Promise.resolve();
+		});
+
+		await vi.waitFor(() => {
+			expect(mocks.updateSite).toHaveBeenCalledTimes(1);
+		});
+		expect(mocks.setDockPaneOpen).toHaveBeenCalledWith(false);
+	});
+
+	it('toggles desktop expand and file sidebar controls inside an editor DockPane', async () => {
+		const onToggleExpanded = vi.fn();
+		const editorRef = createRef<BlueprintBundleEditorHandle>();
+		await act(async () => {
+			root.render(
+				<DockPane
+					title="Blueprint"
+					isEditor
+					showHeader={false}
+					isExpanded={false}
+					onToggleExpanded={onToggleExpanded}
+				>
+					<BlueprintBundleEditor
+						ref={editorRef}
+						filesystem={filesystem}
+						site={temporarySite}
+						dockPresentation
+					/>
+				</DockPane>
+			);
+			await Promise.resolve();
+		});
+
+		const expandButton = container.querySelector<HTMLButtonElement>(
+			'button[aria-label="Expand Blueprint editor"]'
+		);
+		expect(expandButton).not.toBeNull();
+		await act(async () => {
+			expandButton!.click();
+		});
+		expect(onToggleExpanded).toHaveBeenCalledTimes(1);
+
+		const sidebarToggle = container.querySelector<HTMLButtonElement>(
+			'button[aria-label="Hide Blueprint files"]'
+		);
+		expect(sidebarToggle).not.toBeNull();
+		expect(container.querySelector('h2')?.textContent).toBeUndefined();
+
+		await act(async () => {
+			sidebarToggle!.click();
+		});
+		expect(
+			container.querySelector('button[aria-label="Show Blueprint files"]')
+		).not.toBeNull();
+		expect(container.querySelector('h2')?.textContent).toBe('Blueprint');
 	});
 
 	async function renderEditor({

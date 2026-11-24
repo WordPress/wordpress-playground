@@ -221,19 +221,61 @@
 	margin-top: 1px;
 }
 
-.editorDocsLink {
+.editorDocsLink,
+.editorIconButton {
 	align-items: center;
+	background: transparent;
+	border: 0;
 	border-radius: 6px;
 	color: var(--ink-muted);
+	cursor: pointer;
 	display: inline-flex;
 	height: 32px;
 	justify-content: center;
+	padding: 0;
 	width: 32px;
 }
 
-.editorDocsLink:hover {
+.editorDocsLink:hover,
+.editorIconButton:hover {
 	background: rgba(20, 18, 15, 0.06);
 	color: var(--accent);
+}
+
+.editorDocsLink:focus-visible,
+.editorIconButton:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+.editorIconButtonActive {
+	background: rgba(20, 18, 15, 0.06);
+	color: var(--ink);
+}
+
+.editorIconButton svg {
+	fill: currentColor;
+}
+
+.editorHeaderLeading {
+	align-items: center;
+	display: flex;
+	gap: 10px;
+	min-width: 0;
+}
+
+.desktopCollapsedTitle {
+	color: var(--ink);
+	font-size: 16px;
+	font-weight: 600;
+	line-height: 1.2;
+	margin: 0;
+}
+
+@media (min-width: 1025px) {
+	.dockPresentation .sidebarCollapsed .sidebarWrapper {
+		display: none;
+	}
 }
 
 .dockPresentation .editor,
@@ -348,6 +390,11 @@
 }
 
 @media (max-width: 1024px) {
+	.editorHeaderLeading,
+	.desktopExpandToggle {
+		display: none;
+	}
+
 	.dockPresentation .editorHeader {
 		padding: 12px var(--pane-inline-padding, 24px);
 	}

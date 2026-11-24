@@ -16,7 +16,15 @@ import {
 	Notice,
 	Tooltip as WpTooltip,
 } from '@wordpress/components';
-import { chevronDown, download, help, link, warning } from '@wordpress/icons';
+import {
+	chevronDown,
+	download,
+	drawerLeft,
+	fullscreen,
+	help,
+	link,
+	warning,
+} from '@wordpress/icons';
 import {
 	resolveRuntimeConfiguration,
 	type BlueprintValidationResult,
@@ -77,6 +85,7 @@ import {
 	setDockOperationNotice,
 	setDockPaneOpen,
 } from '../../lib/state/redux/slice-ui';
+import { useDockPaneExpand } from '../dock/dock-pane';
 import { MenuItemWithDescription } from '../menu-item-with-description';
 import styles from './blueprint-bundle-editor.module.css';
 import hideRootStyles from './hide-root.module.css';
@@ -328,6 +337,9 @@ export const BlueprintBundleEditor = forwardRef<
 	const [saveError, setSaveError] = useState<string | null>(null);
 	const [showExplorerOnMobile, setShowExplorerOnMobile] =
 		useState<boolean>(false);
+	const [isSidebarCollapsedOnDesktop, setIsSidebarCollapsedOnDesktop] =
+		useState<boolean>(false);
+	const paneExpand = useDockPaneExpand();
 	const [messageContent, setMessageContent] = useState<
 		string | JSX.Element | null
 	>(null);
@@ -639,6 +651,7 @@ export const BlueprintBundleEditor = forwardRef<
 				},
 				originalUrlParams: undefined,
 			};
+			dispatch(setDockPaneOpen(false));
 			dispatch(removeClientInfo(site.slug));
 			await dispatch(
 				updateSite({
@@ -1010,6 +1023,76 @@ export const BlueprintBundleEditor = forwardRef<
 			</a>
 		</WpTooltip>
 	);
+	const desktopSidebarToggle = dockPresentation ? (
+		<div className={styles.editorHeaderLeading}>
+			<WpTooltip
+				text={isSidebarCollapsedOnDesktop ? 'Show files' : 'Hide files'}
+				delay={0}
+				placement="top"
+			>
+				<button
+					type="button"
+					className={classNames(
+						styles.editorIconButton,
+						styles.desktopSidebarToggle,
+						{
+							[styles.editorIconButtonActive]:
+								!isSidebarCollapsedOnDesktop,
+						}
+					)}
+					aria-label={
+						isSidebarCollapsedOnDesktop
+							? 'Show Blueprint files'
+							: 'Hide Blueprint files'
+					}
+					aria-pressed={!isSidebarCollapsedOnDesktop}
+					onClick={() =>
+						setIsSidebarCollapsedOnDesktop(
+							(collapsed) => !collapsed
+						)
+					}
+				>
+					<Icon icon={drawerLeft} size={20} />
+				</button>
+			</WpTooltip>
+			{isSidebarCollapsedOnDesktop && (
+				<h2 className={styles.desktopCollapsedTitle}>Blueprint</h2>
+			)}
+		</div>
+	) : null;
+	const desktopExpandToggle =
+		dockPresentation && paneExpand ? (
+			<WpTooltip
+				text={
+					paneExpand.isExpanded
+						? 'Restore editor size'
+						: 'Expand Blueprint editor'
+				}
+				delay={0}
+				placement="top"
+			>
+				<button
+					type="button"
+					className={classNames(
+						styles.editorIconButton,
+						styles.desktopExpandToggle,
+						{
+							[styles.editorIconButtonActive]:
+								paneExpand.isExpanded,
+						}
+					)}
+					aria-label={
+						paneExpand.isExpanded
+							? 'Restore Blueprint editor size'
+							: 'Expand Blueprint editor'
+					}
+					aria-pressed={paneExpand.isExpanded}
+					onClick={paneExpand.toggleExpanded}
+				>
+					<Icon icon={fullscreen} size={20} />
+				</button>
+			</WpTooltip>
+		) : null;
 	const mobileHeaderActions = mobileHeaderTarget
 		? createPortal(
 				<div
@@ -1044,6 +1127,8 @@ export const BlueprintBundleEditor = forwardRef<
 				<div
 					className={classNames(styles.content, {
 						[styles.sidebarOpen]: showExplorerOnMobile,
+						[styles.sidebarCollapsed]:
+							dockPresentation && isSidebarCollapsedOnDesktop,
 					})}
 				>
 					<div
@@ -1080,6 +1165,9 @@ export const BlueprintBundleEditor = forwardRef<
 					</aside>
 					<section className={styles.editorWrapper}>
 						<div className={styles.editorHeader}>
+							{dockPresentation &&
+								!mobileHeaderTarget &&
+								desktopSidebarToggle}
 							{!dockPresentation && mobileExplorerToggle}
 							{!dockPresentation && (
 								<div
@@ -1110,6 +1198,7 @@ export const BlueprintBundleEditor = forwardRef<
 									!mobileHeaderTarget && (
 										<>
 											{dockDocsLink}
+											{desktopExpandToggle}
 											{dockExportDropdown}
 										</>
 									)
