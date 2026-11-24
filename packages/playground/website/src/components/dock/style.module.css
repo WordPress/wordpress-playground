@@ -319,7 +319,7 @@
 
 @media (min-width: 1025px) {
 	.pane-editor.pane-expanded {
-		width: calc(100vw - 16px);
+		width: calc(100dvw - 16px);
 	}
 }
 

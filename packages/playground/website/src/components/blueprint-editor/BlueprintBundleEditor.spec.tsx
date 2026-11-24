@@ -684,17 +684,16 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		expect(onToggleExpanded).toHaveBeenCalledTimes(1);
 
 		const sidebarToggle = container.querySelector<HTMLButtonElement>(
-			'button[aria-label="Hide Blueprint files"]'
+			'button[aria-label="Blueprint files"]'
 		);
 		expect(sidebarToggle).not.toBeNull();
+		expect(sidebarToggle!.getAttribute('aria-expanded')).toBe('true');
 		expect(container.querySelector('h2')?.textContent).toBeUndefined();
 
 		await act(async () => {
 			sidebarToggle!.click();
 		});
-		expect(
-			container.querySelector('button[aria-label="Show Blueprint files"]')
-		).not.toBeNull();
+		expect(sidebarToggle!.getAttribute('aria-expanded')).toBe('false');
 		expect(container.querySelector('h2')?.textContent).toBe('Blueprint');
 	});
 

@@ -225,21 +225,31 @@
 .editorIconButton {
 	align-items: center;
 	background: transparent;
-	border: 0;
+	border: 1px solid transparent;
 	border-radius: 6px;
 	color: var(--ink-muted);
 	cursor: pointer;
 	display: inline-flex;
-	height: 32px;
 	justify-content: center;
+	min-block-size: 32px;
+	min-inline-size: 32px;
 	padding: 0;
-	width: 32px;
 }
 
-.editorDocsLink:hover,
-.editorIconButton:hover {
-	background: rgba(20, 18, 15, 0.06);
-	color: var(--accent);
+@media (pointer: coarse) {
+	.editorDocsLink,
+	.editorIconButton {
+		min-block-size: 44px;
+		min-inline-size: 44px;
+	}
+}
+
+@media (hover: hover) {
+	.editorDocsLink:hover,
+	.editorIconButton:hover {
+		background: rgba(20, 18, 15, 0.06);
+		color: var(--accent);
+	}
 }
 
 .editorDocsLink:focus-visible,
@@ -248,9 +258,19 @@
 	outline-offset: 1px;
 }
 
-.editorIconButtonActive {
-	background: rgba(20, 18, 15, 0.06);
+.editorIconButton[aria-pressed='true'],
+.editorIconButton[aria-expanded='true'] {
+	background: var(--surface-recessed);
+	border-color: var(--ink-muted);
 	color: var(--ink);
+}
+
+@media (forced-colors: active) {
+	.editorIconButton[aria-pressed='true'],
+	.editorIconButton[aria-expanded='true'] {
+		border: 1px solid Highlight;
+		color: Highlight;
+	}
 }
 
 .editorIconButton svg {

@@ -1034,18 +1034,10 @@ export const BlueprintBundleEditor = forwardRef<
 					type="button"
 					className={classNames(
 						styles.editorIconButton,
-						styles.desktopSidebarToggle,
-						{
-							[styles.editorIconButtonActive]:
-								!isSidebarCollapsedOnDesktop,
-						}
+						styles.desktopSidebarToggle
 					)}
-					aria-label={
-						isSidebarCollapsedOnDesktop
-							? 'Show Blueprint files'
-							: 'Hide Blueprint files'
-					}
-					aria-pressed={!isSidebarCollapsedOnDesktop}
+					aria-label="Blueprint files"
+					aria-expanded={!isSidebarCollapsedOnDesktop}
 					onClick={() =>
 						setIsSidebarCollapsedOnDesktop(
 							(collapsed) => !collapsed
@@ -1075,17 +1067,9 @@ export const BlueprintBundleEditor = forwardRef<
 					type="button"
 					className={classNames(
 						styles.editorIconButton,
-						styles.desktopExpandToggle,
-						{
-							[styles.editorIconButtonActive]:
-								paneExpand.isExpanded,
-						}
+						styles.desktopExpandToggle
 					)}
-					aria-label={
-						paneExpand.isExpanded
-							? 'Restore Blueprint editor size'
-							: 'Expand Blueprint editor'
-					}
+					aria-label="Expand Blueprint editor"
 					aria-pressed={paneExpand.isExpanded}
 					onClick={paneExpand.toggleExpanded}
 				>
