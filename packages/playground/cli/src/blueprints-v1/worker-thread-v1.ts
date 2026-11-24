@@ -1,7 +1,6 @@
 import type { FileLockManager } from '@php-wasm/universal';
-import { loadNodeRuntime, type PHPExtension } from '@php-wasm/node';
+import { loadNodeRuntime } from '@php-wasm/node';
 import { EmscriptenDownloadMonitor } from '@php-wasm/progress';
-import type { AllPHPVersion, PathAlias } from '@php-wasm/universal';
 import {
 	PHPWorker,
 	releaseApiProxy,
@@ -21,7 +20,16 @@ import { rootCertificates } from 'tls';
 import { MessageChannel, type MessagePort, parentPort } from 'worker_threads';
 import { mountResources } from '../mounts';
 import { logger } from '@php-wasm/logger';
-import { spawnWorkerThread } from '../run-cli';
+import type {
+	ChildWorkerService,
+	WorkerBootRequestHandlerOptions,
+	WorkerConfig,
+	WorkerPlatformConfig,
+} from '../worker-boot';
+import {
+	bootSpawnedChildWorker,
+	exposeChildWorkerControl,
+} from '../worker-boot';
 
 import type { Mount } from '@php-wasm/cli-util';
 
@@ -38,23 +46,6 @@ export type WorkerBootWordPressOptions = {
 	 */
 	constants?: Record<string, string | number | boolean>;
 };
-
-interface WorkerBootRequestHandlerOptions {
-	siteUrl: string;
-	phpVersion: AllPHPVersion;
-	/**
-	 * php.ini entries set via the --php-ini flag.
-	 */
-	phpIniEntries?: Record<string, string>;
-	processId: number;
-	trace: boolean;
-	nativeInternalDirPath: string;
-	mountsBeforeWpInstall: Array<Mount>;
-	mountsAfterWpInstall: Array<Mount>;
-	followSymlinks: boolean;
-	extensions?: PHPExtension[];
-	pathAliases?: PathAlias[];
-}
 
 /**
  * Print trace messages from PHP-WASM.
@@ -157,11 +148,27 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 		}
 	}
 
-	async bootRequestHandler(options: WorkerBootRequestHandlerOptions) {
+	async bootRequestHandler(
+		platformConfig: WorkerPlatformConfig,
+		workerConfig: WorkerConfig
+	) {
 		if (this.bootedRequestHandler) {
 			throw new Error('Playground already booted');
 		}
 		this.bootedRequestHandler = true;
+		// Service exposed by the main thread for creating child workers. When PHP
+		// in this worker shells out (proc_open()/system()), the main thread spawns
+		// and pre-wires the child so its synchronous flock() calls reach the
+		// broker directly instead of relaying through this worker, which is
+		// blocked inside system() while the child runs and would deadlock it.
+		const childWorkerService = consumeAPI<ChildWorkerService>(
+			workerConfig.childWorkerServicePort
+		);
+
+		const options: WorkerBootRequestHandlerOptions = {
+			...platformConfig,
+			processId: workerConfig.processId,
+		};
 
 		try {
 			const requestHandler = await bootRequestHandler({
@@ -176,11 +183,9 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				onPHPInstanceCreated: async (php) => {
 					await mountResources(php, options.mountsBeforeWpInstall);
 
-					// NOTE: We currently create all request workers up front
-					// and apply post-install mounts to all the workers immediately
-					// following WordPress install. But if we start creating
-					// request-handling workers on-demand, we will to apply post-install
-					// mounts here.
+					// mountAfterWordPressInstall() sets this flag after applying
+					// the mounts to the current runtime. Apply them here as well
+					// whenever the request handler creates a replacement runtime.
 					if (this.bootedWordPress) {
 						await mountResources(php, options.mountsAfterWpInstall);
 					}
@@ -189,26 +194,26 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				cookieStore: false,
 				pathAliases: options.pathAliases,
 				spawnHandler: () =>
-					sandboxedSpawnHandlerFactory(() => {
-						let effectiveOptions = options;
-						if (!this.bootedWordPress) {
-							// WordPress is not yet booted so skip the post-install mounts.
-							effectiveOptions = {
-								...options,
-								mountsAfterWpInstall: [],
-							};
-						}
-
-						return createPHPWorker(
-							effectiveOptions,
-							this.fileLockManager!
-						);
-					}),
+					sandboxedSpawnHandlerFactory(() =>
+						bootSpawnedChildWorker<PlaygroundCliBlueprintV1Worker>(
+							childWorkerService,
+							platformConfig
+						)
+					),
 			});
 			this.__internal_setRequestHandler(requestHandler);
 
 			const primaryPhp = await requestHandler.getPrimaryPhp();
 			await this.setPrimaryPHP(primaryPhp);
+			// A spawned child lets the main thread apply post-install mounts
+			// to it. Top-level workers have no control port and skip this.
+			exposeChildWorkerControl(
+				{
+					mountAfterWordPressInstall: (mounts: Array<Mount>) =>
+						this.mountAfterWordPressInstall(mounts),
+				},
+				workerConfig.childWorkerControlPort
+			);
 
 			setApiReady();
 		} catch (e) {
@@ -218,9 +223,9 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 	}
 
 	async mountAfterWordPressInstall(mounts: Array<Mount>) {
-		// Make sure workers not involved in the WordPress install
-		// process know whether WordPress booted so they can
-		// apply post-install mounts when spawning new PHP workers.
+		// Remember that post-install mounts are active. The request handler may
+		// replace its PHP runtime later, and onPHPInstanceCreated() uses this flag
+		// to apply the same mounts to that replacement.
 		this.bootedWordPress = true;
 		await mountResources(this.__internal_getPHP()!, mounts);
 	}
@@ -253,58 +258,6 @@ function createPhpRuntimeFactory(
 				extensions: options.extensions,
 			}
 		);
-	};
-}
-
-/**
- * Spawns a new PHP process to be used in the PHP spawn handler (in proc_open() etc. calls).
- * It boots from this worker-thread-v1.ts file, but is a separate process.
- *
- * We explicitly avoid using PHPProcessManager.acquirePHPInstance() here.
- *
- * Why?
- *
- * Because each PHP instance acquires actual OS-level file locks via fcntl() and LockFileEx()
- * syscalls. Running multiple PHP instances from the same OS process would allow them to
- * acquire overlapping locks. Running every PHP instance in a separate OS process ensures
- * any locks that overlap between PHP instances conflict with each other as expected.
- *
- * @param options - The options for the worker.
- * @param fileLockManager - The file lock manager to use.
- * @returns A promise that resolves to the PHP worker.
- */
-async function createPHPWorker(
-	// NOTE: We explicitly remove processId from the options
-	// type so the type system will catch if we try to reuse
-	// our parent's process ID.
-	options: Omit<WorkerBootRequestHandlerOptions, 'processId'>,
-	fileLockManager: FileLockManager
-) {
-	const spawnedWorker = await spawnWorkerThread('v1');
-
-	const handler = consumeAPI<PlaygroundCliBlueprintV1Worker>(
-		spawnedWorker.phpPort
-	);
-	handler.useFileLockManager(fileLockManager as any);
-	await handler.bootRequestHandler({
-		...options,
-		processId: spawnedWorker.processId,
-	});
-
-	return {
-		php: handler,
-		reap: () => {
-			try {
-				handler.dispose();
-			} catch {
-				/** */
-			}
-			try {
-				spawnedWorker.worker.terminate();
-			} catch {
-				/** */
-			}
-		},
 	};
 }
 

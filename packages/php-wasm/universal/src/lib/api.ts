@@ -40,12 +40,89 @@ export type WithAPIState = {
 };
 export type RemoteAPI<T> = Remote<T> & ProxyMethods & WithAPIState;
 
+/**
+ * Marks the transferables nested inside an API argument or return value.
+ *
+ * A MessagePort passed directly as an argument or return value is transferred
+ * automatically. A port inside an object or array is not: structured clone
+ * cannot copy a port, so postMessage() throws a DataCloneError unless the port
+ * is named in the transfer list. Wrap such a value to name its ports:
+ *
+ *     return withTransferables({ id, port }, [port]);
+ *
+ * The value itself is returned unchanged.
+ */
+export function withTransferables<T>(
+	value: T,
+	transferables: Array<Transferable | IsomorphicMessagePort>
+): T {
+	return Comlink.transfer(value, transferables as Transferable[]);
+}
+
+// A proxy answers every property access, so no duck-typed property check can
+// distinguish it from an endpoint reliably. Track the proxies we create by
+// identity instead.
+const consumedAPIProxies = new WeakSet<object>();
+
+/**
+ * Consume an API whose calls must block the current thread until the remote
+ * side responds.
+ *
+ * This variant is used for synchronous facilities such as file locking and
+ * therefore accepts only a real MessagePort, never another Comlink proxy.
+ */
 export async function consumeAPISync<APIType>(
 	remote: IsomorphicMessagePort
 ): Promise<APIType> {
+	assertIsMessagePort(remote, 'consumeAPISync');
 	setupTransferHandlers();
 	const transport = await NodeSABSyncReceiveMessageTransport.create();
-	return Comlink.wrapSync<APIType>(remote, transport);
+	const api = Comlink.wrapSync<APIType>(remote, transport);
+	consumedAPIProxies.add(api as object);
+	return api;
+}
+
+/**
+ * Reject anything that isn't a real MessagePort before we wrap it.
+ *
+ * A synchronous Comlink proxy answers *every* property access with a proxied
+ * function, so it duck-types as an endpoint: `postMessage` and
+ * `addEventListener` both look present. Passing one here therefore used to
+ * succeed, and only failed on the first method call — as a 5 second
+ * "Timeout waiting for response", on another thread, under load. That is how
+ * a spawned PHP process silently lost its file lock manager.
+ *
+ * @see https://github.com/WordPress/wordpress-playground/issues/3783
+ */
+function assertIsMessagePort(
+	remote: IsomorphicMessagePort,
+	callerName: string
+): void {
+	const value = remote as unknown;
+	if (
+		((typeof value === 'object' && value !== null) ||
+			typeof value === 'function') &&
+		consumedAPIProxies.has(value as object)
+	) {
+		throw new TypeError(
+			`${callerName}() expects a MessagePort but received a Comlink ` +
+				`proxy. Expose the API on a fresh MessageChannel and pass one ` +
+				`of its ports instead of passing the proxy itself.`
+		);
+	}
+	// A Worker also has postMessage(), but the synchronous transport can only
+	// receive on a port. start() is what tells the two apart.
+	if (
+		remote === null ||
+		typeof remote !== 'object' ||
+		typeof remote.postMessage !== 'function' ||
+		typeof remote.start !== 'function'
+	) {
+		throw new TypeError(
+			`${callerName}() expects a MessagePort but received ` +
+				`${remote === null ? 'null' : typeof remote}.`
+		);
+	}
 }
 
 export function consumeAPI<APIType>(
@@ -102,7 +179,7 @@ export function consumeAPI<APIType>(
 	 */
 	const api = Comlink.wrap<APIType & WithAPIState>(endpoint);
 	const methods = proxyClone(api);
-	return new Proxy(methods, {
+	const remoteAPI = new Proxy(methods, {
 		get: (target, prop) => {
 			if (prop === 'isConnected') {
 				return async () => {
@@ -124,6 +201,8 @@ export function consumeAPI<APIType>(
 			return (api as any)[prop];
 		},
 	}) as unknown as RemoteAPI<APIType>;
+	consumedAPIProxies.add(remoteAPI);
+	return remoteAPI;
 }
 
 /**

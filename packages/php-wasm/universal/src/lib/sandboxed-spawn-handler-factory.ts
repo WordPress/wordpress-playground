@@ -18,6 +18,11 @@ export function sandboxedSpawnHandlerFactory(
 	getPHPInstance?: () => Promise<{
 		php: PHP | Remote<PHPWorker>;
 		reap: () => void;
+		/**
+		 * Fulfills when the runtime behind a remote `php` exits. Calls to an
+		 * exited runtime never settle, so the spawned command fails instead.
+		 */
+		runtimeExited?: Promise<void>;
 	}>
 ) {
 	return createSpawnHandler(async function (args, processApi, options) {
@@ -95,9 +100,30 @@ export function sandboxedSpawnHandlerFactory(
 			return;
 		}
 
-		const { php, reap } = await getPHPInstance();
-
+		let reap: (() => void) | undefined;
 		try {
+			const instance = await getPHPInstance();
+			reap = instance.reap;
+			await completeWhileRuntimeIsRunning(
+				runCommand(instance.php),
+				instance.runtimeExited
+			);
+		} catch (e) {
+			// An exception here means the PHP runtime has crashed.
+			const errMsg =
+				e instanceof Error
+					? e.message + '\n' + e.stack
+					: typeof e === 'object' && e !== null
+						? JSON.stringify(e, Object.getOwnPropertyNames(e))
+						: String(e);
+			processApi.stderr(`[spawn error] ${errMsg}`);
+			processApi.exit(1);
+			throw e;
+		} finally {
+			reap?.();
+		}
+
+		async function runCommand(php: PHP | Remote<PHPWorker>) {
 			if (options.cwd) {
 				await php.chdir(options.cwd as string);
 			}
@@ -117,21 +143,26 @@ export function sandboxedSpawnHandlerFactory(
 						},
 					});
 
-					result.stdout.pipeTo(
+					const stdout = result.stdout.pipeTo(
 						new WritableStream({
 							write(chunk) {
 								processApi.stdout(chunk as any as ArrayBuffer);
 							},
 						})
 					);
-					result.stderr.pipeTo(
+					const stderr = result.stderr.pipeTo(
 						new WritableStream({
 							write(chunk) {
 								processApi.stderr(chunk as any as ArrayBuffer);
 							},
 						})
 					);
-					processApi.exit(await result.exitCode);
+					const [exitCode] = await Promise.all([
+						result.exitCode,
+						stdout,
+						stderr,
+					]);
+					processApi.exit(exitCode);
 					break;
 				}
 				case 'ls': {
@@ -156,18 +187,28 @@ export function sandboxedSpawnHandlerFactory(
 					break;
 				}
 			}
-		} catch (e) {
-			// An exception here means the PHP runtime has crashed.
-			const errMsg = e instanceof Error
-				? e.message + '\n' + e.stack
-				: typeof e === 'object' && e !== null
-					? JSON.stringify(e, Object.getOwnPropertyNames(e))
-					: String(e);
-			processApi.stderr(`[spawn error] ${errMsg}`);
-			processApi.exit(1);
-			throw e;
-		} finally {
-			reap();
 		}
 	});
+}
+
+/**
+ * Comlink does not reject pending calls when their worker exits. Require the
+ * command to finish while its runtime is still running so a crashed child
+ * becomes a proc_open() failure instead of leaving the parent pending forever.
+ */
+function completeWhileRuntimeIsRunning<T>(
+	command: Promise<T>,
+	runtimeExited: Promise<void> | undefined
+): Promise<T> {
+	if (!runtimeExited) {
+		return command;
+	}
+	return Promise.race([
+		command,
+		runtimeExited.then((): never => {
+			throw new Error(
+				'The PHP runtime exited before the command completed.'
+			);
+		}),
+	]);
 }
