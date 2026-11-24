@@ -32,7 +32,9 @@ Esta página irá guiá-lo por cada um deles. Ah, e se você aprende visualmente
 ## Start a new WordPress site
 -->
 
-## Inicie um novo site WordPress
+<a id="inicie-um-novo-site-wordpress"></a>
+
+## Inicie um novo site WordPress {#start-a-new-wordpress-site}
 
 <!--
 Open the [official demo on playground.wordpress.net](https://playground.wordpress.net/) to start WordPress in your browser.
@@ -85,7 +87,9 @@ como um ZIP ou recomeçar em **New Playground**.
 ## Try a block, a theme, or a plugin
 -->
 
-## Teste um bloco, um tema ou um plugin
+<a id="testando-blocos-temas-e-plugins"></a>
+
+## Teste um bloco, um tema ou um plugin {#try-a-block-a-theme-or-a-plugin}
 
 <!--
 You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
@@ -220,7 +224,9 @@ Isso restaura os arquivos e o banco de dados do ZIP em um novo Playground.
 ## Use a specific WordPress or PHP version
 -->
 
-## Use uma versão específica do WordPress ou PHP
+<a id="use-uma-versão-específica-do-wordpress-ou-php"></a>
+
+## Use uma versão específica do WordPress ou PHP {#use-a-specific-wordpress-or-php-version}
 
 <!--
 Open **Site Settings** from the Dock to choose WordPress, PHP, language, multisite, and networking options.
@@ -301,7 +307,9 @@ Você pode especificar versões principais, como `wp=6.2` ou `php=8.1`, e espera
 ## Import a WXR file
 -->
 
-## Importar um arquivo WXR
+<a id="importar-um-arquivo-wxr"></a>
+
+## Importar um arquivo WXR {#import-a-wxr-file}
 
 <!--
 You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php).
@@ -328,13 +336,13 @@ Isso é diferente de restaurar um ZIP do Playground. Um arquivo WXR importa cont
 ## Crie aplicativos com o WordPress Playground
 
 <!--
-WordPress Playground is programmable, which means you can [build WordPress apps](/developers/build-your-first-app), set up plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
+WordPress Playground is programmable, which means you can [build WordPress apps](https://developer.wordpress.org/playground/developers/build-an-app/), set up plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
 -->
 
-O WordPress Playground é programável, o que significa que você pode [criar aplicativos WordPress](/developers/build-your-first-app), configurar demonstrações de plugins e até mesmo usá-lo como um [ambiente de desenvolvimento local](/developers/local-development/) sem necessidade de configuração.
+O WordPress Playground é programável, o que significa que você pode [criar aplicativos WordPress](https://developer.wordpress.org/playground/developers/build-an-app/), configurar demonstrações de plugins e até mesmo usá-lo como um [ambiente de desenvolvimento local](/developers/local-development/) sem necessidade de configuração.
 
 <!--
-To learn more about developing with WordPress Playground, check out the [development quick start](/developers/build-your-first-app) section.
+To learn more about developing with WordPress Playground, check out the [development quick start](https://developer.wordpress.org/playground/developers/build-an-app/) section.
 -->
 
-Para saber mais sobre desenvolvimento com o WordPress Playground, confira a seção [início rápido de desenvolvimento](/developers/build-your-first-app).
+Para saber mais sobre desenvolvimento com o WordPress Playground, confira a seção [início rápido de desenvolvimento](https://developer.wordpress.org/playground/developers/build-an-app/).

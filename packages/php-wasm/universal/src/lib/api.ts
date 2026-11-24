@@ -49,7 +49,7 @@ export async function consumeAPISync<APIType>(
 }
 
 export function consumeAPI<APIType>(
-	remote: Worker | Window | NodeWorker | NodeProcess,
+	remote: Worker | MessagePort | Window | NodeWorker | NodeProcess,
 	context: undefined | EventTarget = undefined
 ): RemoteAPI<APIType> {
 	setupTransferHandlers();
@@ -78,7 +78,7 @@ export function consumeAPI<APIType>(
 				'consumeAPI: remote does not look like a Worker, MessagePort, or Process'
 			);
 		}
-	} else if (remote instanceof Worker) {
+	} else if (remote instanceof Worker || remote instanceof MessagePort) {
 		endpoint = remote;
 	} else {
 		const windowEndpoint = Comlink.windowEndpoint(

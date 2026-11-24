@@ -26,7 +26,7 @@ Olá! Bem-vindo à documentação para desenvolvedores do WordPress Playground.
 <!--
 This docs hub is focused on Developers info and is divided into the following major sections:
 
-- [Quick Start Guide for Developers](/developers/build-your-first-app): Begin your development journey with Playground by exploring some examples of what you can achieve using Playground APIs.
+- [Quick Start Guide for Developers](https://developer.wordpress.org/playground/developers/build-an-app/): Begin your development journey with Playground by exploring some examples of what you can achieve using Playground APIs.
 - [Local Development](/developers/local-development): Discover the tools provided by Playground to streamline the process of setting up and managing WordPress sites and build your apps.
 - [Playground APIs](/developers/apis): Explore the main APIs exposed by WordPress Playground to interact with the Playground: [Query API](/developers/apis/query-api/), [Blueprints](/blueprints/), [Javascript API](/developers/apis/javascript-api/)
 - [Architecture](/developers/architecture): The specifics of WordPress Playground's architecture, including its various components and tools.
@@ -35,7 +35,7 @@ This docs hub is focused on Developers info and is divided into the following ma
 
 Este hub de documentação é focado em informações para desenvolvedores e está dividido nas seguintes seções principais:
 
-- [Guia rápido para desenvolvedores](/developers/build-your-first-app): Comece sua jornada de desenvolvimento com o Playground explorando alguns exemplos do que você pode realizar usando as APIs do Playground.
+- [Guia rápido para desenvolvedores](https://developer.wordpress.org/playground/developers/build-an-app/): Comece sua jornada de desenvolvimento com o Playground explorando alguns exemplos do que você pode realizar usando as APIs do Playground.
 - [Desenvolvimento local](/developers/local-development): Descubra as ferramentas fornecidas pelo Playground para facilitar o processo de configuração e gerenciamento de sites WordPress e construir seus aplicativos.
 - [APIs do Playground](/developers/apis): Explore as principais APIs expostas pelo WordPress Playground para interagir com o Playground: [Query API](/developers/apis/query-api/), [Blueprints](/blueprints/), [Javascript API](/developers/apis/javascript-api/)
 - [Arquitetura](/developers/architecture): Os detalhes da arquitetura do WordPress Playground, incluindo seus vários componentes e ferramentas.

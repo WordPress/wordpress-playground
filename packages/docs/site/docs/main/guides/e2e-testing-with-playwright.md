@@ -15,7 +15,7 @@ This guide assumes familiarity with WordPress plugin or theme development. For a
 
 ## Prerequisites
 
-- **Node.js 20+** and up
+- **Node.js 20** or later
 - A WordPress plugin/theme or an entire WordPress site to test
 - **Recommended:** enable the `@typescript-eslint/no-floating-promises` ESLint rule to catch missing `await` on async Playwright calls
 
@@ -64,13 +64,13 @@ WordPress Playground needs more time to start than a typical web app. The 120-se
 
 **Using baseURL with dynamic ports**
 
-By default, Playground will sign the port `9400`. If you want to select a different port, pass `port: [NEW_PORT_NUMBER]` in the `runCLI` options to select a different port:
+By default, Playground uses port `9400` when it is free. To use a different port, pass `port: [NEW_PORT_NUMBER]` in the `runCLI` options:
 
 ```typescript
 const cli = await runCLI({ command: 'server', port: 9500, blueprint });
 ```
 
-Then add `baseURL: "http://localhost:9500"` to the `use` section above. Note that `testMatch` defaults to `**/*.spec.ts` — customize it if your test files use a different naming pattern.
+Then add `baseURL: "http://localhost:9500"` to the `use` section above. Playwright runs `.spec` and `.test` files by default. Set `testMatch` if your test files use a different naming pattern.
 
 </div>
 
@@ -155,7 +155,7 @@ await page.locator('#submit').click();
 
 **Generate locators automatically**
 
-Run `npx playwright codegen localhost:9400/wp-admin/` to open a browser and record interactions. Playwright generates locator code as you click, helping you discover which semantic locators work for each element.
+From your plugin or theme root directory, start a Playground server with `npx @wp-playground/cli server --auto-mount --login`. It mounts and activates your project. In a second terminal, run `npx playwright codegen localhost:9400/wp-admin/` to open a browser and record interactions. If the server prints a different port, use that one. Playwright generates locator code as you click, helping you discover which semantic locators work for each element.
 
 </div>
 
@@ -268,9 +268,12 @@ Mount your local plugin directory into the Playground instance:
 ```typescript
 const cli = await runCLI({
 	command: 'server',
-	mount: {
-		'./': '/wordpress/wp-content/plugins/my-plugin',
-	},
+	mount: [
+		{
+			hostPath: './',
+			vfsPath: '/wordpress/wp-content/plugins/my-plugin',
+		},
+	],
 	blueprint: {
 		preferredVersions: { php: '8.3', wp: 'latest' },
 		login: true,
@@ -440,6 +443,12 @@ for (const { php, wp } of versionMatrix) {
 		test.beforeAll(async () => {
 			versionCli = await runCLI({
 				command: 'server',
+				mount: [
+					{
+						hostPath: './',
+						vfsPath: '/wordpress/wp-content/plugins/my-plugin',
+					},
+				],
 				blueprint: {
 					preferredVersions: { php, wp },
 					login: true,
@@ -472,7 +481,7 @@ for (const { php, wp } of versionMatrix) {
 }
 ```
 
-The `preferredVersions` property in the Blueprint controls which PHP and WordPress versions the Playground instance uses. Supported ranges: PHP 7.4–8.5, WordPress 6.3–6.8+, plus `latest`, `nightly`, and `beta`. For type-safe PHP version values, use the `SupportedPHPVersion` type from `@php-wasm/universal`.
+The `preferredVersions` property in the Blueprint controls which PHP and WordPress versions the Playground instance uses. Supported ranges: PHP 7.4–8.5, WordPress 6.3 and later, plus `latest`, `nightly`, and `beta`. For type-safe PHP version values, use the `SupportedPHPVersion` type from `@php-wasm/universal`.
 
 ## Running tests in CI/CD
 
@@ -572,10 +581,10 @@ When a test fails, Playwright provides several tools to investigate:
 npx playwright test --debug
 ```
 
-**Trace viewer** — inspect a timeline of actions, DOM snapshots, and network requests from a failed test. The `trace: "on-first-retry"` setting in the config above captures traces automatically:
+**Trace viewer** — inspect a timeline of actions, DOM snapshots, and network requests from a failed test. With `trace: "on-first-retry"` in the config above, Playwright records a trace when it retries a failed test, which happens only in CI (`retries: 2`). It saves `trace.zip` in that test's folder under `test-results/`. To record traces locally, run `npx playwright test --trace on`. To open a trace, replace `<test-folder>` in this command with that folder's name:
 
 ```bash
-npx playwright show-trace test-results/plugin-spec-ts/trace.zip
+npx playwright show-trace test-results/<test-folder>/trace.zip
 ```
 
 **UI mode** — run tests in a visual interface where you can watch, filter, and re-run them:

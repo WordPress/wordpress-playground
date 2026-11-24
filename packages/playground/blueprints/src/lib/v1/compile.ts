@@ -2,6 +2,7 @@ import { ProgressTracker } from '@php-wasm/progress';
 import { Semaphore } from '@php-wasm/util';
 import type { AllPHPVersion, UniversalPHP } from '@php-wasm/universal';
 import { AllPHPVersions, LatestSupportedPHPVersion } from '@php-wasm/universal';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 import type { FileReference } from './resources';
 import { isResourceReference, Resource } from './resources';
 import type { Step, StepDefinition, WriteFileStep } from '../steps';
@@ -392,7 +393,7 @@ function compileBlueprintJson(
 	return {
 		versions: {
 			php: compileVersion(
-				blueprint.preferredVersions?.php,
+				blueprint.preferredVersions?.php ?? RecommendedPHPVersion,
 				AllPHPVersions,
 				LatestSupportedPHPVersion
 			),

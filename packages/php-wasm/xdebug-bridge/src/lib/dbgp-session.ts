@@ -8,7 +8,7 @@ export class DbgpSession extends EventEmitter {
 	private buffer = '';
 	private expectedLength: number | null = null;
 
-	constructor(port = 9003) {
+	constructor(host = '127.0.0.1', port = 9003) {
 		super();
 		this.server = net.createServer();
 		this.server.on('connection', (socket) => {
@@ -30,7 +30,7 @@ export class DbgpSession extends EventEmitter {
 				this.emit('error', err);
 			});
 		});
-		this.server.listen(port);
+		this.server.listen(port, host);
 	}
 
 	private onData(data: string) {

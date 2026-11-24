@@ -1,3 +1,4 @@
+import { getWordPressPopupUrl } from '../../../lib/wordpress-popup';
 import { useEffect, useState } from 'react';
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { external } from '@wordpress/icons';
@@ -77,7 +78,9 @@ export function PhpMyAdminButton({
 		const playgroundUrl = await playground.absoluteUrl;
 		if (playgroundUrl) {
 			window.open(
-				`${playgroundUrl}${PHPMYADMIN_URL_PATH}${PHPMYADMIN_ENTRY_PATH}`,
+				getWordPressPopupUrl(
+					`${playgroundUrl}${PHPMYADMIN_URL_PATH}${PHPMYADMIN_ENTRY_PATH}`
+				),
 				'_blank',
 				'noopener,noreferrer'
 			);

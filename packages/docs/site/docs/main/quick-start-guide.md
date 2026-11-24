@@ -135,6 +135,6 @@ This is different from restoring a Playground ZIP. A WXR file imports WordPress 
 
 ## Build apps with WordPress Playground
 
-WordPress Playground is programmable, which means you can [build WordPress apps](/developers/build-your-first-app), set up plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
+WordPress Playground is programmable, which means you can [build WordPress apps](https://developer.wordpress.org/playground/developers/build-an-app/), set up plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
 
-To learn more about developing with WordPress Playground, check out the [development quick start](/developers/build-your-first-app) section.
+To learn more about developing with WordPress Playground, check out the [development quick start](https://developer.wordpress.org/playground/developers/build-an-app/) section.

@@ -129,8 +129,7 @@
   word-break: break-all;
   white-space: normal;
   text-align: start;
-  -moz-text-align-last: center;
-       text-align-last: center;
+  text-align-last: center;
 }
 .block-library-site-logo__inspector-media-replace-container img {
   width: 20px;

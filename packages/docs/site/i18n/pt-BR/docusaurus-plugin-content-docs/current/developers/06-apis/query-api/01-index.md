@@ -40,12 +40,16 @@ Você pode testar isso agora mesmo. O Playground instalará automaticamente o te
 ## Available options
 -->
 
-## Opções disponíveis
+<a id="opções-disponíveis"></a>
+
+## Opções disponíveis {#available-options}
 
 <!--
 | `storage`          |                       | Controls the storage lifecycle. Use `storage=temp` to create a genuinely temporary Playground that is discarded when the page is refreshed or closed. Without it, Playground may autosave the new Playground when browser storage and saving are available.                                                                                                                                                                                                                 |
 | `can-save`         |                       | Controls whether the Playground shell offers automatic browser saving. Use `can-save=no` to start a temporary Playground and hide the Dock save status/persistence prompt.                                                                                                                                                                                                                                                                                                  |
 | `overlay`          |                       | Opens a Playground tool on page load. Supports `new` for the Dock's **New** pane. For example, `?overlay=new`. `blueprints` is kept as a compatibility alias that opens the same **New** pane, so `?overlay=blueprints` still works. The parameter is removed from the URL when the pane is closed.                                                                                                                                                                         |
+| `filebrowser`      |                       | Opens the Dock’s **Files** pane. Accepts an optional file path relative to the WordPress document root, and an optional `:<line>` suffix to place the editor cursor on a 1-based line. Ignored inside embedded iframes and when `mode=seamless`.                                                                                                                                                                                                                            |
+| `dock`             |                       | Sets the initial Dock state. Accepts `minimized`, `collapsed`, `expanded`, `full-width`, or `full-width-collapsed`. Overrides the saved width preference for this visit. Ignored in seamless mode. Minimized and collapsed states are ignored on small screens. Opening a pane restores the Dock as needed.                                                                                                                                                                 |
 -->
 
 | Opção              | Valor padrão          | Descrição                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
@@ -74,6 +78,21 @@ Você pode testar isso agora mesmo. O Playground instalará automaticamente o te
 | `can-save`         |                       | Controla se a interface do Playground oferece salvamento automático no navegador. Use `can-save=no` para iniciar um Playground temporário e ocultar o status de salvamento e a solicitação de persistência do Dock.                                                                                                                                                                                                                                          |
 | `mcp-port`         | `7999`                | Define a porta WebSocket usada pelo bridge MCP para comunicar com o servidor MCP. Por exemplo, `mcp-port=8080`.                                                                                                                                                                                                                                                                                                                                              |
 | `overlay`          |                       | Abre uma ferramenta do Playground ao carregar a página. Aceita `new` para o painel **New** do Dock. Por exemplo, `?overlay=new`. `blueprints` é mantido como um alias de compatibilidade que abre o mesmo painel **New**, portanto `?overlay=blueprints` continua funcionando. O parâmetro é removido da URL quando o painel é fechado.                                                                                                                      |
+| `filebrowser`      |                       | Abre o painel **Files** do Dock. Aceita um caminho de arquivo opcional relativo à raiz de documentos do WordPress e um sufixo opcional `:<line>` para posicionar o cursor do editor em uma linha (contagem iniciada em 1). Ignorado dentro de iframes incorporados e quando `mode=seamless`.                                                                                                                                                                 |
+| `dock`             |                       | Define o estado inicial do Dock. Aceita `minimized`, `collapsed`, `expanded`, `full-width` ou `full-width-collapsed`. Substitui a preferência de largura salva para esta visita. Ignorado no modo seamless. Os estados minimizado e recolhido são ignorados em telas pequenas. Abrir um painel restaura o Dock conforme necessário.                                                                                                                          |
+
+<!--
+Use `language=browser` to choose a WordPress translation from the browser's preferred languages
+(`navigator.languages`). Regional preferences fall back to an available translation of the same
+language. If no translation matches, WordPress uses US English (`en_US`). For example:
+[Open Playground in your browser's language](https://playground.wordpress.net/?language=browser&networking=yes).
+-->
+
+Use `language=browser` para escolher uma tradução do WordPress a partir dos idiomas preferidos do
+navegador (`navigator.languages`). Preferências regionais recorrem a uma tradução disponível do
+mesmo idioma. Se nenhuma tradução corresponder, o WordPress usa inglês americano (`en_US`). Por
+exemplo:
+[Abrir o Playground no idioma do seu navegador](https://playground.wordpress.net/?language=browser&networking=yes).
 
 <!--
 For example, the following code embeds a Playground with a preinstalled Gutenberg plugin and opens the post editor:
@@ -83,6 +102,36 @@ Por exemplo, o código a seguir incorpora um Playground com o plugin Gutenberg p
 
 ```html
 <iframe src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"> </iframe>
+```
+
+<!--
+To open the Dock’s **Files** pane, use:
+-->
+
+Para abrir o painel **Files** do Dock, use:
+
+```text
+https://playground.wordpress.net/?filebrowser
+```
+
+<!--
+To open the Dock’s **Files** pane with a specific file, use a path relative to the WordPress document root:
+-->
+
+Para abrir o painel **Files** do Dock com um arquivo específico, use um caminho relativo à raiz de documentos do WordPress:
+
+```text
+https://playground.wordpress.net/?filebrowser=wp-content/plugins/my-plugin/index.php
+```
+
+<!--
+To place the cursor on a specific 1-based line number, append `:<line>` to the path:
+-->
+
+Para posicionar o cursor em um número de linha específico (contagem iniciada em 1), adicione `:<line>` ao final do caminho:
+
+```text
+https://playground.wordpress.net/?filebrowser=wp-content/plugins/my-plugin/index.php:20
 ```
 
 <!--

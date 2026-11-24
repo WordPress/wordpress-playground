@@ -519,6 +519,74 @@ describe('stored sites', () => {
 		);
 	});
 
+	it.each([
+		{ requestedSlug: undefined, expectedSlug: 'current-temp', reuse: true },
+		{
+			requestedSlug: 'current-temp',
+			expectedSlug: undefined,
+			reuse: false,
+		},
+		{
+			requestedSlug: 'clone-temp',
+			expectedSlug: 'clone-temp',
+			reuse: false,
+		},
+	])(
+		'handles temporary site reuse for slug $requestedSlug',
+		async ({ requestedSlug, expectedSlug, reuse }) => {
+			const { setTemporarySiteSpec, sitesSlice } =
+				await import('./slice-sites');
+			const currentSite = createSiteInfo({
+				slug: 'current-temp',
+				name: 'Original Playground',
+				originalUrlParams: {
+					searchParams: {
+						storage: 'temp',
+						php: '8.3',
+						networking: 'yes',
+					},
+					hash: '',
+				},
+			});
+			currentSite.metadata.storage = 'none';
+			resolveRuntimeConfiguration.mockResolvedValue(
+				currentSite.metadata.runtimeConfiguration
+			);
+			let state = {
+				sites: sitesSlice.reducer(
+					undefined,
+					sitesSlice.actions.addSite(currentSite)
+				),
+			};
+			const dispatch = vi.fn((action) => {
+				state = { sites: sitesSlice.reducer(state.sites, action) };
+				return action;
+			});
+
+			const site = await setTemporarySiteSpec(
+				'Cloned Playground',
+				new URL(
+					'https://playground.test/?storage=temp&php=8.3&networking=yes'
+				),
+				requestedSlug
+			)(dispatch as any, () => state as any);
+
+			if (expectedSlug) {
+				expect(site.slug).toBe(expectedSlug);
+			} else {
+				expect(site.slug).toMatch(
+					/^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/
+				);
+			}
+			expect(site.metadata.name).toBe(
+				reuse ? 'Original Playground' : 'Cloned Playground'
+			);
+			expect(state.sites.entities['current-temp']).toBe(
+				reuse ? currentSite : undefined
+			);
+		}
+	);
+
 	it('keeps setStoredSiteSpec as the setup URL compatibility alias', async () => {
 		resolveRuntimeConfiguration.mockRejectedValue(
 			new Error('Invalid setup')
@@ -595,7 +663,7 @@ describe('stored sites', () => {
 			}
 		)(dispatch as any, getState as any);
 
-		expect(newSite.slug).toBe('source-site-2');
+		expect(newSite.slug).toMatch(/^[a-km-z]{4}-[a-km-z]{4}-[a-km-z]{4}$/);
 		expect(newSite.metadata).toMatchObject({
 			name: 'Edited Blueprint',
 			storage: 'opfs',
@@ -607,11 +675,11 @@ describe('stored sites', () => {
 			runtimeConfiguration,
 		});
 		expect(persistBlueprintBundle).toHaveBeenCalledWith(
-			'source-site-2',
+			newSite.slug,
 			editedBundle
 		);
 		expect(createSite).toHaveBeenCalledWith(
-			'source-site-2',
+			newSite.slug,
 			newSite.metadata,
 			undefined
 		);
@@ -619,7 +687,7 @@ describe('stored sites', () => {
 		expect(writes).toEqual(['bundle', 'metadata']);
 		expect(state.sites.entities).toMatchObject({
 			'source-site': sourceSite,
-			'source-site-2': newSite,
+			[newSite.slug]: newSite,
 		});
 	});
 

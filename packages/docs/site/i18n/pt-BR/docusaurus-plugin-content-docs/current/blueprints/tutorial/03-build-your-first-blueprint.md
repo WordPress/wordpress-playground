@@ -502,13 +502,13 @@ Para executar esse código durante a configuração do site, use a etapa [`runPH
 
 <!-- ### Import the new content
 
-Let's use the [`importWxr` step](/blueprints/steps#ImportWXRStep) to import a WordPress export (`WXR`) file that helps test WordPress themes. The file is available in the [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) repository, and you can access it via its `raw.githubusercontent.com` address: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
+Let's use the [`importWxr` step](/blueprints/steps#ImportWxrStep) to import a WordPress export (`WXR`) file that helps test WordPress themes. The file is available in the [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) repository, and you can access it via its `raw.githubusercontent.com` address: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
 
 Here's what the final Blueprint looks like: -->
 
 ### Importe o novo conteúdo
 
-Vamos usar a etapa [`importWxr`](/blueprints/steps#ImportWXRStep) para importar um arquivo de exportação do WordPress (`WXR`) que ajuda a testar temas do WordPress. O arquivo está disponível no repositório [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data), e você pode acessá-lo através de seu endereço `raw.githubusercontent.com`: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
+Vamos usar a etapa [`importWxr`](/blueprints/steps#ImportWxrStep) para importar um arquivo de exportação do WordPress (`WXR`) que ajuda a testar temas do WordPress. O arquivo está disponível no repositório [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data), e você pode acessá-lo através de seu endereço `raw.githubusercontent.com`: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
 
 Veja como fica o Blueprint final:
 

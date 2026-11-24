@@ -114,7 +114,9 @@ Now that you have a `client` object, you can use it to control the website insid
 -   [Blueprint functions](/developers/apis/javascript-api/blueprint-functions-in-api-client)
  -->
 
-## デバッグとテスト
+<a id="デバッグとテスト"></a>
+
+## デバッグとテスト {#debugging-and-testing}
 
 <!--
 ## Debugging and testing

@@ -25,7 +25,9 @@ import TOCInline from '@theme/TOCInline';
 
 <!-- ## Start a new WordPress site -->
 
-## નવી વર્ડપ્રેસ સાઇટ શરૂ કરો
+<a id="નવી-વર્ડપ્રેસ-સાઇટ-શરૂ-કરો"></a>
+
+## નવી વર્ડપ્રેસ સાઇટ શરૂ કરો {#start-a-new-wordpress-site}
 
 <!-- Every time you visit the [official demo on playground.wordpress.net](https://playground.wordpress.net/), you get a fresh WordPress site. -->
 
@@ -57,7 +59,9 @@ import TOCInline from '@theme/TOCInline';
 
 <!-- ## Try a block, a theme, or a plugin -->
 
-## એક બ્લોક, એક થીમ અથવા એક પ્લગિન અજમાવો
+<a id="એક-બ્લોક-એક-થીમ-અથવા-એક-પ્લગિન-અજમાવો"></a>
+
+## એક બ્લોક, એક થીમ અથવા એક પ્લગિન અજમાવો {#try-a-block-a-theme-or-a-plugin}
 
 <!-- You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/). -->
 
@@ -203,7 +207,9 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 
 <!-- ## Import a WXR file -->
 
-## WXR ફાઇલ આયાત કરો
+<a id="wxr-ફાઇલ-આયાત-કરો"></a>
+
+## WXR ફાઇલ આયાત કરો {#use-a-specific-wordpress-or-php-version}
 
 <!-- You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php). -->
 

@@ -59,6 +59,26 @@ const WITH_ADMIN_TRANSITIONS_PARAM = 'with-admin-transitions';
 export interface StartPlaygroundOptions {
 	iframe: HTMLIFrameElement;
 	remoteUrl: string;
+	/**
+	 * Runtime mode. Defaults to `dedicated`, with one worker per connection.
+	 * `shared` connects tabs on the same origin and storage partition to one runtime
+	 * for the given scope and build. Requires SharedWorker support and an explicit `scope`.
+	 * Only the initializing connection runs the startup Blueprint; later connections
+	 * reuse the initialized site. After initialization, closing one tab does not interrupt
+	 * other connected tabs.
+	 */
+	workerMode?: 'dedicated' | 'shared';
+	/**
+	 * Current deployment version used to identify the shared worker and retire a previous
+	 * build. Defaults to the remote runtime's build version. Ignored in dedicated mode.
+	 */
+	sharedWorkerVersion?: string;
+	/**
+	 * Build version of the application opening this connection. Defaults to the remote
+	 * runtime's build version. A mismatch with `sharedWorkerVersion` requires the tab
+	 * to reload before connecting. Ignored in dedicated mode.
+	 */
+	sharedWorkerClientVersion?: string;
 	progressTracker?: ProgressTracker;
 	disableProgressBar?: boolean;
 	/**
@@ -104,6 +124,8 @@ export interface StartPlaygroundOptions {
 	 * running remote.html. E.g. for a prefix like `/scope:playground/`,
 	 * the scope would be `playground`. See the `@php-wasm/scopes` package
 	 * for more details.
+	 * Required in shared mode. Use the same scope for tabs sharing a site and different
+	 * scopes for independent sites.
 	 */
 	scope?: string;
 	/**
@@ -192,6 +214,11 @@ export async function startPlaygroundWeb(
 		disableProgressBar,
 	} = options;
 	let { remoteUrl } = options;
+	if (options.workerMode === 'shared' && !options.scope) {
+		throw new Error(
+			'A shared Playground runtime requires an explicit site scope.'
+		);
+	}
 	assertLikelyCompatibleRemoteOrigin(remoteUrl);
 	allowStorageAccessByUserActivation(iframe);
 	const useBlueprintV2Handler = await shouldUseBlueprintV2Handler(
@@ -202,6 +229,16 @@ export async function startPlaygroundWeb(
 	remoteUrlWithoutLegacyRunner.searchParams.delete('blueprints-runner');
 	remoteUrl = setQueryParams(remoteUrlWithoutLegacyRunner.toString(), {
 		progressbar: !disableProgressBar,
+		'shared-worker': options.workerMode === 'shared' ? '1' : undefined,
+		scope: options.workerMode === 'shared' ? options.scope : undefined,
+		'shared-worker-version':
+			options.workerMode === 'shared'
+				? options.sharedWorkerVersion
+				: undefined,
+		'shared-worker-client-version':
+			options.workerMode === 'shared'
+				? options.sharedWorkerClientVersion
+				: undefined,
 		[WITH_ADMIN_TRANSITIONS_PARAM]: new URL(
 			globalThis.location.href
 		).searchParams.has(WITH_ADMIN_TRANSITIONS_PARAM)

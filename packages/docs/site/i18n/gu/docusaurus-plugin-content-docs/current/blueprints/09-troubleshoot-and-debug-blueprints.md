@@ -737,7 +737,9 @@ Common fixes:
 - If a plugin command fails with `Unsupported argument type passed to WP_CLI::error_to_string(): 'NULL'`, confirm the plugin is active, the imported data exists, and the command input points to a valid resource.
 -->
 
-## WP-CLI: માઉન્ટ કરેલી સાઇટ્સ પર ડેટાબેઝ કનેક્શન સ્થાપિત કરવામાં ભૂલ
+<a id="wp-cli-માઉન્ટ-કરેલી-સાઇટ્સ-પર-ડેટાબેઝ-કનેક્શન-સ્થાપિત-કરવામાં-ભૂલ"></a>
+
+## WP-CLI: માઉન્ટ કરેલી સાઇટ્સ પર ડેટાબેઝ કનેક્શન સ્થાપિત કરવામાં ભૂલ {#wp-cli-error-establishing-a-database-connection-on-mounted-sites}
 
 <!--
 ## WP-CLI: Error establishing a database connection on mounted sites

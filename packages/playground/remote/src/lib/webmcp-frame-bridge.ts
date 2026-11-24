@@ -1,3 +1,4 @@
+import { wordPressSiteUrl } from './config';
 import { logger } from '@php-wasm/logger';
 
 /**
@@ -10,6 +11,8 @@ const TOOLS_CHANGED = 'playground-webmcp-tools-changed';
 const LIST_TOOLS = 'playground-webmcp-list-tools';
 const CALL_TOOL = 'playground-webmcp-call-tool';
 const CALL_RESULT = 'playground-webmcp-call-result';
+const CANCEL_TOOL = 'playground-webmcp-cancel-tool';
+const DOCUMENT_HIDDEN = 'playground-webmcp-document-hidden';
 
 const CALL_TIMEOUT_MS = 60000;
 
@@ -31,12 +34,25 @@ export interface WebMCPToolDescriptor {
 	name: string;
 	description: string;
 	inputSchema?: Record<string, unknown>;
-	annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean };
+	annotations?: {
+		readOnlyHint?: boolean;
+		destructiveHint?: boolean;
+		consequentialHint?: boolean;
+		untrustedContentHint?: boolean;
+		debugging?: boolean;
+	};
 }
 
 export interface WebMCPFrameBridge {
-	subscribe(listener: (tools: WebMCPToolDescriptor[]) => void): void;
-	callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
+	subscribe(listener: (tools: WebMCPToolDescriptor[]) => void): () => void;
+	dispose(): void;
+	/** Use a fresh call ID for each invocation; pending duplicates are rejected. */
+	callTool(
+		name: string,
+		args: Record<string, unknown>,
+		callId?: string
+	): Promise<unknown>;
+	cancelTool(callId: string): void;
 }
 
 /**
@@ -49,38 +65,75 @@ export interface WebMCPFrameBridge {
  * no tools clears the list.
  */
 export function createWebMCPFrameBridge(
-	wpFrame: HTMLIFrameElement
+	wpFrame: HTMLIFrameElement,
+	options: { origin?: string; relayMessages?: boolean } = {}
 ): WebMCPFrameBridge {
+	const origin = options.origin ?? wordPressSiteUrl;
+	let disposed = false;
 	let tools: WebMCPToolDescriptor[] = [];
 	let serializedTools = '[]';
+	let documentId: string | undefined;
 	let probeTimeout: ReturnType<typeof setTimeout> | null = null;
 	const listeners = new Set<(tools: WebMCPToolDescriptor[]) => void>();
 	const pendingCalls = new Map<
 		string,
 		{
+			documentId: string | undefined;
 			resolve: (value: unknown) => void;
 			reject: (error: Error) => void;
 			timeout: ReturnType<typeof setTimeout>;
 		}
 	>();
 
-	window.addEventListener('message', (event: MessageEvent) => {
+	function handleMessage(event: MessageEvent) {
 		if (
 			event.source !== wpFrame.contentWindow ||
-			event.origin !== window.location.origin ||
+			event.origin !== origin ||
 			!event.data
 		) {
 			return;
 		}
-		if (event.data.type === TOOLS_CHANGED) {
-			cancelProbe();
-			setTools(toDescriptors(event.data.tools));
+		if (
+			options.relayMessages &&
+			event.data.type === 'remote-access-frame-load'
+		) {
+			handleLoad();
 			return;
 		}
-		if (event.data.type === CALL_RESULT) {
-			resolveCall(event.data);
+		const data = options.relayMessages
+			? event.data.type === 'remote-access-frame-message' &&
+				event.data.payload
+			: event.data;
+		if (!data) return;
+		if (
+			data.type === DOCUMENT_HIDDEN &&
+			typeof data.documentId === 'string'
+		) {
+			rejectDocumentCalls(data.documentId);
+			if (data.documentId === documentId) {
+				documentId = undefined;
+				setTools([]);
+			}
+			return;
 		}
-	});
+		if (data.type === TOOLS_CHANGED) {
+			const nextDocumentId =
+				typeof data.documentId === 'string'
+					? data.documentId
+					: undefined;
+			if (nextDocumentId !== documentId) {
+				rejectDocumentCalls(documentId);
+				documentId = nextDocumentId;
+			}
+			cancelProbe();
+			setTools(toDescriptors(data.tools));
+			return;
+		}
+		if (data.type === CALL_RESULT) {
+			resolveCall(data);
+		}
+	}
+	window.addEventListener('message', handleMessage);
 
 	/**
 	 * Confirms that the newly loaded document still owns the advertised tools.
@@ -95,14 +148,32 @@ export function createWebMCPFrameBridge(
 	 * A document merely too busy to answer in time is cleared and restored by
 	 * its own reply moments later.
 	 */
-	wpFrame.addEventListener('load', () => {
+	function handleLoad() {
 		requestToolList();
 		cancelProbe();
 		probeTimeout = setTimeout(() => {
 			probeTimeout = null;
 			setTools([]);
 		}, ANNOUNCE_PROBE_TIMEOUT_MS);
-	});
+	}
+	wpFrame.addEventListener('load', handleLoad);
+
+	/** Reject only calls owned by the document that left, never its replacement. */
+	function rejectDocumentCalls(departedDocumentId: string | undefined) {
+		for (const [callId, pending] of pendingCalls) {
+			if (pending.documentId !== departedDocumentId) {
+				continue;
+			}
+			pendingCalls.delete(callId);
+			clearTimeout(pending.timeout);
+			pending.reject(
+				new Error(
+					'The WordPress page changed before the WebMCP tool responded. ' +
+						'The operation may have completed; check before retrying.'
+				)
+			);
+		}
+	}
 
 	function setTools(next: WebMCPToolDescriptor[]) {
 		const serialized = JSON.stringify(next);
@@ -124,13 +195,17 @@ export function createWebMCPFrameBridge(
 	}
 
 	function resolveCall(data: {
+		documentId?: unknown;
 		callId?: unknown;
 		error?: unknown;
 		resultJson?: unknown;
 	}) {
 		const callId = typeof data.callId === 'string' ? data.callId : '';
 		const pending = pendingCalls.get(callId);
-		if (!pending) {
+		if (
+			!pending ||
+			(pending.documentId && data.documentId !== pending.documentId)
+		) {
 			return;
 		}
 		pendingCalls.delete(callId);
@@ -152,27 +227,53 @@ export function createWebMCPFrameBridge(
 		}
 	}
 
+	/** Ask the rendered WordPress frame to announce its current tool registry. */
 	function requestToolList() {
+		postMessage({ type: LIST_TOOLS });
+	}
+
+	function postMessage(data: unknown) {
 		wpFrame.contentWindow?.postMessage(
-			{ type: LIST_TOOLS },
-			window.location.origin
+			options.relayMessages
+				? { type: 'remote-access-frame-forward', payload: data }
+				: data,
+			origin
 		);
 	}
 
 	return {
+		dispose() {
+			disposed = true;
+			window.removeEventListener('message', handleMessage);
+			wpFrame.removeEventListener('load', handleLoad);
+			cancelProbe();
+			for (const callId of pendingCalls.keys()) {
+				this.cancelTool(callId);
+			}
+			listeners.clear();
+		},
 		subscribe(listener) {
 			listeners.add(listener);
 			// Replay the current list so a late subscriber is not left
 			// waiting for the next registration change.
 			notify(listener, tools);
 			requestToolList();
+			return () => {
+				listeners.delete(listener);
+			};
 		},
-		async callTool(name, args) {
+		/** Dispatch a tool call only to the rendered WordPress origin and bound its response time. */
+		async callTool(name, args, callId = crypto.randomUUID()) {
 			const contentWindow = wpFrame.contentWindow;
-			if (!contentWindow) {
+			if (disposed || !contentWindow) {
 				throw new Error('The WordPress frame is not loaded.');
 			}
-			const callId = crypto.randomUUID();
+			if (pendingCalls.has(callId)) {
+				throw new Error(
+					`A WebMCP tool call with ID "${callId}" is already pending. ` +
+						'Use a fresh ID for each invocation.'
+				);
+			}
 			return await new Promise<unknown>((resolve, reject) => {
 				const timeout = setTimeout(() => {
 					pendingCalls.delete(callId);
@@ -183,12 +284,38 @@ export function createWebMCPFrameBridge(
 						)
 					);
 				}, CALL_TIMEOUT_MS);
-				pendingCalls.set(callId, { resolve, reject, timeout });
-				contentWindow.postMessage(
-					{ type: CALL_TOOL, callId, name, arguments: args ?? {} },
-					window.location.origin
-				);
+				pendingCalls.set(callId, {
+					documentId,
+					resolve,
+					reject,
+					timeout,
+				});
+				postMessage({
+					type: CALL_TOOL,
+					callId,
+					...(documentId ? { documentId } : {}),
+					name,
+					arguments: args ?? {},
+				});
 			});
+		},
+		cancelTool(callId) {
+			const pending = pendingCalls.get(callId);
+			if (!pending) {
+				return;
+			}
+			pendingCalls.delete(callId);
+			clearTimeout(pending.timeout);
+			postMessage({
+				type: CANCEL_TOOL,
+				callId,
+				...(pending.documentId
+					? { documentId: pending.documentId }
+					: {}),
+			});
+			pending.reject(
+				new DOMException('The tool call was cancelled.', 'AbortError')
+			);
 		},
 	};
 }
