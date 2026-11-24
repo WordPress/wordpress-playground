@@ -1,5 +1,5 @@
 import React from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Notice, Button as WPButton } from '@wordpress/components';
 import type { PlaygroundClient } from '@wp-playground/client';
 
@@ -12,7 +12,7 @@ import {
 } from '../analyze-github-url';
 import type { GetFilesProgress, GithubClient } from '@wp-playground/storage';
 import { getFilesFromDirectory } from '@wp-playground/storage';
-import { setOAuthToken } from '../state';
+import { oAuthState, setOAuthToken } from '../state';
 import {
 	getAuthenticatedGitHubClient as getClient,
 	resetAuthenticatedGitHubClient as resetClient,
@@ -71,6 +71,41 @@ export default function GitHubImportForm({
 	);
 	const [path, setPath] = useState<string>('');
 	const [branch, setBranch] = useState<string>('');
+	const repositoryListId = useId();
+	const token = oAuthState.value.token;
+	const [repositories, setRepositories] = useState<
+		{ full_name: string; html_url: string }[]
+	>([]);
+
+	useEffect(() => {
+		setRepositories([]);
+		if (!token) {
+			return;
+		}
+		let cancelled = false;
+		const client = getClient();
+		async function loadRepositories() {
+			try {
+				for await (const { data } of client.paginate.iterator(
+					client.rest.repos.listForAuthenticatedUser,
+					{ sort: 'updated', per_page: 100 }
+				)) {
+					if (cancelled) {
+						return;
+					}
+					setRepositories((previous) => [...previous, ...data]);
+				}
+			} catch (error) {
+				if (!cancelled) {
+					logger.error(error);
+				}
+			}
+		}
+		void loadRepositories();
+		return () => {
+			cancelled = true;
+		};
+	}, [token]);
 
 	async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
 		e.preventDefault();
@@ -240,6 +275,7 @@ export default function GitHubImportForm({
 						<input
 							type="text"
 							value={url}
+							list={token ? repositoryListId : undefined}
 							className={css.repoInput}
 							onChange={(
 								e: React.ChangeEvent<HTMLInputElement>
@@ -258,6 +294,15 @@ export default function GitHubImportForm({
 							autoFocus
 						/>
 					</label>
+					<datalist id={repositoryListId}>
+						{repositories.map((repository) => (
+							<option
+								key={repository.full_name}
+								value={repository.html_url}
+								label={repository.full_name}
+							/>
+						))}
+					</datalist>
 					{'url' in errors ? (
 						<div className={forms.error}>{errors.url}</div>
 					) : null}
