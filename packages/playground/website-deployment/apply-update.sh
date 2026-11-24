@@ -135,7 +135,7 @@ fi
     "$APP_ORIGIN" "$WORDPRESS_ORIGIN" "$RELEASE_ID" "$LOCAL"
 
 # A partial upload, or a build made for another release path, must not go live.
-for file in index.html api.html remote.html wordpress-popup.html wordpress-bridge.html sw.js; do
+for file in index.html api.html remote.html wordpress-popup.html wordpress-bridge.html sw.js favicon.ico; do
     test -s "$BUILD/$file"
 done
 if ! grep -qF "/releases/$RELEASE_ID/" "$BUILD/index.html"; then

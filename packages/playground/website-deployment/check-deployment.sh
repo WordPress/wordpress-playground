@@ -163,6 +163,18 @@ request "$APP/.well-known/mcp.json"
 expect_status 200 "app /.well-known/mcp.json"
 expect_type 'json' "app /.well-known/mcp.json"
 
+# A host-provided fallback icon can also return 200. Compare the actual files.
+request "$APP$BASE/favicon.ico"
+expect_status 200 "app $BASE/favicon.ico"
+cp "$WORK/body" "$WORK/release-favicon.ico"
+request "$APP/favicon.ico" --location
+expect_status 200 "app /favicon.ico"
+if cmp -s "$WORK/release-favicon.ico" "$WORK/body"; then
+    pass "app /favicon.ico matches the active release"
+else
+    fail "app /favicon.ico differs from the active release"
+fi
+
 # Sample release files for MIME types and byte ranges, named by the local build.
 if ! grep -qF "$BASE/" "$BUILD/index.html" 2>/dev/null; then
     skip "MIME and range samples: $BUILD was not built for $RELEASE"
