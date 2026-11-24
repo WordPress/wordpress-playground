@@ -35,9 +35,9 @@ Let's say you want to create a Playground with specific versions of WordPress an
 }
 ```
 
-To run it, go to `https://playground.wordpress.net/#{"preferredVersions": {"php":"8.3", "wp":"5.9"}}`. You can also use the button below:
-
 [<kbd> &nbsp; Run Blueprint &nbsp; </kbd>](https://playground.wordpress.net/#{"preferredVersions":{"php":"8.3","wp":"5.9"}})
+
+Another way to run is by visiting `https://playground.wordpress.net/#{"preferredVersions": {"php":"8.3", "wp":"5.9"}}`.
 
 Use this method to run the example code in the next chapter, [**Build your first Blueprint**](/blueprints/tutorial/build-your-first-blueprint).
 
