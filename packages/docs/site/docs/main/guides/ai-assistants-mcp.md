@@ -16,16 +16,17 @@ MCP is most useful when the site itself matters: a saved Playground, a persisten
 
 MCP, or Model Context Protocol, gives your AI assistant control over the Playground site that is open in your browser. Instead of only describing a task, the assistant can act on the site:
 
-- Open the exact Playground URL needed to connect to the MCP server
+- Get the exact Playground URL to open in your browser
 - List your available Playground sites
 - Open, rename, or save a Playground site
-- Switch between browser-managed Playground sites
+- Open another browser-managed Playground site in a new tab
 - Navigate to WordPress admin and front-end URLs
 - Follow redirects and report the final URL
 - Make authenticated WordPress REST API requests
 - Read and write files inside the Playground filesystem
 - Run PHP inside the Playground site
 - Request pages and inspect the response
+- List the emails the site has sent
 
 This is especially useful when the task depends on the browser state: logged-in admin screens, settings pages, REST API requests, and redirects.
 
@@ -36,12 +37,12 @@ Use MCP when you want an assistant to work with a visible, browser-managed WordP
 - Guide you through a settings screen: "Show me how to configure this WooCommerce option."
 - Create a browser-based demo: "Build a simple recipe page and show me the result."
 - Build a block theme: "Create a block theme with a custom header and front-page template, activate it, and show me the result."
-- Work with a persistent site: "Use my saved Playground site" or "Use the My WordPress site connected to my subscription."
+- Work with a persistent site: "Use my saved Playground site" or "Use my site on My WordPress."
 - Reproduce a bug: "Follow these steps and summarize the error."
 - Test a redirect or URL: "Open this page and tell me where the browser ends up."
 - Inspect a running site: "Find the admin screen that matches this plugin feature."
 
-MCP is less useful when the job is mostly local automation, such as running the same Blueprint repeatedly, mounting a plugin from your filesystem, or testing a version matrix. Use the Playground CLI for those workflows or [write tests using runCli](https://wordpress.github.io/wordpress-playground/guides/e2e-testing-with-playwright#first-test-file).
+MCP is less useful when the job is mostly local automation, such as running the same Blueprint repeatedly, mounting a plugin from your filesystem, or testing a version matrix. Use the Playground CLI for those workflows or [write tests using runCli](/guides/e2e-testing-with-playwright#first-test-file).
 
 ## Before you start
 
@@ -56,7 +57,7 @@ You do not need to open Playground or create a site beforehand. During connectio
 
 **Save important demos first**
 
-If you are preparing a demo, ask your assistant to save the current Playground site to browser storage before making many changes. Saved Playgrounds can be reopened from the Playground Launch Panel.
+If you are preparing a demo, ask your assistant to save the current Playground site to browser storage before making many changes. Saved Playgrounds can be reopened from **Your Playgrounds** in the Dock.
 
 </div>
 
@@ -71,6 +72,8 @@ You can have multiple Playground sites and multiple connected browser tabs. You 
 ## Set up the MCP server
 
 Choose the configuration for your AI assistant. The assistant starts `@wp-playground/mcp` as a local process and communicates with it over stdio.
+
+By default, the MCP server works with the Playground website at `playground.wordpress.net` and does not connect to My WordPress. To use a My WordPress site, add `--url=https://my.wordpress.net/` after `@wp-playground/mcp`, in the command or in the `args` list.
 
 ### Claude Code
 
