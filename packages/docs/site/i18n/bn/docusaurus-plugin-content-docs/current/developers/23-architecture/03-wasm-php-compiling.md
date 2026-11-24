@@ -1,5 +1,7 @@
 ---
+title: PHP কম্পাইল করা
 slug: /developers/architecture/wasm-php-compiling
+description: ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের Docker ও Emscripten পাইপলাইন ব্যবহার করে কীভাবে PHP-কে WebAssembly-তে কম্পাইল করা হয় তা জানুন।
 ---
 
 <!--
