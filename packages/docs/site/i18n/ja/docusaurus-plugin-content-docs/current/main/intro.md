@@ -53,10 +53,10 @@ Playground is an online tool to experiment and learn about WordPress. This site 
 - [**API リファレンス**](/api) – WordPress Playground によって公開されているすべての API
 
 <!--
--   👉 [**Documentation**](/) (you're here) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
--   [**Blueprints**](/blueprints) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from the Blueprints docs hub.
--   [**Developers**](/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in the Developers docs hub.
--   [**API Reference**](/api) – All the APIs exposed by WordPress Playground
+- 👉 [**Documentation**](/) (you're here) – Introduction to WP Playground, starter guides and your entry point to WP Playground Docs.
+- [**Blueprints**](/blueprints) – Blueprints are JSON files for setting up your WordPress Playground instance. Learn about their possibilities from the Blueprints docs hub.
+- [**Developers**](/developers) – WordPress Playground was created as a programmable tool. Discover all the things you can do with it from your code in the Developers docs hub.
+- [**API Reference**](/api) – All the APIs exposed by WordPress Playground
  -->
 
 ## このドキュメントハブのナビゲーション
@@ -80,19 +80,19 @@ This docs hub is focused on starting with WordPress Playground and is divided in
 - **[リンクとリソース](/links-and-resources)**: WordPress Playground に関連する役立つリンクとリソースの素敵なまとめ。
 
 <!--
--   **[Quick Start Guide](/quick-start-guide)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/quick-start-guide#use-a-specific-wordpress-or-php-version).
+- **[Quick Start Guide](/quick-start-guide)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/quick-start-guide#use-a-specific-wordpress-or-php-version).
 
--   **[Playground web instance](/web-instance)**: Learn more about the Playground instance you get at https://playground.wordpress.net/
+- **[Playground web instance](/web-instance)**: Learn more about the Playground instance you get at https://playground.wordpress.net/
 
--   **[About Playground](/about)**: To learn about WordPress Playground, how safe it is, what you can do with and some of its current limitations, visit this section.
+- **[About Playground](/about)**: To learn about WordPress Playground, how safe it is, what you can do with and some of its current limitations, visit this section.
 
     Discover how you can leverage WordPress Playground to [Build](./about/build), [Test](./about/test), and [Launch](./about/launch) your products.
 
--   **[Guides](/guides)**: Explore our comprehensive guides to master new skills, find step-by-step instructions, and unlock valuable insights. Dive in to learn and grow!
+- **[Guides](/guides)**: Explore our comprehensive guides to master new skills, find step-by-step instructions, and unlock valuable insights. Dive in to learn and grow!
 
--   **[Contributing](/contributing)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute.
+- **[Contributing](/contributing)**: WordPress Playground is an open-source project that welcomes all contributors—from code to design, documentation to triage. Learn here how to contribute.
 
--   **[Links and resources](/links-and-resources)**: A nice compilation of useful links and resources related to WordPress Playground.
+- **[Links and resources](/links-and-resources)**: A nice compilation of useful links and resources related to WordPress Playground.
  -->
 
 ## 最初のステップ
@@ -108,17 +108,17 @@ Whether you're a developer, a non-technical user, or a contributor, these docs w
  -->
 
 - 5 分で [WordPress Playground の使用を開始](/quick-start-guide) (そして [デモサイト](https://playground.wordpress.net/) をチェック)
-- WordPress Playground で [開発を始める](/developers/build-your-first-app)
+- WordPress Playground で [開発を始める](https://developer.wordpress.org/playground/developers/build-an-app/)
 - Playground をセットアップ不要の [ローカル開発環境](/developers/local-development/) として使用する
 - [制限事項](/developers/limitations) について読む
 - [WordCamp 貢献者デー](/contributing/contributor-day)
 
 <!--
--   [Start using WordPress Playground](/quick-start-guide) in 5 minutes (and check out the [demo site](https://playground.wordpress.net/))
--   [Get started for developing](/developers/build-your-first-app) with WordPress Playground
--   Use Playground as a zero-setup [local development environment](/developers/local-development/)
--   Read about the [limitations](/developers/limitations)
--   [WordCamp Contributor Day](/contributing/contributor-day)
+- [Start using WordPress Playground](/quick-start-guide) in 5 minutes (and check out the [demo site](https://playground.wordpress.net/))
+- [Get started for developing](https://developer.wordpress.org/playground/developers/build-an-app/) with WordPress Playground
+- Use Playground as a zero-setup [local development environment](/developers/local-development/)
+- Read about the [limitations](/developers/limitations)
+- [WordCamp Contributor Day](/contributing/contributor-day)
  -->
 
 <div class="callout callout-tip">
@@ -156,13 +156,13 @@ If you're a developer or tech user, you may want to check directly the APIs avai
 - [アーキテクチャ](/developers/architecture) を深く理解し、その仕組みを学ぶ
 
 <!--
--   Read about [Playground APIs](/developers/apis/) and basic concepts
--   Review [links and resources](/links-and-resources)
--   Choose the right API for your app:
+- Read about [Playground APIs](/developers/apis/) and basic concepts
+- Review [links and resources](/links-and-resources)
+- Choose the right API for your app:
     - [Query API](/developers/apis/query-api) enables basic operations using only query parameters
     - [Blueprints API](/blueprints) gives you a great degree of control with a simple JSON file
     - [JavaScript API](/developers/apis/javascript-api) gives you full control via a JavaScript client from an npm package
--   Dive into the [architecture](/developers/architecture) and learn how it all works
+- Dive into the [architecture](/developers/architecture) and learn how it all works
  -->
 
 ## 参加する
@@ -181,14 +181,36 @@ WordPress Playground is an open-source project and welcomes all contributors fro
 - Slack の `#playground` チャンネルにご参加ください（サインアップ情報については、[WordPress Slack ページ](https://make.wordpress.org/chat/) をご覧ください）。
 
 <!--
--   See the [Contributors Handbook](/contributing) for all the details on how you can contribute.
--   Join us in the `#playground` channel in Slack (see the [WordPress Slack page](https://make.wordpress.org/chat/) for signup information)
+- See the [Contributors Handbook](/contributing) for all the details on how you can contribute.
+- Join us in the `#playground` channel in Slack (see the [WordPress Slack page](https://make.wordpress.org/chat/) for signup information)
  -->
 
 すべての WordPress プロジェクトと同様に、私たちはすべての人にとって歓迎される環境を確保したいと考えています。そのため、すべての貢献者は私たちの [行動規範](https://make.wordpress.org/handbook/community-code-of-conduct/) に従うことが期待されます。
 
 <!--
 As with all WordPress projects, we want to ensure a welcoming environment for everyone. With that in mind, all contributors are expected to follow our [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/).
+ -->
+
+## AI アシスタントで Playground を使用する
+
+<!--
+## Using Playground with AI assistants
+ -->
+
+WordPress Playground は、AI コーディングエージェントや AI を活用したツールと連携できるように設計されています。WebAssembly を用いて完全にクライアントサイドで動作するため、認証やバックエンドは不要です。また、ブラウザ内に隔離されており、サンドボックスの外に永続的な影響を及ぼすこともありません。そのため、AI が生成したデモやプロトタイプを扱うための、安全で信頼性の高い環境となっています。
+
+<!--
+WordPress Playground is designed to work with AI coding agents and AI-powered tools. It runs entirely client-side in WebAssembly — no authentication, no backend required, and isolated to the browser with no persistent side effects outside the sandbox — making it a safe, reliable environment for AI-generated demos and prototypes.
+ -->
+
+- **[AI エージェントで Playground を活用する](/guides/agent-skill-wp-playground)** — Claude Code、Cursor、Gemini CLI、GitHub Copilot といったコーディングエージェント向けに、`wp-playground`スキルを導入しましょう。必要な作業を指示するだけで、エージェントがコマンドを実行してくれます。
+- **[AI 読み取り用サイトインデックス](https://playground.wordpress.net/llms.txt)** — Playgroundの機能、API、ドキュメントを機械可読な形式（`llms.txt`）でまとめたインデックス。
+- **[AGENTS.md](https://github.com/WordPress/wordpress-playground/blob/trunk/AGENTS.md)** — 本コードベースに貢献する AI コーディングエージェント向けのガイダンス。
+
+<!--
+- **[Using Playground with AI agents](/guides/agent-skill-wp-playground)** — Install the `wp-playground` skill for Claude Code, Cursor, Gemini CLI, GitHub Copilot, and other coding agents. Describe what you need; the agent runs the commands.
+- **[AI-readable site index](https://playground.wordpress.net/llms.txt)** — Machine-readable summary of Playground's capabilities, APIs, and docs in `llms.txt` format.
+- **[AGENTS.md](https://github.com/WordPress/wordpress-playground/blob/trunk/AGENTS.md)** — Guidance for AI coding agents contributing to this codebase.
  -->
 
 ## ライセンス
