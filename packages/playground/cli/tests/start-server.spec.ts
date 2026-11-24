@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, type Mock } from 'vitest';
 import http from 'http';
+import type { AddressInfo } from 'net';
 import { pipeline } from 'stream/promises';
 import { StreamedPHPResponse } from '@php-wasm/universal';
 import { startServer } from '../src/start-server';
@@ -267,6 +268,55 @@ describe('startServer', () => {
 			expect(logger.error).toHaveBeenCalledWith(expectedErrorAfter);
 		} finally {
 			server.close();
+		}
+	});
+
+	it('binds to loopback by default', async () => {
+		const cliServer = await startServer({
+			port: 0,
+			handleRequest: async () => {
+				throw new Error('Unexpected request');
+			},
+			async onBind(server, port) {
+				return { server, port } as any;
+			},
+		});
+		const { server } = cliServer as any;
+
+		try {
+			const address = server.address() as AddressInfo;
+			// Loopback by default so the dev site is not LAN-reachable.
+			expect(address.address).toBe('127.0.0.1');
+		} finally {
+			await new Promise<void>((resolve) => {
+				server.close(() => resolve());
+				server.closeAllConnections();
+			});
+		}
+	});
+
+	it('binds to the host passed in the options', async () => {
+		const host = '0.0.0.0';
+		const cliServer = await startServer({
+			port: 0,
+			host,
+			handleRequest: async () => {
+				throw new Error('Unexpected request');
+			},
+			async onBind(server, port) {
+				return { server, port } as any;
+			},
+		});
+		const { server } = cliServer as any;
+
+		try {
+			const address = server.address() as AddressInfo;
+			expect(address.address).toBe(host);
+		} finally {
+			await new Promise<void>((resolve) => {
+				server.close(() => resolve());
+				server.closeAllConnections();
+			});
 		}
 	});
 });
