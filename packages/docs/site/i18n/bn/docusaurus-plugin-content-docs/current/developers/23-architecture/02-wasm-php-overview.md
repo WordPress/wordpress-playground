@@ -1,5 +1,7 @@
 ---
+title: WebAssembly PHP
 slug: /developers/architecture/wasm-php-overview
+description: ওয়ার্ডপ্রেস প্লেগ্রাউন্ড কীভাবে WebAssembly-তে PHP বিল্ড করে এবং ব্রাউজার ও Node.js-এ নেটওয়ার্কিং সমর্থন করে তা জানুন।
 ---
 
 <!--
@@ -54,7 +56,7 @@ Because every PHP version is just a static .wasm file, the PHP version switcher 
 ### Networking support varies between platforms
 -->
 
-### বিভিন্ন প্ল্যাটফর্মের মধ্যে নেটওয়ার্কিং সমর্থনের ভিন্নতা (Networking support varies between platforms) {#networking-support-varies-between-platforms}
+### বিভিন্ন প্ল্যাটফর্মের মধ্যে নেটওয়ার্কিং সমর্থনের ভিন্নতা {#networking-support-varies-between-platforms}
 
 <!--
 When it comes to networking, WebAssembly programs are limited to calling JavaScript APIs. It is a safety feature, but also presents a challenge. How do you support low-level, synchronous networking code used by PHP with the high-level asynchronous APIs available in JavaScript?
