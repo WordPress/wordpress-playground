@@ -1,4 +1,5 @@
 import { formatBytes } from '@php-wasm/util';
+import { __, sprintf } from '@wordpress/i18n';
 import type { TransferProgress } from '../../../lib/reprint/reprint';
 import css from './style.module.css';
 
@@ -29,7 +30,12 @@ export function TransferProgressView({
 			: undefined;
 	const files =
 		progress.filesDone !== undefined && progress.filesTotal !== undefined
-			? `${progress.filesDone.toLocaleString()} / ${progress.filesTotal.toLocaleString()} files`
+			? sprintf(
+					/* translators: 1: Formatted count of transferred files, 2: Formatted total file count. */
+					__('%1$s / %2$s files', 'playground-website'),
+					progress.filesDone.toLocaleString(),
+					progress.filesTotal.toLocaleString()
+				)
 			: undefined;
 	// Reprint can repeat the phase announcement as commentary between byte updates.
 	const detail =

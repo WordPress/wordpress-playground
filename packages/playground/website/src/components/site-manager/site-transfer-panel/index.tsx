@@ -16,6 +16,8 @@ import {
 	TextareaControl,
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
+import { createInterpolateElement } from '@wordpress/element';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { Icon, check, moreVertical } from '@wordpress/icons';
 import { formatBytes } from '@php-wasm/util';
 import { usePrevious } from '../../../lib/hooks/use-previous';
@@ -169,7 +171,10 @@ export function SiteTransferPanel({
 			<PlaygroundBootNotice show={!playground} />
 			{!ready && playground && (
 				<Notice status="info" isDismissible={false}>
-					Enable networking and use PHP 8.1 or newer.
+					{__(
+						'Enable networking and use PHP 8.1 or newer.',
+						'playground-website'
+					)}
 				</Notice>
 			)}
 		</>
@@ -233,7 +238,14 @@ export function SiteTransferPanel({
 			(error) => {
 				if (cancelled) return;
 				setError(
-					`Could not generate a migration key: ${error instanceof Error ? error.message : String(error)}`
+					sprintf(
+						/* translators: %s: Error message from key generation. */
+						__(
+							'Could not generate a migration key: %s',
+							'playground-website'
+						),
+						error instanceof Error ? error.message : String(error)
+					)
 				);
 			}
 		);
@@ -404,7 +416,7 @@ export function SiteTransferPanel({
 		setWarning('');
 		setDiagnostics('');
 		setProgress({
-			message: 'Starting Reprint…',
+			message: __('Starting Reprint…', 'playground-website'),
 			overallPercent: 0,
 		});
 		const controller = new AbortController();
@@ -451,7 +463,10 @@ export function SiteTransferPanel({
 					dispatch(
 						setDockOperationNotice({
 							status: 'error',
-							title: 'Couldn’t save the cloned site',
+							title: __(
+								'Couldn’t save the cloned site',
+								'playground-website'
+							),
 							message:
 								error instanceof Error
 									? error.message
@@ -500,7 +515,7 @@ export function SiteTransferPanel({
 		setError('');
 		setProgress({
 			phase: 'login',
-			message: 'Signing in to the cloned site…',
+			message: __('Signing in to the cloned site…', 'playground-website'),
 		});
 		try {
 			const warning = await (publicDemo
@@ -580,7 +595,7 @@ export function SiteTransferPanel({
 		setBusy(true);
 		setError('');
 		setProgress({
-			message: 'Creating a new Playground…',
+			message: __('Creating a new Playground…', 'playground-website'),
 			overallPercent: 0,
 		});
 		const address = getReprintAdminUrls(url).site;
@@ -636,7 +651,7 @@ export function SiteTransferPanel({
 				dispatch(
 					setDockOperationNotice({
 						status: 'success',
-						title: 'Transfer log copied',
+						title: __('Transfer log copied', 'playground-website'),
 					})
 				);
 			} catch {
@@ -645,7 +660,14 @@ export function SiteTransferPanel({
 			}
 		} catch (error) {
 			setDiagnostics(
-				`Could not read the transfer log: ${error instanceof Error ? error.message : String(error)}`
+				sprintf(
+					/* translators: %s: Error message from reading the transfer log. */
+					__(
+						'Could not read the transfer log: %s',
+						'playground-website'
+					),
+					error instanceof Error ? error.message : String(error)
+				)
 			);
 		} finally {
 			setReadingDiagnostics(false);
@@ -662,7 +684,7 @@ export function SiteTransferPanel({
 			!cloneRequested && (
 				<DropdownMenu
 					icon={moreVertical}
-					label="More options"
+					label={__('More options', 'playground-website')}
 					className={css.overflowMenu}
 					popoverProps={{ placement: 'bottom-end' }}
 				>
@@ -674,7 +696,7 @@ export function SiteTransferPanel({
 								void copyTransferLog();
 							}}
 						>
-							Copy transfer log
+							{__('Copy transfer log', 'playground-website')}
 						</MenuItem>
 					)}
 				</DropdownMenu>
@@ -689,15 +711,44 @@ export function SiteTransferPanel({
 				? {
 						title:
 							progress.phase === 'login'
-								? `Signing in to ${hostname}`
-								: `${cloning ? 'Cloning' : 'Pulling'} ${hostname}`,
+								? sprintf(
+										/* translators: %s: Hostname of the cloned site. */
+										__(
+											'Signing in to %s',
+											'playground-website'
+										),
+										hostname
+									)
+								: cloning
+									? sprintf(
+											/* translators: %s: Hostname of the site being cloned. */
+											__(
+												'Cloning %s',
+												'playground-website'
+											),
+											hostname
+										)
+									: sprintf(
+											/* translators: %s: Hostname of the site being pulled. */
+											__(
+												'Pulling %s',
+												'playground-website'
+											),
+											hostname
+										),
 						action: transferLogMenu,
 					}
 				: completed
 					? // The result screen names the site itself and needs no header.
-						{ title: 'Site cloned', hideHeader: true }
+						{
+							title: __('Site cloned', 'playground-website'),
+							hideHeader: true,
+						}
 					: recovery?.action === 'open-copy'
-						? { title: 'Site cloned', action: transferLogMenu }
+						? {
+								title: __('Site cloned', 'playground-website'),
+								action: transferLogMenu,
+							}
 						: step !== 'site' || cloning
 							? {
 									action:
@@ -706,10 +757,19 @@ export function SiteTransferPanel({
 											: undefined,
 									backLabel:
 										step === 'site'
-											? 'Back to New Playground'
+											? __(
+													'Back to New Playground',
+													'playground-website'
+												)
 											: step === 'transfer' && !publicDemo
-												? 'Back to migration key'
-												: 'Back to site address',
+												? __(
+														'Back to migration key',
+														'playground-website'
+													)
+												: __(
+														'Back to site address',
+														'playground-website'
+													),
 									onBack: goBack,
 								}
 							: undefined
@@ -748,7 +808,7 @@ export function SiteTransferPanel({
 	const migrationKeyField = (
 		<TextareaControl
 			__nextHasNoMarginBottom
-			label="Migration key"
+			label={__('Migration key', 'playground-website')}
 			onChange={() => {}}
 			readOnly
 			autoFocus={isVisible && step === 'manual-key'}
@@ -775,7 +835,10 @@ export function SiteTransferPanel({
 								className={css.setupTitle}
 							>
 								{recovery?.title ??
-									'Couldn’t complete this step'}
+									__(
+										'Couldn’t complete this step',
+										'playground-website'
+									)}
 							</h3>
 							<p className={css.hint}>
 								{recovery?.message ??
@@ -785,7 +848,10 @@ export function SiteTransferPanel({
 							</p>
 							{!publicDemo && recovery?.action === 'settings' && (
 								<Button variant="link" onClick={goBack}>
-									View migration key
+									{__(
+										'View migration key',
+										'playground-website'
+									)}
 								</Button>
 							)}
 						</VStack>
@@ -820,7 +886,12 @@ export function SiteTransferPanel({
 						)}
 						{recovery && error instanceof ReprintTransferError && (
 							<details className={css.errorDetails}>
-								<summary>Technical details</summary>
+								<summary>
+									{__(
+										'Technical details',
+										'playground-website'
+									)}
+								</summary>
 								<pre>
 									{[
 										error.details.code,
@@ -840,7 +911,12 @@ export function SiteTransferPanel({
 					</VStack>
 				)}
 				{!busy && !completed && autoStart && !error && (
-					<InlineProgress message="Waiting for the new Playground to boot…" />
+					<InlineProgress
+						message={__(
+							'Waiting for the new Playground to boot…',
+							'playground-website'
+						)}
+					/>
 				)}
 				{!busy && !completed && step === 'site' && (
 					<form
@@ -857,8 +933,10 @@ export function SiteTransferPanel({
 						<VStack spacing={4}>
 							{cloneRequested && (
 								<p className={css.intro}>
-									Copy a live site into a new Playground with
-									Reprint. Your live site stays unchanged.
+									{__(
+										'Copy a live site into a new Playground with Reprint. Your live site stays unchanged.',
+										'playground-website'
+									)}
 								</p>
 							)}
 							<VStack spacing={2}>
@@ -868,7 +946,10 @@ export function SiteTransferPanel({
 										hideLabelFromVision
 										className={css.heroInput}
 										autoFocus={isVisible}
-										label="Live site URL"
+										label={__(
+											'Live site URL',
+											'playground-website'
+										)}
 										type="url"
 										value={url}
 										onChange={changeUrl}
@@ -896,19 +977,40 @@ export function SiteTransferPanel({
 									>
 										{publicDemo
 											? cloneRequested
-												? 'Clone site'
-												: 'Pull site'
+												? __(
+														'Clone site',
+														'playground-website'
+													)
+												: __(
+														'Pull site',
+														'playground-website'
+													)
 											: setup === 'checking'
-												? 'Checking…'
+												? __(
+														'Checking…',
+														'playground-website'
+													)
 												: setup
-													? 'Check again'
-													: 'Check site'}
+													? __(
+															'Check again',
+															'playground-website'
+														)
+													: __(
+															'Check site',
+															'playground-website'
+														)}
 									</Button>
 								</div>
 								<p className={css.hint}>
 									{publicDemo
-										? 'No account or migration key needed.'
-										: 'You’ll need admin access to this site.'}
+										? __(
+												'No account or migration key needed.',
+												'playground-website'
+											)
+										: __(
+												'You’ll need admin access to this site.',
+												'playground-website'
+											)}
 								</p>
 								{publicDemo && pullRequirements}
 							</VStack>
@@ -923,23 +1025,42 @@ export function SiteTransferPanel({
 								tabIndex={-1}
 								className={css.setupTitle}
 							>
-								Install Reprint Server
+								{__(
+									'Install Reprint Server',
+									'playground-website'
+								)}
 							</h3>
 							<p className={css.hint}>
-								{setup === 'unreachable'
-									? 'We couldn’t check Reprint on '
-									: 'Add the plugin to '}
-								<a
-									href={links.site}
-									target="_blank"
-									rel="noreferrer"
-									className={css.setupSite}
-								>
-									{hostname}
-								</a>
-								{setup === 'unreachable'
-									? '. Check the address, or follow the steps below.'
-									: ' so Playground can connect to your live site.'}
+								{createInterpolateElement(
+									setup === 'unreachable'
+										? sprintf(
+												/* translators: %s: Hostname of the live site. */
+												__(
+													'We couldn’t check Reprint on <siteLink>%s</siteLink>. Check the address, or follow the steps below.',
+													'playground-website'
+												),
+												hostname
+											)
+										: sprintf(
+												/* translators: %s: Hostname of the live site. */
+												__(
+													'Add the plugin to <siteLink>%s</siteLink> so Playground can connect to your live site.',
+													'playground-website'
+												),
+												hostname
+											),
+									{
+										siteLink: (
+											<a
+												aria-label={hostname}
+												href={links.site}
+												target="_blank"
+												rel="noreferrer"
+												className={css.setupSite}
+											/>
+										),
+									}
+								)}
 							</p>
 						</VStack>
 						<VStack as="ol" spacing={6} className={css.steps}>
@@ -949,18 +1070,40 @@ export function SiteTransferPanel({
 									target="_blank"
 									rel="noreferrer"
 								>
-									Install Reprint
+									{__(
+										'Install Reprint',
+										'playground-website'
+									)}
 								</a>
 								<p className={css.hint}>
-									Sign in if asked. Choose{' '}
-									<strong>Install Now</strong>.
+									{createInterpolateElement(
+										__(
+											'Sign in if asked. Choose <strong>Install Now</strong>.',
+											'playground-website'
+										),
+										{
+											strong: <strong />,
+										}
+									)}
 								</p>
 							</li>
 							<li>
-								<strong>Activate the plugin</strong>
+								<strong>
+									{__(
+										'Activate the plugin',
+										'playground-website'
+									)}
+								</strong>
 								<p className={css.hint}>
-									Choose <strong>Activate</strong>, then come
-									back here.
+									{createInterpolateElement(
+										__(
+											'Choose <strong>Activate</strong>, then come back here.',
+											'playground-website'
+										),
+										{
+											strong: <strong />,
+										}
+									)}
 								</p>
 							</li>
 						</VStack>
@@ -972,11 +1115,16 @@ export function SiteTransferPanel({
 								onClick={() => void checkSite()}
 							>
 								{setup === 'checking'
-									? 'Checking…'
-									: 'Check again'}
+									? __('Checking…', 'playground-website')
+									: __('Check again', 'playground-website')}
 							</Button>
 							<div className={css.manualConnection}>
-								<span>Already active?</span>
+								<span>
+									{__(
+										'Already active?',
+										'playground-website'
+									)}
+								</span>
 								<Button
 									variant="link"
 									disabled={setup === 'checking'}
@@ -985,7 +1133,10 @@ export function SiteTransferPanel({
 										setStep('key');
 									}}
 								>
-									Connect manually
+									{__(
+										'Connect manually',
+										'playground-website'
+									)}
 								</Button>
 							</div>
 						</VStack>
@@ -1013,7 +1164,10 @@ export function SiteTransferPanel({
 						<VStack spacing={4}>
 							<ol
 								className={css.connectionSteps}
-								aria-label="Connection steps"
+								aria-label={__(
+									'Connection steps',
+									'playground-website'
+								)}
 							>
 								<li
 									aria-current={
@@ -1025,14 +1179,24 @@ export function SiteTransferPanel({
 										tabIndex={-1}
 										className={css.setupTitle}
 									>
-										1. Copy your migration key
+										{__(
+											'1. Copy your migration key',
+											'playground-website'
+										)}
 									</h3>
 									<p className={css.hint}>
-										You’ll paste it into Reprint on your
-										live site.
+										{__(
+											'You’ll paste it into Reprint on your live site.',
+											'playground-website'
+										)}
 									</p>
 									{generatingKey && (
-										<InlineProgress message="Generating a migration key…" />
+										<InlineProgress
+											message={__(
+												'Generating a migration key…',
+												'playground-website'
+											)}
+										/>
 									)}
 									{step === 'manual-key' && (
 										<>
@@ -1040,8 +1204,10 @@ export function SiteTransferPanel({
 												className={css.hint}
 												role="alert"
 											>
-												We couldn’t copy automatically.
-												Select and copy the key below.
+												{__(
+													'We couldn’t copy automatically. Select and copy the key below.',
+													'playground-website'
+												)}
 											</p>
 											{migrationKeyField}
 										</>
@@ -1068,8 +1234,14 @@ export function SiteTransferPanel({
 											}}
 										>
 											{step === 'manual-key'
-												? 'I’ve copied the key'
-												: 'Copy migration key'}
+												? __(
+														'I’ve copied the key',
+														'playground-website'
+													)
+												: __(
+														'Copy migration key',
+														'playground-website'
+													)}
 										</Button>
 										<span
 											className={css.keyCopied}
@@ -1081,7 +1253,10 @@ export function SiteTransferPanel({
 														icon={check}
 														size={16}
 													/>
-													Copied
+													{__(
+														'Copied',
+														'playground-website'
+													)}
 												</>
 											)}
 										</span>
@@ -1092,16 +1267,22 @@ export function SiteTransferPanel({
 										>
 											<summary>
 												{step === 'manual-key'
-													? 'About this connection'
-													: 'Show key and connection details'}
+													? __(
+															'About this connection',
+															'playground-website'
+														)
+													: __(
+															'Show key and connection details',
+															'playground-website'
+														)}
 											</summary>
 											{step !== 'manual-key' &&
 												migrationKeyField}
 											<p className={css.hint}>
-												Only the migration key goes to
-												your live site. The private key
-												stays in this tab and is reused
-												when you retry.
+												{__(
+													'Only the migration key goes to your live site. The private key stays in this tab and is reused when you retry.',
+													'playground-website'
+												)}
 											</p>
 										</details>
 									)}
@@ -1116,13 +1297,26 @@ export function SiteTransferPanel({
 									<h3
 										className={`${css.setupTitle} ${css.setupSite}`}
 									>
-										2. Authorize on {hostname}
+										{sprintf(
+											/* translators: %s: Hostname of the live site. */
+											__(
+												'2. Authorize on %s',
+												'playground-website'
+											),
+											hostname
+										)}
 									</h3>
 									<p className={css.hint}>
-										Paste into{' '}
-										<strong>Migration Token</strong>, then
-										choose <strong>Authorize client</strong>
-										.
+										{createInterpolateElement(
+											__(
+												'Paste into <token>Migration Token</token>, then choose <authorize>Authorize client</authorize>.',
+												'playground-website'
+											),
+											{
+												token: <strong />,
+												authorize: <strong />,
+											}
+										)}
 									</p>
 									{keyCopied ? (
 										<Button
@@ -1136,11 +1330,17 @@ export function SiteTransferPanel({
 											rel="noreferrer"
 											onClick={() => setStep('confirm')}
 										>
-											Open Reprint settings ↗
+											{__(
+												'Open Reprint settings ↗',
+												'playground-website'
+											)}
 										</Button>
 									) : (
 										<Button variant="secondary" disabled>
-											Open Reprint settings ↗
+											{__(
+												'Open Reprint settings ↗',
+												'playground-website'
+											)}
 										</Button>
 									)}
 								</li>
@@ -1150,12 +1350,21 @@ export function SiteTransferPanel({
 									}
 								>
 									<h3 className={css.setupTitle}>
-										3. Return here and{' '}
-										{cloning ? 'clone' : 'pull'} your site
+										{cloning
+											? __(
+													'3. Return here and clone your site',
+													'playground-website'
+												)
+											: __(
+													'3. Return here and pull your site',
+													'playground-website'
+												)}
 									</h3>
 									<p className={css.hint}>
-										We’ll check access before copying your
-										site.
+										{__(
+											'We’ll check access before copying your site.',
+											'playground-website'
+										)}
 									</p>
 									<Button
 										type="submit"
@@ -1171,8 +1380,14 @@ export function SiteTransferPanel({
 										}
 									>
 										{cloning
-											? 'I’ve authorized it — clone site'
-											: 'I’ve authorized it — pull site'}
+											? __(
+													'I’ve authorized it — clone site',
+													'playground-website'
+												)
+											: __(
+													'I’ve authorized it — pull site',
+													'playground-website'
+												)}
 									</Button>
 								</li>
 							</ol>
@@ -1184,8 +1399,14 @@ export function SiteTransferPanel({
 				{busy && confirmStop && (
 					<Notice status="warning" isDismissible={false}>
 						<p>
-							Stop pulling {hostname}? Downloaded files stay
-							saved, so you can resume later.
+							{sprintf(
+								/* translators: %s: Hostname of the live site. */
+								__(
+									'Stop pulling %s? Downloaded files stay saved, so you can resume later.',
+									'playground-website'
+								),
+								hostname
+							)}
 						</p>
 						<div className={css.actions}>
 							<Button
@@ -1197,13 +1418,13 @@ export function SiteTransferPanel({
 									setConfirmStop(false);
 								}}
 							>
-								Stop pulling
+								{__('Stop pulling', 'playground-website')}
 							</Button>
 							<Button
 								variant="tertiary"
 								onClick={() => setConfirmStop(false)}
 							>
-								Keep pulling
+								{__('Keep pulling', 'playground-website')}
 							</Button>
 						</div>
 					</Notice>
@@ -1212,8 +1433,14 @@ export function SiteTransferPanel({
 					<div className={css.transferFooter}>
 						<p className={css.hint}>
 							{cloning
-								? 'Keep this tab open until the clone finishes.'
-								: 'Local edits may be replaced. Keep this tab open until the pull finishes.'}
+								? __(
+										'Keep this tab open until the clone finishes.',
+										'playground-website'
+									)
+								: __(
+										'Local edits may be replaced. Keep this tab open until the pull finishes.',
+										'playground-website'
+									)}
 						</p>
 						<Button
 							variant="secondary"
@@ -1221,14 +1448,22 @@ export function SiteTransferPanel({
 							disabled={stopping}
 							onClick={() => setConfirmStop(true)}
 						>
-							{stopping ? 'Stopping after this step…' : 'Stop'}
+							{stopping
+								? __(
+										'Stopping after this step…',
+										'playground-website'
+									)
+								: __('Stop', 'playground-website')}
 						</Button>
 					</div>
 				)}
 				{diagnostics && (
 					<TextareaControl
-						label="Transfer log"
-						help="Copying to the clipboard failed. Select the log and copy it manually."
+						label={__('Transfer log', 'playground-website')}
+						help={__(
+							'Copying to the clipboard failed. Select the log and copy it manually.',
+							'playground-website'
+						)}
 						readOnly
 						value={diagnostics}
 						onChange={setDiagnostics}
@@ -1246,13 +1481,26 @@ export function SiteTransferPanel({
 							tabIndex={-1}
 							className={css.doneTitle}
 						>
-							{hostname} cloned
+							{sprintf(
+								/* translators: %s: Hostname of the cloned site. */
+								__('%s cloned', 'playground-website'),
+								hostname
+							)}
 						</h3>
 						{summary && (
 							<p className={css.doneSummary}>
 								{[
 									summary.files
-										? `${summary.files.toLocaleString()} files`
+										? sprintf(
+												/* translators: %s: Formatted number of cloned files. */
+												_n(
+													'%s file',
+													'%s files',
+													summary.files,
+													'playground-website'
+												),
+												summary.files.toLocaleString()
+											)
 										: '',
 									summary.bytes
 										? formatBytes(summary.bytes)
@@ -1279,14 +1527,16 @@ export function SiteTransferPanel({
 								dispatch(setDockPaneOpen(false));
 							}}
 						>
-							Open site
+							{__('Open site', 'playground-website')}
 						</Button>
 					</div>
 				)}
 				{completed && (
 					<p className={css.doneNote}>
-						You’re signed in as an administrator. Your live site was
-						not changed.
+						{__(
+							'You’re signed in as an administrator. Your live site was not changed.',
+							'playground-website'
+						)}
 					</p>
 				)}
 			</div>

@@ -16,6 +16,7 @@ import {
 	Notice,
 	Tooltip as WpTooltip,
 } from '@wordpress/components';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { chevronDown, download, help, link, warning } from '@wordpress/icons';
 import {
 	resolveRuntimeConfiguration,
@@ -105,23 +106,39 @@ function formatValidationError(error: {
 	// Provide better messages based on error type
 	if (error.keyword === 'additionalProperties' && error.params) {
 		const prop = error.params.additionalProperty;
-		return `Unknown property "${prop}"`;
+		return sprintf(
+			/* translators: %s: Property name in Blueprint JSON. */
+			__('Unknown property "%s"', 'playground-website'),
+			prop
+		);
 	}
 	if (error.keyword === 'required' && error.params) {
 		const prop = error.params.missingProperty;
-		return `Missing required property "${prop}"`;
+		return sprintf(
+			/* translators: %s: Required property name in Blueprint JSON. */
+			__('Missing required property "%s"', 'playground-website'),
+			prop
+		);
 	}
 	if (error.keyword === 'enum' && error.params) {
 		const allowed = error.params.allowedValues;
 		if (Array.isArray(allowed)) {
-			return `Value must be one of: ${allowed.join(', ')}`;
+			return sprintf(
+				/* translators: %s: Comma-separated list of allowed values. */
+				__('Value must be one of: %s', 'playground-website'),
+				allowed.join(', ')
+			);
 		}
 	}
 	if (error.keyword === 'type' && error.params) {
 		const expected = error.params.type;
-		return `Expected ${expected}`;
+		return sprintf(
+			/* translators: %s: Expected JSON value type (e.g. "string", "object"). */
+			__('Expected %s', 'playground-website'),
+			expected
+		);
 	}
-	return error.message || 'Validation error';
+	return error.message || __('Validation error', 'playground-website');
 }
 
 interface StringEditorState {
@@ -166,8 +183,11 @@ function createStringEditorTooltip(openStringEditor: () => boolean): Extension {
 
 					const button = document.createElement('button');
 					button.className = 'cm-string-editor-button';
-					button.innerHTML = '✎ Multiline Edit';
-					button.title = 'Edit string (Cmd/Ctrl+E)';
+					button.textContent = `✎ ${__('Multiline Edit', 'playground-website')}`;
+					button.title = __(
+						'Edit string (Cmd/Ctrl+E)',
+						'playground-website'
+					);
 					button.onmousedown = (e) => {
 						e.preventDefault();
 						e.stopPropagation();
@@ -412,7 +432,12 @@ export const BlueprintBundleEditor = forwardRef<
 				return true;
 			} catch (error) {
 				logger.error('Failed to save file', error);
-				setSaveError('Could not save changes. Try again.');
+				setSaveError(
+					__(
+						'Could not save changes. Try again.',
+						'playground-website'
+					)
+				);
 				return false;
 			}
 		});
@@ -577,16 +602,25 @@ export const BlueprintBundleEditor = forwardRef<
 				dispatch(
 					setDockOperationNotice({
 						status: 'success',
-						title: 'Blueprint is running in a new Playground',
-						message: 'Opening the new Playground now.',
+						title: __(
+							'Blueprint is running in a new Playground',
+							'playground-website'
+						),
+						message: __(
+							'Opening the new Playground now.',
+							'playground-website'
+						),
 					})
 				);
 			} else {
 				dispatch(
 					setDockOperationNotice({
 						status: 'success',
-						title: 'Blueprint is running',
-						message: 'Recreating this Playground now.',
+						title: __('Blueprint is running', 'playground-website'),
+						message: __(
+							'Recreating this Playground now.',
+							'playground-website'
+						),
 					})
 				);
 			}
@@ -650,8 +684,14 @@ export const BlueprintBundleEditor = forwardRef<
 			logger.error('Failed to run Blueprint', error);
 			setSaveError(
 				runInNewPlayground
-					? 'Could not create Playground. Try again.'
-					: 'Could not recreate Playground. Try again.'
+					? __(
+							'Could not create Playground. Try again.',
+							'playground-website'
+						)
+					: __(
+							'Could not recreate Playground. Try again.',
+							'playground-website'
+						)
 			);
 		} finally {
 			runInProgressRef.current = false;
@@ -879,19 +919,27 @@ export const BlueprintBundleEditor = forwardRef<
 			dispatch(
 				setDockOperationNotice({
 					status: 'success',
-					title: 'Blueprint downloaded',
+					title: __('Blueprint downloaded', 'playground-website'),
 				})
 			);
 		} catch (error) {
 			logger.error('Failed to download bundle', error);
-			setSaveError('Could not download bundle. Try again.');
+			setSaveError(
+				__(
+					'Could not download bundle. Try again.',
+					'playground-website'
+				)
+			);
 		}
 	}, [filesystem, dispatch]);
 
 	const handleShareBlueprint = async () => {
 		if (false === newUrl) {
 			alert(
-				'Linking to blueprint bundles is not supported yet. Only single-file blueprints can be shared via link.'
+				__(
+					'Linking to blueprint bundles is not supported yet. Only single-file blueprints can be shared via link.',
+					'playground-website'
+				)
 			);
 			return;
 		}
@@ -901,12 +949,14 @@ export const BlueprintBundleEditor = forwardRef<
 			dispatch(
 				setDockOperationNotice({
 					status: 'success',
-					title: 'Link copied to clipboard',
+					title: __('Link copied to clipboard', 'playground-website'),
 				})
 			);
 		} catch (error) {
 			logger.error('Failed to share blueprint', error);
-			setSaveError('Could not copy link. Try again.');
+			setSaveError(
+				__('Could not copy link. Try again.', 'playground-website')
+			);
 		}
 	};
 
@@ -930,14 +980,16 @@ export const BlueprintBundleEditor = forwardRef<
 			variant="secondary"
 			onClick={() => setShowExplorerOnMobile((previous) => !previous)}
 		>
-			{showExplorerOnMobile ? 'Hide files' : 'Browse files'}
+			{showExplorerOnMobile
+				? __('Hide files', 'playground-website')
+				: __('Browse files', 'playground-website')}
 		</Button>
 	);
 	const dockExportDropdown = (
 		<DropdownMenu
 			className={styles.editorExport}
 			icon={null}
-			label="Export"
+			label={__('Export', 'playground-website')}
 			toggleProps={{
 				variant: 'secondary',
 				className: classNames(
@@ -947,7 +999,7 @@ export const BlueprintBundleEditor = forwardRef<
 				showTooltip: false,
 				children: (
 					<>
-						Export
+						{__('Export', 'playground-website')}
 						<Icon icon={chevronDown} size={16} />
 					</>
 				),
@@ -962,7 +1014,10 @@ export const BlueprintBundleEditor = forwardRef<
 						icon={link}
 						info={
 							!isBundleShareable
-								? 'Multi-file Blueprints can’t be shared as a URL — download a zip instead.'
+								? __(
+										'Multi-file Blueprints can’t be shared as a URL — download a zip instead.',
+										'playground-website'
+									)
 								: undefined
 						}
 						aria-disabled={!isBundleShareable}
@@ -975,7 +1030,7 @@ export const BlueprintBundleEditor = forwardRef<
 								: undefined
 						}
 					>
-						Copy Blueprint URL
+						{__('Copy Blueprint URL', 'playground-website')}
 					</MenuItemWithDescription>
 					{/* Start on the available action. ArrowUp still reaches the
 					    unavailable item's explanation. */}
@@ -987,7 +1042,7 @@ export const BlueprintBundleEditor = forwardRef<
 							onClose();
 						}}
 					>
-						Download Zip
+						{__('Download Zip', 'playground-website')}
 					</MenuItem>
 				</MenuGroup>
 			)}
@@ -995,7 +1050,7 @@ export const BlueprintBundleEditor = forwardRef<
 	);
 	const dockDocsLink = (
 		<WpTooltip
-			text="See Blueprints documentation"
+			text={__('See Blueprints documentation', 'playground-website')}
 			delay={0}
 			placement="top"
 		>
@@ -1004,7 +1059,10 @@ export const BlueprintBundleEditor = forwardRef<
 				href="https://wordpress.github.io/wordpress-playground/blueprints"
 				target="_blank"
 				rel="noreferrer"
-				aria-label="See Blueprints documentation"
+				aria-label={__(
+					'See Blueprints documentation',
+					'playground-website'
+				)}
 			>
 				<Icon icon={help} size={24} />
 			</a>
@@ -1069,8 +1127,14 @@ export const BlueprintBundleEditor = forwardRef<
 							readOnly={readOnly || isBlueprintRunPending}
 							{...(dockPresentation
 								? {
-										title: 'Blueprint',
-										mobileSubsectionTitle: 'Files',
+										title: __(
+											'Blueprint',
+											'playground-website'
+										),
+										mobileSubsectionTitle: __(
+											'Files',
+											'playground-website'
+										),
 										showBinaryPreviewHeader: false,
 										dockPresentation: true,
 										useWordPressTooltips: true,
@@ -1090,7 +1154,10 @@ export const BlueprintBundleEditor = forwardRef<
 								>
 									{displayPath ||
 										selectedDirPath ||
-										'Browse files under /'}
+										__(
+											'Browse files under /',
+											'playground-website'
+										)}
 								</div>
 							)}
 
@@ -1121,8 +1188,14 @@ export const BlueprintBundleEditor = forwardRef<
 												styles.editorToolbarButton
 											}
 											onClick={handleShareBlueprint}
-											title="Copy link to blueprint"
-											aria-label="Copy link to blueprint"
+											title={__(
+												'Copy link to blueprint',
+												'playground-website'
+											)}
+											aria-label={__(
+												'Copy link to blueprint',
+												'playground-website'
+											)}
 											disabled={!isBundleShareable}
 										>
 											<Icon icon={link} />
@@ -1133,7 +1206,10 @@ export const BlueprintBundleEditor = forwardRef<
 												styles.editorToolbarButton
 											}
 											onClick={handleDownloadBundle}
-											title="Download bundle"
+											title={__(
+												'Download bundle',
+												'playground-website'
+											)}
 										>
 											<Icon icon={download} />
 										</Button>
@@ -1156,7 +1232,10 @@ export const BlueprintBundleEditor = forwardRef<
 										data-testid="run-blueprint"
 										title={
 											hasValidationErrors
-												? 'Fix validation errors before running'
+												? __(
+														'Fix validation errors before running',
+														'playground-website'
+													)
 												: undefined
 										}
 									>
@@ -1166,10 +1245,19 @@ export const BlueprintBundleEditor = forwardRef<
 											}
 										/>
 										{isWaitingToRun
-											? 'Finishing Playground sync…'
+											? __(
+													'Finishing Playground sync…',
+													'playground-website'
+												)
 											: isStored
-												? 'Run in a new Playground'
-												: 'Discard current Playground & run Blueprint'}
+												? __(
+														'Run in a new Playground',
+														'playground-website'
+													)
+												: __(
+														'Discard current Playground & run Blueprint',
+														'playground-website'
+													)}
 									</Button>
 								)}
 							</div>
@@ -1186,10 +1274,10 @@ export const BlueprintBundleEditor = forwardRef<
 						!isBundleShareable ? (
 							<div style={{ padding: '8px 16px' }}>
 								<Notice status="warning" isDismissible={false}>
-									This Blueprint bundle contains multiple
-									files and cannot be shared via URL. Use the
-									download button to export the bundle as a
-									zip file.
+									{__(
+										'This Blueprint bundle contains multiple files and cannot be shared via URL. Use the download button to export the bundle as a zip file.',
+										'playground-website'
+									)}
 								</Notice>
 							</div>
 						) : null}
@@ -1200,19 +1288,28 @@ export const BlueprintBundleEditor = forwardRef<
 							<p className={styles.runHint}>
 								<Icon icon={warning} size={18} />
 								<span>
-									{isWaitingToRun ? (
-										'Run will wait for this Playground to finish saving.'
-									) : (
-										<>
-											Running this Blueprint creates a
-											fresh autosaved Playground. “
-											{site?.metadata.name}” stays in{' '}
-											{isAutosaved
-												? 'Recent autosaves'
-												: 'Saved Playgrounds'}
-											.
-										</>
-									)}
+									{isWaitingToRun
+										? __(
+												'Run will wait for this Playground to finish saving.',
+												'playground-website'
+											)
+										: isAutosaved
+											? sprintf(
+													/* translators: %s: Name of the current Playground. */
+													__(
+														'Running this Blueprint creates a fresh autosaved Playground. “%s” stays in Recent autosaves.',
+														'playground-website'
+													),
+													site?.metadata.name
+												)
+											: sprintf(
+													/* translators: %s: Name of the current Playground. */
+													__(
+														'Running this Blueprint creates a fresh autosaved Playground. “%s” stays in Saved Playgrounds.',
+														'playground-website'
+													),
+													site?.metadata.name
+												)}
 								</span>
 							</p>
 						) : null}
@@ -1270,10 +1367,18 @@ export const BlueprintBundleEditor = forwardRef<
 															/>
 														</svg>
 													</span>
-													{validationResult.errors
-														.length === 1
-														? '1 validation error'
-														: `${validationResult.errors.length} validation errors`}
+													{sprintf(
+														/* translators: %d: Number of Blueprint JSON validation errors. */
+														_n(
+															'%d validation error',
+															'%d validation errors',
+															validationResult
+																.errors.length,
+															'playground-website'
+														),
+														validationResult.errors
+															.length
+													)}
 												</div>
 												<ul
 													className={
@@ -1318,7 +1423,10 @@ export const BlueprintBundleEditor = forwardRef<
 							)
 						) : (
 							<div className={styles.placeholder}>
-								Select a file to view or edit its contents.
+								{__(
+									'Select a file to view or edit its contents.',
+									'playground-website'
+								)}
 							</div>
 						)}
 					</section>

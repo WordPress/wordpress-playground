@@ -115,6 +115,10 @@ export function SiteDatabasePanel({
 						{
 							sqliteLink: (
 								<a
+									aria-label={__(
+										'emulates MySQL with SQLite',
+										'playground-website'
+									)}
 									target="_blank"
 									rel="noreferrer"
 									href="https://make.wordpress.org/playground/2025/06/13/introducing-a-new-sqlite-driver-for-wordpress/"
@@ -122,6 +126,10 @@ export function SiteDatabasePanel({
 							),
 							issuesLink: (
 								<a
+									aria-label={__(
+										'report issues',
+										'playground-website'
+									)}
 									target="_blank"
 									rel="noreferrer"
 									href="https://github.com/WordPress/wordpress-playground/issues"

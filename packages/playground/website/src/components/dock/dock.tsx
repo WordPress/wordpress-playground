@@ -14,6 +14,7 @@ import type {
 } from 'react';
 import { CSSTransition } from 'react-transition-group';
 import { Icon, Tooltip } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { close, code, pencil, plus } from '@wordpress/icons';
 import type { DockPaneSection } from '../../lib/state/redux/slice-ui';
 import {
@@ -114,7 +115,7 @@ export function Dock({
 	const siteSettingsVisible = dockPaneIsOpen && section === 'settings';
 	const playgroundTitle =
 		activeSite?.metadata.storage === 'none'
-			? 'Unsaved Playground'
+			? __('Unsaved Playground', 'playground-website')
 			: activeSite?.metadata.name;
 	const dockAnnotationMetadata = useMemo(
 		() =>
@@ -175,8 +176,8 @@ export function Dock({
 	);
 	const githubExportHeaderOverride = useMemo<DockPaneHeaderOverride>(
 		() => ({
-			title: 'Export to GitHub',
-			backLabel: 'Back to export options',
+			title: __('Export to GitHub', 'playground-website'),
+			backLabel: __('Back to export options', 'playground-website'),
 			onBack: closeGitHubExport,
 		}),
 		[closeGitHubExport]
@@ -1034,7 +1035,10 @@ export function Dock({
 				hasNotification={
 					item.section === 'playgrounds' && recentAutosaveNudgeVisible
 				}
-				notificationAriaSuffix="recent autosave available"
+				notificationAriaSuffix={__(
+					'recent autosave available',
+					'playground-website'
+				)}
 				onClick={(event) => {
 					// Safari needs explicit focus so closing a pane returns to its launcher.
 					event.currentTarget.focus();
@@ -1133,8 +1137,14 @@ export function Dock({
 											<button
 												type="button"
 												className={css.settingsRename}
-												aria-label="Rename Playground"
-												title="Rename"
+												aria-label={__(
+													'Rename Playground',
+													'playground-website'
+												)}
+												title={__(
+													'Rename',
+													'playground-website'
+												)}
 												onClick={() =>
 													inlineRename.start(
 														activeSite
@@ -1158,7 +1168,7 @@ export function Dock({
 								onClick={() => openSection('new')}
 							>
 								<Icon icon={plus} size={20} />
-								New Playground
+								{__('New Playground', 'playground-website')}
 							</button>
 						) : section === 'transfer' ? (
 							toolAction
@@ -1179,8 +1189,11 @@ export function Dock({
 					closeDisabled={paneCloseBlocked}
 					closeTitle={
 						paneCloseBlocked
-							? 'Wait for the current action to finish before closing'
-							: 'Close'
+							? __(
+									'Wait for the current action to finish before closing',
+									'playground-website'
+								)
+							: __('Close', 'playground-website')
 					}
 					onClose={() => {
 						if (!paneCloseBlocked) {
@@ -1209,8 +1222,8 @@ export function Dock({
 					role="group"
 					aria-label={
 						operationNotice.status === 'success'
-							? 'Operation succeeded'
-							: 'Operation failed'
+							? __('Operation succeeded', 'playground-website')
+							: __('Operation failed', 'playground-website')
 					}
 					style={operationToastStyle}
 				>
@@ -1228,8 +1241,14 @@ export function Dock({
 						type="button"
 						aria-label={
 							operationNotice.status === 'success'
-								? 'Dismiss operation notification'
-								: 'Dismiss operation error'
+								? __(
+										'Dismiss operation notification',
+										'playground-website'
+									)
+								: __(
+										'Dismiss operation error',
+										'playground-website'
+									)
 						}
 						onClick={() =>
 							dispatch(setDockOperationNotice(undefined))
@@ -1264,7 +1283,7 @@ export function Dock({
 				onPointerDown={handleDockPointerDown}
 				onPointerMove={updateDockSheen}
 				onPointerLeave={hideDockSheen}
-				aria-label="Playground tools"
+				aria-label={__('Playground tools', 'playground-website')}
 				oai-annotation-container=""
 				oai-annotatable="playground-dock"
 				oai-annotation-metadata={dockAnnotationMetadata}
@@ -1294,7 +1313,10 @@ export function Dock({
 									aria-label={
 										siteSettingsVisible
 											? undefined
-											: 'Playground title'
+											: __(
+													'Playground title',
+													'playground-website'
+												)
 									}
 									aria-hidden={
 										siteSettingsVisible || undefined
@@ -1322,13 +1344,21 @@ export function Dock({
 					<div className={css.dockTools} ref={toolsRef}>
 						<div
 							className={css.dockToolRow}
-							aria-label="Playground actions"
+							aria-label={__(
+								'Playground actions',
+								'playground-website'
+							)}
 							role="group"
 						>
 							{DOCK_TOOLS.filter(
 								(item) => item.group === 'main'
 							).map(renderTool)}
-							<Tooltip text="Developer tools">
+							<Tooltip
+								text={__(
+									'Developer tools',
+									'playground-website'
+								)}
+							>
 								<button
 									type="button"
 									ref={developerToggleRef}
@@ -1341,7 +1371,10 @@ export function Dock({
 												developerTools.isVisible,
 										}
 									)}
-									aria-label="Dev Tools"
+									aria-label={__(
+										'Dev Tools',
+										'playground-website'
+									)}
 									aria-expanded={developerTools.isVisible}
 									aria-controls="playground-developer-tools"
 									disabled={paneCloseBlocked}
@@ -1357,7 +1390,7 @@ export function Dock({
 										<Icon icon={code} />
 									</span>
 									<span className={css.dockLabel}>
-										Dev Tools
+										{__('Dev Tools', 'playground-website')}
 									</span>
 								</button>
 							</Tooltip>
@@ -1370,7 +1403,10 @@ export function Dock({
 										: 0,
 								}}
 								role="group"
-								aria-label="Developer tools"
+								aria-label={__(
+									'Developer tools',
+									'playground-website'
+								)}
 								hidden={!developerTools.isVisible}
 							>
 								<div

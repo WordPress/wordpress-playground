@@ -1,4 +1,5 @@
 import { Icon } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { useMemo, useRef, useState } from 'react';
 import { logger } from '@php-wasm/logger';
 import {
@@ -147,7 +148,10 @@ export function SiteFileBrowser({
 				// before reporting that provenance couldn't be recorded.
 				await fileEditorRef.current?.refreshPath(parentPath);
 				throw new Error(
-					'The repository was fetched, but Playground could not determine where it was installed.'
+					__(
+						'The repository was fetched, but Playground could not determine where it was installed.',
+						'playground-website'
+					)
 				);
 			}
 
@@ -167,7 +171,10 @@ export function SiteFileBrowser({
 			setMountError(
 				error instanceof Error
 					? error.message
-					: 'Could not mount the repository.'
+					: __(
+							'Could not mount the repository.',
+							'playground-website'
+						)
 			);
 		} finally {
 			setIsMounting(false);
@@ -188,7 +195,10 @@ export function SiteFileBrowser({
 				initialPath={initialTarget.path}
 				initialLine={initialTarget.line}
 				initialNotice={initialTarget.notice}
-				placeholderText="Start this Playground to browse and edit its files."
+				placeholderText={__(
+					'Start this Playground to browse and edit its files.',
+					'playground-website'
+				)}
 				dockPresentation
 				mobileHeaderTarget={mobileHeaderTarget}
 				pathBadges={pathBadges}
@@ -375,7 +385,12 @@ function useGitDirectoryPathBadges(
 						icon={isGitHubUrl(source.url) ? GitHubIcon : GitIcon}
 					/>
 				),
-				tooltip: `Mounted from ${repoLabel} (${refLabel})`,
+				tooltip: sprintf(
+					/* translators: 1: Repository path, 2: Git reference (branch, tag, or commit). */
+					__('Mounted from %1$s (%2$s)', 'playground-website'),
+					repoLabel,
+					refLabel
+				),
 			};
 		}
 		return badges;

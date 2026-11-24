@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
+import { __ } from '@wordpress/i18n';
 import type { SiteFormData } from './unconnected-site-settings-form';
 
 /**
@@ -30,7 +31,10 @@ export function useSiteSettingsSubmission(onSubmit?: () => void) {
 					setError(
 						cause instanceof Error
 							? cause.message
-							: 'Could not update Playground settings. Please try again.'
+							: __(
+									'Could not update Playground settings. Please try again.',
+									'playground-website'
+								)
 					);
 					return;
 				}

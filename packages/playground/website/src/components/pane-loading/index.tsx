@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { __ } from '@wordpress/i18n';
 import classNames from 'classnames';
 import { Spinner } from '../spinner';
 import css from './style.module.css';
@@ -24,7 +25,10 @@ export function PaneLoading({ message }: { message: string }) {
 export function PlaygroundBootNotice({
 	show,
 	className,
-	message = 'The Playground is still loading — these tools will be ready in a moment.',
+	message = __(
+		'The Playground is still loading — these tools will be ready in a moment.',
+		'playground-website'
+	),
 	gap = 'var(--space-3)',
 }: {
 	show: boolean;

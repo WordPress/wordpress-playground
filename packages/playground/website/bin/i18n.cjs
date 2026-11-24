@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-const childProcess = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
 const parser = require('@babel/parser');
@@ -15,25 +14,20 @@ const SRC_ROOT = path.join(WEBSITE_ROOT, 'src');
 const LANGUAGES_DIR = path.join(WEBSITE_ROOT, 'languages');
 const LOCALES_DIR = path.join(SRC_ROOT, 'lib/i18n/locales');
 const POT_FILE = path.join(LANGUAGES_DIR, `${TEXT_DOMAIN}.pot`);
-const LEGACY_REF = 'backup-add-site-internationalization-2026-05-18';
-const LEGACY_LOCALE_DIR = 'packages/playground/website/src/lib/i18n/locales';
 
 const LOCALES = [
 	{
 		locale: 'es_ES',
-		legacyLocale: 'es',
 		englishName: 'Spanish (Spain)',
 		pluralForms: 'nplurals=2; plural=(n != 1);',
 	},
 	{
 		locale: 'pt_BR',
-		legacyLocale: 'pt',
 		englishName: 'Portuguese (Brazil)',
 		pluralForms: 'nplurals=2; plural=(n > 1);',
 	},
 	{
 		locale: 'ja',
-		legacyLocale: 'ja',
 		englishName: 'Japanese',
 		pluralForms: 'nplurals=1; plural=0;',
 	},
@@ -61,9 +55,7 @@ function extract() {
 }
 
 function update() {
-	if (!fs.existsSync(POT_FILE)) {
-		extract();
-	}
+	extract();
 	const messages = readMessagesFromPo(POT_FILE);
 	ensureDir(LANGUAGES_DIR);
 	for (const locale of LOCALES) {
@@ -153,9 +145,6 @@ function readMessagesFromPo(poFile) {
 function writeLocalePo(locale, messages) {
 	const poFile = getPoFile(locale.locale);
 	const existingPo = fs.existsSync(poFile) ? parsePo(poFile) : null;
-	const legacyTranslations = existingPo
-		? new Map()
-		: readLegacyTranslations(locale);
 	const po = createPoFile({
 		headers: getLocaleHeaders(locale, existingPo),
 		messages,
@@ -163,10 +152,6 @@ function writeLocalePo(locale, messages) {
 			const existing = getExistingTranslation(existingPo, message);
 			if (hasTranslations(existing)) {
 				return existing;
-			}
-			const legacy = legacyTranslations.get(getMessageKey(message));
-			if (hasTranslations(legacy)) {
-				return legacy;
 			}
 			return getEmptyMsgstr(message, locale);
 		},
@@ -366,27 +351,6 @@ function getExistingTranslation(existingPo, message) {
 	}
 	const translations = existingPo.translations[message.msgctxt || ''];
 	return translations?.[message.msgid]?.msgstr;
-}
-
-function readLegacyTranslations(locale) {
-	const jsonPath = `${LEGACY_REF}:${LEGACY_LOCALE_DIR}/${locale.legacyLocale}.json`;
-	const result = childProcess.spawnSync('git', ['show', jsonPath], {
-		cwd: REPO_ROOT,
-		encoding: 'utf8',
-	});
-	if (result.status !== 0) {
-		return new Map();
-	}
-
-	const data = JSON.parse(result.stdout);
-	const translations = data.locale_data?.[TEXT_DOMAIN] || {};
-	const map = new Map();
-	for (const [key, value] of Object.entries(translations)) {
-		if (key && Array.isArray(value) && hasTranslations(value)) {
-			map.set(key.includes('\u0004') ? key : `\u0004${key}`, value);
-		}
-	}
-	return map;
 }
 
 function getEmptyMsgstr(message, locale) {

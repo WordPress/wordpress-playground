@@ -9,6 +9,8 @@ import {
 	TextControl,
 	Button,
 } from '@wordpress/components';
+import { createInterpolateElement } from '@wordpress/element';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import {
 	moreVertical,
 	download,
@@ -125,16 +127,21 @@ type BlueprintsIndexEntry = {
  * than resolving a Blueprint from the index, so its preview is a local,
  * CI-refreshed screenshot instead of one served from the Blueprints repo.
  */
-const VANILLA_WORDPRESS_CARD: BlueprintsIndexEntry = {
-	path: '__vanilla-wordpress__',
-	title: 'Vanilla WordPress',
-	description: 'A clean WordPress install — the default starting point.',
-	author: 'WordPress',
-	categories: [],
-	featured: true,
-	screenshot_url: vanillaScreenshot,
-	isVanilla: true,
-};
+function getVanillaWordPressCard(): BlueprintsIndexEntry {
+	return {
+		path: '__vanilla-wordpress__',
+		title: __('Vanilla WordPress', 'playground-website'),
+		description: __(
+			'A clean WordPress install — the default starting point.',
+			'playground-website'
+		),
+		author: 'WordPress',
+		categories: [],
+		featured: true,
+		screenshot_url: vanillaScreenshot,
+		isVanilla: true,
+	};
+}
 
 /**
  * The "New Playground" pane uses one top tab strip to choose how to start. The
@@ -209,8 +216,11 @@ export function SavedPlaygroundsPanel({
 				activeCreationTab === 'github' &&
 				isGitHubImportDetailsOpen
 				? {
-						title: 'Import from GitHub',
-						backLabel: 'Back to the GitHub repository URL',
+						title: __('Import from GitHub', 'playground-website'),
+						backLabel: __(
+							'Back to the GitHub repository URL',
+							'playground-website'
+						),
 						backButtonRef: creationBackButtonRef,
 						focusBackButton:
 							creationFocusTargetRef.current === 'back',
@@ -345,7 +355,12 @@ export function SavedPlaygroundsPanel({
 				return;
 			}
 			if (!file.name.toLowerCase().endsWith('.zip')) {
-				setZipImportError('Choose a WordPress Playground .zip export.');
+				setZipImportError(
+					__(
+						'Choose a WordPress Playground .zip export.',
+						'playground-website'
+					)
+				);
 				if (zipFileInputRef.current) {
 					zipFileInputRef.current.value = '';
 				}
@@ -364,11 +379,20 @@ export function SavedPlaygroundsPanel({
 						dispatch(
 							setDockOperationNotice({
 								status: 'success',
-								title: 'Playground imported',
+								title: __(
+									'Playground imported',
+									'playground-website'
+								),
 								message:
 									storage === 'temporary'
-										? 'Your Playground is ready. It’s available until you close this page.'
-										: 'Your Playground is ready. Autosave will finish in the background.',
+										? __(
+												'Your Playground is ready. It’s available until you close this page.',
+												'playground-website'
+											)
+										: __(
+												'Your Playground is ready. Autosave will finish in the background.',
+												'playground-website'
+											),
 							})
 						);
 					},
@@ -379,15 +403,23 @@ export function SavedPlaygroundsPanel({
 					dispatch(
 						setDockOperationNotice({
 							status: 'error',
-							title: 'Couldn’t autosave imported Playground',
-							message:
+							title: __(
+								'Couldn’t autosave imported Playground',
+								'playground-website'
+							),
+							message: __(
 								'The imported page was ready, but its browser autosave failed.',
+								'playground-website'
+							),
 						})
 					);
 					return;
 				}
 				setZipImportError(
-					'Unable to import this file. Is it a valid WordPress Playground export?'
+					__(
+						'Unable to import this file. Is it a valid WordPress Playground export?',
+						'playground-website'
+					)
 				);
 				dispatch(setDockPaneOpen(true));
 			} finally {
@@ -494,7 +526,7 @@ export function SavedPlaygroundsPanel({
 	const allBlueprints: BlueprintsIndexEntry[] = [
 		// Vanilla WordPress is always the first card and shows immediately, even
 		// while the remote Blueprint index is still loading.
-		VANILLA_WORDPRESS_CARD,
+		getVanillaWordPressCard(),
 		...(blueprintsData
 			? Object.entries(blueprintsData).map(([path, entry]) => ({
 					...entry,
@@ -533,8 +565,15 @@ export function SavedPlaygroundsPanel({
 			dispatch(
 				setDockOperationNotice({
 					status: 'error',
-					title: `Couldn’t open “${site?.metadata.name ?? slug}”`,
-					message: 'This Playground is still available in your list.',
+					title: sprintf(
+						/* translators: %s: Playground name. */
+						__('Couldn’t open “%s”', 'playground-website'),
+						site?.metadata.name ?? slug
+					),
+					message: __(
+						'This Playground is still available in your list.',
+						'playground-website'
+					),
 				})
 			);
 		});
@@ -648,8 +687,18 @@ export function SavedPlaygroundsPanel({
 			dispatch(
 				setDockOperationNotice({
 					status: 'error',
-					title: `Couldn’t store “${site.metadata.name}” in browser storage`,
-					message: 'No changes were made to this Playground.',
+					title: sprintf(
+						/* translators: %s: Playground name. */
+						__(
+							'Couldn’t store “%s” in browser storage',
+							'playground-website'
+						),
+						site.metadata.name
+					),
+					message: __(
+						'No changes were made to this Playground.',
+						'playground-website'
+					),
 				})
 			);
 		});
@@ -689,8 +738,15 @@ export function SavedPlaygroundsPanel({
 			dispatch(
 				setDockOperationNotice({
 					status: 'error',
-					title: `Couldn’t save ${site.metadata.name} locally`,
-					message: 'The Playground in your browser is unchanged.',
+					title: sprintf(
+						/* translators: %s: Playground name. */
+						__('Couldn’t save %s locally', 'playground-website'),
+						site.metadata.name
+					),
+					message: __(
+						'The Playground in your browser is unchanged.',
+						'playground-website'
+					),
 				})
 			);
 		}
@@ -700,10 +756,10 @@ export function SavedPlaygroundsPanel({
 	// on runtime/date details or the local-directory location.
 	const getStoredSiteDetails = (site: SiteInfo) => {
 		if (site.metadata.storage === 'none') {
-			return 'Not saved to browser storage';
+			return __('Not saved to browser storage', 'playground-website');
 		}
 		if (site.metadata.storage === 'local-fs') {
-			return 'Local directory';
+			return __('Local directory', 'playground-website');
 		}
 		const createdDate = formatSiteCreatedDate(site);
 		return isAutosavedSite(site)
@@ -714,7 +770,11 @@ export function SavedPlaygroundsPanel({
 	const getCurrentSiteDetails = (site: SiteInfo) => {
 		return [
 			getRuntimeLabel(site),
-			`Started from ${getSourceLabel(site)}`,
+			sprintf(
+				/* translators: %s: Origin of the Playground, e.g. "default WordPress" or "inline Blueprint". */
+				__('Started from %s', 'playground-website'),
+				getSourceLabel(site)
+			),
 		].join(' · ');
 	};
 
@@ -723,12 +783,21 @@ export function SavedPlaygroundsPanel({
 	// encodes how permanent the Playground is.
 	const getCurrentSiteStatusPill = (site: SiteInfo) => {
 		if (site.metadata.storage === 'none') {
-			return { label: 'Unsaved', className: css.statusPillUnsaved };
+			return {
+				label: __('Unsaved', 'playground-website'),
+				className: css.statusPillUnsaved,
+			};
 		}
 		if (isAutosavedSite(site)) {
-			return { label: 'Autosaved', className: css.statusPillAutosaved };
+			return {
+				label: __('Autosaved', 'playground-website'),
+				className: css.statusPillAutosaved,
+			};
 		}
-		return { label: 'Saved', className: css.statusPillSaved };
+		return {
+			label: __('Saved', 'playground-website'),
+			className: css.statusPillSaved,
+		};
 	};
 
 	const getRuntimeLabel = (site: SiteInfo) => {
@@ -739,12 +808,20 @@ export function SavedPlaygroundsPanel({
 	const getSourceLabel = (site: SiteInfo) => {
 		const corePr = getOriginalSearchParam(site, 'core-pr');
 		if (corePr) {
-			return `WordPress PR #${corePr}`;
+			return sprintf(
+				/* translators: %s: WordPress Core pull request number. */
+				__('WordPress PR #%s', 'playground-website'),
+				corePr
+			);
 		}
 
 		const gutenbergPr = getOriginalSearchParam(site, 'gutenberg-pr');
 		if (gutenbergPr) {
-			return `Gutenberg PR #${gutenbergPr}`;
+			return sprintf(
+				/* translators: %s: Gutenberg pull request number. */
+				__('Gutenberg PR #%s', 'playground-website'),
+				gutenbergPr
+			);
 		}
 
 		const gutenbergBranch = getOriginalSearchParam(
@@ -752,7 +829,11 @@ export function SavedPlaygroundsPanel({
 			'gutenberg-branch'
 		);
 		if (gutenbergBranch) {
-			return `Gutenberg branch ${gutenbergBranch}`;
+			return sprintf(
+				/* translators: %s: Gutenberg git branch name. */
+				__('Gutenberg branch %s', 'playground-website'),
+				gutenbergBranch
+			);
 		}
 
 		// Autosaving repoints originalBlueprintSource to the persisted OPFS bundle
@@ -770,12 +851,12 @@ export function SavedPlaygroundsPanel({
 			return getRemoteBlueprintLabel(source.url);
 		}
 		if (source.type === 'inline-string') {
-			return 'inline Blueprint';
+			return __('inline Blueprint', 'playground-website');
 		}
 		if (source.type === 'opfs-site') {
-			return 'saved Playground files';
+			return __('saved Playground files', 'playground-website');
 		}
-		return 'default WordPress';
+		return __('default WordPress', 'playground-website');
 	};
 
 	const getOriginalSearchParam = (site: SiteInfo, name: string) => {
@@ -789,11 +870,19 @@ export function SavedPlaygroundsPanel({
 			const pathParts = parsed.pathname.split('/').filter(Boolean);
 			const filename = pathParts[pathParts.length - 2];
 			if (parsed.hostname === 'raw.githubusercontent.com' && filename) {
-				return `${formatBlueprintSlug(filename)} Blueprint`;
+				return sprintf(
+					/* translators: %s: Human-readable Blueprint name. */
+					__('%s Blueprint', 'playground-website'),
+					formatBlueprintSlug(filename)
+				);
 			}
-			return `Blueprint URL on ${parsed.hostname}`;
+			return sprintf(
+				/* translators: %s: Hostname where the Blueprint is hosted. */
+				__('Blueprint URL on %s', 'playground-website'),
+				parsed.hostname
+			);
 		} catch {
-			return 'remote Blueprint';
+			return __('remote Blueprint', 'playground-website');
 		}
 	};
 
@@ -858,7 +947,9 @@ export function SavedPlaygroundsPanel({
 		}
 		const client = sitesAPI.getClient();
 		if (!client) {
-			throw new Error('No active Playground to import into.');
+			throw new Error(
+				__('No active Playground to import into.', 'playground-website')
+			);
 		}
 		return client;
 	};
@@ -949,42 +1040,42 @@ export function SavedPlaygroundsPanel({
 	}[] = [
 		{
 			id: 'gallery',
-			label: 'Blueprint gallery',
-			panelTitle: 'Start from a Blueprint',
+			label: __('Blueprint gallery', 'playground-website'),
+			panelTitle: __('Start from a Blueprint', 'playground-website'),
 			icon: <Icon icon={layout} size={20} />,
 			disabled: false,
 		},
 		{
 			id: 'blueprint-url',
-			label: 'From a URL',
-			panelTitle: 'Blueprint from a URL',
+			label: __('From a URL', 'playground-website'),
+			panelTitle: __('Blueprint from a URL', 'playground-website'),
 			icon: <Icon icon={link} size={20} />,
 			disabled: offline,
 		},
 		{
 			id: 'write-own',
-			label: 'Write a Blueprint',
-			panelTitle: 'Write a Blueprint',
+			label: __('Write a Blueprint', 'playground-website'),
+			panelTitle: __('Write a Blueprint', 'playground-website'),
 			icon: <Icon icon={pencil} size={20} />,
 			disabled: false,
 		},
 		{
 			id: 'pull-request',
-			label: 'Preview a PR',
+			label: __('Preview a PR', 'playground-website'),
 			icon: <PullRequestIcon />,
 			disabled: offline,
 		},
 		{
 			id: 'github',
-			label: 'From GitHub',
-			panelTitle: 'Import from GitHub',
+			label: __('From GitHub', 'playground-website'),
+			panelTitle: __('Import from GitHub', 'playground-website'),
 			icon: GitHubIcon,
 			disabled: offline,
 		},
 		{
 			id: 'zip',
-			label: 'Import zip',
-			panelTitle: 'Import a .zip export',
+			label: __('Import zip', 'playground-website'),
+			panelTitle: __('Import a .zip export', 'playground-website'),
 			icon: <Icon icon={upload} size={20} />,
 			disabled: false,
 		},
@@ -1079,7 +1170,17 @@ export function SavedPlaygroundsPanel({
 				hour: 'numeric',
 				minute: '2-digit',
 			});
-			return `${dayDiff === 0 ? 'Today' : 'Yesterday'} at ${time}`;
+			return dayDiff === 0
+				? sprintf(
+						/* translators: %s: Formatted local time, e.g. "2:30 PM". */
+						__('Today at %s', 'playground-website'),
+						time
+					)
+				: sprintf(
+						/* translators: %s: Formatted local time, e.g. "2:30 PM". */
+						__('Yesterday at %s', 'playground-website'),
+						time
+					);
 		}
 		return created.toLocaleDateString(undefined, {
 			year: 'numeric',
@@ -1105,13 +1206,17 @@ export function SavedPlaygroundsPanel({
 			localFsAvailability === 'available'
 				? undefined
 				: localFsAvailability === null
-					? 'Checking availability…'
-					: 'Not available in this browser';
+					? __('Checking availability…', 'playground-website')
+					: __('Not available in this browser', 'playground-website');
 		return (
 			<div className={css.siteRowActions}>
 				<DropdownMenu
 					icon={moreVertical}
-					label={`Actions for ${site.metadata.name}`}
+					label={sprintf(
+						/* translators: %s: Playground name. */
+						__('Actions for %s', 'playground-website'),
+						site.metadata.name
+					)}
 					className={css.siteRowMenu}
 					toggleProps={{ disabled: isImportingZip }}
 					popoverProps={{ placement: 'top-end' }}
@@ -1129,13 +1234,22 @@ export function SavedPlaygroundsPanel({
 										}
 										info={
 											site.metadata.storage !== 'opfs'
-												? 'Storage can’t be changed'
+												? __(
+														'Storage can’t be changed',
+														'playground-website'
+													)
 												: undefined
 										}
 									>
 										{site.metadata.storage === 'opfs'
-											? 'Saved in browser storage'
-											: 'Save in browser storage'}
+											? __(
+													'Saved in browser storage',
+													'playground-website'
+												)
+											: __(
+													'Save in browser storage',
+													'playground-website'
+												)}
 									</MenuItem>
 									<MenuItem
 										disabled
@@ -1146,23 +1260,40 @@ export function SavedPlaygroundsPanel({
 										}
 										info={
 											site.metadata.storage !== 'local-fs'
-												? 'Storage can’t be changed'
+												? __(
+														'Storage can’t be changed',
+														'playground-website'
+													)
 												: undefined
 										}
 									>
 										{site.metadata.storage === 'local-fs'
-											? 'Saved in a local directory'
-											: 'Save in a local directory'}
+											? __(
+													'Saved in a local directory',
+													'playground-website'
+												)
+											: __(
+													'Save in a local directory',
+													'playground-website'
+												)}
 									</MenuItem>
 								</MenuGroup>
 							)}
 							{isTemporary && (
-								<MenuGroup label="Save Playground">
+								<MenuGroup
+									label={__(
+										'Save Playground',
+										'playground-website'
+									)}
+								>
 									<MenuItem
 										disabled={!isOpfsAvailable}
 										info={
 											!isOpfsAvailable
-												? 'Not available in this browser'
+												? __(
+														'Not available in this browser',
+														'playground-website'
+													)
 												: undefined
 										}
 										onClick={() =>
@@ -1172,7 +1303,10 @@ export function SavedPlaygroundsPanel({
 											)
 										}
 									>
-										Save in browser storage
+										{__(
+											'Save in browser storage',
+											'playground-website'
+										)}
 									</MenuItem>
 									<MenuItem
 										disabled={!!localFsUnavailableReason}
@@ -1184,7 +1318,10 @@ export function SavedPlaygroundsPanel({
 											)
 										}
 									>
-										Save in a local directory…
+										{__(
+											'Save in a local directory…',
+											'playground-website'
+										)}
 									</MenuItem>
 								</MenuGroup>
 							)}
@@ -1194,7 +1331,10 @@ export function SavedPlaygroundsPanel({
 										disabled={!isOpfsAvailable}
 										info={
 											!isOpfsAvailable
-												? 'Browser storage is unavailable'
+												? __(
+														'Browser storage is unavailable',
+														'playground-website'
+													)
 												: undefined
 										}
 										onClick={() =>
@@ -1204,7 +1344,10 @@ export function SavedPlaygroundsPanel({
 											)
 										}
 									>
-										Keep autosave permanently
+										{__(
+											'Keep autosave permanently',
+											'playground-website'
+										)}
 									</MenuItem>
 								</MenuGroup>
 							)}
@@ -1216,7 +1359,7 @@ export function SavedPlaygroundsPanel({
 											handleRenameSite(site);
 										}}
 									>
-										Rename
+										{__('Rename', 'playground-website')}
 									</MenuItem>
 									{/* You can't delete the Playground you're currently in:
 									    deleting it would swap the view out from under you.
@@ -1226,7 +1369,10 @@ export function SavedPlaygroundsPanel({
 										className={css.dangerMenuItem}
 										info={
 											isActiveSite
-												? 'Switch to another Playground first to delete this one.'
+												? __(
+														'Switch to another Playground first to delete this one.',
+														'playground-website'
+													)
 												: undefined
 										}
 										aria-disabled={isActiveSite}
@@ -1240,7 +1386,7 @@ export function SavedPlaygroundsPanel({
 														)
 										}
 									>
-										Delete
+										{__('Delete', 'playground-website')}
 									</MenuItemWithDescription>
 								</MenuGroup>
 							)}
@@ -1280,7 +1426,11 @@ export function SavedPlaygroundsPanel({
 				: {
 						role: 'button',
 						tabIndex: 0,
-						'aria-label': `Open ${site.metadata.name}`,
+						'aria-label': sprintf(
+							/* translators: %s: Playground name. */
+							__('Open %s', 'playground-website'),
+							site.metadata.name
+						),
 						onClick: () => onSiteClick(site.slug),
 						onKeyDown: (event: React.KeyboardEvent) => {
 							if (event.key === 'Enter' || event.key === ' ') {
@@ -1380,14 +1530,20 @@ export function SavedPlaygroundsPanel({
 			<OverlaySection className={css.playgroundsSection}>
 				{!hasSites ? (
 					<p className={css.emptyMessage}>
-						No Playgrounds available yet.
+						{__(
+							'No Playgrounds available yet.',
+							'playground-website'
+						)}
 					</p>
 				) : (
 					<>
 						{activeSite && (
 							<div className={css.siteGroup}>
 								<h3 className={css.siteGroupTitle}>
-									Current Playground
+									{__(
+										'Current Playground',
+										'playground-website'
+									)}
 								</h3>
 								<div
 									className={classNames(
@@ -1399,8 +1555,14 @@ export function SavedPlaygroundsPanel({
 								</div>
 							</div>
 						)}
-						{renderSiteGroup('Recent autosaves', recentSites)}
-						{renderSiteGroup('Saved', visibleSavedSites)}
+						{renderSiteGroup(
+							__('Recent autosaves', 'playground-website'),
+							recentSites
+						)}
+						{renderSiteGroup(
+							__('Saved', 'playground-website'),
+							visibleSavedSites
+						)}
 					</>
 				)}
 				{savedSites.length > MAX_VISIBLE_STORED_SITES && (
@@ -1413,8 +1575,17 @@ export function SavedPlaygroundsPanel({
 						}
 					>
 						{showAllStoredSites
-							? 'Show fewer Playgrounds'
-							: `Show ${hiddenSavedSitesCount} more Playgrounds`}
+							? __('Show fewer Playgrounds', 'playground-website')
+							: sprintf(
+									/* translators: %d: Number of hidden saved Playgrounds. */
+									_n(
+										'Show %d more Playground',
+										'Show %d more Playgrounds',
+										hiddenSavedSitesCount,
+										'playground-website'
+									),
+									hiddenSavedSitesCount
+								)}
 					</button>
 				)}
 			</OverlaySection>
@@ -1455,7 +1626,10 @@ export function SavedPlaygroundsPanel({
 					<div
 						className={css.creationTabs}
 						role="tablist"
-						aria-label="Ways to start a new Playground"
+						aria-label={__(
+							'Ways to start a new Playground',
+							'playground-website'
+						)}
 					>
 						{creationMethods.map((method) => (
 							<button
@@ -1478,7 +1652,10 @@ export function SavedPlaygroundsPanel({
 								disabled={method.disabled || isImportingZip}
 								title={
 									method.disabled
-										? 'Needs an internet connection — unavailable offline'
+										? __(
+												'Needs an internet connection — unavailable offline',
+												'playground-website'
+											)
 										: undefined
 								}
 							>
@@ -1492,7 +1669,7 @@ export function SavedPlaygroundsPanel({
 						))}
 					</div>
 					<div className={css.creationDivider} aria-hidden="true">
-						or
+						{__('or', 'playground-website')}
 					</div>
 					<button
 						type="button"
@@ -1504,7 +1681,10 @@ export function SavedPlaygroundsPanel({
 						disabled={offline || isImportingZip}
 						title={
 							offline
-								? 'Needs an internet connection — unavailable offline'
+								? __(
+										'Needs an internet connection — unavailable offline',
+										'playground-website'
+									)
 								: undefined
 						}
 						onClick={handleCloneClick}
@@ -1513,7 +1693,7 @@ export function SavedPlaygroundsPanel({
 							<Icon icon={download} size={20} />
 						</span>
 						<span className={css.creationTitle}>
-							Clone a live site
+							{__('Clone a live site', 'playground-website')}
 						</span>
 					</button>
 				</div>
@@ -1575,10 +1755,16 @@ export function SavedPlaygroundsPanel({
 						</span>
 						<div>
 							<p className={css.blueprintsErrorTitle}>
-								The Blueprint gallery couldn’t load
+								{__(
+									'The Blueprint gallery couldn’t load',
+									'playground-website'
+								)}
 							</p>
 							<p className={css.blueprintsErrorMessage}>
-								Check your internet connection and try again.
+								{__(
+									'Check your internet connection and try again.',
+									'playground-website'
+								)}
 							</p>
 						</div>
 					</div>
@@ -1587,7 +1773,10 @@ export function SavedPlaygroundsPanel({
 					!blueprintsError &&
 					filteredBlueprints.length === 0 && (
 						<p className={css.emptyMessage}>
-							No Blueprints found matching your criteria.
+							{__(
+								'No Blueprints found matching your criteria.',
+								'playground-website'
+							)}
 						</p>
 					)}
 			</>
@@ -1604,27 +1793,25 @@ export function SavedPlaygroundsPanel({
 						className={classNames(css.inlineForm, css.writeOwnFlow)}
 					>
 						<p className={css.inlineFormHint}>
-							{activeSite?.metadata.storage === 'none' ? (
-								<>
-									Tweak this Playground's Blueprint, then
-									create a new Playground from it — or
-									continue in the full Blueprint editor for a
-									file tree and more room.{' '}
-								</>
-							) : (
-								<>
-									Create a new Playground from this draft. The
-									full Blueprint editor opens this
-									Playground's stored Blueprint instead.{' '}
-								</>
-							)}
+							{activeSite?.metadata.storage === 'none'
+								? __(
+										"Tweak this Playground's Blueprint, then create a new Playground from it — or continue in the full Blueprint editor for a file tree and more room.",
+										'playground-website'
+									)
+								: __(
+										"Create a new Playground from this draft. The full Blueprint editor opens this Playground's stored Blueprint instead.",
+										'playground-website'
+									)}{' '}
 							<a
 								className={css.inlineFormLink}
 								href="https://wordpress.github.io/wordpress-playground/blueprints"
 								target="_blank"
 								rel="noreferrer"
 							>
-								What are Blueprints?
+								{__(
+									'What are Blueprints?',
+									'playground-website'
+								)}
 							</a>
 						</p>
 						<div className={css.writeOwnEditor}>
@@ -1632,8 +1819,14 @@ export function SavedPlaygroundsPanel({
 								type="button"
 								className={css.writeOwnExpand}
 								disabled={isImportingZip}
-								aria-label="Open the full Blueprint editor"
-								title="Open the full Blueprint editor"
+								aria-label={__(
+									'Open the full Blueprint editor',
+									'playground-website'
+								)}
+								title={__(
+									'Open the full Blueprint editor',
+									'playground-website'
+								)}
 								onClick={openInFullEditor}
 							>
 								<Icon icon={fullscreen} size={20} />
@@ -1660,7 +1853,7 @@ export function SavedPlaygroundsPanel({
 								onClick={createFromEditor}
 								disabled={isImportingZip || !isWriteOwnValid}
 							>
-								Create Playground
+								{__('Create Playground', 'playground-website')}
 							</Button>
 						</div>
 					</div>
@@ -1693,7 +1886,10 @@ export function SavedPlaygroundsPanel({
 								githubExportSession.recordImport(details);
 								// eslint-disable-next-line no-alert
 								alert(
-									'Import finished! Your Playground has been updated.'
+									__(
+										'Import finished! Your Playground has been updated.',
+										'playground-website'
+									)
 								);
 								onClose();
 							}}
@@ -1711,7 +1907,7 @@ export function SavedPlaygroundsPanel({
 					>
 						<TextControl
 							__nextHasNoMarginBottom
-							label="Blueprint URL"
+							label={__('Blueprint URL', 'playground-website')}
 							hideLabelFromVision
 							value={blueprintUrlInput}
 							onChange={(value: string) =>
@@ -1721,8 +1917,10 @@ export function SavedPlaygroundsPanel({
 							type="url"
 						/>
 						<p className={css.inlineFormHint}>
-							Runs a Blueprint hosted at a public URL as a fresh
-							Playground.
+							{__(
+								'Runs a Blueprint hosted at a public URL as a fresh Playground.',
+								'playground-website'
+							)}
 						</p>
 						<div className={css.inlineFormActions}>
 							<Button
@@ -1732,7 +1930,7 @@ export function SavedPlaygroundsPanel({
 									isImportingZip || !blueprintUrlInput.trim()
 								}
 							>
-								Create Playground
+								{__('Create Playground', 'playground-website')}
 							</Button>
 						</div>
 					</form>
@@ -1751,15 +1949,25 @@ export function SavedPlaygroundsPanel({
 										<Icon icon={upload} size={56} />
 									</span>
 									<span className={css.zipDropOverlayTitle}>
-										Drop a Playground ZIP here
+										{__(
+											'Drop a Playground ZIP here',
+											'playground-website'
+										)}
 									</span>
 								</div>,
 								document.body
 							)}
 						<div className={css.inlineForm}>
 							<p className={css.inlineFormHint}>
-								Import a WordPress Playground <code>.zip</code>{' '}
-								export to start a new Playground from it.
+								{createInterpolateElement(
+									__(
+										'Import a WordPress Playground <code>.zip</code> export to start a new Playground from it.',
+										'playground-website'
+									),
+									{
+										code: <code />,
+									}
+								)}
 							</p>
 							<button
 								type="button"
@@ -1772,10 +1980,16 @@ export function SavedPlaygroundsPanel({
 									<Icon icon={upload} size={32} />
 								</span>
 								<span className={css.zipDropzoneTitle}>
-									Drop a Playground ZIP here
+									{__(
+										'Drop a Playground ZIP here',
+										'playground-website'
+									)}
 								</span>
 								<span className={css.zipDropzoneHint}>
-									or click to choose a file
+									{__(
+										'or click to choose a file',
+										'playground-website'
+									)}
 								</span>
 							</button>
 							{zipImportError && (
@@ -1819,8 +2033,14 @@ export function SavedPlaygroundsPanel({
 						name="blueprint-search"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
-						placeholder="Search Blueprints"
-						aria-label="Search Blueprints"
+						placeholder={__(
+							'Search Blueprints',
+							'playground-website'
+						)}
+						aria-label={__(
+							'Search Blueprints',
+							'playground-website'
+						)}
 						className={css.searchField}
 					/>
 				</div>
@@ -1836,7 +2056,10 @@ export function SavedPlaygroundsPanel({
 				disabled={isImportingZip}
 				aria-label={
 					blueprint.isVanilla
-						? 'Vanilla WordPress - New Playground'
+						? __(
+								'Vanilla WordPress - New Playground',
+								'playground-website'
+							)
 						: undefined
 				}
 				onClick={() =>
@@ -1858,7 +2081,9 @@ export function SavedPlaygroundsPanel({
 						</div>
 					)}
 					{blueprint.isVanilla && (
-						<span className={css.blueprintBadge}>Default</span>
+						<span className={css.blueprintBadge}>
+							{__('Default', 'playground-website')}
+						</span>
 					)}
 				</div>
 				<span className={css.blueprintPreviewBody}>
@@ -1949,12 +2174,25 @@ function getActiveSiteSyncLabel(
 	if (opfsSync?.status !== 'syncing') {
 		return undefined;
 	}
-	const verb = opfsSync.operation === 'autosave' ? 'Autosaving' : 'Saving';
+	const isAutosave = opfsSync.operation === 'autosave';
 	const { progress } = opfsSync;
 	if (progress && progress.total > 0) {
-		return `${verb}… ${getOpfsSyncProgressPercent(progress)}%`;
+		const percent = getOpfsSyncProgressPercent(progress);
+		return isAutosave
+			? sprintf(
+					/* translators: %d: Autosave completion percentage. */
+					__('Autosaving… %d%%', 'playground-website'),
+					percent
+				)
+			: sprintf(
+					/* translators: %d: Save completion percentage. */
+					__('Saving… %d%%', 'playground-website'),
+					percent
+				);
 	}
-	return `${verb}…`;
+	return isAutosave
+		? __('Autosaving…', 'playground-website')
+		: __('Saving…', 'playground-website');
 }
 
 function isCreationTabDisabled(tab: CreationTabId, offline: boolean) {

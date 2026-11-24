@@ -42,6 +42,7 @@ export function MissingSiteModal() {
 		>
 			<p>
 				{sprintf(
+					/* translators: %s: Name of the requested Playground that could not be found. */
 					__(
 						'The %s Playground does not exist, so we loaded an Unsaved Playground instead.',
 						'playground-website'

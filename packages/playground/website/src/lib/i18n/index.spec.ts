@@ -28,17 +28,13 @@ describe('website i18n', () => {
 
 	it('falls back to English when a runtime locale cannot load', async () => {
 		await expect(initializeI18n('es_ES')).resolves.toBe('es_ES');
-		expect(__('Playground settings', TEXT_DOMAIN)).toBe(
-			'Configuración de Playground'
-		);
+		expect(__('Download as .zip', TEXT_DOMAIN)).toBe('Descargar como .zip');
 
 		const locale = await initializeI18n(
 			'de_DE' as Parameters<typeof initializeI18n>[0]
 		);
 		expect(locale).toBe(DEFAULT_LOCALE);
 		expect(getActiveLocale()).toBe(DEFAULT_LOCALE);
-		expect(__('Playground settings', TEXT_DOMAIN)).toBe(
-			'Playground settings'
-		);
+		expect(__('Download as .zip', TEXT_DOMAIN)).toBe('Download as .zip');
 	});
 });

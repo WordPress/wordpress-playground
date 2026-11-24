@@ -129,6 +129,7 @@ export function PhpMyAdminButton({
 			{error && (
 				<div className={css.error}>
 					{sprintf(
+						/* translators: %s: Error message from installing phpMyAdmin. */
 						__(
 							'Failed to install phpMyAdmin. Please try again. Error: %s',
 							'playground-website'

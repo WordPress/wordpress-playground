@@ -7,6 +7,7 @@ import {
 	__experimentalText as Text,
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import type { Email } from 'postal-mime';
 import { useState } from 'react';
 import {
@@ -27,16 +28,24 @@ export function SiteMailPanel() {
 
 	if (!selectedMail) {
 		return (
-			<section className={css.mailEmptyState} aria-label="Email">
+			<section
+				className={css.mailEmptyState}
+				aria-label={__('Email', 'playground-website')}
+			>
 				<Notice
 					className={css.mailEmptyStateNotice}
 					status="info"
 					isDismissible={false}
 				>
 					<VStack spacing={2}>
-						<Heading level={2}>No emails yet</Heading>
+						<Heading level={2}>
+							{__('No emails yet', 'playground-website')}
+						</Heading>
 						<Text>
-							Emails sent by this Playground will appear here.
+							{__(
+								'Emails sent by this Playground will appear here.',
+								'playground-website'
+							)}
 						</Text>
 					</VStack>
 				</Notice>
@@ -45,11 +54,17 @@ export function SiteMailPanel() {
 	}
 
 	return (
-		<section className={css.mailPanel} aria-label="Email">
-			<aside className={css.mailPanelList} aria-label="Sent emails">
+		<section
+			className={css.mailPanel}
+			aria-label={__('Email', 'playground-website')}
+		>
+			<aside
+				className={css.mailPanelList}
+				aria-label={__('Sent emails', 'playground-website')}
+			>
 				<HStack className={css.mailPanelListHeader}>
 					<Text as="h2" weight={600}>
-						Sent
+						{__('Sent', 'playground-website')}
 					</Text>
 					<Text variant="muted">{emails.length}</Text>
 				</HStack>
@@ -73,7 +88,10 @@ export function SiteMailPanel() {
 										<Text variant="muted" truncate>
 											{message.from
 												? formatAddress(message.from)
-												: 'Unknown sender'}
+												: __(
+														'Unknown sender',
+														'playground-website'
+													)}
 										</Text>
 										{message.date && (
 											<Text

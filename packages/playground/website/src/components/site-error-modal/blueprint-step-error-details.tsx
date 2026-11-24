@@ -13,6 +13,7 @@ export function BlueprintStepErrorDetails({ stepError }: Props) {
 			<div className={css.stepErrorHeader}>
 				<p className={css.stepErrorTitle}>
 					{sprintf(
+						/* translators: 1: Step number in the Blueprint, 2: Description of the step action. */
 						__(
 							'Blueprint failed at step #%1$d: Could not %2$s.',
 							'playground-website'

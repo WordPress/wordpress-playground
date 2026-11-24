@@ -13,6 +13,7 @@ import type {
 	ReactNode,
 	RefObject,
 } from 'react';
+import { __, sprintf } from '@wordpress/i18n';
 import { Icon, chevronLeft, close } from '@wordpress/icons';
 import css from './style.module.css';
 
@@ -94,17 +95,18 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 		const displayedDescription = headerOverride
 			? headerOverride.description
 			: description;
+		const closeLabel = __('Close', 'playground-website');
 		const closeDescription =
-			closeTitle && closeTitle !== 'Close' ? closeTitle : undefined;
+			closeTitle && closeTitle !== closeLabel ? closeTitle : undefined;
 		const closeButton = onClose ? (
 			<button
 				type="button"
 				className={css.paneClose}
-				aria-label="Close"
+				aria-label={closeLabel}
 				aria-describedby={
 					closeDescription ? closeDescriptionId : undefined
 				}
-				title={closeTitle ?? 'Close'}
+				title={closeTitle ?? closeLabel}
 				disabled={closeDisabled}
 				onClick={onClose}
 			>
@@ -133,7 +135,14 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 				style={style}
 				role="dialog"
 				tabIndex={-1}
-				aria-label={ariaLabel ?? `${displayedTitle} pane`}
+				aria-label={
+					ariaLabel ??
+					sprintf(
+						/* translators: %s: Dock pane title. */
+						__('%s pane', 'playground-website'),
+						displayedTitle
+					)
+				}
 				oai-annotation-container=""
 				oai-annotation-metadata={annotationMetadata}
 				oai-annotatable={

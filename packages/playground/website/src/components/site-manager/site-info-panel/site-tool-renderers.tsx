@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Notice } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import type { PlaygroundClient } from '@wp-playground/client';
 import type { DockPaneBackAction } from '../../dock/dock-pane';
 import type { SiteInfo } from '../../../lib/state/redux/slice-sites';
@@ -97,7 +98,12 @@ export function FilesTool({
 			() => {
 				if (!cancelled) {
 					setDocumentRoot(
-						new Error('Could not load Playground files.')
+						new Error(
+							__(
+								'Could not load Playground files.',
+								'playground-website'
+							)
+						)
 					);
 				}
 			}
@@ -114,7 +120,7 @@ export function FilesTool({
 					isDismissible={false}
 					actions={[
 						{
-							label: 'Retry',
+							label: __('Retry', 'playground-website'),
 							onClick: () =>
 								setLoadAttempt((attempt) => attempt + 1),
 						},
@@ -127,7 +133,14 @@ export function FilesTool({
 	}
 	return (
 		<Suspense
-			fallback={<PaneLoading message="Loading the file browser…" />}
+			fallback={
+				<PaneLoading
+					message={__(
+						'Loading the file browser…',
+						'playground-website'
+					)}
+				/>
+			}
 		>
 			{documentRoot ? (
 				<SiteFileBrowser
@@ -138,7 +151,12 @@ export function FilesTool({
 					mobileHeaderTarget={mobileHeaderTarget}
 				/>
 			) : (
-				<PaneLoading message="Playground files are still loading…" />
+				<PaneLoading
+					message={__(
+						'Playground files are still loading…',
+						'playground-website'
+					)}
+				/>
 			)}
 		</Suspense>
 	);
@@ -150,7 +168,14 @@ export function BlueprintTool({
 }: SiteToolPanelProps): JSX.Element {
 	return (
 		<Suspense
-			fallback={<PaneLoading message="Loading the Blueprint editor…" />}
+			fallback={
+				<PaneLoading
+					message={__(
+						'Loading the Blueprint editor…',
+						'playground-website'
+					)}
+				/>
+			}
 		>
 			<SiteBlueprintBundleEditor
 				key={site.slug}
@@ -175,7 +200,13 @@ export function DatabaseTool({ playground }: SiteToolPanelProps): JSX.Element {
 
 export function TerminalTool({ playground }: SiteToolPanelProps): JSX.Element {
 	return (
-		<Suspense fallback={<PaneLoading message="Loading Terminal…" />}>
+		<Suspense
+			fallback={
+				<PaneLoading
+					message={__('Loading Terminal…', 'playground-website')}
+				/>
+			}
+		>
 			<SiteTerminalPanel playground={playground} />
 		</Suspense>
 	);
@@ -198,7 +229,13 @@ export function TransferTool(props: SiteToolPanelProps): JSX.Element {
 	// A clone starts from an empty form even when this site's panel was used.
 	const cloneRequested = useAppSelector((state) => state.ui.cloneRequested);
 	return (
-		<Suspense fallback={<PaneLoading message="Loading site transfer…" />}>
+		<Suspense
+			fallback={
+				<PaneLoading
+					message={__('Loading site transfer…', 'playground-website')}
+				/>
+			}
+		>
 			<SiteTransferPanel
 				key={cloneRequested ? 'clone' : 'site'}
 				{...props}

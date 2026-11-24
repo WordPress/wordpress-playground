@@ -240,7 +240,7 @@ export default function PreviewPRForm({
 		setFeedback({
 			title: __('Preview build in progress', 'playground-website'),
 			message: sprintf(
-				/* translators: 1: Reference type ("branch" or "PR"), 2: Branch name or PR number, 3: Seconds until retry. */
+				/* translators: 1: Ref type, 2: Branch or PR number, 3: Retry seconds. */
 				__(
 					'GitHub is still building %1$s %2$s. This can take 15 minutes or more. Retrying in %3$d seconds…',
 					'playground-website'
@@ -615,12 +615,18 @@ export default function PreviewPRForm({
 					hideLabelFromVision={inline}
 					label={
 						inline
-							? __('PR number or GitHub URL', 'playground-website')
+							? __(
+									'PR number or GitHub URL',
+									'playground-website'
+								)
 							: inputLabel
 					}
 					placeholder={
 						inline
-							? __('PR number or GitHub URL', 'playground-website')
+							? __(
+									'PR number or GitHub URL',
+									'playground-website'
+								)
 							: undefined
 					}
 					value={value}
@@ -835,7 +841,7 @@ function PullRequestPreviewCard({
 			type="button"
 			disabled={disabled}
 			aria-label={sprintf(
-				/* translators: 1: Pull request or branch title, 2: GitHub repository name (e.g. wordpress/gutenberg). */
+				/* translators: 1: PR or branch title, 2: Repository name. */
 				__('Preview %1$s from %2$s', 'playground-website'),
 				title,
 				repositoryName

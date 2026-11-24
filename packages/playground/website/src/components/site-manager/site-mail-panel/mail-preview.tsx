@@ -4,6 +4,7 @@ import {
 	__experimentalText as Text,
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import type { Email } from 'postal-mime';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MailAttachments, useAttachmentResources } from './mail-attachments';
@@ -45,7 +46,9 @@ export function MailPreview({ mail }: { mail: Email }) {
 	} else if (mail.text) {
 		emailBody = renderToStaticMarkup(<pre>{mail.text}</pre>);
 	} else {
-		emailBody = renderToStaticMarkup(<p>This message has no body.</p>);
+		emailBody = renderToStaticMarkup(
+			<p>{__('This message has no body.', 'playground-website')}</p>
+		);
 	}
 
 	const attachmentsHtml = renderToStaticMarkup(
@@ -90,19 +93,25 @@ ${attachmentsHtml}`;
 					<VStack className={css.mailPanelMetadataColumn} spacing={1}>
 						{mail.from && (
 							<Text>
-								<strong>From:</strong>{' '}
+								<strong>
+									{__('From:', 'playground-website')}
+								</strong>{' '}
 								{formatAddress(mail.from)}
 							</Text>
 						)}
 						{mail.to && mail.to.length > 0 && (
 							<Text>
-								<strong>To:</strong>{' '}
+								<strong>
+									{__('To:', 'playground-website')}
+								</strong>{' '}
 								{formatAddressList(mail.to)}
 							</Text>
 						)}
 						{mail.cc && mail.cc.length > 0 && (
 							<Text>
-								<strong>Cc:</strong>{' '}
+								<strong>
+									{__('Cc:', 'playground-website')}
+								</strong>{' '}
 								{formatAddressList(mail.cc)}
 							</Text>
 						)}
@@ -110,12 +119,17 @@ ${attachmentsHtml}`;
 					<VStack className={css.mailPanelMetadataColumn} spacing={1}>
 						{mail.date && (
 							<Text>
-								<strong>Sent:</strong> {sentDate}
+								<strong>
+									{__('Sent:', 'playground-website')}
+								</strong>{' '}
+								{sentDate}
 							</Text>
 						)}
 						{mail.attachments.length > 0 && (
 							<Text>
-								<strong>Attachments:</strong>{' '}
+								<strong>
+									{__('Attachments:', 'playground-website')}
+								</strong>{' '}
 								{mail.attachments.length}
 							</Text>
 						)}
@@ -128,7 +142,11 @@ ${attachmentsHtml}`;
 				 * actions work normally. */
 				<iframe
 					className={css.mailPanelHtmlPreview}
-					title={`Contents of ${subject}`}
+					title={sprintf(
+						/* translators: %s: Email subject line. */
+						__('Contents of %s', 'playground-website'),
+						subject
+					)}
 					referrerPolicy="no-referrer"
 					sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox allow-downloads"
 					srcDoc={previewDocument}
@@ -137,7 +155,7 @@ ${attachmentsHtml}`;
 				<pre className={css.mailPanelTextBody}>{mail.text}</pre>
 			) : (
 				<Text className={css.mailPanelEmptyBody}>
-					This message has no body.
+					{__('This message has no body.', 'playground-website')}
 				</Text>
 			)}
 		</VStack>
