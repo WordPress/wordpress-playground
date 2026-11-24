@@ -155,7 +155,7 @@ await page.locator('#submit').click();
 
 **Generate locators automatically**
 
-Start a Playground server with `npx @wp-playground/cli server --login`. In a second terminal, run `npx playwright codegen localhost:9400/wp-admin/` to open a browser and record interactions. If the server prints a different port, use that one. Playwright generates locator code as you click, helping you discover which semantic locators work for each element.
+From your plugin or theme root directory, start a Playground server with `npx @wp-playground/cli server --auto-mount --login`. It mounts and activates your project. In a second terminal, run `npx playwright codegen localhost:9400/wp-admin/` to open a browser and record interactions. If the server prints a different port, use that one. Playwright generates locator code as you click, helping you discover which semantic locators work for each element.
 
 </div>
 
@@ -581,7 +581,7 @@ When a test fails, Playwright provides several tools to investigate:
 npx playwright test --debug
 ```
 
-**Trace viewer** — inspect a timeline of actions, DOM snapshots, and network requests from a failed test. With `trace: "on-first-retry"` in the config above, Playwright records a trace when it retries a failed test, which happens only in CI (`retries: 2`). It saves `trace.zip` in that test's folder under `test-results/`. To record traces locally, run `npx playwright test --trace on`.
+**Trace viewer** — inspect a timeline of actions, DOM snapshots, and network requests from a failed test. With `trace: "on-first-retry"` in the config above, Playwright records a trace when it retries a failed test, which happens only in CI (`retries: 2`). It saves `trace.zip` in that test's folder under `test-results/`. To record traces locally, run `npx playwright test --trace on`. To open a trace, replace `<test-folder>` in this command with that folder's name:
 
 ```bash
 npx playwright show-trace test-results/<test-folder>/trace.zip
