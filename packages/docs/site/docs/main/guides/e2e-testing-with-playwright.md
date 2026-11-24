@@ -15,7 +15,7 @@ This guide assumes familiarity with WordPress plugin or theme development. For a
 
 ## Prerequisites
 
-- **Node.js 20** or later
+- **Node.js 20.18** or later
 - A WordPress plugin/theme or an entire WordPress site to test
 - **Recommended:** enable the `@typescript-eslint/no-floating-promises` ESLint rule to catch missing `await` on async Playwright calls
 
@@ -86,9 +86,9 @@ Create `tests/e2e/plugin.spec.ts`:
 
 ```typescript
 import { test, expect } from '@playwright/test';
-import { runCLI } from '@wp-playground/cli';
+import { runCLI, type RunCLIServer } from '@wp-playground/cli';
 
-let cli: Awaited<ReturnType<typeof runCLI>>;
+let cli: RunCLIServer;
 
 test.beforeAll(async () => {
 	cli = await runCLI({
@@ -101,7 +101,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-	await cli?.server?.close();
+	await cli?.[Symbol.asyncDispose]();
 });
 
 test('WordPress dashboard loads', async ({ page }) => {
@@ -189,7 +189,7 @@ await expect.soft(page.getByRole('heading', { level: 1 })).toContainText('Settin
 
 ### Starting a Playground server
 
-The `runCLI` function starts a local Playground server and returns an object with `serverUrl` (the URL string) and `server` (the HTTP server instance). Pass a Blueprint to configure the WordPress instance:
+The `runCLI` function starts a local Playground server and returns an object with `serverUrl` (the URL string) and `server` (the HTTP server instance). When your tests finish, call `[Symbol.asyncDispose]()` on the returned object to stop the server and clean up its resources. Pass a Blueprint to configure the WordPress instance:
 
 ```typescript
 const cli = await runCLI({
@@ -220,7 +220,7 @@ test.describe('Plugin settings', () => {
 		cli = await runCLI({ command: 'server', blueprint });
 	});
 	test.afterAll(async () => {
-		await cli?.server?.close();
+		await cli?.[Symbol.asyncDispose]();
 	});
 	// Tests share the same WordPress instance
 });
@@ -233,7 +233,7 @@ test.beforeEach(async () => {
 	cli = await runCLI({ command: 'server', blueprint });
 });
 test.afterEach(async () => {
-	await cli?.server?.close();
+	await cli?.[Symbol.asyncDispose]();
 });
 ```
 
@@ -434,11 +434,11 @@ const versionMatrix = [
 	{ php: '8.1', wp: '6.5' },
 	{ php: '8.2', wp: '6.7' },
 	{ php: '8.3', wp: 'latest' },
-];
+] as const;
 
 for (const { php, wp } of versionMatrix) {
 	test.describe(`PHP ${php} + WP ${wp}`, () => {
-		let versionCli: Awaited<ReturnType<typeof runCLI>>;
+		let versionCli: RunCLIServer;
 
 		test.beforeAll(async () => {
 			versionCli = await runCLI({
@@ -475,7 +475,7 @@ for (const { php, wp } of versionMatrix) {
 		});
 
 		test.afterAll(async () => {
-			await versionCli?.server?.close();
+			await versionCli?.[Symbol.asyncDispose]();
 		});
 	});
 }
