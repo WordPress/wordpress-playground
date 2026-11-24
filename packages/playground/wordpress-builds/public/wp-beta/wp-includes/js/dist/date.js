@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).date = (() => {
@@ -39,9 +40,9 @@ var wp;
     }
   });
 
-  // node_modules/moment-timezone/builds/moment-timezone-with-data-1970-2030.js
+  // node_modules/.store/moment-timezone@0.5.43-gecZQBrAxXKrDMovJ3cZ5g/node_modules/moment-timezone/builds/moment-timezone-with-data-1970-2030.js
   var require_moment_timezone_with_data_1970_2030 = __commonJS({
-    "node_modules/moment-timezone/builds/moment-timezone-with-data-1970-2030.js"(exports, module) {
+    "node_modules/.store/moment-timezone@0.5.43-gecZQBrAxXKrDMovJ3cZ5g/node_modules/moment-timezone/builds/moment-timezone-with-data-1970-2030.js"(exports, module) {
       (function(root, factory) {
         "use strict";
         if (typeof module === "object" && module.exports) {
@@ -1390,9 +1391,9 @@ var wp;
     }
   });
 
-  // node_modules/moment-timezone/moment-timezone-utils.js
+  // node_modules/.store/moment-timezone@0.5.43-gecZQBrAxXKrDMovJ3cZ5g/node_modules/moment-timezone/moment-timezone-utils.js
   var require_moment_timezone_utils = __commonJS({
-    "node_modules/moment-timezone/moment-timezone-utils.js"(exports, module) {
+    "node_modules/.store/moment-timezone@0.5.43-gecZQBrAxXKrDMovJ3cZ5g/node_modules/moment-timezone/moment-timezone-utils.js"(exports, module) {
       (function(root, factory) {
         "use strict";
         if (typeof module === "object" && module.exports) {
@@ -1783,27 +1784,36 @@ var wp;
     });
     return getSettings();
   }
+  var wpZonePacked;
+  function ensureWPTimezone() {
+    if (!import_moment.default.tz.zone(WP_ZONE)) {
+      if (wpZonePacked) {
+        import_moment.default.tz.add(wpZonePacked);
+      } else {
+        setupWPTimezone();
+      }
+    }
+  }
   function setupWPTimezone() {
     const currentTimezone = import_moment.default.tz.zone(settings.timezone.string);
+    let packed;
     if (currentTimezone) {
-      import_moment.default.tz.add(
-        import_moment.default.tz.pack({
-          name: WP_ZONE,
-          abbrs: currentTimezone.abbrs,
-          untils: currentTimezone.untils,
-          offsets: currentTimezone.offsets
-        })
-      );
+      packed = import_moment.default.tz.pack({
+        name: WP_ZONE,
+        abbrs: currentTimezone.abbrs,
+        untils: currentTimezone.untils,
+        offsets: currentTimezone.offsets
+      });
     } else {
-      import_moment.default.tz.add(
-        import_moment.default.tz.pack({
-          name: WP_ZONE,
-          abbrs: [WP_ZONE],
-          untils: [null],
-          offsets: [-settings.timezone.offset * 60 || 0]
-        })
-      );
+      packed = import_moment.default.tz.pack({
+        name: WP_ZONE,
+        abbrs: [WP_ZONE],
+        untils: [null],
+        offsets: [-settings.timezone.offset * 60 || 0]
+      });
     }
+    wpZonePacked = packed;
+    import_moment.default.tz.add(packed);
   }
   var MINUTE_IN_SECONDS = 60;
   var HOUR_IN_MINUTES = 60;
@@ -1946,7 +1956,9 @@ var wp;
       char = dateFormat[i];
       if ("\\" === char) {
         i++;
-        newFormat.push("[" + dateFormat[i] + "]");
+        if (i < dateFormat.length) {
+          newFormat.push("[" + dateFormat[i] + "]");
+        }
         continue;
       }
       if (char in formatMap) {
@@ -1987,17 +1999,20 @@ var wp;
     return format(dateFormat, dateMoment);
   }
   function isInTheFuture(dateValue) {
+    ensureWPTimezone();
     const now = import_moment.default.tz(WP_ZONE);
     const momentObject = import_moment.default.tz(dateValue, WP_ZONE);
     return momentObject.isAfter(now);
   }
   function getDate(dateString) {
+    ensureWPTimezone();
     if (!dateString) {
       return import_moment.default.tz(WP_ZONE).toDate();
     }
     return import_moment.default.tz(dateString, WP_ZONE).toDate();
   }
   function humanTimeDiff(from, to) {
+    ensureWPTimezone();
     const fromMoment = import_moment.default.tz(from, WP_ZONE);
     const toMoment = to ? import_moment.default.tz(to, WP_ZONE) : import_moment.default.tz(WP_ZONE);
     return fromMoment.from(toMoment);
@@ -2040,3 +2055,5 @@ moment-timezone/moment-timezone-utils.js:
   (*! license : MIT *)
   (*! github.com/moment/moment-timezone *)
 */
+(window.wp ||= {}).date = wp.date;
+})();

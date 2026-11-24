@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).reduxRoutine = (() => {
@@ -32,9 +33,9 @@ var wp;
   ));
   var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-  // node_modules/rungen/dist/utils/keys.js
+  // node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/utils/keys.js
   var require_keys = __commonJS({
-    "node_modules/rungen/dist/utils/keys.js"(exports) {
+    "node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/utils/keys.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", {
         value: true
@@ -53,9 +54,9 @@ var wp;
     }
   });
 
-  // node_modules/rungen/dist/utils/helpers.js
+  // node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/utils/helpers.js
   var require_helpers = __commonJS({
-    "node_modules/rungen/dist/utils/helpers.js"(exports) {
+    "node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/utils/helpers.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", {
         value: true
@@ -174,9 +175,9 @@ var wp;
     }
   });
 
-  // node_modules/rungen/dist/utils/is.js
+  // node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/utils/is.js
   var require_is = __commonJS({
-    "node_modules/rungen/dist/utils/is.js"(exports) {
+    "node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/utils/is.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", {
         value: true
@@ -237,9 +238,9 @@ var wp;
     }
   });
 
-  // node_modules/rungen/dist/controls/builtin.js
+  // node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/controls/builtin.js
   var require_builtin = __commonJS({
-    "node_modules/rungen/dist/controls/builtin.js"(exports) {
+    "node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/controls/builtin.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", {
         value: true
@@ -323,9 +324,9 @@ var wp;
     }
   });
 
-  // node_modules/rungen/dist/create.js
+  // node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/create.js
   var require_create = __commonJS({
-    "node_modules/rungen/dist/create.js"(exports) {
+    "node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/create.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", {
         value: true
@@ -400,9 +401,9 @@ var wp;
     }
   });
 
-  // node_modules/rungen/dist/utils/dispatcher.js
+  // node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/utils/dispatcher.js
   var require_dispatcher = __commonJS({
-    "node_modules/rungen/dist/utils/dispatcher.js"(exports) {
+    "node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/utils/dispatcher.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", {
         value: true
@@ -429,9 +430,9 @@ var wp;
     }
   });
 
-  // node_modules/rungen/dist/controls/async.js
+  // node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/controls/async.js
   var require_async = __commonJS({
-    "node_modules/rungen/dist/controls/async.js"(exports) {
+    "node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/controls/async.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", {
         value: true
@@ -537,9 +538,9 @@ var wp;
     }
   });
 
-  // node_modules/rungen/dist/controls/wrap.js
+  // node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/controls/wrap.js
   var require_wrap = __commonJS({
-    "node_modules/rungen/dist/controls/wrap.js"(exports) {
+    "node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/controls/wrap.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", {
         value: true
@@ -582,9 +583,9 @@ var wp;
     }
   });
 
-  // node_modules/rungen/dist/index.js
+  // node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/index.js
   var require_dist = __commonJS({
-    "node_modules/rungen/dist/index.js"(exports) {
+    "node_modules/.store/rungen@0.3.2-irGTJMureUdsoeYLMH3Yuw/node_modules/rungen/dist/index.js"(exports) {
       "use strict";
       Object.defineProperty(exports, "__esModule", {
         value: true
@@ -629,12 +630,12 @@ var wp;
   // packages/redux-routine/build-module/runtime.mjs
   var import_rungen = __toESM(require_dist(), 1);
 
-  // node_modules/is-promise/index.mjs
+  // node_modules/.store/is-promise@4.0.0-DcZ_LsgUAVaKHNNDXMEENg/node_modules/is-promise/index.mjs
   function isPromise(obj) {
     return !!obj && (typeof obj === "object" || typeof obj === "function") && typeof obj.then === "function";
   }
 
-  // node_modules/is-plain-object/dist/is-plain-object.mjs
+  // node_modules/.store/is-plain-object@5.1.0-5G_-lUnpSwJHYfRbkIxLrw/node_modules/is-plain-object/dist/is-plain-object.mjs
   function isObject(o) {
     return Object.prototype.toString.call(o) === "[object Object]";
   }
@@ -724,3 +725,5 @@ is-plain-object/dist/is-plain-object.mjs:
    *)
 */
 if (typeof wp.reduxRoutine === 'object' && wp.reduxRoutine.default) { wp.reduxRoutine = wp.reduxRoutine.default; }
+(window.wp ||= {}).reduxRoutine = wp.reduxRoutine;
+})();

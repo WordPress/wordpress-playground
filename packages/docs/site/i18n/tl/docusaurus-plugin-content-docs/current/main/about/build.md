@@ -13,7 +13,9 @@ Makakatulong ang WordPress Playground upang mabilis kang makalikha at makapag-ar
 
 Maaari mong i-integrate nang seamless ang Playground sa iyong development workflow upang mabilis na ilunsad ang lokal na WordPress environment para sa pag-test ng iyong code. Magagawa mo ito nang direkta [mula sa terminal](/developers/local-development/wp-now) o sa [paborito mong IDE](/developers/local-development/vscode-extension).
 
-## I-save ang Mga Pagbabago sa Isang Block Theme at Gumawa ng GitHub Pull Requests
+<a id="i-save-ang-mga-pagbabago-sa-isang-block-theme-at-gumawa-ng-github-pull-requests"></a>
+
+## I-save ang Mga Pagbabago sa Isang Block Theme at Gumawa ng GitHub Pull Requests {#save-changes-done-on-a-block-theme-and-create-github-pull-requests}
 
 Maaari mong ikonekta ang iyong Playground instance sa isang GitHub repository at lumikha ng Pull Request para sa mga pagbabagong ginawa mo sa pamamagitan ng WordPress UI, gamit ang [Create Block Theme](https://wordpress.org/plugins/create-block-theme/) plugin.
 
@@ -27,7 +29,9 @@ Narito ang ilan pang halimbawa ng workflow na ito:
 - [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
 - [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
-## Pag-synchronize ng Iyong Playground Instance sa Lokal na Folder at Paglikha ng GitHub Pull Requests
+<a id="pag-synchronize-ng-iyong-playground-instance-sa-lokal-na-folder-at-paglikha-ng-github-pull-requests"></a>
+
+## Pag-synchronize ng Iyong Playground Instance sa Lokal na Folder at Paglikha ng GitHub Pull Requests {#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests}
 
 ![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
 
@@ -61,7 +65,7 @@ Maaari mong pagsamahin ang Playground sa iba't ibang API upang lumikha ng kahang
 
 Maaari mong [gamitin ang WordPress Playground sa Node.js](/developers/local-development/php-wasm-node) upang gumawa ng mga bagong tool. Ang [@php-wasm/node package](https://npmjs.org/@php-wasm/node), na nagdadala ng PHP WebAssembly runtime, ay ang package na ginagamit para sa [https://playground.wordpress.net/](https://playground.wordpress.net/), halimbawa.
 
-Isa pang kawili-wiling app na ginawa sa ibabaw ng Playground ay ang **Translate Live** (tingnan ang [halimbawa](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) na, sa kombinasyon ng Open AI, ay nagbibigay ng WordPress translations tool “in place” kung saan makikita at maayos ang mga pagsasalin sa kanilang totoong konteksto (tingnan ang halimbawa). Basahin pa tungkol sa tool na ito sa [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/).
+Isa pang kawili-wiling app na ginawa sa ibabaw ng Playground ay ang **Translate Live** (tingnan ang [halimbawa](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) na, sa kombinasyon ng OpenAI, ay nagbibigay ng WordPress translations tool “in place” kung saan makikita at maayos ang mga pagsasalin sa kanilang totoong konteksto (tingnan ang halimbawa). Basahin pa tungkol sa tool na ito sa [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/).
 
 ## Gumana Offline at Bilang Native App
 

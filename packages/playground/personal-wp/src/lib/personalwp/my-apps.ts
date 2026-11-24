@@ -1,5 +1,5 @@
 import type { PlaygroundClient } from '@wp-playground/remote';
-import { encodeStringAsBase64 } from '../base64';
+import { encodeStringAsBase64 } from '@php-wasm/util';
 
 export const MY_APPS_PLUGIN_FILE =
 	'/wordpress/wp-content/plugins/my-apps/my-apps.php';

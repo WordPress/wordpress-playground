@@ -9,11 +9,11 @@ const v2Config = {
 	path: 'packages/playground/blueprints/src/rollup.d.ts',
 	tsconfig: './tsconfig.base.json',
 	type: 'BlueprintV2Declaration',
+	jsDoc: 'extended',
 	skipTypeCheck: true,
 };
 const v2ValidatorOutputPath =
 	'packages/playground/blueprints/public/blueprint-v2-schema-validator.js';
-const pathSegmentPattern = '^(?!(?:\\.|\\.\\.)$)[^/]+$';
 const whatwgHttpUrlFormat = 'whatwg-http-url';
 // AJV cannot serialize custom format functions. Keep this standalone expression
 // aligned with isWhatwgHttpUrl(), whose generated behavior is covered by tests.
@@ -50,7 +50,9 @@ export async function generateBlueprintV2SchemaValidator(
 		tsjV2.createGenerator(v2Config).createSchema(v2Config.type)
 	);
 	schema.$schema = 'http://json-schema.org/schema';
-	patchSchema(schema);
+	normalizeAnnotatedStringSchemas(schema);
+	applyBlueprintV2DocumentInvariants(schema);
+	optimizeBlueprintV2TaggedUnions(schema);
 
 	const runtimeSchema = createRuntimeValidationSchema(schema);
 	const ajv = createBlueprintV2Ajv();
@@ -85,75 +87,97 @@ function createBlueprintV2Ajv() {
 	return ajv;
 }
 
-/** Restores constraints the TypeScript schema generator cannot represent. */
-function patchSchema(schema) {
-	const definitions = schema.definitions;
-	const urlReference = definitions['DataSources.URLReference'];
-	// Published schemas cannot carry the runtime's private WHATWG format.
-	// Keep this constraint simple enough for any JSON Schema implementation.
-	Object.assign(urlReference, {
-		type: 'string',
-		pattern: '^[Hh][Tt][Tt][Pp][Ss]?://[^/?#]+',
-	});
-	delete urlReference.$ref;
-	delete urlReference.anyOf;
-	patchStringDefinition(
-		definitions,
-		'DataSources.ExecutionContextPath',
-		'^(?!.*(?:^|/)\\.\\.(?:/|$))(?:\\./|/).*$'
-	);
-	patchStringDefinition(
-		definitions,
-		'DataSources.SimpleVersionExpression',
-		'^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?)$'
-	);
-	patchStringDefinition(
-		definitions,
-		'DataSources.ComparableVersionExpression',
-		'^\\d+\\.\\d+(?:\\.\\d+)?$'
-	);
-	patchStringDefinition(
-		definitions,
-		'DataSources.PHPVersion',
-		'^(?:latest|next|\\d+\\.\\d+(?:\\.\\d+)?)$'
-	);
-	patchStringDefinition(
-		definitions,
-		'DataSources.PHPVersionConstraintVersion',
-		'^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?)$'
-	);
-	patchStringDefinition(
-		definitions,
-		'DataSources.WordPressVersion',
-		'^(?:latest|beta|trunk|nightly|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$'
-	);
-	patchStringDefinition(
-		definitions,
-		'DataSources.WordPressVersionConstraintVersion',
-		'^\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?$'
-	);
-	patchStringDefinition(
-		definitions,
-		'DataSources.WordPressVersionPreferredVersion',
-		'^(?:latest|\\d+\\.\\d+(?:\\.\\d+)?(?:-(?:beta\\d+|[Rr][Cc]\\d+))?)$'
-	);
+/**
+ * Honors `@asType string` when the generator also retains the inferred union.
+ *
+ * The adjacent `@pattern` is the complete runtime constraint. Keeping the
+ * inferred union would expose TypeScript's implementation details as extra
+ * public schema branches without changing which strings are valid.
+ */
+function normalizeAnnotatedStringSchemas(schema) {
+	if (!schema || typeof schema !== 'object') {
+		return;
+	}
+	if (
+		schema.type === 'string' &&
+		schema.pattern &&
+		(schema.$ref || schema.anyOf)
+	) {
+		delete schema.$ref;
+		delete schema.anyOf;
+	}
+	for (const value of Object.values(schema)) {
+		if (Array.isArray(value)) {
+			for (const item of value) {
+				normalizeAnnotatedStringSchemas(item);
+			}
+		} else {
+			normalizeAnnotatedStringSchemas(value);
+		}
+	}
+}
 
-	const inlineFile = definitions['DataSources.InlineFile'];
-	inlineFile.properties.filename.pattern = pathSegmentPattern;
-	const inlineDirectory = definitions['DataSources.InlineDirectory'];
-	inlineDirectory.properties.directoryName.pattern = pathSegmentPattern;
-	inlineDirectory.properties.files.propertyNames = {
-		pattern: pathSegmentPattern,
-	};
-	const nestedInlineDirectory =
-		definitions['DataSources.NestedInlineDirectory'];
-	nestedInlineDirectory.properties.files.propertyNames = {
-		pattern: pathSegmentPattern,
-	};
-	definitions['DataSources.GitPath'].properties.pathInRepository.pattern =
-		'^(?!.*(?:^|/)\\.\\.(?:/|$)).*$';
-
-	const blueprint = definitions['V2Schema.BlueprintV2'];
+/** Adds declaration-wide constraints that TypeScript cannot express. */
+function applyBlueprintV2DocumentInvariants(schema) {
+	const blueprint = getDefinition(schema, 'V2Schema.BlueprintV2');
+	// TypeScript expresses the non-empty tuple and excludes comments from the
+	// scalar form, but not uniqueness or the relationship between comments and
+	// the content that may own them in an array.
+	const contentBaseline = blueprint.properties.contentBaseline;
+	const retainedContentTypes = contentBaseline.anyOf.find(
+		(variant) => variant.type === 'array'
+	);
+	retainedContentTypes.uniqueItems = true;
+	retainedContentTypes.allOf = [
+		{
+			if: { contains: { const: 'comments' } },
+			then: {
+				allOf: [
+					{ contains: { const: 'posts' } },
+					{ contains: { const: 'pages' } },
+				],
+			},
+		},
+	];
+	// These declaration-wide invariants cannot be represented by the field
+	// types: removing the installer account must leave a manageable WordPress
+	// site, and PHP-only Blueprints have no WordPress baseline to adjust.
+	blueprint.allOf = [
+		{
+			if: {
+				properties: { usersBaseline: { const: 'empty' } },
+				required: ['usersBaseline'],
+			},
+			then: {
+				properties: {
+					contentBaseline: { const: 'empty' },
+					users: {
+						type: 'array',
+						contains: {
+							type: 'object',
+							properties: {
+								role: { const: 'administrator' },
+							},
+							required: ['role'],
+						},
+					},
+				},
+				required: ['contentBaseline', 'users'],
+			},
+		},
+		{
+			if: {
+				properties: { wordpressVersion: { const: 'none' } },
+				required: ['wordpressVersion'],
+			},
+			then: {
+				properties: {
+					contentBaseline: false,
+					usersBaseline: false,
+				},
+			},
+		},
+	];
 	const siteOptions = blueprint.properties.siteOptions;
 	const permalinkStructure = siteOptions.properties.permalink_structure;
 	siteOptions.properties.permalink_structure = {
@@ -163,24 +187,11 @@ function patchSchema(schema) {
 	};
 	// TypeScript cannot express `Record<Exclude<string, 'siteUrl'>, ...>`.
 	siteOptions.properties.siteUrl = false;
-	blueprint.properties.postTypes.propertyNames = {
-		pattern: '^[a-z0-9_-]{1,20}$',
-	};
+}
 
-	// JSON Schema can constrain record keys and directory-name fields more
-	// precisely than the TypeScript declaration can.
-	visitSchema(schema, (nestedSchema) => {
-		if (nestedSchema.properties?.urlsMap) {
-			nestedSchema.properties.urlsMap.propertyNames = {
-				$ref: '#/definitions/DataSources.URLReference',
-			};
-		}
-		if (nestedSchema.properties?.targetDirectoryName) {
-			nestedSchema.properties.targetDirectoryName.pattern =
-				pathSegmentPattern;
-		}
-	});
-
+/** Adds AJV discriminators without changing which declarations are valid. */
+function optimizeBlueprintV2TaggedUnions(schema) {
+	const blueprint = getDefinition(schema, 'V2Schema.BlueprintV2');
 	// A discriminator keeps errors for invalid trailing v1 steps focused on the
 	// selected step instead of reporting failures from every possible step type.
 	const steps = blueprint.properties.additionalStepsAfterExecution.items;
@@ -220,13 +231,30 @@ function patchSchema(schema) {
 	delete content.anyOf;
 }
 
-/** Adds exact URL validation to a copy used only by the runtime validator. */
+/**
+ * Adds exact URL validation to a copy used only by the runtime validator.
+ *
+ * Published schemas cannot carry the runtime's private WHATWG format, so the
+ * source declaration keeps a portable pattern for other schema consumers.
+ */
 function createRuntimeValidationSchema(schema) {
 	const runtimeSchema = structuredClone(schema);
-	const urlReference = runtimeSchema.definitions['DataSources.URLReference'];
+	const urlReference = getDefinition(
+		runtimeSchema,
+		'DataSources.URLReference'
+	);
 	delete urlReference.pattern;
 	urlReference.format = whatwgHttpUrlFormat;
 	return runtimeSchema;
+}
+
+/** Gets a required generated definition or fails schema generation clearly. */
+function getDefinition(schema, name) {
+	const definition = schema.definitions?.[name];
+	if (!definition) {
+		throw new Error(`Missing generated Blueprint v2 definition: ${name}`);
+	}
+	return definition;
 }
 
 /** Validates HTTP(S) references with the same URL parser used by Playground. */
@@ -239,33 +267,5 @@ function isWhatwgHttpUrl(value) {
 		);
 	} catch {
 		return false;
-	}
-}
-
-/**
- * Replaces a template-literal definition with the JSON Schema pattern that
- * preserves its runtime constraints.
- */
-function patchStringDefinition(definitions, name, pattern) {
-	const definition = definitions[name];
-	Object.assign(definition, { type: 'string', pattern });
-	delete definition.$ref;
-	delete definition.anyOf;
-}
-
-/** Walks every nested schema object so cross-cutting constraints stay aligned. */
-function visitSchema(schema, visitor) {
-	if (!schema || typeof schema !== 'object') {
-		return;
-	}
-	visitor(schema);
-	for (const value of Object.values(schema)) {
-		if (Array.isArray(value)) {
-			for (const item of value) {
-				visitSchema(item, visitor);
-			}
-		} else {
-			visitSchema(value, visitor);
-		}
 	}
 }

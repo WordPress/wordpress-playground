@@ -29,7 +29,9 @@ Playground を開発ワークフローにシームレスに統合することで
 You can seamlessly integrate Playground into your development workflow to launch a local WordPress environment quickly for testing your code. You can do this directly [from the terminal](/developers/local-development/wp-playground-cli) or [your preferred IDE.](/developers/local-development/vscode-extension)
 -->
 
-## ブロックテーマの変更を保存し、GitHub プルリクエストを作成します
+<a id="ブロックテーマの変更を保存しgithub-プルリクエストを作成します"></a>
+
+## ブロックテーマの変更を保存し、GitHub プルリクエストを作成します {#save-changes-done-on-a-block-theme-and-create-github-pull-requests}
 
 <!--
 ## Save changes done on a Block Theme and create GitHub Pull Requests
@@ -64,7 +66,9 @@ Some more examples of this workflow:
 -   [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 -->
 
-## プレイグラウンドインスタンスをローカルフォルダと同期し、GitHub プルリクエストを作成する
+<a id="プレイグラウンドインスタンスをローカルフォルダと同期しgithub-プルリクエストを作成する"></a>
+
+## プレイグラウンドインスタンスをローカルフォルダと同期し、GitHub プルリクエストを作成する {#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests}
 
 <!--
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
@@ -148,10 +152,10 @@ Playground can be combined with different APIs to create amazing tools. The poss
 You can [use WordPress Playground in Node.js](/developers/local-development/php-wasm-node) to create new tools. The [@php-wasm/node package](https://npmjs.org/@php-wasm/node), which ships the PHP WebAssembly runtime, is the package used for [https://playground.wordpress.net/](https://playground.wordpress.net/), for example.
 -->
 
-Playground をベースに構築されたもう一つの興味深いアプリは、**Translate Live** です（[例](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/) を参照）。Open AI と組み合わせることで、WordPress 翻訳ツールを「その場で」提供し、翻訳を実際の文脈で確認・修正できます（例を参照）。このツールの詳細については、[Translate Live: Translation Playground のアップデート](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/) をご覧ください。
+Playground をベースに構築されたもう一つの興味深いアプリは、**Translate Live** です（[例](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/) を参照）。OpenAI と組み合わせることで、WordPress 翻訳ツールを「その場で」提供し、翻訳を実際の文脈で確認・修正できます（例を参照）。このツールの詳細については、[Translate Live: Translation Playground のアップデート](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/) をご覧ください。
 
 <!--
-Another interesting app built on top of Playground is **Translate Live** (see [example](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) which, in combination with Open AI provides a WordPress translations tool “in place” where translations can be seen and modified in their real context (see example). Read more about this tool at [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
+Another interesting app built on top of Playground is **Translate Live** (see [example](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) which, in combination with OpenAI provides a WordPress translations tool “in place” where translations can be seen and modified in their real context (see example). Read more about this tool at [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 -->
 
 ## オフラインでもネイティブアプリとしても動作

@@ -4,10 +4,10 @@
 		<meta charset="utf-8" />
 		<title>WordPress Playground</title>
 		<base href="/" />
-		<!-- WebMCP Chrome 156 trial: expires 2026-11-17. -->
+		<!-- WebMCP origin trial: expires 2027-03-30. -->
 		<meta
 			http-equiv="origin-trial"
-			content="AkokufKmooPTUEZzMIY4qdED1gL5LsX36+TF+CsUadUh+vbFVAst1GAk/md1wBzvfPyTb0thCtibK0n8Mmuz4A8AAABYeyJvcmlnaW4iOiJodHRwczovL3BsYXlncm91bmQud29yZHByZXNzLm5ldDo0NDMiLCJmZWF0dXJlIjoiV2ViTUNQIiwiZXhwaXJ5IjoxNzk0ODczNjAwfQ=="
+			content="Avgze8+QD+FqcON4eBw6o9eIbiA+LahlqlR4R1JKjZ0jaWOgH1oCXce74PyUrq9+lh2e8Ip8fbTiLYFIQa8iegkAAABYeyJvcmlnaW4iOiJodHRwczovL3BsYXlncm91bmQud29yZHByZXNzLm5ldDo0NDMiLCJmZWF0dXJlIjoiV2ViTUNQIiwiZXhwaXJ5IjoxODA2MzY0ODAwfQ=="
 		/>
 		<meta
 			property="og:image"
@@ -27,16 +27,68 @@
 			name="llms:instructions"
 			content="WordPress Playground runs WordPress entirely in the browser via WebAssembly — no server, no credentials, no setup required. Open source under GPL-2.0-or-later. AI assistants are explicitly welcome to load, embed, demo, and build upon this tool. Full index: /llms.txt"
 		/>
+		<meta name="oai-annotation-editor-default-mode" content="advanced" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta
+			name="apple-mobile-web-app-title"
+			content="WordPress Playground"
+		/>
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
 		<link
 			rel="alternate"
 			type="text/plain"
 			href="/llms.txt"
 			title="AI-readable site index"
 		/>
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@type": "WebApplication",
+				"name": "WordPress Playground",
+				"url": "https://playground.wordpress.net/",
+				"description": "WordPress running in your browser via WebAssembly for learning, testing, and developing with WordPress — zero setup, no server required.",
+				"applicationCategory": "DeveloperApplication",
+				"operatingSystem": "Web Browser, WebAssembly, Node.js",
+				"license": "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html",
+				"isAccessibleForFree": true,
+				"offers": {
+					"@type": "Offer",
+					"price": "0",
+					"priceCurrency": "USD"
+				},
+				"author": {
+					"@type": "Organization",
+					"name": "WordPress.org",
+					"url": "https://wordpress.org/"
+				},
+				"softwareHelp": {
+					"@type": "CreativeWork",
+					"name": "WordPress Playground Documentation",
+					"url": "https://wordpress.github.io/wordpress-playground/"
+				},
+				"featureList": [
+					"Instant WordPress and PHP in the browser via WebAssembly",
+					"Declarative JSON Blueprints for automated site setup",
+					"Query API for launching plugins, themes, and PHP/WP versions via URL",
+					"Browser-native WebMCP (document.modelContext) tools for AI agents",
+					"SQLite database integration without a MySQL server"
+				],
+				"sameAs": [
+					"https://github.com/WordPress/wordpress-playground",
+					"https://wordpress.github.io/wordpress-playground/",
+					"https://developer.wordpress.org/playground/",
+					"https://www.npmjs.com/package/@wp-playground/cli",
+					"https://www.npmjs.com/package/@wp-playground/client"
+				]
+			}
+		</script>
 		<link rel="icon" type="image/x-icon" href="/favicon.ico" />
 		<link rel="stylesheet" href="/src/styles.css" />
-		<script>
+		<script type="module">
+			import { isDevServer } from '../remote/src/lib/dev-server';
+
 			/**
 			 * Dynamically create <link rel="manifest" /> to enable using Playground with
 			 * a Blueprint as an offline progressive web app.
@@ -54,13 +106,13 @@
 			 * Outside of the local dev server, use the dynamic manifest that
 			 * passes the query parameters through to the "start_url" property.
 			 */
-			let manifestUrl = '/manifest.json';
+			let manifestUrl = new URL('manifest.json', window.location.href);
 
 			/**
 			 * In production, load a manifest URL that includes the current URL
 			 * as the "start_url" parameter.
 			 */
-			if (window.location.port !== '5400') {
+			if (!isDevServer(new URL(window.location.href))) {
 				const runningAsPWA = window.matchMedia(
 					'(display-mode: standalone)'
 				).matches;
@@ -69,13 +121,13 @@
 				 * If we're running as an installed, offline app, keep referencing the
 				 * same manifest.json file every time.
 				 */
-				if (runningAsPWA) {
-					if (localStorage.getItem('manifestUrl')) {
-						manifestUrl = localStorage.getItem('manifestUrl');
-					}
-				}
-
-				if (!manifestUrl) {
+				const storedManifestUrl = localStorage.getItem('manifestUrl');
+				if (runningAsPWA && storedManifestUrl) {
+					manifestUrl = new URL(
+						storedManifestUrl,
+						window.location.href
+					);
+				} else {
 					manifestUrl = new URL(
 						'/dynamic-manifest.json.php',
 						window.location.href
@@ -83,14 +135,10 @@
 					manifestUrl.search = window.location.search;
 
 					/**
-					 * In PWAs, remember the initial manifest on the first run.
+					 * Remember the manifest URL used for installation, so
+					 * standalone launches keep the original start_url.
 					 */
-					if (runningAsPWA) {
-						localStorage.setItem(
-							'manifestUrl',
-							manifestUrl.toString()
-						);
-					}
+					localStorage.setItem('manifestUrl', manifestUrl.toString());
 				}
 			}
 			const newLink = document.createElement('link');
@@ -264,6 +312,50 @@
 		</script>
 
 		<main id="root" aria-label="WordPress Playground">
+			<noscript>
+				<article>
+					<h1>WordPress Playground</h1>
+					<p>
+						WordPress Playground runs a full WordPress, PHP, and
+						SQLite stack directly in your browser using WebAssembly
+						— no server, database setup, or login required.
+					</p>
+					<h2>Capabilities &amp; APIs</h2>
+					<ul>
+						<li>
+							<strong>Query API:</strong> Configure WordPress, PHP
+							versions, plugins, and themes via URL parameters
+							(for example,
+							<code
+								>?plugin=gutenberg&amp;php=8.4&amp;wp=latest</code
+							>).
+						</li>
+						<li>
+							<strong>Blueprints API:</strong> Pass declarative
+							JSON configurations via <code>?blueprint-url=</code>
+							or the URL hash (<code>#{...}</code>).
+						</li>
+						<li>
+							<strong>AI &amp; WebMCP Support:</strong> Exposes
+							browser-native WebMCP tools on
+							<code>document.modelContext</code> and
+							machine-readable instructions at
+							<a href="/llms.txt">/llms.txt</a>.
+						</li>
+					</ul>
+					<p>
+						Read the
+						<a
+							href="https://wordpress.github.io/wordpress-playground/"
+							>WordPress Playground Documentation</a
+						>
+						or inspect the
+						<a href="/llms.txt"
+							>AI-readable site index (/llms.txt)</a
+						>.
+					</p>
+				</article>
+			</noscript>
 			<script>
 				const query = new URLSearchParams(window.location.search);
 				const shouldLazyLoadPlayground =

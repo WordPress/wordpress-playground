@@ -1,5 +1,5 @@
 import type { FileTree, UniversalPHP } from '@php-wasm/universal';
-import { basename, joinPaths } from '@php-wasm/util';
+import { basename, joinPaths, resolvePathUnder } from '@php-wasm/util';
 import type { RuntimeConfiguration } from '../types';
 import type { ResolveRuntimeConfigurationOptions } from '../resolve-runtime-configuration';
 import { seemsLikeGitRepoUrl } from '../is-git-repo-url';
@@ -21,7 +21,10 @@ import {
 	type FileReference,
 } from '../v1/resources';
 import type { BlueprintV2Declaration } from './blueprint-v2-declaration';
-import { resolveBlueprintV2RuntimeConfiguration } from './resolve-runtime-configuration';
+import {
+	resolveBlueprintV2RuntimeConfiguration,
+	type BlueprintV2SiteMode,
+} from './resolve-runtime-configuration';
 
 export class UnsupportedBlueprintV2FeatureError extends Error {
 	public readonly featurePath: string;
@@ -38,6 +41,13 @@ export class UnsupportedBlueprintV2FeatureError extends Error {
 
 type BlueprintV2ApplicationOptions =
 	BlueprintV2Declaration['applicationOptions'];
+type BlueprintV2ContentBaseline = NonNullable<
+	BlueprintV2Declaration['contentBaseline']
+>;
+type BlueprintV2ContentType = Extract<
+	BlueprintV2ContentBaseline,
+	readonly unknown[]
+>[number];
 type BlueprintV2Constants = NonNullable<BlueprintV2Declaration['constants']>;
 type BlueprintV2SiteOptions = NonNullable<
 	BlueprintV2Declaration['siteOptions']
@@ -113,6 +123,12 @@ type BlueprintV2InstallAssetDefinition = {
 	humanReadableName?: string;
 };
 
+const SITE_CREATION_CONTENT_TYPES: BlueprintV2ContentType[] = [
+	'posts',
+	'pages',
+	'comments',
+];
+
 export type BlueprintV2ExecutionPlan = BlueprintV2ExecutionPlanItem[];
 export type BlueprintV2StepPlan = StepDefinition[];
 export type BlueprintV2StepPlanLoweringResult = {
@@ -125,6 +141,15 @@ type BlueprintV2LoweringContext = {
 };
 
 export type BlueprintV2ExecutionPlanItem =
+	| {
+			type: 'applyContentBaseline';
+			contentBaseline: BlueprintV2ContentBaseline;
+			sourcePath: '/contentBaseline';
+	  }
+	| {
+			type: 'applyUsersBaseline';
+			sourcePath: '/usersBaseline';
+	  }
 	| {
 			type: 'defineWpConfigConsts';
 			consts: BlueprintV2Constants;
@@ -235,7 +260,7 @@ export async function compileBlueprintV2(
 		options.siteMode,
 		options.onBlueprintValidated
 	);
-	const plan = createBlueprintV2ExecutionPlan(declaration);
+	const plan = createBlueprintV2ExecutionPlan(declaration, options.siteMode);
 	const { steps, unsupportedPlan } = lowerBlueprintV2ExecutionPlan(plan);
 	const v1Blueprint = createV1BlueprintForLoweredV2Steps(
 		declaration,
@@ -318,7 +343,10 @@ function createV1BlueprintForLoweredV2Steps(
 	return {
 		preferredVersions: {
 			php: runtime.phpVersion,
-			wp: runtime.wpVersion,
+			wp:
+				declaration.wordpressVersion === 'none'
+					? false
+					: runtime.wpVersion,
 		},
 		features: {
 			intl: runtime.intl,
@@ -364,9 +392,35 @@ function getUnsupportedPlanItemPath(item: BlueprintV2ExecutionPlanItem) {
  * instead of silently dropping them during lowering.
  */
 export function createBlueprintV2ExecutionPlan(
-	declaration: BlueprintV2Declaration
+	declaration: BlueprintV2Declaration,
+	siteMode: BlueprintV2SiteMode = 'create-new-site'
 ): BlueprintV2ExecutionPlan {
 	const plan: BlueprintV2ExecutionPlan = [];
+	const contentBaseline = declaration.contentBaseline;
+
+	if (siteMode === 'create-new-site' && contentBaseline !== undefined) {
+		const preservedContent = getPreservedContentTypes(contentBaseline);
+		if (
+			SITE_CREATION_CONTENT_TYPES.some(
+				(contentType) => !preservedContent.includes(contentType)
+			)
+		) {
+			plan.push({
+				type: 'applyContentBaseline',
+				contentBaseline,
+				sourcePath: '/contentBaseline',
+			});
+		}
+	}
+	if (
+		siteMode === 'create-new-site' &&
+		declaration.usersBaseline === 'empty'
+	) {
+		plan.push({
+			type: 'applyUsersBaseline',
+			sourcePath: '/usersBaseline',
+		});
+	}
 
 	if (
 		declaration.constants &&
@@ -554,6 +608,10 @@ function addProgressMetadata(
  */
 function getProgressCaption(planItem: BlueprintV2ExecutionPlanItem): string {
 	switch (planItem.type) {
+		case 'applyContentBaseline':
+			return 'Removing initial content';
+		case 'applyUsersBaseline':
+			return 'Removing initial users';
 		case 'defineWpConfigConsts':
 			return 'Defining constants';
 		case 'setSiteOptions':
@@ -628,6 +686,8 @@ function getAdditionalStepProgressCaption(step: BlueprintV2Step): string {
 			return 'Copying files';
 		case 'defineConstants':
 			return 'Defining constants';
+		case 'enableMultisite':
+			return 'Enabling multisite';
 		case 'importContent':
 			return 'Importing content';
 		case 'importMedia':
@@ -646,6 +706,8 @@ function getAdditionalStepProgressCaption(step: BlueprintV2Step): string {
 			return 'Removing file';
 		case 'rmdir':
 			return 'Removing directory';
+		case 'resetData':
+			return 'Resetting WordPress data';
 		case 'runPHP':
 			return 'Running PHP';
 		case 'runSQL':
@@ -675,6 +737,17 @@ function lowerBlueprintV2ExecutionPlanItem(
 	context: BlueprintV2LoweringContext
 ): StepDefinition[] | undefined {
 	switch (planItem.type) {
+		case 'applyContentBaseline':
+			return [
+				{
+					step: 'resetData',
+					contentTypes: getRemovedContentTypes(
+						planItem.contentBaseline
+					),
+				},
+			];
+		case 'applyUsersBaseline':
+			return lowerUsersBaseline();
 		case 'defineWpConfigConsts':
 			return [
 				{
@@ -731,6 +804,69 @@ function lowerBlueprintV2ExecutionPlanItem(
 		default:
 			return undefined;
 	}
+}
+
+function getRemovedContentTypes(
+	contentBaseline: BlueprintV2ContentBaseline
+): BlueprintV2ContentType[] {
+	const preservedContent = getPreservedContentTypes(contentBaseline);
+	return SITE_CREATION_CONTENT_TYPES.filter(
+		(contentType) => !preservedContent.includes(contentType)
+	);
+}
+
+function getPreservedContentTypes(
+	contentBaseline: BlueprintV2ContentBaseline
+): readonly BlueprintV2ContentType[] {
+	if (contentBaseline === 'keep-all') {
+		return SITE_CREATION_CONTENT_TYPES;
+	}
+	if (contentBaseline === 'empty') {
+		return [];
+	}
+	return asArray(contentBaseline);
+}
+
+/**
+ * Removes the users created by the WordPress installation wizard.
+ *
+ * Schema validation guarantees content is removed first and the Blueprint
+ * declares a replacement administrator. Resetting the empty tables lets that
+ * administrator receive the same identifier as the vanilla account it replaces.
+ */
+function lowerUsersBaseline(): StepDefinition[] {
+	return [
+		{
+			step: 'runPHP',
+			code: `<?php
+			require '/wordpress/wp-load.php';
+			require_once ABSPATH . 'wp-admin/includes/user.php';
+
+			$user_ids = get_users(['fields' => 'ID']);
+			foreach ($user_ids as $user_id) {
+				wp_delete_user((int) $user_id);
+			}
+
+			$reset_sequence_if_empty = static function($table_name) use ($wpdb) {
+				$count = $wpdb->get_var("SELECT COUNT(*) FROM {$table_name}");
+				if ((int) $count !== 0) {
+					return;
+				}
+				if (isset($GLOBALS['@pdo'])) {
+					$statement = $GLOBALS['@pdo']->prepare(
+						'DELETE FROM SQLITE_SEQUENCE WHERE NAME = :table_name'
+					);
+					$statement->execute([':table_name' => $table_name]);
+					return;
+				}
+				$wpdb->query("ALTER TABLE {$table_name} AUTO_INCREMENT = 1");
+			};
+
+			$reset_sequence_if_empty($wpdb->users);
+			$reset_sequence_if_empty($wpdb->usermeta);
+			`,
+		},
+	];
 }
 
 function lowerBlueprintV2Content(
@@ -832,6 +968,12 @@ function lowerAdditionalBlueprintV2Step(
 					consts: step.constants,
 				},
 			];
+		case 'enableMultisite':
+			return [
+				{
+					step: 'enableMultisite',
+				},
+			];
 		case 'importContent':
 			return lowerImportContentStep(step, context);
 		case 'importMedia':
@@ -874,6 +1016,13 @@ function lowerAdditionalBlueprintV2Step(
 				{
 					step: 'rmdir',
 					path: toPlaygroundPath(step.path),
+				},
+			];
+		case 'resetData':
+			return [
+				{
+					step: 'resetData',
+					contentTypes: step.contentTypes,
 				},
 			];
 		case 'runPHP':
@@ -2410,6 +2559,12 @@ function convertV2FileDataReferenceToV1(
 		if (isHttpUrl(reference)) {
 			return { resource: 'url', url: reference };
 		}
+		if (isTargetSitePath(reference)) {
+			return {
+				resource: 'vfs',
+				path: toPlaygroundPath(reference, featurePath),
+			};
+		}
 		if (isExecutionContextPath(reference)) {
 			return {
 				resource: 'bundled',
@@ -2418,7 +2573,7 @@ function convertV2FileDataReferenceToV1(
 		}
 		throw new UnsupportedBlueprintV2FeatureError(
 			featurePath,
-			'Blueprint v2 file references must be URLs or execution-context paths.'
+			'Blueprint v2 file references must be URLs, execution-context paths, or target-site paths.'
 		);
 	}
 
@@ -2570,13 +2725,17 @@ function fileReferenceBasename(
 		if (isExecutionContextPath(reference)) {
 			return basename(normalizeExecutionContextPath(reference));
 		}
+		if (isTargetSitePath(reference)) {
+			return basename(toPlaygroundPath(reference, featurePath));
+		}
 	}
 	if (isInlineFile(reference)) {
 		return reference.filename;
 	}
 	throw new UnsupportedBlueprintV2FeatureError(
 		featurePath,
-		'Blueprint v2 file references must be URLs, execution-context paths, or inline files.'
+		'Blueprint v2 file references must be URLs, execution-context paths, ' +
+			'target-site paths, or inline files.'
 	);
 }
 
@@ -2627,29 +2786,35 @@ function asArray<T>(value: T | T[]): T[] {
  * file steps expect.
  *
  * V2 paths in imperative file steps are site-relative (`site:...`) or plain
- * relative paths. Empty paths and parent-directory segments are rejected because
- * they would make destructive steps like `rm` ambiguous or unsafe.
+ * relative paths. Paths that resolve outside the WordPress root are rejected.
  */
-function toPlaygroundPath(path: string): string {
+function toPlaygroundPath(path: string, featurePath = 'path'): string {
 	if (typeof path !== 'string' || path.trim() === '') {
 		throw new UnsupportedBlueprintV2FeatureError(
-			'path',
+			featurePath,
 			'Invalid Blueprint v2 path: must not be empty.'
 		);
 	}
-	if (pathContainsParentDirectorySegment(path)) {
+
+	const hasTargetSitePrefix = path.startsWith('site:');
+	const pathWithinSite = hasTargetSitePrefix
+		? path.slice('site:'.length)
+		: path;
+	if (!hasTargetSitePrefix && pathWithinSite === '/wordpress') {
+		return '/wordpress';
+	}
+	const candidatePath =
+		!hasTargetSitePrefix && pathWithinSite.startsWith('/wordpress/')
+			? pathWithinSite
+			: joinPaths('/wordpress', pathWithinSite);
+	const resolvedPath = resolvePathUnder(candidatePath, '/wordpress');
+	if (!resolvedPath) {
 		throw new UnsupportedBlueprintV2FeatureError(
-			'path',
-			`Invalid Blueprint v2 path "${path}": must not contain parent directory segments.`
+			featurePath,
+			`Invalid Blueprint v2 path "${path}": must stay within the target WordPress root.`
 		);
 	}
-	if (path.startsWith('site:')) {
-		return joinPaths('/wordpress', path.slice('site:'.length));
-	}
-	if (path === '/wordpress' || path.startsWith('/wordpress/')) {
-		return path;
-	}
-	return joinPaths('/wordpress', path);
+	return resolvedPath;
 }
 
 /**
@@ -2663,6 +2828,11 @@ function isHttpUrl(value: string) {
 	} catch {
 		return false;
 	}
+}
+
+/** Checks whether a file reference names the mutable target-site filesystem. */
+function isTargetSitePath(value: string) {
+	return value.startsWith('site:');
 }
 
 /**

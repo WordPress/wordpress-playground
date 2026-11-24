@@ -413,11 +413,11 @@ Here's a little demo of this workflow in action:
 <p></p>
 
 <!--
-Check [About Playground > Build > Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
+Check [About Playground > Build > Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests) for more info.
 -->
 
 <div class="callout callout-info">
 
-আরও তথ্যের জন্য [প্লেগ্রাউন্ড সম্পর্কে &gt; তৈরি করুন &gt; আপনার লোকাল ফোল্ডারের সাথে প্লেগ্রাউন্ড ইনস্ট্যান্স সিনক্রোনাইজ করুন এবং গিটহাব পুল রিকোয়েস্ট তৈরি করুন](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) দেখুন।
+আরও তথ্যের জন্য [প্লেগ্রাউন্ড সম্পর্কে &gt; তৈরি করুন &gt; আপনার লোকাল ফোল্ডারের সাথে প্লেগ্রাউন্ড ইনস্ট্যান্স সিনক্রোনাইজ করুন এবং গিটহাব পুল রিকোয়েস্ট তৈরি করুন](/about/build#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests) দেখুন।
 
 </div>

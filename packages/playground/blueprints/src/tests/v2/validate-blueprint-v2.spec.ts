@@ -9,6 +9,69 @@ describe('Blueprint v2 schema validation', () => {
 		expect(validateBlueprintV2({ version: 2 })).toEqual({ valid: true });
 	});
 
+	it('accepts wordpressVersion "none"', () => {
+		expect(
+			validateBlueprintV2({ version: 2, wordpressVersion: 'none' })
+		).toEqual({
+			valid: true,
+		});
+	});
+
+	it('accepts supported Playground PHP extensions', () => {
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				applicationOptions: {
+					'wordpress-playground': {
+						loadPhpExtensions: ['intl'],
+					},
+				},
+			})
+		).toEqual({ valid: true });
+	});
+
+	it.each([
+		'keep-all',
+		'empty',
+		'posts',
+		'pages',
+		['posts'],
+		['pages'],
+		['posts', 'pages'],
+		['posts', 'pages', 'comments'],
+	])('accepts the content baseline %j', (contentBaseline) => {
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				contentBaseline,
+			})
+		).toEqual({ valid: true });
+	});
+
+	it('accepts the keep-all user baseline', () => {
+		expect(
+			validateBlueprintV2({ version: 2, usersBaseline: 'keep-all' })
+		).toEqual({ valid: true });
+	});
+
+	it('accepts an empty user baseline with a replacement administrator', () => {
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				contentBaseline: 'empty',
+				usersBaseline: 'empty',
+				users: [
+					{
+						username: 'new-admin',
+						email: 'new-admin@example.com',
+						role: 'administrator',
+						meta: {},
+					},
+				],
+			})
+		).toEqual({ valid: true });
+	});
+
 	it.each([
 		{ permalink_structure: '/%postname%/' },
 		{ permalink_structure: false },
@@ -26,6 +89,35 @@ describe('Blueprint v2 schema validation', () => {
 					{
 						type: 'posts',
 						source: ['./post.html', { post_title: 'Inline post' }],
+					},
+				],
+			})
+		).toEqual({ valid: true });
+	});
+
+	it('accepts target-site file sources and multisite initialization', () => {
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				content: [
+					{
+						type: 'wxr',
+						source: 'site:wp-content/plugins/woocommerce/sample-data/sample_products.xml',
+					},
+				],
+				additionalStepsAfterExecution: [{ step: 'enableMultisite' }],
+			})
+		).toEqual({ valid: true });
+	});
+
+	it('accepts ordered content resets', () => {
+		expect(
+			validateBlueprintV2({
+				version: 2,
+				additionalStepsAfterExecution: [
+					{
+						step: 'resetData',
+						contentTypes: ['pages', 'comments'],
 					},
 				],
 			})
@@ -110,6 +202,154 @@ describe('Blueprint v2 schema validation', () => {
 			'/applicationOptions/wordpress-playground/unknown',
 		],
 		[
+			'an unsupported Playground PHP extension',
+			{
+				version: 2,
+				applicationOptions: {
+					'wordpress-playground': {
+						loadPhpExtensions: ['xdebug'],
+					},
+				},
+			},
+			'/applicationOptions/wordpress-playground/loadPhpExtensions/0',
+		],
+		[
+			'an unsupported WordPress version sentinel',
+			{ version: 2, wordpressVersion: 'node' },
+			'/wordpressVersion',
+		],
+		[
+			'a WordPress content baseline without WordPress',
+			{
+				version: 2,
+				wordpressVersion: 'none',
+				contentBaseline: 'keep-all',
+			},
+			'/contentBaseline',
+		],
+		[
+			'the replaced content-baseline sentinel',
+			{
+				version: 2,
+				contentBaseline: 'default',
+			},
+			'/contentBaseline',
+		],
+		[
+			'the replaced user-baseline sentinel',
+			{
+				version: 2,
+				usersBaseline: 'default',
+			},
+			'/usersBaseline',
+		],
+		[
+			'comments without scalar parent content',
+			{
+				version: 2,
+				contentBaseline: 'comments',
+			},
+			'/contentBaseline',
+		],
+		[
+			'an empty content-baseline list',
+			{
+				version: 2,
+				contentBaseline: [],
+			},
+			'/contentBaseline',
+		],
+		[
+			'an unsupported content-baseline type',
+			{
+				version: 2,
+				contentBaseline: ['users'],
+			},
+			'/contentBaseline/0',
+		],
+		[
+			'comments without their parent content',
+			{
+				version: 2,
+				contentBaseline: ['comments'],
+			},
+			'/contentBaseline/0',
+		],
+		[
+			'comments without baseline pages',
+			{
+				version: 2,
+				contentBaseline: ['posts', 'comments'],
+			},
+			'/contentBaseline/0',
+		],
+		[
+			'comments without baseline posts',
+			{
+				version: 2,
+				contentBaseline: ['pages', 'comments'],
+			},
+			'/contentBaseline/0',
+		],
+		[
+			'duplicate content-baseline types',
+			{
+				version: 2,
+				contentBaseline: ['posts', 'posts'],
+			},
+			'/contentBaseline',
+		],
+		[
+			'the replaced afterSiteCreation property',
+			{
+				version: 2,
+				afterSiteCreation: { preserveContent: 'all' },
+			},
+			'/afterSiteCreation',
+		],
+		[
+			'an empty user baseline without an empty content baseline',
+			{
+				version: 2,
+				usersBaseline: 'empty',
+				users: [
+					{
+						username: 'new-admin',
+						email: 'new-admin@example.com',
+						role: 'administrator',
+						meta: {},
+					},
+				],
+			},
+			'/contentBaseline',
+		],
+		[
+			'an empty user baseline without declared users',
+			{
+				version: 2,
+				contentBaseline: 'empty',
+				usersBaseline: 'empty',
+			},
+			'/users',
+		],
+		[
+			'an empty user baseline without a replacement administrator',
+			{
+				version: 2,
+				contentBaseline: 'empty',
+				usersBaseline: 'empty',
+				users: [
+					{
+						username: 'editor',
+						email: 'editor@example.com',
+						role: 'editor',
+						meta: {},
+					},
+				],
+			},
+			'/users/0/role',
+		],
+		[
 			'a trailing step missing a required property',
 			{
 				version: 2,
@@ -126,6 +366,30 @@ describe('Blueprint v2 schema validation', () => {
 			'an execution-context path with parent traversal',
 			{ version: 2, wordpressVersion: '../wordpress.zip' },
 			'/wordpressVersion',
+		],
+		[
+			'an empty target-site file path',
+			{
+				version: 2,
+				content: [{ type: 'wxr', source: 'site:' }],
+			},
+			'/content/0/source',
+		],
+		[
+			'a target-site file path naming the WordPress root',
+			{
+				version: 2,
+				content: [{ type: 'wxr', source: 'site:/' }],
+			},
+			'/content/0/source',
+		],
+		[
+			'a target-site file path escaping the WordPress root',
+			{
+				version: 2,
+				content: [{ type: 'wxr', source: 'site:../secret.xml' }],
+			},
+			'/content/0/source',
 		],
 		[
 			'an unknown content type',

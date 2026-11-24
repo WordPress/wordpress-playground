@@ -33,7 +33,9 @@ Você pode integrar perfeitamente o Playground ao seu fluxo de trabalho de desen
 ## Save changes done on a Block Theme and create GitHub Pull Requests
 -->
 
-## Salvar alterações feitas em um Tema de Blocos e criar Pull Requests no GitHub
+<a id="salvar-alterações-feitas-em-um-tema-de-blocos-e-criar-pull-requests-no-github"></a>
+
+## Salvar alterações feitas em um Tema de Blocos e criar Pull Requests no GitHub {#save-changes-done-on-a-block-theme-and-create-github-pull-requests}
 
 <!--
 You can connect your Playground instance to a GitHub repository and create a Pull Request with the changes you've done through the WordPress UI, leveraging the [Create Block Theme](https://wordpress.org/plugins/create-block-theme/) plugin.
@@ -65,7 +67,9 @@ Mais alguns exemplos deste fluxo de trabalho:
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
 -->
 
-## Sincronizar sua instância do playground com uma pasta local e criar Pull Requests no GitHub
+<a id="sincronizar-sua-instância-do-playground-com-uma-pasta-local-e-criar-pull-requests-no-github"></a>
+
+## Sincronizar sua instância do playground com uma pasta local e criar Pull Requests no GitHub {#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests}
 
 ![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
 
@@ -132,14 +136,14 @@ Playground can be combined with different APIs to create amazing tools. The poss
 
 You can [use WordPress Playground in Node.js](/developers/local-development/php-wasm-node) to create new tools. The [@php-wasm/node package](https://npmjs.org/@php-wasm/node), which ships the PHP WebAssembly runtime, is the package used for [https://playground.wordpress.net/](https://playground.wordpress.net/), for example.
 
-Another interesting app built on top of Playground is **Translate Live** (see [example](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) which, in combination with Open AI provides a WordPress translations tool "in place" where translations can be seen and modified in their real context (see example). Read more about this tool at [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
+Another interesting app built on top of Playground is **Translate Live** (see [example](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) which, in combination with OpenAI provides a WordPress translations tool "in place" where translations can be seen and modified in their real context (see example). Read more about this tool at [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 -->
 
 O Playground pode ser combinado com diferentes APIs para criar ferramentas incríveis. As possibilidades são infinitas.
 
 Você pode [usar o WordPress Playground no Node.js](/developers/local-development/php-wasm-node) para criar novas ferramentas. O pacote [@php-wasm/node](https://npmjs.org/@php-wasm/node), que envia o runtime PHP WebAssembly, é o pacote usado para [https://playground.wordpress.net/](https://playground.wordpress.net/), por exemplo.
 
-Outro aplicativo interessante construído sobre o Playground é o **Translate Live** (veja [exemplo](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) que, em combinação com a Open AI, fornece uma ferramenta de traduções WordPress "no local" onde as traduções podem ser vistas e modificadas em seu contexto real (veja exemplo). Leia mais sobre esta ferramenta em [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
+Outro aplicativo interessante construído sobre o Playground é o **Translate Live** (veja [exemplo](https://translate.wordpress.org/projects/wp-plugins/friends/dev/de/default/playground/)) que, em combinação com a OpenAI, fornece uma ferramenta de traduções WordPress "no local" onde as traduções podem ser vistas e modificadas em seu contexto real (veja exemplo). Leia mais sobre esta ferramenta em [Translate Live: Updates to the Translation Playground](https://make.wordpress.org/polyglots/2023/05/08/translate-live-updates-to-the-translation-playground/)
 
 <!--
 ## Work offline and as a native app

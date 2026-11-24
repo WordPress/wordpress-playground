@@ -22,6 +22,85 @@ console.log(response.text);
 
 Loading the client from `https://playground.wordpress.net/client/index.js` keeps it in sync with the remote Playground runtime. The client and the iframe communicate over an internal protocol, and backwards compatibility is guaranteed by serving a matching client and remote from the same deployment.
 
+## Embedding with separate WordPress origins
+
+The WordPress-origin prototype keeps the app and SDK endpoints on the app origin.
+Existing iframe URLs and SDK calls work without a referrer or new URL parameters,
+including nested external embeds. See the
+[prototype boundaries and limits](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/playground/website/bin/wordpress-frame/README.md#limits).
+
+## SharedWorker runtime
+
+`startPlaygroundWeb()` uses a dedicated worker by default. Applications can opt into
+sharing one PHP runtime across tabs on the same origin and browser storage partition.
+Serve the matching client and remote runtime from the application's own deployment:
+
+```js
+const client = await startPlaygroundWeb({
+	iframe: document.getElementById('wp'),
+	remoteUrl: new URL('/remote.html', window.location.href).href,
+	workerMode: 'shared',
+	scope: 'my-site',
+});
+```
+
+Shared mode requires browser SharedWorker support and an explicit `scope`. Tabs using
+the same scope and build share the initialized site; use different scopes for independent
+runtimes. Only the initializing connection runs its startup Blueprint. Closing its tab
+once initialization finishes does not interrupt the other tabs. The main Playground
+website continues to use dedicated workers.
+
+By default, both version options use the remote runtime's build version. Applications
+that check deployments themselves can pass `sharedWorkerVersion` for the current deployment
+and `sharedWorkerClientVersion` for the build loaded by the connecting application. If they
+differ, the tab must reload before connecting. A new deployment discovers the previous
+worker through localStorage and waits for its shutdown confirmation before replacement.
+If that identity is lost or the worker cannot be reached, a replacement may start while
+the previous runtime is still running; there is no ownership lock.
+
+The embedding application must handle same-origin `playground-reload-required` messages
+from its remote iframe and offer a tab reload. The message's `ready` field indicates
+whether shutdown is complete; otherwise wait for `playground-runtime-closed` before
+allowing reload. A `shared-runtime-retirement-error` message reports a retirement failure.
+Validate the message origin and source against the embedded remote iframe.
+
+`await client.shutdownSharedRuntime()` explicitly retires the runtime for all connected
+tabs: it rejects new work, drains active operations, flushes OPFS, and disposes PHP. It
+rejects if retirement fails and is a no-op in dedicated mode. The
+`shouldRunStartupBlueprint()` and `finishSharedRuntimeInitialization()` methods are
+internal startup coordination hooks; applications should let `startPlaygroundWeb()` call them.
+
+## Saved-site export API
+
+`startPlaygroundAPI()` exposes an API for working with Playgrounds without booting WordPress, PHP, workers, or a service worker. Currently, it only supports exporting saved OPFS sites.
+
+To export a saved OPFS site:
+
+- The API endpoint must share the origin and browser storage partition used to save the site.
+- In WebKit, saving and exporting must use the same top-level origin, including its scheme, host, and port. A site saved while Playground is the top-level page is not visible to an API iframe embedded under a different top-level origin.
+
+The `/api.html` entry point is part of the full Playground website deployment. It is not included in the `@wp-playground/remote` npm package.
+
+```js
+import { startPlaygroundAPI } from 'https://playground.wordpress.net/client/index.js';
+
+const iframe = document.createElement('iframe');
+iframe.hidden = true;
+iframe.sandbox.add('allow-scripts');
+iframe.sandbox.add('allow-same-origin');
+document.body.appendChild(iframe);
+
+const api = await startPlaygroundAPI({
+	iframe,
+	apiUrl: 'https://playground.wordpress.net/api.html',
+});
+const zip = await api.exportSavedSiteAsZip('my-site', {
+	excludePatterns: ['/*', '!/wp-content/', '!/wp-content/**'],
+});
+```
+
+The optional `excludePatterns` use gitignore semantics: matching paths are excluded, later patterns take precedence, and a leading `!` re-includes a path. When `excludePatterns` is omitted, the ZIP contains the complete saved site.
+
 ## npm package
 
 The npm package exists for projects that want to install `@wp-playground/client` through a package manager, bundle it with their application, or use its TypeScript declarations locally.

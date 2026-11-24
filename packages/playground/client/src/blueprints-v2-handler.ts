@@ -62,23 +62,17 @@ export class BlueprintsV2Handler {
 		// Connect the Comlink API client to the remote worker download monitor
 		await playground.onDownloadProgress(downloadProgress.loadingListener);
 
-		const resolvedWordPressInstallMode = resolveWordPressInstallMode({
+		const requestedWordPressInstallMode = resolveWordPressInstallMode({
 			shouldInstallWordPress,
 			wordpressInstallMode,
 		});
-		// The `if-needed` mode may initialize the database, but WordPress core
-		// still comes from the mounted files rather than a fallback download.
-		const usesExistingWordPressFiles =
-			resolvedWordPressInstallMode === 'install-from-existing-files' ||
-			resolvedWordPressInstallMode ===
-				'install-from-existing-files-if-needed';
 		const compiled = await compileBlueprintForExecution(blueprint, {
 			progress: executionProgress,
 			onStepCompleted: onBlueprintStepCompleted,
 			onBlueprintValidated,
 			corsProxy,
 			gitAdditionalHeadersCallback,
-			siteMode: usesExistingWordPressFiles
+			siteMode: isExistingSiteInstallMode(requestedWordPressInstallMode)
 				? 'apply-to-existing-site'
 				: 'create-new-site',
 		});
@@ -86,6 +80,14 @@ export class BlueprintsV2Handler {
 			compiled.version === 2
 				? compiled.compiled.runtime
 				: await resolveRuntimeConfiguration(compiled.declaration);
+		const resolvedWordPressInstallMode =
+			compiled.version === 2 &&
+			compiled.declaration.wordpressVersion === 'none'
+				? 'do-not-attempt-installing'
+				: requestedWordPressInstallMode;
+		const usesExistingWordPressFiles = isExistingSiteInstallMode(
+			resolvedWordPressInstallMode
+		);
 		const wordPressZip =
 			compiled.version === 2 &&
 			resolvedWordPressInstallMode === 'download-and-install'
@@ -138,7 +140,29 @@ export class BlueprintsV2Handler {
 		collectPhpLogs(logger, playground);
 		onClientConnected?.(playground);
 
-		await compiled.run(playground);
+		if (
+			this.options.workerMode === 'shared' &&
+			!(await playground.shouldRunStartupBlueprint())
+		) {
+			executionProgress.finish();
+			const landingPage =
+				compiled.version === 2
+					? compiled.declaration.applicationOptions?.[
+							'wordpress-playground'
+						]?.landingPage
+					: compiled.declaration.landingPage;
+			await playground.goTo(landingPage || '/');
+			return playground;
+		}
+		try {
+			await compiled.run(playground);
+		} catch (error) {
+			if (this.options.workerMode === 'shared')
+				await playground.finishSharedRuntimeInitialization();
+			throw error;
+		}
+		if (this.options.workerMode === 'shared')
+			await playground.finishSharedRuntimeInitialization();
 
 		return playground;
 	}
@@ -156,5 +180,20 @@ function resolveWordPressInstallMode({
 		(shouldInstallWordPress === false
 			? 'install-from-existing-files-if-needed'
 			: 'download-and-install')
+	);
+}
+
+/**
+ * Indicates whether boot will reuse WordPress files supplied by the caller.
+ *
+ * The `if-needed` mode may initialize the database, but WordPress core still
+ * comes from the mounted files rather than a fallback download.
+ */
+function isExistingSiteInstallMode(
+	wordpressInstallMode: WordPressInstallMode
+): boolean {
+	return (
+		wordpressInstallMode === 'install-from-existing-files' ||
+		wordpressInstallMode === 'install-from-existing-files-if-needed'
 	);
 }

@@ -1,3 +1,4 @@
+(function() {
 "use strict";
 var wp;
 (wp ||= {}).router = (() => {
@@ -73,7 +74,7 @@ var wp;
     privateApis: () => privateApis
   });
 
-  // node_modules/route-recognizer/dist/route-recognizer.es.js
+  // node_modules/.store/route-recognizer@0.3.4-RwhJW8EEgnmEzbaiS0nEQg/node_modules/route-recognizer/dist/route-recognizer.es.js
   var createObject = Object.create;
   function createMap() {
     var map2 = createObject(null);
@@ -706,7 +707,7 @@ var wp;
   RouteRecognizer.prototype.map = map;
   var route_recognizer_es_default = RouteRecognizer;
 
-  // node_modules/@babel/runtime/helpers/esm/extends.js
+  // node_modules/.store/@babel/runtime@7.29.7-rt9-DvbCN_Bw5NRKlU_pAg/node_modules/@babel/runtime/helpers/esm/extends.js
   function _extends() {
     return _extends = Object.assign ? Object.assign.bind() : function(n) {
       for (var e = 1; e < arguments.length; e++) {
@@ -717,7 +718,7 @@ var wp;
     }, _extends.apply(null, arguments);
   }
 
-  // node_modules/history/index.js
+  // node_modules/.store/history@5.3.0-jXcBigBhmPgXYDQzxrhvOg/node_modules/history/index.js
   var Action;
   (function(Action2) {
     Action2["Pop"] = "POP";
@@ -1001,7 +1002,7 @@ var wp;
         const path = (0, import_url.getPath)("http://domain.com/" + rawPath) ?? "";
         const performPush = () => {
           const result = beforeNavigate ? beforeNavigate({ path, query }) : { path, query };
-          return history.push(
+          return history[options.replace ? "replace" : "push"](
             {
               search: (0, import_url.buildQueryString)({
                 [pathArg]: result.path,
@@ -1183,4 +1184,6 @@ var wp;
     Link
   });
   return __toCommonJS(index_exports);
+})();
+(window.wp ||= {}).router = wp.router;
 })();

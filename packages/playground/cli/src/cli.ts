@@ -6,7 +6,33 @@ function runCLI() {
 	// Dynamic import avoids loading run-cli when we're about to respawn.
 	// Do not await — top-level await is not supported in all environments.
 	import('./run-cli').then(({ parseOptionsAndRunCLI }) => {
-		parseOptionsAndRunCLI(args);
+		parseOptionsAndRunCLI(args)
+			.then((result) => {
+				if ('exitCode' in result) {
+					process.exit(result.exitCode);
+					return;
+				}
+
+				// A server is running. Clean up and exit on
+				// SIGINT / SIGTERM.
+				const cleanUpAndExit = (() => {
+					let cleaning: PromiseLike<void>;
+					return async () => {
+						if (!cleaning) {
+							cleaning = result[Symbol.asyncDispose]();
+						}
+						await cleaning;
+						process.exit(0);
+					};
+				})();
+				process.on('SIGINT', cleanUpAndExit);
+				process.on('SIGTERM', cleanUpAndExit);
+			})
+			.catch(() => {
+				// Unexpected error — already logged by
+				// parseOptionsAndRunCLI.
+				process.exit(1);
+			});
 	});
 }
 

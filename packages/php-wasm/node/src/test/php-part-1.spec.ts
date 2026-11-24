@@ -14,6 +14,8 @@ import type { PHPLoaderOptions } from '..';
 import { loadNodeRuntime } from '..';
 import { createNodeFsMountHandler } from '../lib/node-fs-mount';
 import { spawn } from 'child_process';
+import { EventEmitter } from 'events';
+import { PassThrough } from 'stream';
 
 const testDirPath = '/__test987654321';
 const testFilePath = '/__test987654321.txt';
@@ -728,6 +730,46 @@ phpLoaderOptions.forEach((options) => {
 		});
 
 		describe('proc_open()', () => {
+			it('closes child stdin when descriptor 0 is omitted', async () => {
+				let stdinFinished = false;
+				const handler = createSpawnHandler(
+					async (command: string[], processApi: any) => {
+						const stdin = processApi.childProcess.stdin;
+						stdinFinished =
+							stdin.ended ||
+							(await new Promise<boolean>((resolve) => {
+								const timeout = setTimeout(
+									() => resolve(false),
+									1000
+								);
+								stdin.once('finish', () => {
+									clearTimeout(timeout);
+									resolve(true);
+								});
+							}));
+						processApi.exit(stdinFinished ? 0 : 1);
+					}
+				);
+				php.setSpawnHandler(handler);
+
+				const result = await php.run({
+					code: `<?php
+						$proc = proc_open(
+							"wait-for-stdin-eof",
+							array(
+								1 => array("pipe", "w"),
+								2 => array("pipe", "w"),
+							),
+							$pipes
+						);
+						echo proc_close($proc);
+					`,
+				});
+
+				expect(result.text).toBe('0');
+				expect(stdinFinished).toBe(true);
+			});
+
 			it('resolves without crashing with unknown function signature mismatch', async () => {
 				const promise = php.runStream({
 					code: `<?php
@@ -1470,40 +1512,168 @@ phpLoaderOptions.forEach((options) => {
 				expect(spawnHandlerCalled).toBe(true);
 			}, 10000);
 
-			it('Handle process spawn timeout gracefully', async () => {
-				let spawnHandlerCalled = false;
-				const handler = createSpawnHandler(async () => {
-					spawnHandlerCalled = true;
-					// Don't call processApi.notifySpawn() or processApi.exit()
-					// to simulate a hanging process that never starts
-					await new Promise(() => {}); // Never resolves
+			it(
+				'blocking fread waits for slow pipe output',
+				{ timeout: 10_000 },
+				async () => {
+					const handler = createSpawnHandler(
+						async (command: string[], processApi: any) => {
+							processApi.notifySpawn();
+							await new Promise((resolve) =>
+								setTimeout(resolve, 6_000)
+							);
+							processApi.stdout(
+								new TextEncoder().encode('delayed data')
+							);
+							await new Promise((resolve) =>
+								setTimeout(resolve, 500)
+							);
+							processApi.exit(0);
+						}
+					);
+
+					php.setSpawnHandler(handler);
+
+					const result = await php.run({
+						code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = proc_open("delayed_command", $descriptorspec, $pipes);
+					$data = fread($pipes[1], 1024);
+					echo $data;
+					proc_close($proc);
+					`,
+					});
+
+					expect(result.text).toEqual('delayed data');
+				}
+			);
+
+			it('blocking fread returns when the spawn handler never signals spawn', async () => {
+				const child = Object.assign(new EventEmitter(), {
+					pid: 1,
+					stdout: new PassThrough(),
+					stderr: new PassThrough(),
+					stdin: new PassThrough(),
 				});
+				php.setSpawnHandler((() => child) as any);
 
-				php.setSpawnHandler(handler);
-
-				const startTime = Date.now();
-				await php.run({
+				const result = await php.run({
 					code: `<?php
-						$res = proc_open(
-							"hanging_command",
-							array(
-								array("pipe","r"),
-								array("pipe","w"),
-								array("pipe","w"),
-							),
-							$pipes
-						);
-						// This will block – it's a blocking pipe and will never
-						// output any data.
-						fread($pipes[1], 1024);
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = proc_open("foo", $descriptorspec, $pipes);
+					echo json_encode(fread($pipes[1], 1024));
 					`,
 				});
-				const elapsed = Date.now() - startTime;
-				// Should timeout around 5 seconds (allowing some margin)
-				expect(elapsed).toBeGreaterThan(4500);
-				expect(elapsed).toBeLessThan(6000);
-				expect(spawnHandlerCalled).toBe(true);
+
+				expect(result.text).toEqual('""');
 			}, 10000);
+
+			it('delivers the stderr message of a spawn program that throws', async () => {
+				php.setSpawnHandler(
+					createSpawnHandler(async () => {
+						await new Promise((resolve) =>
+							setTimeout(resolve, 100)
+						);
+						throw new Error('spawn program failed');
+					})
+				);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						2 => array("pipe","w")
+					);
+					$proc = proc_open("foo", $descriptorspec, $pipes);
+					echo stream_get_contents($pipes[2]);
+					`,
+				});
+
+				expect(result.text).toEqual('spawn program failed');
+			}, 10000);
+
+			it('does not close reused fds when a failed spawn exits late', async () => {
+				const child = Object.assign(new EventEmitter(), {
+					pid: 1,
+					stdout: new PassThrough(),
+					stderr: new PassThrough(),
+					stdin: new PassThrough(),
+				});
+				php.setSpawnHandler((() => {
+					setTimeout(() => {
+						child.emit('error', new Error('foo'));
+						setTimeout(() => child.emit('exit', 1), 200);
+					});
+					return child;
+				}) as any);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = proc_open("foo", $descriptorspec, $pipes);
+					file_put_contents("/tmp/fd-reuse.txt", "still open");
+					$file = fopen("/tmp/fd-reuse.txt", "r");
+					// Wait for the late 'exit' event.
+					usleep(500000);
+					echo fread($file, 1024);
+					`,
+				});
+
+				expect(result.text).toEqual('still open');
+			}, 10000);
+
+			it('returns from a blocking fread when the spawn fails without exiting', async () => {
+				const child = Object.assign(new EventEmitter(), {
+					pid: 1,
+					stdout: new PassThrough(),
+					stderr: new PassThrough(),
+					stdin: new PassThrough(),
+				});
+				php.setSpawnHandler((() => {
+					setTimeout(() => child.emit('error', new Error('foo')));
+					return child;
+				}) as any);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = proc_open("foo", $descriptorspec, $pipes);
+					echo json_encode(fread($pipes[1], 1024));
+					`,
+				});
+
+				expect(result.text).toEqual('""');
+			}, 10000);
+
+			it('reports the spawn error when the process never starts', async () => {
+				php.setSpawnHandler(spawn as any);
+
+				const result = await php.run({
+					code: `<?php
+					$descriptorspec = array(
+						1 => array("pipe","w")
+					);
+					$proc = @proc_open(
+						"echo foo",
+						$descriptorspec,
+						$pipes,
+						"/nonexistent-foo"
+					);
+					echo json_encode(array($proc, error_get_last()['message']));
+					`,
+				});
+
+				expect(result.text).toEqual(
+					'[false,"proc_open(): proc_open() failed - No such file or directory"]'
+				);
+			});
 		});
 
 		describe('Filesystem', { skip }, () => {

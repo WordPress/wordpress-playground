@@ -1,11 +1,18 @@
+/* Fixed, centered overlay rather than an in-flow block: the modals mount as the
+   first child of the layout flex row, so an in-flow fallback briefly appeared as
+   a column on the left while the lazy modal chunk loaded ("a blink on the left").
+*/
 .fallback {
+	align-items: center;
 	display: flex;
 	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	min-height: 300px;
 	gap: 16px;
+	inset: 0;
+	justify-content: center;
 	padding: 24px;
+	position: fixed;
+	/* Match the @wordpress/components modal screen overlay. */
+	z-index: 100000;
 }
 
 .spinner {

@@ -38,16 +38,16 @@ var require_react = __commonJS({
   }
 });
 
-// node_modules/use-sync-external-store/cjs/use-sync-external-store-shim.development.js
+// node_modules/.store/use-sync-external-store@1.7.0-jHNF5n8408rkWhZ5NHKclA/node_modules/use-sync-external-store/cjs/use-sync-external-store-shim.development.js
 var require_use_sync_external_store_shim_development = __commonJS({
-  "node_modules/use-sync-external-store/cjs/use-sync-external-store-shim.development.js"(exports) {
+  "node_modules/.store/use-sync-external-store@1.7.0-jHNF5n8408rkWhZ5NHKclA/node_modules/use-sync-external-store/cjs/use-sync-external-store-shim.development.js"(exports) {
     "use strict";
     (function() {
       function is(x, y) {
         return x === y && (0 !== x || 1 / x === 1 / y) || x !== x && y !== y;
       }
       function useSyncExternalStore$2(subscribe2, getSnapshot) {
-        didWarnOld18Alpha || void 0 === React12.startTransition || (didWarnOld18Alpha = true, console.error(
+        didWarnOld18Alpha || void 0 === React13.startTransition || (didWarnOld18Alpha = true, console.error(
           "You are using an outdated, pre-release alpha of React 18 that does not support useSyncExternalStore. The use-sync-external-store shim will not work correctly. Upgrade to a newer pre-release."
         ));
         var value = getSnapshot();
@@ -57,7 +57,7 @@ var require_use_sync_external_store_shim_development = __commonJS({
             "The result of getSnapshot should be cached to avoid an infinite loop"
           ), didWarnUncachedGetSnapshot = true);
         }
-        cachedValue = useState4({
+        cachedValue = useState5({
           inst: { value, getSnapshot }
         });
         var inst = cachedValue[0].inst, forceUpdate = cachedValue[1];
@@ -69,7 +69,7 @@ var require_use_sync_external_store_shim_development = __commonJS({
           },
           [subscribe2, value, getSnapshot]
         );
-        useEffect5(
+        useEffect6(
           function() {
             checkIfSnapshotChanged(inst) && forceUpdate({ inst });
             return subscribe2(function() {
@@ -95,16 +95,16 @@ var require_use_sync_external_store_shim_development = __commonJS({
         return getSnapshot();
       }
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-      var React12 = require_react(), objectIs = "function" === typeof Object.is ? Object.is : is, useState4 = React12.useState, useEffect5 = React12.useEffect, useLayoutEffect3 = React12.useLayoutEffect, useDebugValue = React12.useDebugValue, didWarnOld18Alpha = false, didWarnUncachedGetSnapshot = false, shim = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
-      exports.useSyncExternalStore = void 0 !== React12.useSyncExternalStore ? React12.useSyncExternalStore : shim;
+      var React13 = require_react(), objectIs = "function" === typeof Object.is ? Object.is : is, useState5 = React13.useState, useEffect6 = React13.useEffect, useLayoutEffect3 = React13.useLayoutEffect, useDebugValue = React13.useDebugValue, didWarnOld18Alpha = false, didWarnUncachedGetSnapshot = false, shim = "undefined" === typeof window || "undefined" === typeof window.document || "undefined" === typeof window.document.createElement ? useSyncExternalStore$1 : useSyncExternalStore$2;
+      exports.useSyncExternalStore = void 0 !== React13.useSyncExternalStore ? React13.useSyncExternalStore : shim;
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop(Error());
     })();
   }
 });
 
-// node_modules/use-sync-external-store/shim/index.js
+// node_modules/.store/use-sync-external-store@1.7.0-jHNF5n8408rkWhZ5NHKclA/node_modules/use-sync-external-store/shim/index.js
 var require_shim = __commonJS({
-  "node_modules/use-sync-external-store/shim/index.js"(exports, module) {
+  "node_modules/.store/use-sync-external-store@1.7.0-jHNF5n8408rkWhZ5NHKclA/node_modules/use-sync-external-store/shim/index.js"(exports, module) {
     "use strict";
     if (false) {
       module.exports = null;
@@ -114,16 +114,16 @@ var require_shim = __commonJS({
   }
 });
 
-// node_modules/use-sync-external-store/cjs/use-sync-external-store-shim/with-selector.development.js
+// node_modules/.store/use-sync-external-store@1.7.0-jHNF5n8408rkWhZ5NHKclA/node_modules/use-sync-external-store/cjs/use-sync-external-store-shim/with-selector.development.js
 var require_with_selector_development = __commonJS({
-  "node_modules/use-sync-external-store/cjs/use-sync-external-store-shim/with-selector.development.js"(exports) {
+  "node_modules/.store/use-sync-external-store@1.7.0-jHNF5n8408rkWhZ5NHKclA/node_modules/use-sync-external-store/cjs/use-sync-external-store-shim/with-selector.development.js"(exports) {
     "use strict";
     (function() {
       function is(x, y) {
         return x === y && (0 !== x || 1 / x === 1 / y) || x !== x && y !== y;
       }
       "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ && "function" === typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart && __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStart(Error());
-      var React12 = require_react(), shim = require_shim(), objectIs = "function" === typeof Object.is ? Object.is : is, useSyncExternalStore = shim.useSyncExternalStore, useRef7 = React12.useRef, useEffect5 = React12.useEffect, useMemo3 = React12.useMemo, useDebugValue = React12.useDebugValue;
+      var React13 = require_react(), shim = require_shim(), objectIs = "function" === typeof Object.is ? Object.is : is, useSyncExternalStore = shim.useSyncExternalStore, useRef7 = React13.useRef, useEffect6 = React13.useEffect, useMemo3 = React13.useMemo, useDebugValue = React13.useDebugValue;
       exports.useSyncExternalStoreWithSelector = function(subscribe2, getSnapshot, getServerSnapshot, selector, isEqual) {
         var instRef = useRef7(null);
         if (null === instRef.current) {
@@ -166,7 +166,7 @@ var require_with_selector_development = __commonJS({
           [getSnapshot, getServerSnapshot, selector, isEqual]
         );
         var value = useSyncExternalStore(subscribe2, instRef[0], instRef[1]);
-        useEffect5(
+        useEffect6(
           function() {
             inst.hasValue = true;
             inst.value = value;
@@ -181,9 +181,9 @@ var require_with_selector_development = __commonJS({
   }
 });
 
-// node_modules/use-sync-external-store/shim/with-selector.js
+// node_modules/.store/use-sync-external-store@1.7.0-jHNF5n8408rkWhZ5NHKclA/node_modules/use-sync-external-store/shim/with-selector.js
 var require_with_selector = __commonJS({
-  "node_modules/use-sync-external-store/shim/with-selector.js"(exports, module) {
+  "node_modules/.store/use-sync-external-store@1.7.0-jHNF5n8408rkWhZ5NHKclA/node_modules/use-sync-external-store/shim/with-selector.js"(exports, module) {
     "use strict";
     if (false) {
       module.exports = null;
@@ -207,7 +207,7 @@ var require_private_apis = __commonJS({
   }
 });
 
-// node_modules/@tanstack/store/dist/esm/scheduler.js
+// node_modules/.store/@tanstack/store@0.8.0-_EvlR8o0z_iYIWqpbCgFGw/node_modules/@tanstack/store/dist/esm/scheduler.js
 var __storeToDerived = /* @__PURE__ */ new WeakMap();
 var __derivedToStore = /* @__PURE__ */ new WeakMap();
 var __depsThatHaveWrittenThisTick = {
@@ -304,12 +304,12 @@ function batch(fn) {
   }
 }
 
-// node_modules/@tanstack/store/dist/esm/types.js
+// node_modules/.store/@tanstack/store@0.8.0-_EvlR8o0z_iYIWqpbCgFGw/node_modules/@tanstack/store/dist/esm/types.js
 function isUpdaterFunction(updater) {
   return typeof updater === "function";
 }
 
-// node_modules/@tanstack/store/dist/esm/store.js
+// node_modules/.store/@tanstack/store@0.8.0-_EvlR8o0z_iYIWqpbCgFGw/node_modules/@tanstack/store/dist/esm/store.js
 var Store = class {
   constructor(initialState, options) {
     this.listeners = /* @__PURE__ */ new Set();
@@ -343,7 +343,7 @@ var Store = class {
   }
 };
 
-// node_modules/@tanstack/history/dist/esm/index.js
+// node_modules/.store/@tanstack/history@1.133.28-Yt-oKD37UNw2SCAi54kKkA/node_modules/@tanstack/history/dist/esm/index.js
 var stateIndexKey = "__TSR_index";
 var popStateEvent = "popstate";
 var beforeUnloadEvent = "beforeunload";
@@ -674,6 +674,43 @@ function createBrowserHistory(opts) {
   };
   return history;
 }
+function createMemoryHistory(opts = {
+  initialEntries: ["/"]
+}) {
+  const entries = opts.initialEntries;
+  let index = opts.initialIndex ? Math.min(Math.max(opts.initialIndex, 0), entries.length - 1) : entries.length - 1;
+  const states = entries.map(
+    (_entry, index2) => assignKeyAndIndex(index2, void 0)
+  );
+  const getLocation = () => parseHref(entries[index], states[index]);
+  return createHistory({
+    getLocation,
+    getLength: () => entries.length,
+    pushState: (path, state) => {
+      if (index < entries.length - 1) {
+        entries.splice(index + 1);
+        states.splice(index + 1);
+      }
+      states.push(state);
+      entries.push(path);
+      index = Math.max(entries.length - 1, 0);
+    },
+    replaceState: (path, state) => {
+      states[index] = state;
+      entries[index] = path;
+    },
+    back: () => {
+      index = Math.max(index - 1, 0);
+    },
+    forward: () => {
+      index = Math.min(index + 1, entries.length - 1);
+    },
+    go: (n) => {
+      index = Math.min(Math.max(index + n, 0), entries.length - 1);
+    },
+    createHref: (path) => path
+  });
+}
 function parseHref(href, state) {
   const hashIndex = href.indexOf("#");
   const searchIndex = href.indexOf("?");
@@ -693,7 +730,7 @@ function createRandomKey() {
   return (Math.random() + 1).toString(36).substring(7);
 }
 
-// node_modules/@tanstack/router-core/dist/esm/utils.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/utils.js
 function last(arr) {
   return arr[arr.length - 1];
 }
@@ -897,7 +934,7 @@ function decodePathSegment(part, decodeIgnore = DECODE_IGNORE_LIST, startIndex =
   return decode2(part);
 }
 
-// node_modules/tiny-invariant/dist/esm/tiny-invariant.js
+// node_modules/.store/tiny-invariant@1.3.3-XltxY3JduNmCxcvziTPE-g/node_modules/tiny-invariant/dist/esm/tiny-invariant.js
 var isProduction = false;
 var prefix = "Invariant failed";
 function invariant(condition, message) {
@@ -912,7 +949,7 @@ function invariant(condition, message) {
   throw new Error(value);
 }
 
-// node_modules/@tanstack/router-core/dist/esm/path.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/path.js
 var SEGMENT_TYPE_PATHNAME = 0;
 var SEGMENT_TYPE_PARAM = 1;
 var SEGMENT_TYPE_WILDCARD = 2;
@@ -1432,7 +1469,7 @@ function isMatch(baseSegments, routeSegments, params, fuzzy, caseSensitive) {
   return true;
 }
 
-// node_modules/@tanstack/router-core/dist/esm/process-route-tree.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/process-route-tree.js
 var SLASH_SCORE = 0.75;
 var STATIC_SEGMENT_SCORE = 1;
 var REQUIRED_PARAM_BASE_SCORE = 0.5;
@@ -1572,7 +1609,7 @@ function processRouteTree({
   return { routesById, routesByPath, flatRoutes };
 }
 
-// node_modules/@tanstack/router-core/dist/esm/not-found.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/not-found.js
 function notFound(options = {}) {
   options.isNotFound = true;
   if (options.throw) throw options;
@@ -1582,7 +1619,7 @@ function isNotFound(obj) {
   return !!obj?.isNotFound;
 }
 
-// node_modules/@tanstack/router-core/dist/esm/scroll-restoration.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/scroll-restoration.js
 function getSafeSessionStorage() {
   try {
     if (typeof window !== "undefined" && typeof window.sessionStorage === "object") {
@@ -1790,7 +1827,7 @@ function handleHashScroll(router) {
   }
 }
 
-// node_modules/@tanstack/router-core/dist/esm/qss.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/qss.js
 function encode(obj, stringify = String) {
   const result = new URLSearchParams();
   for (const key in obj) {
@@ -1823,7 +1860,7 @@ function decode(str) {
   return result;
 }
 
-// node_modules/@tanstack/router-core/dist/esm/searchParams.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/searchParams.js
 var defaultParseSearch = parseSearchWith(JSON.parse);
 var defaultStringifySearch = stringifySearchWith(
   JSON.stringify,
@@ -1870,10 +1907,10 @@ function stringifySearchWith(stringify, parser) {
   };
 }
 
-// node_modules/@tanstack/router-core/dist/esm/root.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/root.js
 var rootRouteId = "__root__";
 
-// node_modules/@tanstack/router-core/dist/esm/redirect.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/redirect.js
 function redirect(opts) {
   opts.statusCode = opts.statusCode || opts.code || 307;
   if (!opts.reloadDocument && typeof opts.href === "string") {
@@ -1901,7 +1938,7 @@ function isRedirect(obj) {
   return obj instanceof Response && !!obj.options;
 }
 
-// node_modules/@tanstack/router-core/dist/esm/lru-cache.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/lru-cache.js
 function createLRUCache(max) {
   const cache = /* @__PURE__ */ new Map();
   let oldest;
@@ -1961,7 +1998,7 @@ function createLRUCache(max) {
   };
 }
 
-// node_modules/@tanstack/router-core/dist/esm/load-matches.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/load-matches.js
 var triggerOnReady = (inner) => {
   if (!inner.rendered) {
     inner.rendered = true;
@@ -2591,7 +2628,7 @@ var componentTypes = [
   "notFoundComponent"
 ];
 
-// node_modules/@tanstack/router-core/dist/esm/rewrite.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/rewrite.js
 function composeRewrites(rewrites) {
   return {
     input: ({ url }) => {
@@ -2653,7 +2690,7 @@ function executeRewriteOutput(rewrite, url) {
   return url;
 }
 
-// node_modules/@tanstack/router-core/dist/esm/router.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/router.js
 function getLocationChangeInfo(routerState) {
   const fromLocation = routerState.resolvedLocation;
   const toLocation = routerState.location;
@@ -3950,10 +3987,10 @@ function applySearchMiddleware({
   return applyNext(0, search);
 }
 
-// node_modules/@tanstack/router-core/dist/esm/link.js
-var preloadWarning = "Error preloading route! \u261D\uFE0F";
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/link.js
+var preloadWarning = "Error preloading route! ☝️";
 
-// node_modules/@tanstack/router-core/dist/esm/route.js
+// node_modules/.store/@tanstack/router-core@1.133.36-As70WREmsULMVD9U20LQmg/node_modules/@tanstack/router-core/dist/esm/route.js
 var BaseRoute = class {
   constructor(options) {
     this.init = (opts) => {
@@ -4050,7 +4087,7 @@ var BaseRootRoute = class extends BaseRoute {
   }
 };
 
-// node_modules/@tanstack/react-router/dist/esm/CatchBoundary.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/CatchBoundary.js
 var import_jsx_runtime = __toESM(require_jsx_runtime(), 1);
 var React = __toESM(require_react(), 1);
 function CatchBoundary(props) {
@@ -4144,7 +4181,7 @@ function ErrorComponent({ error }) {
   ] });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/ClientOnly.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/ClientOnly.js
 var import_jsx_runtime2 = __toESM(require_jsx_runtime(), 1);
 var import_react = __toESM(require_react(), 1);
 function ClientOnly({ children, fallback = null }) {
@@ -4162,7 +4199,7 @@ function subscribe() {
   };
 }
 
-// node_modules/tiny-warning/dist/tiny-warning.esm.js
+// node_modules/.store/tiny-warning@1.0.3-fDByLHv1upwo0J9-yqjuTw/node_modules/tiny-warning/dist/tiny-warning.esm.js
 var isProduction2 = false;
 function warning(condition, message) {
   if (!isProduction2) {
@@ -4181,14 +4218,14 @@ function warning(condition, message) {
 }
 var tiny_warning_esm_default = warning;
 
-// node_modules/@tanstack/react-router/dist/esm/route.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/route.js
 var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
 var import_react3 = __toESM(require_react(), 1);
 
-// node_modules/@tanstack/react-router/dist/esm/useMatch.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useMatch.js
 var React5 = __toESM(require_react(), 1);
 
-// node_modules/@tanstack/react-store/dist/esm/index.js
+// node_modules/.store/@tanstack/react-store@0.8.0-OmQs4j42AW82WQUvwgvENw/node_modules/@tanstack/react-store/dist/esm/index.js
 var import_with_selector = __toESM(require_with_selector(), 1);
 function useStore(store, selector = (d) => d, options = {}) {
   const equal = options.equal ?? shallow;
@@ -4243,13 +4280,13 @@ function getOwnKeys(obj) {
   );
 }
 
-// node_modules/@tanstack/react-router/dist/esm/useRouterState.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useRouterState.js
 var import_react2 = __toESM(require_react(), 1);
 
-// node_modules/@tanstack/react-router/dist/esm/useRouter.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useRouter.js
 var React3 = __toESM(require_react(), 1);
 
-// node_modules/@tanstack/react-router/dist/esm/routerContext.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/routerContext.js
 var React2 = __toESM(require_react(), 1);
 var routerContext = React2.createContext(null);
 function getRouterContext() {
@@ -4263,7 +4300,7 @@ function getRouterContext() {
   return routerContext;
 }
 
-// node_modules/@tanstack/react-router/dist/esm/useRouter.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useRouter.js
 function useRouter(opts) {
   const value = React3.useContext(getRouterContext());
   tiny_warning_esm_default(
@@ -4273,7 +4310,7 @@ function useRouter(opts) {
   return value;
 }
 
-// node_modules/@tanstack/react-router/dist/esm/useRouterState.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useRouterState.js
 function useRouterState(opts) {
   const contextRouter = useRouter({
     warn: opts?.router === void 0
@@ -4296,14 +4333,14 @@ function useRouterState(opts) {
   });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/matchContext.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/matchContext.js
 var React4 = __toESM(require_react(), 1);
 var matchContext = React4.createContext(void 0);
 var dummyMatchContext = React4.createContext(
   void 0
 );
 
-// node_modules/@tanstack/react-router/dist/esm/useMatch.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useMatch.js
 function useMatch(opts) {
   const nearestMatchId = React5.useContext(
     opts.from ? dummyMatchContext : matchContext
@@ -4327,7 +4364,7 @@ function useMatch(opts) {
   return matchSelection;
 }
 
-// node_modules/@tanstack/react-router/dist/esm/useLoaderData.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useLoaderData.js
 function useLoaderData(opts) {
   return useMatch({
     from: opts.from,
@@ -4339,7 +4376,7 @@ function useLoaderData(opts) {
   });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/useLoaderDeps.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useLoaderDeps.js
 function useLoaderDeps(opts) {
   const { select, ...rest } = opts;
   return useMatch({
@@ -4350,7 +4387,7 @@ function useLoaderDeps(opts) {
   });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/useParams.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useParams.js
 function useParams(opts) {
   return useMatch({
     from: opts.from,
@@ -4364,7 +4401,7 @@ function useParams(opts) {
   });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/useSearch.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useSearch.js
 function useSearch(opts) {
   return useMatch({
     from: opts.from,
@@ -4377,7 +4414,7 @@ function useSearch(opts) {
   });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/useNavigate.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useNavigate.js
 var React6 = __toESM(require_react(), 1);
 function useNavigate(_defaultOpts) {
   const router = useRouter();
@@ -4392,12 +4429,12 @@ function useNavigate(_defaultOpts) {
   );
 }
 
-// node_modules/@tanstack/react-router/dist/esm/link.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/link.js
 var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
 var React8 = __toESM(require_react(), 1);
 var import_react_dom = __toESM(require_react_dom(), 1);
 
-// node_modules/@tanstack/react-router/dist/esm/utils.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/utils.js
 var React7 = __toESM(require_react(), 1);
 var useLayoutEffect2 = typeof window !== "undefined" ? React7.useLayoutEffect : React7.useEffect;
 function usePrevious(value) {
@@ -4434,7 +4471,7 @@ function useForwardedRef(ref) {
   return innerRef;
 }
 
-// node_modules/@tanstack/react-router/dist/esm/link.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/link.js
 function useLinkProps(options, forwardedRef) {
   const router = useRouter();
   const [isTransitioning, setIsTransitioning] = React8.useState(false);
@@ -4756,7 +4793,7 @@ function isCtrlEvent(e) {
   return !!(e.metaKey || e.altKey || e.ctrlKey || e.shiftKey);
 }
 
-// node_modules/@tanstack/react-router/dist/esm/route.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/route.js
 var Route = class extends BaseRoute {
   /**
    * @deprecated Use the `createRoute` function instead.
@@ -4869,7 +4906,7 @@ function createRootRoute(options) {
   return new RootRoute(options);
 }
 
-// node_modules/@tanstack/react-router/dist/esm/fileRoute.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/fileRoute.js
 function createFileRoute(path) {
   if (typeof path === "object") {
     return new FileRoute(path, {
@@ -4953,11 +4990,11 @@ function createLazyFileRoute(id) {
   return (opts) => new LazyRoute({ id, ...opts });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/Matches.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/Matches.js
 var import_jsx_runtime11 = __toESM(require_jsx_runtime(), 1);
 var React11 = __toESM(require_react(), 1);
 
-// node_modules/@tanstack/react-router/dist/esm/Transitioner.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/Transitioner.js
 var React9 = __toESM(require_react(), 1);
 function Transitioner() {
   const router = useRouter();
@@ -5050,11 +5087,11 @@ function Transitioner() {
   return null;
 }
 
-// node_modules/@tanstack/react-router/dist/esm/Match.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/Match.js
 var import_jsx_runtime10 = __toESM(require_jsx_runtime(), 1);
 var React10 = __toESM(require_react(), 1);
 
-// node_modules/@tanstack/react-router/dist/esm/not-found.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/not-found.js
 var import_jsx_runtime5 = __toESM(require_jsx_runtime(), 1);
 function CatchNotFound(props) {
   const resetKey = useRouterState({
@@ -5086,13 +5123,13 @@ function DefaultGlobalNotFound() {
   return /* @__PURE__ */ (0, import_jsx_runtime5.jsx)("p", { children: "Not Found" });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/SafeFragment.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/SafeFragment.js
 var import_jsx_runtime6 = __toESM(require_jsx_runtime(), 1);
 function SafeFragment(props) {
   return /* @__PURE__ */ (0, import_jsx_runtime6.jsx)(import_jsx_runtime6.Fragment, { children: props.children });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/renderRouteNotFound.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/renderRouteNotFound.js
 var import_jsx_runtime7 = __toESM(require_jsx_runtime(), 1);
 function renderRouteNotFound(router, route, data) {
   if (!route.options.notFoundComponent) {
@@ -5110,10 +5147,10 @@ function renderRouteNotFound(router, route, data) {
   return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(route.options.notFoundComponent, { data });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/scroll-restoration.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/scroll-restoration.js
 var import_jsx_runtime9 = __toESM(require_jsx_runtime(), 1);
 
-// node_modules/@tanstack/react-router/dist/esm/ScriptOnce.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/ScriptOnce.js
 var import_jsx_runtime8 = __toESM(require_jsx_runtime(), 1);
 function ScriptOnce({ children }) {
   const router = useRouter();
@@ -5132,7 +5169,7 @@ function ScriptOnce({ children }) {
   );
 }
 
-// node_modules/@tanstack/react-router/dist/esm/scroll-restoration.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/scroll-restoration.js
 function ScrollRestoration() {
   const router = useRouter();
   if (!router.isScrollRestoring || !router.isServer) {
@@ -5164,7 +5201,7 @@ function ScrollRestoration() {
   );
 }
 
-// node_modules/@tanstack/react-router/dist/esm/Match.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/Match.js
 var Match = React10.memo(function MatchImpl({
   matchId
 }) {
@@ -5388,7 +5425,7 @@ var Outlet = React10.memo(function OutletImpl() {
   return nextMatch;
 });
 
-// node_modules/@tanstack/react-router/dist/esm/Matches.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/Matches.js
 function Matches() {
   const router = useRouter();
   const rootRoute = router.routesById[rootRouteId];
@@ -5438,7 +5475,7 @@ function useMatches(opts) {
   });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/router.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/router.js
 var createRouter = (options) => {
   return new Router(options);
 };
@@ -5455,7 +5492,7 @@ if (typeof globalThis !== "undefined") {
   window.createLazyFileRoute = createLazyFileRoute;
 }
 
-// node_modules/@tanstack/react-router/dist/esm/RouterProvider.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/RouterProvider.js
 var import_jsx_runtime12 = __toESM(require_jsx_runtime(), 1);
 function RouterContextProvider({
   router,
@@ -5483,14 +5520,134 @@ function RouterProvider({ router, ...rest }) {
   return /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(RouterContextProvider, { router, ...rest, children: /* @__PURE__ */ (0, import_jsx_runtime12.jsx)(Matches, {}) });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/useLocation.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useBlocker.js
+var React12 = __toESM(require_react(), 1);
+function _resolveBlockerOpts(opts, condition) {
+  if (opts === void 0) {
+    return {
+      shouldBlockFn: () => true,
+      withResolver: false
+    };
+  }
+  if ("shouldBlockFn" in opts) {
+    return opts;
+  }
+  if (typeof opts === "function") {
+    const shouldBlock2 = Boolean(condition ?? true);
+    const _customBlockerFn2 = async () => {
+      if (shouldBlock2) return await opts();
+      return false;
+    };
+    return {
+      shouldBlockFn: _customBlockerFn2,
+      enableBeforeUnload: shouldBlock2,
+      withResolver: false
+    };
+  }
+  const shouldBlock = Boolean(opts.condition ?? true);
+  const fn = opts.blockerFn;
+  const _customBlockerFn = async () => {
+    if (shouldBlock && fn !== void 0) {
+      return await fn();
+    }
+    return shouldBlock;
+  };
+  return {
+    shouldBlockFn: _customBlockerFn,
+    enableBeforeUnload: shouldBlock,
+    withResolver: fn === void 0
+  };
+}
+function useBlocker(opts, condition) {
+  const {
+    shouldBlockFn,
+    enableBeforeUnload = true,
+    disabled = false,
+    withResolver = false
+  } = _resolveBlockerOpts(opts, condition);
+  const router = useRouter();
+  const { history } = router;
+  const [resolver, setResolver] = React12.useState({
+    status: "idle",
+    current: void 0,
+    next: void 0,
+    action: void 0,
+    proceed: void 0,
+    reset: void 0
+  });
+  React12.useEffect(() => {
+    const blockerFnComposed = async (blockerFnArgs) => {
+      function getLocation(location) {
+        const parsedLocation = router.parseLocation(location);
+        const matchedRoutes = router.getMatchedRoutes(
+          parsedLocation.pathname,
+          void 0
+        );
+        if (matchedRoutes.foundRoute === void 0) {
+          throw new Error(`No route found for location ${location.href}`);
+        }
+        return {
+          routeId: matchedRoutes.foundRoute.id,
+          fullPath: matchedRoutes.foundRoute.fullPath,
+          pathname: parsedLocation.pathname,
+          params: matchedRoutes.routeParams,
+          search: parsedLocation.search
+        };
+      }
+      const current = getLocation(blockerFnArgs.currentLocation);
+      const next = getLocation(blockerFnArgs.nextLocation);
+      const shouldBlock = await shouldBlockFn({
+        action: blockerFnArgs.action,
+        current,
+        next
+      });
+      if (!withResolver) {
+        return shouldBlock;
+      }
+      if (!shouldBlock) {
+        return false;
+      }
+      const promise = new Promise((resolve) => {
+        setResolver({
+          status: "blocked",
+          current,
+          next,
+          action: blockerFnArgs.action,
+          proceed: () => resolve(false),
+          reset: () => resolve(true)
+        });
+      });
+      const canNavigateAsync = await promise;
+      setResolver({
+        status: "idle",
+        current: void 0,
+        next: void 0,
+        action: void 0,
+        proceed: void 0,
+        reset: void 0
+      });
+      return canNavigateAsync;
+    };
+    return disabled ? void 0 : history.block({ blockerFn: blockerFnComposed, enableBeforeUnload });
+  }, [
+    shouldBlockFn,
+    enableBeforeUnload,
+    disabled,
+    withResolver,
+    history,
+    router
+  ]);
+  return resolver;
+}
+
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useLocation.js
 function useLocation(opts) {
   return useRouterState({
     select: (state) => opts?.select ? opts.select(state.location) : state.location
   });
 }
 
-// node_modules/@tanstack/react-router/dist/esm/useCanGoBack.js
+// node_modules/.store/@tanstack/react-router@1.133.36-qDs61M3yrAcyRfs2gNuA-w/node_modules/@tanstack/react-router/dist/esm/useCanGoBack.js
 function useCanGoBack() {
   return useRouterState({ select: (s) => s.location.state.__TSR_index !== 0 });
 }
@@ -5508,6 +5665,7 @@ lock(privateApis, {
   // Router creation and setup
   createBrowserHistory,
   createLazyRoute,
+  createMemoryHistory,
   createRouter,
   createRootRoute,
   createRoute,
@@ -5522,6 +5680,7 @@ lock(privateApis, {
   useMatches,
   useRouter,
   useRouterState,
+  useBlocker,
   // History utilities
   parseHref
 });

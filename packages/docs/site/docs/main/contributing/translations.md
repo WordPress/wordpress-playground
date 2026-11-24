@@ -10,7 +10,7 @@ Help make WordPress Playground accessible to a global audience by translating it
 
 <div class="callout callout-info">
 
-For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute)
+For a detailed guide on the contribution workflow (forking, creating PRs, etc.), please see our [documentation contribution guide](/contributing/documentation#how-can-i-contribute). To make changes directly in GitHub, see [Contribute with the GitHub web interface](/contributing/github-ui).
 
 </div>
 
@@ -53,7 +53,7 @@ All translated documentation pages are located within the `packages/docs/site/i1
 For a language to work correctly, its file structure must mirror the original English documentation found in `packages/docs/site/docs`.
 
 For example, the Spanish (es) translation for `docs/main/intro.md` must be placed at:
-packages`/docs/site/i18n/es/docusaurus-plugin-content-docs/current/main/intro.md`.
+`packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current/main/intro.md`.
 
 If a translated file does not exist for a specific language, Docusaurus will automatically fall back to the English version of that page.
 
@@ -84,7 +84,7 @@ npm run dev -- --locale es
 
 The language switcher is a dropdown menu that allows users to select their preferred language.
 
-![Documentation Language Switcher](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/language-switcher-docs.webp)
+![Documentation Language Switcher](/img/contributing/language-switcher-docs.webp)
 
 ### Making a language publicly available on the Language Switcher
 
@@ -97,7 +97,7 @@ As a guideline, a language should be made publicly available in the switcher onl
 - [About Playground](https://wordpress.github.io/wordpress-playground/about)
 - [Guides](https://wordpress.github.io/wordpress-playground/guides)
 - [Contributing](https://wordpress.github.io/wordpress-playground/contributing)
-- [Links and Resources](https://wordpress.github.io/wordpress-playground/resources)
+- [Links and Resources](https://wordpress.github.io/wordpress-playground/links-and-resources)
 
 All languages are available once the i18n setup for a language is complete and the correct file structure is in place under `i18n`.
 
@@ -105,7 +105,7 @@ All languages are available once the i18n setup for a language is complete and t
 - https://wordpress.github.io/wordpress-playground/es/
 - https://wordpress.github.io/wordpress-playground/fr/
 
-Assuming the `fr` language is the first language with the Documentation hub pages (Quick Start Guide, Playground web instance, About Playground, Guides,... ) completely translated to French, the `docusaurus.config.js` should look like this in that branch so `npm run build:docs` properly generate the `fr` subsite and only displays the french language in the `localeDropdown` language switcher.
+Assuming the `fr` language is the first language with the Documentation hub pages (Quick Start Guide, Playground web instance, About Playground, Guides,... ) completely translated to French, the `docusaurus.config.js` should look like this in that branch so `npm run build:docs` properly generates the `fr` subsite and only displays the French language in the `localeDropdown` language switcher.
 
 ```
   {
@@ -145,7 +145,7 @@ Follow these steps to translate a page:
 - Check if you have the latest version of the documentation
 - Copy the original .md file from `packages/docs/site/docs/...` to the corresponding path in the language directory (e.g., `packages/docs/site/i18n/<LANGUAGE_CODE>/...`). It is crucial to replicate the original file structure.
 - Translate the content of the new file, keeping the original content commented out `<!-- English Content -->`.
-- The assets are listed at `packages/docs/site/static/img/` only place assets inside the translation folder when it requires localized content.
+- The assets are listed at `packages/docs/site/static/img/`. Only place assets inside the translation folder when they require localized content.
 - Once the translations are ready, check if the docs build script is running properly `npm run build:docs`.
 
 4. **Create a pull request with your changes**
@@ -182,20 +182,31 @@ You can use the following markdown in your tracking issue:
   - [ ] contributor-day.md
   - [ ] contributor-day-table-lead.md
   - [ ] documentation.md
+  - [ ] github-ui.md
   - [ ] index.md
   - [ ] releases.md
   - [ ] translations.md
 - guides
+  - [ ] agent-skill-wp-playground.md
+  - [ ] ai-assistants-mcp.md
+  - [ ] e2e-testing-with-playwright.md
   - [ ] for-plugin-developers.md
   - [ ] for-theme-developers.md
   - [ ] github-action-pr-preview.md
+  - [ ] import-content-with-blueprints.md
   - [ ] index.md
+  - [ ] php-code-snippets.md
+  - [ ] php-frameworks.md
+  - [ ] phpunit-testing.md
+  - [ ] playground-for-everyone.md
+  - [ ] programmatic-playground-cli.md
   - [ ] providing-content-for-your-demo.md
   - [ ] wordpress-native-ios-app.md
 - [ ] changelog.md
 - [ ] intro.md
 - [ ] quick-start-guide.md
 - [ ] resources.md
+- [ ] troubleshooting.md
 - [ ] web-instance.md
 
 </details>
@@ -242,17 +253,24 @@ You can use the following markdown in your tracking issue:
     - [ ] 04-blueprint-json-in-api-client.md
     - [ ] 05-blueprint-functions-in-api-client.md
     - [ ] 06-mount-data.md
+    - [ ] 07-php-extensions.md
+    - [ ] 08-build-php-extensions.md
+    - [ ] 09-php-extension-dependencies.md
   - query-api
+    - [ ] 01-index.md
+  - sites-api
     - [ ] 01-index.md
 - 07-xdebug
   - [ ] 01-introduction.md
   - [ ] 02-getting-started.md
+  - [ ] 03-trace-and-profile.md
 - 23-architecture
   - [ ] 01-index.md
   - [ ] 02-wasm-php-overview.md
   - [ ] 03-wasm-php-compiling.md
   - [ ] 04-wasm-php-javascript-module.md
   - [ ] 05-wasm-php-filesystem.md
+  - [ ] 06-php-wasm-packages.md
   - [ ] 07-wasm-asyncify.md
   - [ ] 08-browser-concepts.md
   - [ ] 09-browser-tab-orchestrates-execution.md
@@ -285,7 +303,7 @@ This guide will show you how to both update an existing translation and add a br
 1.  **Navigate to the file.** Go to the repository and find the file you want to update. Translation files are located in a folder named after their language code. For example, all French translations are in `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`.
 
 2.  **Open the editor.** Select the file you wish to edit and click the pencil icon (**Edit this file**) in the upper right corner.
-    ![Editing existing translation](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editing-translations.webp)
+    ![Editing existing translation](/img/contributing/editing-translations.webp)
 
 3.  **Fork the repository.** GitHub will automatically prompt you to **Fork this repository**. This creates a personal copy for you to edit safely. Click the button to proceed.
 
@@ -304,7 +322,7 @@ This guide will show you how to both update an existing translation and add a br
     - **French translation:** `packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/main/contributing/documentation.md`
 
 2.  **Create the new file.** Navigate to the correct language folder (e.g., `/packages/docs/site/i18n/fr/docusaurus-plugin-content-docs/current/`). Click **Add file** > **Create new file**.
-    ![Creating a new translation](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/adding-file-github-ui.webp)
+    ![Creating a new translation](/img/contributing/adding-file-github-ui.webp)
     - **Pro Tip:** In the filename box, you can create new folders by typing the folder name followed by a `/`. For example, typing `main/contributing/documentation.md` will create the `main` and `contributing` folders automatically.
 
 3.  **Fork the repository.** Just like before, GitHub will prompt you to **Fork this repository**. Click the button to create your personal copy.
@@ -320,7 +338,7 @@ This guide will show you how to both update an existing translation and add a br
     Ceci est le contenu traduit en français.
     ```
 
-    ![GitHub UI Editor](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editor-github-ui.webp)
+    ![GitHub UI Editor](/img/contributing/editor-github-ui.webp)
 
 5.  **Commit the new file.** When you are done, scroll to the bottom. Add a title for your new file (e.g., "Add French translation for documentation.md") and click the **Commit new file** button.
 
@@ -350,4 +368,4 @@ This practice also helps the maintenance team identify outdated translations. Wh
 
 To find a reviewer fluent in the language of your PR, you can post a request on the [Make WordPress Polyglots blog](https://make.wordpress.org/polyglots/). Be sure to include the locale tag (e.g., #ja for Japanese) to notify the appropriate General Translation Editors (GTEs).
 
-When the PR is merged, the translated version of that page should appear under `https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}`, if you are contributing for the first time request your [Contributor Badge](/contributing/contributor-badge).
+When the PR is merged, the translated version of that page should appear under `https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}`. If you are contributing for the first time, request your [Contributor Badge](/contributing/contributor-badge).

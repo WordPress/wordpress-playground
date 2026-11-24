@@ -44,12 +44,14 @@ function ignoreSerializableCheck<S>(
 			// Ignore these field paths in all actions
 			ignoredActionPaths: [
 				/payload\.(changes\.)?client/,
+				/payload\.email/,
 				/payload\.(changes\.)?opfsMountDescriptor\.device\.handle/,
 				/.+\.originalBlueprint/,
 			],
 			// Ignore these paths in the state
 			ignoredPaths: [
 				/clients\.entities\.[^.]+\.client/,
+				/clients\.entities\.[^.]+\.emails/,
 				/clients\.entities\.[^.]+\.opfsMountDescriptor\.device\.handle/,
 				/.+\.originalBlueprint/,
 			],
@@ -115,6 +117,34 @@ export const useActiveSite = () => useAppSelector(selectActiveSite);
  * Returns the active site only when it has a durable storage backend.
  */
 export const useActiveStoredSite = () => useAppSelector(selectActiveStoredSite);
+
+const YOU_HAVE_AUTOSAVE_NUDGE_ENABLED_STORAGE_KEY =
+	'playground-you-have-autosave-nudge-enabled';
+
+/** Reads whether matching autosaves should be offered on the current device. */
+export function isYouHaveAutosaveNudgeEnabled(): boolean {
+	try {
+		return (
+			localStorage.getItem(
+				YOU_HAVE_AUTOSAVE_NUDGE_ENABLED_STORAGE_KEY
+			) !== 'false'
+		);
+	} catch {
+		return true;
+	}
+}
+
+/** Persists whether matching autosaves should be offered on the current device. */
+export function setYouHaveAutosaveNudgeEnabled(enabled: boolean): void {
+	try {
+		localStorage.setItem(
+			YOU_HAVE_AUTOSAVE_NUDGE_ENABLED_STORAGE_KEY,
+			String(enabled)
+		);
+	} catch {
+		// The current dismissal still succeeds when private storage is unavailable.
+	}
+}
 
 /**
  * Returns the temporary site for the current browser session, when one exists.

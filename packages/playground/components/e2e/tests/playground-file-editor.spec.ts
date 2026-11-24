@@ -1,11 +1,22 @@
 import { expect, type Page, test } from '@playwright/test';
 import type { AsyncWritableFilesystem } from '@wp-playground/storage';
 
+type FilesystemName = 'a' | 'b';
+
 declare global {
 	interface Window {
 		__fileEditorHarness?: {
-			filesystem: AsyncWritableFilesystem;
-			readFileAsText: (path: string) => Promise<string>;
+			filesystems: Record<FilesystemName, AsyncWritableFilesystem>;
+			readFileAsText: (
+				filesystem: FilesystemName,
+				path: string
+			) => Promise<string>;
+			switchFilesystem: (filesystem: FilesystemName) => void;
+			mountEditor: () => void;
+			unmountEditor: () => void;
+			delayNextWrite: () => void;
+			releaseDelayedWrite: () => void;
+			isWriteDelayed: () => boolean;
 		};
 	}
 }
@@ -18,14 +29,30 @@ async function gotoHarness(page: Page) {
 	await expect(page.locator('.cm-content')).toBeVisible();
 }
 
-async function readHarnessFile(page: Page, path: string) {
-	return page.evaluate((filePath) => {
-		const harness = window.__fileEditorHarness;
-		if (!harness) {
-			throw new Error('File editor harness is not mounted');
-		}
-		return harness.readFileAsText(filePath);
-	}, path);
+async function readHarnessFile(
+	page: Page,
+	path: string,
+	filesystem: FilesystemName = 'a'
+) {
+	return page.evaluate(
+		({ filePath, filesystemName }) => {
+			const harness = window.__fileEditorHarness;
+			if (!harness) {
+				throw new Error('File editor harness is not mounted');
+			}
+			return harness.readFileAsText(filesystemName, filePath);
+		},
+		{ filePath: path, filesystemName: filesystem }
+	);
+}
+
+/** Replaces the editor contents as one user edit. */
+async function replaceEditorContents(page: Page, content: string) {
+	const editor = page.locator('.cm-content');
+	await editor.click();
+	await page.keyboard.press('ControlOrMeta+A');
+	await page.keyboard.insertText(content);
+	await expect(page.getByText('Saving…')).toBeVisible();
 }
 
 /** Drops one nested host directory on the file explorer background. */
@@ -130,15 +157,77 @@ test('autosaves editor changes into the harness filesystem', async ({
 	page,
 }) => {
 	const nextContent = "<?php echo 'Changed in harness';";
-	const editor = page.locator('.cm-content');
-
-	await editor.click();
-	await page.keyboard.press('ControlOrMeta+A');
-	await page.keyboard.insertText(nextContent);
+	await replaceEditorContents(page, nextContent);
 
 	await expect
 		.poll(() => readHarnessFile(page, initialPath), {
 			timeout: 10_000,
 		})
 		.toBe(nextContent);
+});
+
+test('flushes a pending edit when the editor unmounts', async ({ page }) => {
+	const nextContent = "<?php echo 'Saved before unmount';";
+	await replaceEditorContents(page, nextContent);
+
+	await page.evaluate(() => {
+		window.__fileEditorHarness?.unmountEditor();
+	});
+	await expect(page.locator('.cm-content')).toHaveCount(0);
+	await expect
+		.poll(() => readHarnessFile(page, initialPath))
+		.toBe(nextContent);
+});
+
+test('keeps a pending edit with its old filesystem', async ({ page }) => {
+	const filesystemAContent = "<?php echo 'Filesystem A edit';";
+	const filesystemBContent = "<?php echo 'Filesystem B';";
+	await replaceEditorContents(page, filesystemAContent);
+
+	await page.evaluate(() => {
+		window.__fileEditorHarness?.switchFilesystem('b');
+	});
+
+	await expect(page.locator('.cm-content')).toContainText(filesystemBContent);
+	await expect
+		.poll(() => readHarnessFile(page, initialPath, 'a'))
+		.toBe(filesystemAContent);
+	await expect(readHarnessFile(page, initialPath, 'b')).resolves.toBe(
+		filesystemBContent
+	);
+});
+
+test('orders old writes without blocking the new filesystem', async ({
+	page,
+}) => {
+	const firstContent = "<?php echo 'First edit';";
+	const finalContent = "<?php echo 'Final edit';";
+	const filesystemBContent = "<?php echo 'Filesystem B';";
+	const filesystemBEdit = "<?php echo 'Filesystem B edit';";
+
+	await page.evaluate(() => {
+		window.__fileEditorHarness?.delayNextWrite();
+	});
+	await replaceEditorContents(page, firstContent);
+	await page.waitForFunction(
+		() => window.__fileEditorHarness?.isWriteDelayed() === true
+	);
+	await replaceEditorContents(page, finalContent);
+
+	await page.evaluate(() => {
+		window.__fileEditorHarness?.switchFilesystem('b');
+	});
+
+	await expect(page.locator('.cm-content')).toContainText(filesystemBContent);
+	await replaceEditorContents(page, filesystemBEdit);
+	await expect
+		.poll(() => readHarnessFile(page, initialPath, 'b'))
+		.toBe(filesystemBEdit);
+
+	await page.evaluate(() => {
+		window.__fileEditorHarness?.releaseDelayedWrite();
+	});
+	await expect
+		.poll(() => readHarnessFile(page, initialPath, 'a'))
+		.toBe(finalContent);
 });

@@ -1,4 +1,5 @@
 import {
+	consumeAPI,
 	PHP,
 	PHPRequestHandler,
 	proxyFileSystem,
@@ -8,7 +9,11 @@ import {
 	certificateToPEM,
 	generateCertificate,
 	loadWebRuntime,
+	spawnPHPWorkerThread,
+	createDirectoryHandleMountHandler,
 } from '../../lib';
+import readableStreamWorkerUrl from './readable-stream-worker.ts?worker&url';
+import sendmailWorkerUrl from './sendmail-worker.ts?worker&url';
 
 declare global {
 	interface Window {
@@ -17,6 +22,11 @@ declare global {
 		loadWebRuntime: typeof loadWebRuntime;
 		proxyFileSystem: typeof proxyFileSystem;
 		setPhpIniEntries: typeof setPhpIniEntries;
+		consumeAPI: typeof consumeAPI;
+		spawnPHPWorkerThread: typeof spawnPHPWorkerThread;
+		createDirectoryHandleMountHandler: typeof createDirectoryHandleMountHandler;
+		readableStreamWorkerUrl: string;
+		sendmailWorkerUrl: string;
 		generateCertificate: typeof generateCertificate;
 		certificateToPEM: typeof certificateToPEM;
 	}
@@ -27,5 +37,10 @@ window.PHPRequestHandler = PHPRequestHandler;
 window.loadWebRuntime = loadWebRuntime;
 window.proxyFileSystem = proxyFileSystem;
 window.setPhpIniEntries = setPhpIniEntries;
+window.consumeAPI = consumeAPI;
+window.spawnPHPWorkerThread = spawnPHPWorkerThread;
+window.createDirectoryHandleMountHandler = createDirectoryHandleMountHandler;
+window.readableStreamWorkerUrl = readableStreamWorkerUrl;
+window.sendmailWorkerUrl = sendmailWorkerUrl;
 window.generateCertificate = generateCertificate;
 window.certificateToPEM = certificateToPEM;

@@ -116,9 +116,17 @@ class OpfsSiteStorage {
 	}
 
 	private async readSite(siteDirName: string) {
-		const siteDirectory = await this.root.getDirectoryHandle(siteDirName);
-		if (!siteDirectory) {
-			return undefined;
+		let siteDirectory: FileSystemDirectoryHandle;
+		try {
+			siteDirectory = await this.root.getDirectoryHandle(siteDirName);
+		} catch (error) {
+			if (
+				error instanceof DOMException &&
+				error.name === 'NotFoundError'
+			) {
+				return undefined;
+			}
+			throw error;
 		}
 		return this.readSiteFromDirHandle(siteDirectory);
 	}

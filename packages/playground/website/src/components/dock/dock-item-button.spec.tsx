@@ -37,6 +37,19 @@ describe('DockItemButton', () => {
 		);
 		expect(hiddenMarkerCount).toBe(2);
 	});
+
+	it('can disable unavailable actions', () => {
+		const markup = renderToStaticMarkup(
+			<DockItemButton
+				label="Database"
+				ariaLabel="Database"
+				icon={<DockDatabaseIcon />}
+				disabled
+			/>
+		);
+
+		expect(markup).toMatch(/<button\b[^>]*\sdisabled(?:="")?(?=\s|>)/);
+	});
 });
 
 function countMatches(value: string, substring: string) {

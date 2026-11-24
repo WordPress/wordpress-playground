@@ -1,3 +1,4 @@
+import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
 import type { Remote } from './comlink-sync';
 import type { Pooled } from './object-pool-proxy';
 import type { LimitedPHPApi } from './php-worker';
@@ -7,6 +8,14 @@ import type { LimitedPHPApi } from './php-worker';
  */
 export interface PHPRequestEndEvent {
 	type: 'request.end';
+}
+
+/**
+ * Emitted by a filesystem owner when a request using its filesystem through
+ * PROXYFS ends.
+ */
+export interface PHPProxyFSRequestEndEvent {
+	type: 'proxyfs.request.end';
 }
 
 /**
@@ -33,7 +42,7 @@ export interface PHPRuntimeBeforeExitEvent {
 }
 
 /**
- * Emitted when a filesystem write operation occurs (writeFile, mkdir, rmdir, mv, unlink).
+ * Emitted when a filesystem write operation occurs (writeFile, mkdir, rmdir, mv, cp, unlink).
  * This event is used to trigger journal flushing for persistent storage.
  */
 export interface PHPFilesystemWriteEvent {
@@ -47,10 +56,12 @@ export interface PHPFilesystemWriteEvent {
  */
 export type PHPEvent =
 	| PHPRequestEndEvent
+	| PHPProxyFSRequestEndEvent
 	| PHPRequestErrorEvent
 	| PHPRuntimeInitializedEvent
 	| PHPRuntimeBeforeExitEvent
-	| PHPFilesystemWriteEvent;
+	| PHPFilesystemWriteEvent
+	| PHPSendmailSpawnedEvent;
 
 /**
  * A callback function that handles PHP events.
@@ -165,6 +176,17 @@ export interface PHPRunOptions {
 	 * The code snippet to eval instead of a php file.
 	 */
 	code?: string;
+
+	/**
+	 * Run on the primary PHP instance instead of any pooled instance.
+	 *
+	 * Pooled instances see shared paths through a proxy filesystem whose
+	 * node cache is not invalidated when the primary deletes a file. A job
+	 * that spans several runs and rewrites its own state files must stay on
+	 * the primary so every run sees the same filesystem. The run waits for
+	 * the primary to become free.
+	 */
+	usePrimaryPhp?: boolean;
 }
 
 /**

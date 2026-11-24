@@ -1450,6 +1450,10 @@ async function patchInlineSchemaPhp(
 		}
 	}
 }
+
+/** Identifies a db.php drop-in generated and owned by Playground. */
+export const PLAYGROUND_MANAGED_DB_PHP_MARKER = '@playground-managed';
+
 /**
  * Returns the PHP content for wp-content/db.php.
  *
@@ -1463,7 +1467,7 @@ export function generateDbPhpContent(): string {
 	// defines mysql_*, mysqli_connect/init, and str_* polyfills. Only
 	// the mysqli_* stubs that the preload doesn't cover live here.
 	return `<?php
-// @playground-managed — Playground-generated db.php.
+// ${PLAYGROUND_MANAGED_DB_PHP_MARKER} — Playground-generated db.php.
 // WP < 3.0 loads only db.php and skips wp-db.php, so we pull
 // in the wpdb class definition explicitly.
 if (defined('ABSPATH') && defined('WPINC') && !class_exists('wpdb', false)) {

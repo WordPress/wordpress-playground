@@ -21,7 +21,10 @@ export type PersonalWpUsageStatsEvent =
 	| 'remote_access_started'
 	| 'health_check_installed'
 	| 'sidebar_opened'
-	| 'backup_restored';
+	| 'backup_restored'
+	| 'daily_streak'
+	| 'weekly_streak'
+	| 'monthly_streak';
 
 export type PersonalWpUsageStatsProperties = Record<string, JsonValue>;
 export type BlueprintInstallUsageStatsTrigger =
@@ -61,11 +64,43 @@ type BlueprintUsageStatsOptions = {
 	requestSource?: BlueprintInstallUsageStatsRequestSource;
 };
 
+export type StreakUsageStatsMetadata = Pick<
+	SiteMetadata,
+	| 'lastDailyStreakDate'
+	| 'dailyStreak'
+	| 'lastWeeklyStreakWeekStart'
+	| 'weeklyStreak'
+	| 'lastMonthlyStreakMonth'
+	| 'monthlyStreak'
+>;
+
+export type StreakUsageStatsEvent = {
+	event: 'daily_streak' | 'weekly_streak' | 'monthly_streak';
+	properties: PersonalWpUsageStatsProperties;
+};
+
+export type StreakUsageStatsUpdate = {
+	metadata: StreakUsageStatsMetadata;
+	events: StreakUsageStatsEvent[];
+};
+
+type StreakState = { streak: number; periodKey: string };
+
 const EVENT_SCHEMA = 'personal-wp-event/v1';
 const SAFE_PLUGIN_SLUG = /^[a-z0-9][a-z0-9-]{0,100}$/;
 const MAX_PLUGIN_SLUGS = 10;
 const UNKNOWN_PLUGIN_SLUG = 'unknown';
 const USAGE_STATS_HOST = personalWpUsageStatsHost || 'my.wordpress.net';
+/**
+ * Host shape accepted for reporting. Bounded at 128 characters to match the
+ * `value` column the stats rollup stores it in, and restricted to the
+ * characters the endpoint accepts so a host is never silently dropped there.
+ */
+const SAFE_REFERRER_HOST = /^[a-z0-9][a-z0-9._-]{0,127}$/;
+/** Trailing label of an IPv4 literal, which is reported as `private-address`. */
+const IPV4_LAST_LABEL = /^\d+$/;
+/** IPv6 literals retain square brackets in URL.hostname. */
+const IPV6_LITERAL = /^\[[0-9a-f:]+\]$/i;
 
 export function logPersonalWpEvent(
 	event: PersonalWpUsageStatsEvent,
@@ -135,6 +170,150 @@ export function getUsageStatsDate(timestamp: number): string {
 	return new Date(timestamp).toISOString().slice(0, 10);
 }
 
+export function getUsageStatsWeekStart(timestamp: number): string {
+	const date = new Date(timestamp);
+	const utcDate = new Date(
+		Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
+	);
+	const daysSinceMonday = (utcDate.getUTCDay() + 6) % 7;
+	utcDate.setUTCDate(utcDate.getUTCDate() - daysSinceMonday);
+	return utcDate.toISOString().slice(0, 10);
+}
+
+export function getUsageStatsMonth(timestamp: number): string {
+	return new Date(timestamp).toISOString().slice(0, 7);
+}
+
+/**
+ * Computes streak updates for a site at all three granularities. A streak
+ * only advances when the new period immediately follows the last recorded
+ * one; any gap (or a first-ever visit) resets it to 1. Each granularity
+ * reports at most once per period, so summing the resulting event counts
+ * server-side gives a privacy-preserving proxy for distinct active sites
+ * per day/week/month without any per-site identifier ever being sent.
+ */
+export function getStreakUsageStatsUpdate(
+	metadata: SiteMetadata,
+	now: number
+): StreakUsageStatsUpdate {
+	const metadataUpdate: StreakUsageStatsMetadata = {};
+	const events: StreakUsageStatsEvent[] = [];
+
+	const daily = advanceStreak(
+		getStreakState(metadata.lastDailyStreakDate, metadata.dailyStreak),
+		getUsageStatsDate(now),
+		isNextDay
+	);
+	if (daily) {
+		metadataUpdate.lastDailyStreakDate = daily.periodKey;
+		metadataUpdate.dailyStreak = daily.streak;
+		events.push({
+			event: 'daily_streak',
+			properties: { length: getStreakLength(daily.streak) },
+		});
+	}
+
+	const weekly = advanceStreak(
+		getStreakState(
+			metadata.lastWeeklyStreakWeekStart,
+			metadata.weeklyStreak
+		),
+		getUsageStatsWeekStart(now),
+		isNextWeek
+	);
+	if (weekly) {
+		metadataUpdate.lastWeeklyStreakWeekStart = weekly.periodKey;
+		metadataUpdate.weeklyStreak = weekly.streak;
+		events.push({
+			event: 'weekly_streak',
+			properties: { length: getStreakLength(weekly.streak) },
+		});
+	}
+
+	const monthly = advanceStreak(
+		getStreakState(metadata.lastMonthlyStreakMonth, metadata.monthlyStreak),
+		getUsageStatsMonth(now),
+		isNextMonth
+	);
+	if (monthly) {
+		metadataUpdate.lastMonthlyStreakMonth = monthly.periodKey;
+		metadataUpdate.monthlyStreak = monthly.streak;
+		events.push({
+			event: 'monthly_streak',
+			properties: { length: getStreakLength(monthly.streak) },
+		});
+	}
+
+	return { metadata: metadataUpdate, events };
+}
+
+function getStreakState(
+	periodKey: string | undefined,
+	streak: number | undefined
+): StreakState | undefined {
+	return periodKey && streak ? { periodKey, streak } : undefined;
+}
+
+/**
+ * Returns the new streak state when `currentPeriodKey` starts a period that
+ * hasn't been reported yet, or `undefined` when it was already reported
+ * (the per-period dedupe that keeps event counts privacy-preserving).
+ *
+ * Period keys (YYYY-MM-DD or YYYY-MM) sort the same lexicographically as
+ * chronologically, so a `currentPeriodKey` that isn't strictly after the
+ * last recorded one — including one from a backward-skewed client clock —
+ * is treated as already reported rather than as a gap that resets the
+ * streak and re-emits an event for a period that was already counted.
+ */
+function advanceStreak(
+	previous: StreakState | undefined,
+	currentPeriodKey: string,
+	isImmediatelyFollowing: (
+		previousPeriodKey: string,
+		currentPeriodKey: string
+	) => boolean
+): StreakState | undefined {
+	if (previous && previous.periodKey >= currentPeriodKey) {
+		return undefined;
+	}
+
+	const streak =
+		previous && isImmediatelyFollowing(previous.periodKey, currentPeriodKey)
+			? previous.streak + 1
+			: 1;
+	return { streak, periodKey: currentPeriodKey };
+}
+
+function isNextDay(previousDate: string, currentDate: string): boolean {
+	return addUtcDays(previousDate, 1) === currentDate;
+}
+
+function isNextWeek(
+	previousWeekStart: string,
+	currentWeekStart: string
+): boolean {
+	return addUtcDays(previousWeekStart, 7) === currentWeekStart;
+}
+
+function isNextMonth(previousMonth: string, currentMonth: string): boolean {
+	const [year, month] = previousMonth.split('-').map(Number);
+	const next = new Date(Date.UTC(year, month, 1));
+	return next.toISOString().slice(0, 7) === currentMonth;
+}
+
+function addUtcDays(date: string, days: number): string {
+	const next = new Date(`${date}T00:00:00.000Z`);
+	next.setUTCDate(next.getUTCDate() + days);
+	return next.toISOString().slice(0, 10);
+}
+
+function getStreakLength(streak: number): string {
+	if (streak > 30) {
+		return '31+';
+	}
+	return String(Math.max(streak, 1));
+}
+
 export function getBlueprintUsageStatsProperties(
 	blueprint: BlueprintV1Declaration,
 	blueprintUrl?: string,
@@ -191,6 +370,64 @@ export function classifyBlueprintUrl(url: string): BlueprintSourceClass {
 		return 'github';
 	}
 	return 'external-url';
+}
+
+/**
+ * Reduces the referring site to a bare hostname so a traffic spike can be
+ * attributed to its source. Only the host is reported: the path and query,
+ * which are where a referrer says what someone was reading, never leave the
+ * browser.
+ *
+ * Hosts that name a network rather than a site are reported as
+ * `private-address`: single-label intranet names (`wiki`, `localhost`) and IP
+ * literals are no use for spotting a traffic source and are the kind most
+ * likely to point at one person's network. They are kept apart from
+ * `unknown`, which means the referrer could not be read at all, so a rise in
+ * either can be told from the other. Every reported host therefore contains a
+ * dot, which is also what keeps a host from colliding with a marker.
+ *
+ * Modern browsers default to `strict-origin-when-cross-origin`, so the origin
+ * usually survives even though the path does not. Referrals from native apps,
+ * from sites sending `no-referrer`, and from HTTPS to HTTP send nothing at all
+ * and are reported as `direct`.
+ */
+export function normalizeReferrer(
+	referrer = globalThis.document?.referrer ?? ''
+): string {
+	if (!referrer) {
+		return 'direct';
+	}
+
+	let parsedUrl: URL;
+	try {
+		parsedUrl = new URL(referrer);
+	} catch {
+		return 'unknown';
+	}
+
+	if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+		return 'unknown';
+	}
+	if (parsedUrl.origin === globalThis.location?.origin) {
+		return 'internal';
+	}
+
+	const host = parsedUrl.hostname
+		.toLowerCase()
+		.replace(/^www\./, '')
+		.replace(/\.$/, '');
+	if (IPV6_LITERAL.test(host)) {
+		return 'private-address';
+	}
+	if (!SAFE_REFERRER_HOST.test(host)) {
+		return 'unknown';
+	}
+
+	const labels = host.split('.');
+	if (labels.length < 2 || IPV4_LAST_LABEL.test(labels[labels.length - 1])) {
+		return 'private-address';
+	}
+	return host;
 }
 
 function getAgeBucket(timestamp: number | undefined, now: number): string {

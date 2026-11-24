@@ -8,13 +8,26 @@ description: WordPress Playground brings WebAssembly-powered PHP to Node.js for 
 
 As a WebAssembly project, you can also use WordPress Playground in Node.js.
 
-If you need low-level control over the underlying WebAssembly PHP build, take a look at the [@php-wasm/node package](https://npmjs.org/@php-wasm/node) which ships the PHP WebAssembly runtime. This package is at the core of all WordPress Playground tools for Node.js.
+If you need direct control over the underlying WebAssembly PHP runtime, take a
+look at the [@php-wasm/node package](https://npmjs.org/@php-wasm/node). It
+provides the Node.js loader and runtime integrations used by WordPress
+Playground tools. The compiled binaries are published in version-specific
+packages such as `@php-wasm/node-8-4`.
+
+See [PHP.wasm packages](/developers/architecture/php-wasm-packages) to learn
+how `@php-wasm/universal`, the Node.js and web adapters, and the version-specific
+packages fit together. That page also explains the lower-level, single-version
+setup with a smaller dependency footprint.
 
 Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Type Aliases.
 
 ## WebAssembly PHP for Node.js
 
-This package ships WebAssembly PHP binaries and the JavaScript API optimized for Node.js. It uses the host file system directly and can access the network if you plug in a custom WS proxy.
+Together, `@php-wasm/node` and a version-specific package provide the compiled
+PHP runtime and JavaScript API optimized for Node.js. PHP starts with an
+in-memory filesystem; use the Node.js filesystem helpers to mount host paths.
+The runtime can access the network if you plug in a custom WebSocket-to-TCP
+proxy.
 
 ### Basic usage
 
@@ -28,6 +41,20 @@ const output = await php.runStream({
 });
 console.log(await output.stdoutText);
 ```
+
+### Load one PHP version directly
+
+If installation size matters and you only need the shared, low-level PHP API,
+you can omit `@php-wasm/node` and install one Node.js build instead:
+
+```bash
+npm install @php-wasm/universal @php-wasm/node-8-4
+```
+
+This approach bypasses Node.js-specific setup such as networking, file locking,
+and extension loading. See
+[Load one PHP version directly](/developers/architecture/php-wasm-packages#load-one-php-version-directly)
+for the complete example and tradeoffs.
 
 ### Loading PHP extensions
 

@@ -135,10 +135,12 @@
 			"options": {
 				"reportsDirectory": "../../coverage/packages/php-wasm/web",
 				"testFiles": [
+					"loader-wasm-url.spec.ts",
 					"prf.spec.ts",
 					"certificates.spec.ts",
 					"tcp-over-fetch-websocket.spec.ts",
-					"directory-handle-mount.spec.ts"
+					"directory-handle-mount.spec.ts",
+					"setup-post-message-relay.spec.ts"
 				]
 			}
 		},

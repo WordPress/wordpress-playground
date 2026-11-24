@@ -226,7 +226,7 @@ These language versions of the docs should be hidden on the language switcher hi
 - [About Playground](/about)
 - [Guides](/guides)
 - [Contributing](/contributing)
-- [Links and Resources](/resources)
+- [Links and Resources](/links-and-resources)
 
 <!--
 -   [Quick Start Guide](https://wordpress.github.io/wordpress-playground/quick-start-guide)
@@ -234,7 +234,7 @@ These language versions of the docs should be hidden on the language switcher hi
 -   [About Playground](https://wordpress.github.io/wordpress-playground/about)
 -   [Guides](https://wordpress.github.io/wordpress-playground/guides)
 -   [Contributing](https://wordpress.github.io/wordpress-playground/contributing)
--   [Links and Resources](https://wordpress.github.io/wordpress-playground/resources)
+-   [Links and Resources](https://wordpress.github.io/wordpress-playground/links-and-resources)
 -->
 
 言語スイッチャーに特定の言語が表示されない場合でも、翻訳されたファイルを含む PR がマージされると翻訳されたページが公開されるため、翻訳されたページを追加する作業は引き続き進行します。

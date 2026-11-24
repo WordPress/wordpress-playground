@@ -2,6 +2,7 @@ import { PHPWorker } from '../lib/php-worker';
 import { describe, expect, test, vi } from 'vitest';
 import type { PHP } from '../lib/php';
 import type { PHPRequestHandler } from '../lib/php-request-handler';
+import type { StreamedPHPResponse } from '../lib/php-response';
 
 type PhpEvent = { type: string; [key: string]: unknown };
 type PhpEventListener = (event: PhpEvent) => void | Promise<void>;
@@ -48,6 +49,10 @@ class TestEndpoint extends PHPWorker {
 		this.registerWorkerListeners(php);
 	}
 
+	emitEvent(event: PhpEvent) {
+		this.dispatchEvent(event);
+	}
+
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	async boot(_: unknown = undefined) {}
 }
@@ -68,6 +73,179 @@ class EndpointWithoutRequestHandler extends TestEndpoint {
 }
 
 describe('PlaygroundWorkerEndpoint', () => {
+	test.each(['run', 'runStream'] as const)(
+		'%s uses the primary PHP instance when requested, even with a request handler',
+		async (method) => {
+			const response = { finished: Promise.resolve() };
+			const acquirePHPInstance = vi.fn();
+			const requestHandler = {
+				absoluteUrl: 'http://127.0.0.1/',
+				documentRoot: '/wordpress',
+				instanceManager: { acquirePHPInstance },
+			};
+			const endpoint = new TestEndpoint(
+				requestHandler as unknown as PHPRequestHandler
+			);
+			const event = { type: 'worker.ready' };
+			const message = 'primary message';
+			const onEvent = vi.fn();
+			const onMessage = vi.fn();
+			endpoint.addEventListener(event.type, onEvent);
+			await endpoint.onMessage(onMessage);
+			const primaryRun = vi.fn(async () => {
+				await primaryPhp.emitEvent(event);
+				await primaryPhp.emitMessage(message);
+				return response;
+			});
+			const primaryPhp = {
+				...createMockPHP(),
+				requestHandler,
+				[method]: primaryRun,
+			};
+			await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+			const request = { code: "<?php echo 'hi!';", usePrimaryPhp: true };
+
+			await expect(endpoint[method](request)).resolves.toBe(response);
+			await expect(endpoint[method](request)).resolves.toBe(response);
+			expect(onEvent).toHaveBeenCalledTimes(2);
+			expect(onEvent).toHaveBeenCalledWith(event);
+			expect(onMessage).toHaveBeenCalledTimes(2);
+			expect(onMessage).toHaveBeenCalledWith(message);
+			expect(primaryPhp.addEventListener).toHaveBeenCalledOnce();
+			expect(primaryPhp.onMessage).toHaveBeenCalledOnce();
+			expect(primaryRun).toHaveBeenCalledWith(request);
+			expect(acquirePHPInstance).not.toHaveBeenCalled();
+		}
+	);
+
+	test.each(['run', 'runStream'] as const)(
+		'%s still acquires a pooled instance by default',
+		async (method) => {
+			const response = { finished: Promise.resolve() };
+			const pooledRun = vi.fn().mockResolvedValue(response);
+			const pooledPhp = {
+				...createMockPHP(),
+				chdir: vi.fn(),
+				[method]: pooledRun,
+			};
+			const reap = vi.fn();
+			const requestHandler = {
+				absoluteUrl: 'http://127.0.0.1/',
+				documentRoot: '/wordpress',
+				instanceManager: {
+					acquirePHPInstance: vi.fn().mockResolvedValue({
+						php: pooledPhp,
+						reap,
+					}),
+				},
+			};
+			const endpoint = new TestEndpoint(
+				requestHandler as unknown as PHPRequestHandler
+			);
+			const primaryRun = vi.fn();
+			const primaryPhp = {
+				...createMockPHP(),
+				requestHandler,
+				[method]: primaryRun,
+			};
+			await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+			for (const usePrimaryPhp of [undefined, false]) {
+				const request = { code: "<?php echo 'hi!';", usePrimaryPhp };
+				await expect(endpoint[method](request)).resolves.toBe(response);
+				expect(pooledRun).toHaveBeenLastCalledWith(request);
+			}
+			expect(primaryRun).not.toHaveBeenCalled();
+			expect(
+				requestHandler.instanceManager.acquirePHPInstance
+			).toHaveBeenCalledTimes(2);
+			await vi.waitFor(() => expect(reap).toHaveBeenCalledTimes(2));
+		}
+	);
+
+	test.each(['run', 'runStream'] as const)(
+		'%s reports a primary failure without retrying on a pooled instance',
+		async (method) => {
+			const failure = new Error('Primary request failed');
+			const acquirePHPInstance = vi.fn();
+			const requestHandler = {
+				absoluteUrl: 'http://127.0.0.1/',
+				documentRoot: '/wordpress',
+				instanceManager: { acquirePHPInstance },
+			};
+			const endpoint = new TestEndpoint(
+				requestHandler as unknown as PHPRequestHandler
+			);
+			const primaryPhp = {
+				...createMockPHP(),
+				[method]: vi.fn().mockRejectedValue(failure),
+			};
+			await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+			await expect(
+				endpoint[method]({
+					code: "<?php echo 'hi!';",
+					usePrimaryPhp: true,
+				})
+			).rejects.toBe(failure);
+			expect(acquirePHPInstance).not.toHaveBeenCalled();
+		}
+	);
+
+	test('copies files using the primary PHP instance', async () => {
+		const endpoint = new TestEndpoint();
+		const primaryPhp = {
+			...createMockPHP(),
+			cp: vi.fn(),
+		};
+
+		await endpoint.setPrimaryPHP(primaryPhp as unknown as PHP);
+		await endpoint.cp('/source', '/target');
+
+		expect(primaryPhp.cp).toHaveBeenCalledOnce();
+		expect(primaryPhp.cp).toHaveBeenCalledWith('/source', '/target');
+	});
+
+	test('does not infer stream fan-out from an stdin property', () => {
+		const endpoint = new TestEndpoint();
+		const received: PhpEvent[] = [];
+		endpoint.addEventListener('unbranded.stream', (event) =>
+			received.push(event as PhpEvent)
+		);
+		endpoint.addEventListener('unbranded.stream', (event) =>
+			received.push(event as PhpEvent)
+		);
+
+		const unbrandedStream = new ReadableStream<Uint8Array>();
+		endpoint.emitEvent({
+			type: 'unbranded.stream',
+			stdin: unbrandedStream,
+		});
+
+		expect(received).toHaveLength(2);
+		expect(received[0]['stdin']).toBe(unbrandedStream);
+		expect(received[1]['stdin']).toBe(unbrandedStream);
+	});
+
+	test('uses a stable listener snapshot during dispatch', () => {
+		const endpoint = new TestEndpoint();
+		const addedDuringDispatch = vi.fn();
+		const removedDuringDispatch = vi.fn();
+		const mutatesListeners = vi.fn(() => {
+			endpoint.removeEventListener(
+				'snapshot.test',
+				removedDuringDispatch
+			);
+			endpoint.addEventListener('snapshot.test', addedDuringDispatch);
+		});
+		endpoint.addEventListener('snapshot.test', mutatesListeners);
+		endpoint.addEventListener('snapshot.test', removedDuringDispatch);
+
+		endpoint.emitEvent({ type: 'snapshot.test' });
+
+		expect(mutatesListeners).toHaveBeenCalledOnce();
+		expect(removedDuringDispatch).toHaveBeenCalledOnce();
+		expect(addedDuringDispatch).not.toHaveBeenCalled();
+	});
+
 	test('listeners receive events from each PHP instance', async () => {
 		const endpoint = new TestEndpoint();
 		const phpA = createMockPHP();
@@ -96,6 +274,22 @@ describe('PlaygroundWorkerEndpoint', () => {
 			'*',
 			expect.any(Function)
 		);
+	});
+
+	test('forwards one event when the same PHP instance is attached twice', async () => {
+		const endpoint = new TestEndpoint();
+		const php = createMockPHP();
+		const received: PhpEvent[] = [];
+
+		endpoint.addEventListener('worker.ready', (event) => {
+			received.push(event as PhpEvent);
+		});
+		endpoint.attachPhp(php as unknown as PHP);
+		endpoint.attachPhp(php as unknown as PHP);
+
+		await php.emitEvent({ type: 'worker.ready' });
+
+		expect(received).toHaveLength(1);
 	});
 
 	test('recovers request handler from the primary PHP instance', async () => {
@@ -154,6 +348,42 @@ describe('PlaygroundWorkerEndpoint', () => {
 			['php', '/tmp/script.php'],
 			undefined
 		);
+	});
+
+	test('keeps a pooled PHP instance alive until runStream finishes', async () => {
+		let finish!: () => void;
+		const finished = new Promise<void>((resolve) => {
+			finish = resolve;
+		});
+		const response = { finished } as StreamedPHPResponse;
+		const reap = vi.fn();
+		const streamedPhp = {
+			chdir: vi.fn(),
+			runStream: vi.fn().mockResolvedValue(response),
+			addEventListener: vi.fn(),
+			onMessage: vi.fn(),
+		};
+		const requestHandler = {
+			absoluteUrl: 'http://127.0.0.1/',
+			documentRoot: '/wordpress',
+			instanceManager: {
+				acquirePHPInstance: vi.fn().mockResolvedValue({
+					php: streamedPhp,
+					reap,
+				}),
+			},
+		};
+		const endpoint = new TestEndpoint(
+			requestHandler as unknown as PHPRequestHandler
+		);
+		const request = { code: "<?php echo 'hi!';" };
+
+		await expect(endpoint.runStream(request)).resolves.toBe(response);
+		expect(streamedPhp.runStream).toHaveBeenCalledWith(request);
+		expect(reap).not.toHaveBeenCalled();
+
+		finish();
+		await vi.waitFor(() => expect(reap).toHaveBeenCalledOnce());
 	});
 
 	test('uses the primary PHP instance before resolving a missing request handler', async () => {

@@ -4,15 +4,16 @@ updates:
       directory: '/'
       schedule:
           interval: 'daily'
+      # Keep this version-update allow-list out of security-update settings.
+      target-branch: 'trunk'
+      allow:
+          - dependency-name: 'fs-ext-extra-prebuilt'
+      versioning-strategy: 'increase'
       exclude-paths:
           - packages/playground/wordpress-builds/public/**
       ignore:
-          # Ignore all non-security updates - only allow security updates for high or critical vulnerabilities
-          - dependency-name: '*'
+          # New prebuilds are patch releases. Review larger changes separately.
+          - dependency-name: 'fs-ext-extra-prebuilt'
             update-types:
-                [
-                    'version-update:semver-major',
-                    'version-update:semver-minor',
-                    'version-update:semver-patch',
-                ]
+                ['version-update:semver-major', 'version-update:semver-minor']
       open-pull-requests-limit: 4

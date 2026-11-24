@@ -1,6 +1,6 @@
 import type { SiteInfo } from '../redux/slice-sites';
 import { updateUrl } from './router-hooks';
-import { decodeBase64ToString } from '../../base64';
+import { decodeBase64ToString } from '@php-wasm/util';
 
 export function redirectTo(url: string) {
 	window.history.pushState({}, '', url);
@@ -27,6 +27,7 @@ export interface QueryAPIParams {
 	url?: string;
 	'blueprint-url'?: string;
 	'page-title'?: string;
+	filebrowser?: string;
 }
 
 /**
@@ -101,7 +102,7 @@ export class PlaygroundRoute {
 		if (site.metadata.storage === 'none') {
 			return updateUrl(baseUrl, site.originalUrlParams || {});
 		} else {
-			const baseParams = new URLSearchParams(baseUrl.split('?')[1]);
+			const baseParams = new URL(baseUrl).searchParams;
 			const preserveParamsKeys = [
 				'mode',
 				'networking',
@@ -112,6 +113,7 @@ export class PlaygroundRoute {
 				'multisite',
 				'url',
 				'page-title',
+				'filebrowser',
 				'mcp',
 				'mcp-port',
 				'can-save',

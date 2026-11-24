@@ -4,11 +4,16 @@ import {
 	legacyOpfsPathSymbol,
 	opfsSiteStorage,
 } from '../opfs/opfs-site-storage';
-import { addClientInfo, updateClientInfo } from './slice-clients';
+import {
+	addClientInfo,
+	addClientEmail,
+	updateClientInfo,
+} from './slice-clients';
 import { logBlueprintEvents, logTrackingEvent } from '../../tracking';
 import {
 	type Blueprint,
-	type BlueprintDeclaration,
+	type OnStepCompleted,
+	type GitDirectoryReference,
 	BlueprintFilesystemRequiredError,
 	InvalidBlueprintError,
 	isBlueprintBundle,
@@ -25,10 +30,14 @@ import {
 } from './slice-ui';
 import type { PlaygroundDispatch, PlaygroundReduxState } from './store';
 import {
+	hasUnfinishedInitialOpfsSyncFromStorage,
 	isAutosavedSite,
+	isUnfinishedBlueprintRun,
 	selectSiteBySlug,
+	updateSite,
 	updateSiteMetadata,
 } from './slice-sites';
+import { extractGitDirectorySource } from './git-directory-sources';
 // @ts-ignore
 import { corsProxyUrl } from 'virtual:cors-proxy-url';
 import { modalSlugs } from './slice-ui';
@@ -40,8 +49,13 @@ import {
 	findFirewallErrorInCauseChain,
 	findDownloadErrorInCauseChain,
 } from './error-utils';
-import { PHPMYADMIN_INSTALL_PATH } from '@wp-playground/tools';
+import { PHPMYADMIN_PATH_ALIAS } from '@wp-playground/tools';
 import { phpExtensionQueryArgsToExtensionsArray } from '../url/php-extension-query';
+import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
+import PostalMime from 'postal-mime';
+import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
+import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
+import { getPlaygroundDefinedPHPConstants } from './playground-defined-php-constants';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -92,12 +106,9 @@ export function bootSiteClient(
 					return;
 				}
 				site = selectSiteBySlug(getState(), siteSlug) ?? site;
-			} else if (
-				site.loadedFromStorage === true &&
-				site.metadata.initialOpfsSyncPending === true
-			) {
-				// If the initial OPFS sync was interrupted, the site files are incomplete
-				// and we can't boot this site.
+			} else if (hasUnfinishedInitialOpfsSyncFromStorage(site)) {
+				// The initial OPFS copy has not finished in storage, so the site files
+				// are incomplete and we cannot boot this site yet.
 				dispatch(
 					setActiveSiteError({
 						error: 'initial-opfs-sync-interrupted',
@@ -223,6 +234,17 @@ export function bootSiteClient(
 		}
 
 		let playground: PlaygroundClient | undefined = undefined;
+		// Collects git:directory provenance for any installPlugin/installTheme
+		// step this boot runs, so it can be persisted into site metadata and
+		// surfaced as a badge in the Files browser.
+		const gitDirectorySources: Record<string, GitDirectoryReference> = {};
+		const onBlueprintStepCompleted: OnStepCompleted = (result, step) => {
+			const extracted = extractGitDirectorySource(step, result);
+			if (!extracted) {
+				return;
+			}
+			gitDirectorySources[extracted.assetPath] = extracted.source;
+		};
 		try {
 			const phpExtensions = phpExtensionQueryArgsToExtensionsArray(
 				site.originalUrlParams?.searchParams?.['php-extension'],
@@ -245,17 +267,13 @@ export function bootSiteClient(
 						playgroundClient;
 				},
 				// Log Blueprint events
-				onBlueprintValidated: logSupportedBlueprintEvents,
+				onBlueprintValidated: logBlueprintEvents,
+				onBlueprintStepCompleted,
 				mounts,
 				wordpressInstallMode,
 				corsProxy: corsProxyUrl,
 				gitAdditionalHeadersCallback: createGitAuthHeaders(),
-				pathAliases: [
-					{
-						urlPrefix: '/phpmyadmin',
-						fsPath: PHPMYADMIN_INSTALL_PATH,
-					},
-				],
+				pathAliases: [PHPMYADMIN_PATH_ALIAS],
 			});
 		} catch (e) {
 			if (signal.aborted) {
@@ -289,6 +307,16 @@ export function bootSiteClient(
 						details: e,
 					})
 				);
+			} else if (
+				(e as any).name === 'ResourceUnavailableError' ||
+				(e as any).originalErrorClassName === 'ResourceUnavailableError'
+			) {
+				dispatch(
+					setActiveSiteError({
+						error: 'resource-unavailable',
+						details: e,
+					})
+				);
 			} else if (firewallError) {
 				dispatch(
 					setActiveSiteError({
@@ -317,6 +345,14 @@ export function bootSiteClient(
 				if (shouldShowGitHubAuthModal(repoUrl)) {
 					if (repoUrl) {
 						dispatch(setGitHubAuthRepoUrl(repoUrl));
+					}
+					if (isUnfinishedBlueprintRun(site)) {
+						dispatch(
+							setActiveSiteError({
+								error: 'site-boot-failed',
+								details: e,
+							})
+						);
 					}
 					dispatch(
 						setActiveModal(modalSlugs.GITHUB_PRIVATE_REPO_AUTH)
@@ -347,6 +383,30 @@ export function bootSiteClient(
 		}
 		const connectedPlayground = playground as PlaygroundClient;
 
+		if (Object.keys(gitDirectorySources).length > 0) {
+			try {
+				await dispatch(
+					updateSiteMetadata({
+						slug: site.slug,
+						changes: {
+							gitDirectorySources: {
+								...site.metadata.gitDirectorySources,
+								...gitDirectorySources,
+							},
+						},
+					})
+				);
+			} catch (error) {
+				// Best-effort: the site is already connected at this point,
+				// so a failure to persist provenance metadata shouldn't
+				// abort the rest of client setup below.
+				logger.error(
+					'Error persisting git directory source metadata',
+					error
+				);
+			}
+		}
+
 		setupPostMessageRelay(iframe, document.location.origin);
 
 		const syncOperation = isAutosavedSite(site) ? 'autosave' : 'save';
@@ -355,6 +415,7 @@ export function bootSiteClient(
 				siteSlug: site.slug,
 				url: '/',
 				client: connectedPlayground,
+				emails: [],
 				opfsMountDescriptor: mountDescriptor,
 				opfsSync: mountDescriptorForInitialOpfsSync
 					? {
@@ -364,6 +425,66 @@ export function bootSiteClient(
 					: undefined,
 			})
 		);
+		let emailProcessingQueue = Promise.resolve();
+		try {
+			await connectedPlayground.addEventListener(
+				'sendmail.spawned',
+				(event) => {
+					const { stdin } = event as PHPSendmailSpawnedEvent;
+					emailProcessingQueue = emailProcessingQueue.then(
+						async () => {
+							if (signal.aborted) {
+								await stdin.cancel().catch(() => {});
+								return;
+							}
+							let email;
+							try {
+								email = await PostalMime.parse(stdin);
+							} catch (error) {
+								logger.error(
+									'Failed to parse captured email',
+									error
+								);
+								return;
+							}
+							if (signal.aborted) {
+								return;
+							}
+							dispatch(
+								addClientEmail({
+									siteSlug: site.slug,
+									email,
+								})
+							);
+						}
+					);
+				}
+			);
+		} catch (error) {
+			logger.error('Failed to start capturing emails', error);
+		}
+		try {
+			await runSiteFirstBootInitializer(site.slug, connectedPlayground);
+		} catch (error) {
+			if (signal.aborted) {
+				return;
+			}
+			logger.error('Error initializing Playground', error);
+			if (mountDescriptorForInitialOpfsSync) {
+				dispatch(
+					updateClientInfo({
+						siteSlug: site.slug,
+						changes: {
+							opfsSync: {
+								status: 'error',
+								operation: syncOperation,
+							},
+						},
+					})
+				);
+			}
+			return;
+		}
 		// When metadata says the first OPFS copy is still pending, install
 		// WordPress in MEMFS and copy it into OPFS in the background. Otherwise
 		// the stored files are mounted and boot can only refresh recency metadata.
@@ -375,6 +496,19 @@ export function bootSiteClient(
 				operation: syncOperation,
 				dispatch,
 				signal,
+				siteSlugToReturnToIfBlueprintFails:
+					site.metadata.siteSlugToReturnToIfBlueprintFails,
+			}).then((syncSucceeded) => {
+				if (!syncSucceeded) {
+					return;
+				}
+				void captureAndPersistSiteThumbnail({
+					playground: connectedPlayground,
+					siteSlug: site.slug,
+					dispatch,
+					getState,
+					signal,
+				});
 			});
 		} else {
 			try {
@@ -408,6 +542,15 @@ export function bootSiteClient(
 					})
 				);
 			}
+			if (site.metadata.storage !== 'none') {
+				void captureAndPersistSiteThumbnail({
+					playground: connectedPlayground,
+					siteSlug: site.slug,
+					dispatch,
+					getState,
+					signal,
+				});
+			}
 		}
 
 		connectedPlayground.onNavigation((url) => {
@@ -423,17 +566,46 @@ export function bootSiteClient(
 				})
 			);
 		});
+
+		if (site.urlToRestoreAfterRuntimeSettingsChange) {
+			const urlToRestore = site.urlToRestoreAfterRuntimeSettingsChange;
+			await dispatch(
+				updateSite({
+					slug: site.slug,
+					changes: {
+						urlToRestoreAfterRuntimeSettingsChange: undefined,
+					},
+				})
+			);
+			if (signal.aborted) {
+				return;
+			}
+			if (urlToRestore.startsWith('/')) {
+				const restoreBaseUrl = 'https://playground.internal';
+				const parsedUrlToRestore = new URL(
+					urlToRestore,
+					restoreBaseUrl
+				);
+				// Restore only paths inside this Playground. The URL parser
+				// catches protocol-relative URLs and browser backslash
+				// normalization quirks while preserving valid slashes in the
+				// path, query, and hash.
+				if (parsedUrlToRestore.origin === restoreBaseUrl) {
+					await connectedPlayground.goTo(
+						`${parsedUrlToRestore.pathname}${parsedUrlToRestore.search}${parsedUrlToRestore.hash}`
+					);
+				}
+			}
+		}
 	};
 }
 
 /**
- * Finishes deleting old WordPress files after a tab closed during reset.
+ * Finishes a same-site autosave reset started by an older Playground build.
  *
- * `opfsSiteRemovalPending` means `wp-runtime.json` already describes the new setup,
- * but the OPFS directory may still contain WordPress files from the previous
- * autosave. Boot must delete those files before it mounts OPFS or installs
- * WordPress from the new setup. Otherwise the previous site can open while the
- * metadata says the site should use the new settings or edited Blueprint.
+ * Those builds wrote `opfsSiteRemovalPending` after replacing the setup metadata
+ * but before deleting the previous WordPress files. Boot must still honor that
+ * persisted marker or it can mount files that do not match `wp-runtime.json`.
  */
 async function finishPendingOpfsSiteRemoval({
 	siteSlug,
@@ -530,18 +702,13 @@ function waitForPendingOpfsSiteRemovalRetry(
 	});
 }
 
-function logSupportedBlueprintEvents(blueprint: BlueprintDeclaration) {
-	if ('version' in blueprint && blueprint.version === 2) {
-		return;
-	}
-	return logBlueprintEvents(blueprint as any);
-}
-
 /**
- * Copies files created during a saved site's first boot from MEMFS into OPFS.
+ * Copies files and live PHP constants from a saved site's first boot into
+ * browser storage.
  *
  * The iframe is already usable when this runs. Redux keeps showing sync
- * progress until the copy succeeds, then future boots can mount OPFS normally.
+ * progress until the file copy, final journal flush, and constant snapshot
+ * succeed. Future boots can then mount OPFS normally.
  */
 async function syncInitialOpfsFilesInBackground({
 	playground,
@@ -550,6 +717,7 @@ async function syncInitialOpfsFilesInBackground({
 	operation,
 	dispatch,
 	signal,
+	siteSlugToReturnToIfBlueprintFails,
 }: {
 	playground: PlaygroundClient;
 	mountDescriptor: Omit<MountDescriptor, 'initialSyncDirection'>;
@@ -557,7 +725,8 @@ async function syncInitialOpfsFilesInBackground({
 	operation: 'save' | 'autosave';
 	dispatch: PlaygroundDispatch;
 	signal: AbortSignal;
-}) {
+	siteSlugToReturnToIfBlueprintFails?: string;
+}): Promise<boolean> {
 	let shouldReportProgress = true;
 	try {
 		// The first OPFS copy can outlive the iframe that started it. Once the
@@ -587,19 +756,37 @@ async function syncInitialOpfsFilesInBackground({
 			}
 		);
 		if (signal.aborted) {
-			return;
+			return false;
 		}
+		// mountOpfs() starts the final journal flush without waiting for it.
+		// Keep the syncing viewport alive until changes captured during the
+		// initial copy have reached OPFS.
+		await playground.flushOpfs(mountDescriptor.mountpoint);
+		if (signal.aborted) {
+			return false;
+		}
+		const playgroundDefinedConstants =
+			await getPlaygroundDefinedPHPConstants(playground);
+		if (signal.aborted) {
+			return false;
+		}
+		// Clear the return target in the same metadata write that completes the
+		// initial sync so failed copies retain their recovery action.
 		await dispatch(
 			updateSiteMetadata({
 				slug: siteSlug,
 				changes: {
 					initialOpfsSyncPending: false,
 					whenLastUsed: Date.now(),
+					playgroundDefinedConstants,
+					...(siteSlugToReturnToIfBlueprintFails
+						? { siteSlugToReturnToIfBlueprintFails: undefined }
+						: {}),
 				},
 			})
 		);
 		if (signal.aborted) {
-			return;
+			return false;
 		}
 		dispatch(
 			updateClientInfo({
@@ -609,9 +796,10 @@ async function syncInitialOpfsFilesInBackground({
 				},
 			})
 		);
+		return true;
 	} catch (error: unknown) {
 		if (signal.aborted) {
-			return;
+			return false;
 		}
 		logger.error('Error syncing saved Playground to OPFS', error);
 		dispatch(
@@ -625,7 +813,7 @@ async function syncInitialOpfsFilesInBackground({
 				},
 			})
 		);
-		return;
+		return false;
 	} finally {
 		// Progress is reported from a worker. Once the sync settles, ignore any
 		// queued progress message so it cannot overwrite the final UI state.
