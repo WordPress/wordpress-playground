@@ -1,5 +1,7 @@
 ---
+title: PHP ফাইলসিস্টেম
 slug: /developers/architecture/wasm-php-filesystem
+description: ওয়ার্ডপ্রেস প্লেগ্রাউন্ডের ইন-মেমোরি PHP ফাইলসিস্টেম, Node.js-এ হোস্ট ডিরেক্টরি মাউন্টিং এবং ফাইল API সম্পর্কে জানুন।
 ---
 
 <!--
