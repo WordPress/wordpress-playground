@@ -84,7 +84,6 @@ export default clientsSlice.reducer;
 export const {
 	selectAll: selectAllClientInfo,
 	selectById: selectClientInfoBySiteSlug,
-	selectIds: selectClientInfoSiteSlugs,
 } = clientsAdapter.getSelectors(
 	(state: { clients: ReturnType<typeof clientsSlice.reducer> }) =>
 		state.clients
