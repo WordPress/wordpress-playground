@@ -627,6 +627,30 @@ describe('BlueprintBundleEditor Run barrier', () => {
 		expect(mocks.setDockPaneOpen).toHaveBeenCalledWith(false);
 	});
 
+	it('keeps the Dock pane open when recreating a temporary site fails', async () => {
+		const updateSiteAction = { type: 'update-site' };
+		mocks.updateSite.mockReturnValue(updateSiteAction);
+		mocks.dispatch.mockImplementation((action) => {
+			if (action === updateSiteAction) {
+				return Promise.reject(new Error('recreate failed'));
+			}
+			return undefined;
+		});
+		await renderEditor({ dockPresentation: true, site: temporarySite });
+
+		await act(async () => {
+			getRunButton().click();
+			await Promise.resolve();
+		});
+
+		await vi.waitFor(() => {
+			expect(container.textContent).toContain(
+				'Could not recreate Playground. Try again.'
+			);
+		});
+		expect(mocks.setDockPaneOpen).not.toHaveBeenCalled();
+	});
+
 	it('toggles desktop expand and file sidebar controls inside an editor DockPane', async () => {
 		const onToggleExpanded = vi.fn();
 		const editorRef = createRef<BlueprintBundleEditorHandle>();

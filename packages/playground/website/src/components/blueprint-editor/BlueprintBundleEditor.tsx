@@ -651,7 +651,6 @@ export const BlueprintBundleEditor = forwardRef<
 				},
 				originalUrlParams: undefined,
 			};
-			dispatch(setDockPaneOpen(false));
 			dispatch(removeClientInfo(site.slug));
 			await dispatch(
 				updateSite({
@@ -659,6 +658,7 @@ export const BlueprintBundleEditor = forwardRef<
 					changes,
 				})
 			);
+			dispatch(setDockPaneOpen(false));
 		} catch (error) {
 			logger.error('Failed to run Blueprint', error);
 			setSaveError(

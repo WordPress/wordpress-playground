@@ -317,8 +317,10 @@
 	width: min(1120px, calc(100vw - 40px));
 }
 
-.pane-editor.pane-expanded {
-	width: calc(100vw - 16px);
+@media (min-width: 1025px) {
+	.pane-editor.pane-expanded {
+		width: calc(100vw - 16px);
+	}
 }
 
 /* The New pane runs at a fixed height (set inline) so its tab strip stays put

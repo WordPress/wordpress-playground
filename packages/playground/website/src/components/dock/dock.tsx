@@ -367,10 +367,18 @@ export function Dock({
 	}, [dockSize.height, isCollapsed, isFullWidth, isMobile, toolsHeight]);
 
 	useEffect(() => {
-		if (!dockPaneIsOpen || !isEditorSection || isMobile) {
+		if (
+			(!dockPaneIsOpen && paneExitComplete) ||
+			!isEditorSection ||
+			isMobile
+		) {
 			setIsPaneExpanded(false);
 		}
-	}, [dockPaneIsOpen, isEditorSection, isMobile]);
+	}, [dockPaneIsOpen, paneExitComplete, isEditorSection, isMobile]);
+
+	useEffect(() => {
+		setIsPaneExpanded(false);
+	}, [section]);
 
 	useEffect(() => {
 		// Opening Store permanently from the visible status must not unfold a
