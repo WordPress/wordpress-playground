@@ -781,6 +781,41 @@ describe.each(phpVersions)(
 			});
 		});
 
+		describe('internal redirect when the file is missing', () => {
+			it('should set PHP_SELF to the redirect target, not the requested path', async () => {
+				const php = await handler.getPrimaryPhp();
+				php.writeFile(
+					'/var/www/index.php',
+					`<?php
+						echo json_encode([
+							'REQUEST_URI' => $_SERVER['REQUEST_URI'],
+							'SCRIPT_NAME' => $_SERVER['SCRIPT_NAME'],
+							'PHP_SELF' => $_SERVER['PHP_SELF'],
+						]);
+					`
+				);
+				handler.getFileNotFoundAction = () => ({
+					type: 'internal-redirect',
+					uri: '/index.php',
+				});
+
+				const response = await handler.request({
+					url: '/some/missing/path',
+				});
+
+				const result = response.json;
+				// REQUEST_URI stays the path the client asked for.
+				expect(result['REQUEST_URI']).toEqual('/some/missing/path');
+				// The front controller is the script that actually runs.
+				expect(result['SCRIPT_NAME']).toEqual('/index.php');
+				// PHP_SELF is SCRIPT_NAME plus PATH_INFO. There is no
+				// PATH_INFO after an internal redirect to /index.php, so
+				// PHP_SELF matches SCRIPT_NAME. Apache, nginx try_files,
+				// and the PHP built-in server all do this.
+				expect(result['PHP_SELF']).toEqual('/index.php');
+			});
+		});
+
 		describe('Apache vanilla request scenario', () => {
 			it('should set $_SERVER variables correctly for vanilla request with query string', async () => {
 				const php = await handler.getPrimaryPhp();
