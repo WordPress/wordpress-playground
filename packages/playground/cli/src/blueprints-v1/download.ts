@@ -1,4 +1,5 @@
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
+import { randomUUID } from 'crypto';
 import fs from 'fs-extra';
 import { createRequire } from 'module';
 import os from 'os';
@@ -53,7 +54,11 @@ async function downloadTo(
 ) {
 	const response = await monitor.monitorFetch(fetch(remoteUrl));
 	const reader = response.body!.getReader();
-	const tmpPath = `${localPath}.partial`;
+	// Per-download temp path. A shared `${localPath}.partial` races when two
+	// processes (or parallel CLI/test kernels) download the same cache key at
+	// once: they clobber one partial file and the second `renameSync` fails
+	// ENOENT after the first already moved it. A unique suffix isolates them.
+	const tmpPath = `${localPath}.${process.pid}.${randomUUID()}.partial`;
 	const writer = fs.createWriteStream(tmpPath);
 	while (true) {
 		const { done, value } = await reader.read();
@@ -68,7 +73,20 @@ async function downloadTo(
 	if (!writer.closed) {
 		await new Promise((resolve, reject) => {
 			writer.on('finish', () => {
-				fs.renameSync(tmpPath, localPath);
+				try {
+					fs.renameSync(tmpPath, localPath);
+				} catch (err) {
+					// A concurrent download may have already produced
+					// `localPath` (and on Windows, renaming onto an existing
+					// file throws). If the final file is present our temp copy
+					// is redundant; otherwise surface the failure.
+					if (fs.existsSync(localPath)) {
+						fs.removeSync(tmpPath);
+					} else {
+						reject(err);
+						return;
+					}
+				}
 				resolve(null);
 			});
 			writer.on('error', (err: any) => {
