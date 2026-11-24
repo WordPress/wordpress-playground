@@ -61,10 +61,13 @@ export function getDockPaneStyle({
 				isEditorSection,
 				isWideSection,
 			});
-	const availableHeight = Math.max(
-		DOCK_PANE_MIN_HEIGHT,
+	const remainingHeight = Math.max(
+		0,
 		dockTop - DOCK_PANE_GAP - DOCK_DRAG_EDGE
 	);
+	const availableHeight = isExpandedEditorPane
+		? remainingHeight
+		: Math.max(DOCK_PANE_MIN_HEIGHT, remainingHeight);
 	const stableHeight = Math.min(LIST_PANE_HEIGHT, availableHeight);
 	const maxHeight = isPlaygroundsSection ? stableHeight : availableHeight;
 
