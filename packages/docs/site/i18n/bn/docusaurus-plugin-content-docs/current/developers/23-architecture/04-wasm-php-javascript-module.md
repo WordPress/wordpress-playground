@@ -1,5 +1,6 @@
 ---
 title: PHP.js JavaScript মডিউল
+description: তৈরি হওয়া php.js ESM মডিউলের API এবং loadPHPRuntime() কীভাবে WebAssembly PHP রানটাইম ইনিশিয়ালাইজ করে তা জানুন।
 ---
 
 <!--
