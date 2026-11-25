@@ -1,3 +1,4 @@
+import { basename, dirname } from '@php-wasm/util';
 import { PHPRequestHandler } from '../lib/php-request-handler';
 import { PHPResponse, StreamedPHPResponse } from '../lib/php-response';
 import type { PHP } from '../lib/php';
@@ -13,6 +14,11 @@ function createMockPHP(filesystem: Map<string, 'file' | 'dir'>) {
 		mkdir: vi.fn(),
 		isDir: vi.fn((path: string) => filesystem.get(path) === 'dir'),
 		isFile: vi.fn((path: string) => filesystem.get(path) === 'file'),
+		listFiles: vi.fn((path: string) =>
+			[...filesystem.keys()]
+				.filter((entry) => dirname(entry) === path)
+				.map((entry) => basename(entry))
+		),
 		readFileAsBuffer: vi.fn((path: string) => {
 			if (filesystem.get(path) === 'file') {
 				return new Uint8Array(Buffer.from(`Content of ${path}`));
