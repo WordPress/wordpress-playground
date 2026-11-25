@@ -26,6 +26,7 @@ import {
 	readDockFullWidth,
 	writeDockFullWidth,
 } from '../../lib/dock-full-width';
+import { readDockMode } from '../../lib/dock-mode';
 import {
 	getActiveClientInfo,
 	selectActiveSiteError,
@@ -35,10 +36,12 @@ import {
 } from '../../lib/state/redux/store';
 import { isSiteSavingDisabled } from '../../lib/state/url/router';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
+import { buildPlaygroundAnnotationMetadata } from '../../lib/oai-annotations';
 import playgroundLogoUrl from '../../playground-logo.svg';
 import AddressBar from '../address-bar';
 import { SaveStatusIndicator } from '../browser-chrome/save-status-indicator';
 import { SiteManager } from '../site-manager';
+import type { ToolHeaderState } from '../site-manager/site-info-panel/site-tool-renderers';
 import {
 	useRecentAutosaveNudgeVisible,
 	useSetRecentAutosaveNudgeAnchor,
@@ -90,6 +93,12 @@ export function Dock({
 			setNewPlaygroundHeaderOverride(header),
 		[]
 	);
+	const [toolBack, setToolBack] = useState<ToolHeaderState>();
+	const {
+		action: toolAction,
+		hideHeader: toolHidesHeader,
+		...toolHeader
+	} = toolBack ?? {};
 	const activeSite = useActiveSite();
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const paneCopy = getDockTool(section);
@@ -100,12 +109,26 @@ export function Dock({
 	const isFixedHeightSection =
 		Boolean(paneCopy.fixedHeight) ||
 		(section === 'share' && shareExportOpen);
-	const showSharedHeader = !isEditorSection;
+	const showSharedHeader =
+		!isEditorSection && !(section === 'transfer' && toolHidesHeader);
 	const siteSettingsVisible = dockPaneIsOpen && section === 'settings';
 	const playgroundTitle =
 		activeSite?.metadata.storage === 'none'
 			? 'Unsaved Playground'
 			: activeSite?.metadata.name;
+	const dockAnnotationMetadata = useMemo(
+		() =>
+			buildPlaygroundAnnotationMetadata({
+				siteSlug: activeSite?.slug,
+				storage: activeSite?.metadata.storage,
+				wpVersion: activeSite?.metadata.runtimeConfiguration.wpVersion,
+				phpVersion:
+					activeSite?.metadata.runtimeConfiguration.phpVersion,
+				currentUrl: clientInfo?.url,
+				activeDockPane: dockPaneIsOpen ? section : null,
+			}),
+		[activeSite, clientInfo?.url, dockPaneIsOpen, section]
+	);
 	const savingDisabled = isSiteSavingDisabled();
 	const inlineRename = useInlineRename();
 	const canManageActiveSite = activeSite?.metadata.storage !== 'none';
@@ -163,7 +186,9 @@ export function Dock({
 			? newPlaygroundHeaderOverride
 			: section === 'share' && shareExportOpen
 				? githubExportHeaderOverride
-				: undefined;
+				: section === 'transfer' && toolBack
+					? { title: paneTitle, ...toolHeader }
+					: undefined;
 
 	const [dockSize, setDockSize] = useState({ width: 0, height: 0 });
 	const [paneHeight, setPaneHeight] = useState(0);
@@ -176,10 +201,25 @@ export function Dock({
 		height: window.innerHeight,
 	}));
 	const [dockCenter, setDockCenter] = useState<number | null>(null);
-	const [isCollapsed, setIsCollapsed] = useState(false);
-	const [isFullWidth, setIsFullWidth] = useState(readDockFullWidth);
+	const [initialDockMode] = useState(readDockMode);
+	const [isCollapsed, setIsCollapsed] = useState(
+		initialDockMode === 'collapsed' ||
+			initialDockMode === 'full-width-collapsed'
+	);
+	const [isFullWidth, setIsFullWidth] = useState(() =>
+		initialDockMode === undefined
+			? readDockFullWidth()
+			: initialDockMode === 'full-width' ||
+				initialDockMode === 'full-width-collapsed'
+	);
 	const [isDragging, setIsDragging] = useState(false);
-	const [cornerSide, setCornerSide] = useState<'left' | 'right' | null>(null);
+	// `?dock=minimized` starts in the left corner launcher. Mobile and an open
+	// pane still reset this through the effects below, as they do after a drag.
+	const [cornerSide, setCornerSide] = useState<'left' | 'right' | null>(() =>
+		initialDockMode === 'minimized' && !isMobile && !dockPaneIsOpen
+			? 'left'
+			: null
+	);
 	const [isModeSwitching, setIsModeSwitching] = useState(false);
 	const [isFolding, setIsFolding] = useState(false);
 	const [isUnfolding, setIsUnfolding] = useState(false);
@@ -1063,6 +1103,8 @@ export function Dock({
 				<DockPane
 					ref={paneRef}
 					title={paneTitle}
+					annotatableSection={section}
+					annotationMetadata={dockAnnotationMetadata}
 					description={
 						section === 'settings' && activeSite
 							? undefined
@@ -1118,6 +1160,8 @@ export function Dock({
 								<Icon icon={plus} size={20} />
 								New Playground
 							</button>
+						) : section === 'transfer' ? (
+							toolAction
 						) : undefined
 					}
 					headerOverride={paneHeaderOverride}
@@ -1148,6 +1192,7 @@ export function Dock({
 						isVisible={paneContentVisible}
 						mobileUi={isMobile}
 						onPaneCloseBlockedChange={onPaneCloseBlockedChange}
+						onToolBackChange={setToolBack}
 						onNewPlaygroundHeaderChange={
 							handleNewPlaygroundHeaderChange
 						}
@@ -1220,6 +1265,9 @@ export function Dock({
 				onPointerMove={updateDockSheen}
 				onPointerLeave={hideDockSheen}
 				aria-label="Playground tools"
+				oai-annotation-container=""
+				oai-annotatable="playground-dock"
+				oai-annotation-metadata={dockAnnotationMetadata}
 			>
 				<div className={css.dockSheen} aria-hidden="true" />
 				<div className={css.dockBody}>
@@ -1228,7 +1276,9 @@ export function Dock({
 							<AddressBar
 								url={clientInfo?.url}
 								isMobile={isMobile}
-								disabled={!clientInfo}
+								// A running transfer changes the site: no navigation
+								// and no quick-navigation popover meanwhile.
+								disabled={!clientInfo || paneCloseBlocked}
 								onUpdate={
 									clientInfo
 										? (newUrl) =>

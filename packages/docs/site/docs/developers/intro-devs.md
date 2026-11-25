@@ -19,7 +19,7 @@ Hi! Welcome to WordPress Playground Developer documentation.
 
 This docs hub is focused on Developers info and is divided into the following major sections:
 
-- [Quick Start Guide for Developers](/developers/build-your-first-app): Begin your development journey with Playground by exploring some examples of what you can achieve using Playground APIs.
+- [Quick Start Guide for Developers](https://developer.wordpress.org/playground/developers/build-an-app/): Begin your development journey with Playground by exploring some examples of what you can achieve using Playground APIs.
 
 - [Local Development](/developers/local-development): Discover the tools provided by Playground to streamline the process of setting up and managing WordPress sites and build your apps.
 

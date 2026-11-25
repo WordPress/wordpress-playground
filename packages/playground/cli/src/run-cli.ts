@@ -42,6 +42,7 @@ import {
 	parseDefineBoolArguments,
 	parseDefineNumberArguments,
 } from './defines';
+import { parsePhpIniArguments } from './php-ini';
 import { isPortInUse, startServer } from './start-server';
 import type { PlaygroundCliBlueprintV1Worker } from './blueprints-v1/worker-thread-v1';
 import type { PlaygroundCliBlueprintV2Worker } from './blueprints-v2/worker-thread-v2';
@@ -56,7 +57,6 @@ import {
 } from '@php-wasm/universal';
 import type { MessagePort as NodeMessagePort } from 'worker_threads';
 import yargs, { type Argv, type Options as YargsOptions } from 'yargs';
-import { isValidWordPressSlug } from './is-valid-wordpress-slug';
 import { resolveBlueprint } from './resolve-blueprint';
 import { BlueprintsV2Handler } from './blueprints-v2/blueprints-v2-handler';
 import { BlueprintsV1Handler } from './blueprints-v1/blueprints-v1-handler';
@@ -68,7 +68,10 @@ import {
 	cleanupStalePlaygroundTempDirs,
 	createPlaygroundCliTempDir,
 } from './temp-dir';
-import { type WordPressInstallMode } from '@wp-playground/wordpress';
+import {
+	isValidWordPressVersion,
+	type WordPressInstallMode,
+} from '@wp-playground/wordpress';
 import {
 	type Mount,
 	addXdebugIDEConfig,
@@ -212,6 +215,17 @@ export async function parseOptionsAndRunCLI(
 				nargs: 2,
 				array: true,
 				coerce: parseDefineNumberArguments,
+			},
+			'php-ini': {
+				describe:
+					'Set php.ini entries (can be used multiple times). ' +
+					'Format: NAME value. ' +
+					"An entry named after an extension is written to that extension's ini file, so it wins over the value the extension ships. " +
+					'Examples: --php-ini memory_limit 256M --php-ini xdebug.mode develop,trace,profile',
+				type: 'string',
+				nargs: 2,
+				array: true,
+				coerce: parsePhpIniArguments,
 			},
 			// @TODO: Support read-only mounts, e.g. via WORKERFS, a custom
 			// ReadOnlyNODEFS, or by copying the files into MEMFS
@@ -423,6 +437,15 @@ export async function parseOptionsAndRunCLI(
 					return n;
 				},
 			},
+			'codespaces-public-port': {
+				describe:
+					'In GitHub Codespaces, make the forwarded port public so anyone ' +
+					'with the URL can open the site without signing in to GitHub. ' +
+					"Turns off the start command's default auto-login unless " +
+					'--login is passed.',
+				type: 'boolean',
+				default: false,
+			},
 			'experimental-multi-worker': {
 				deprecated:
 					'Use --workers=<n|auto> instead. The value of this flag is ignored.',
@@ -472,7 +495,7 @@ export async function parseOptionsAndRunCLI(
 			login: {
 				describe: 'Auto-login as the admin user.',
 				type: 'boolean',
-				default: true,
+				defaultDescription: 'true',
 			},
 			xdebug: {
 				describe: 'Enable Xdebug for debugging.',
@@ -522,8 +545,11 @@ export async function parseOptionsAndRunCLI(
 			define: sharedOptions['define'],
 			'define-bool': sharedOptions['define-bool'],
 			'define-number': sharedOptions['define-number'],
+			'php-ini': sharedOptions['php-ini'],
 			// Tools
 			phpmyadmin: sharedOptions['phpmyadmin'],
+			'codespaces-public-port':
+				serverOnlyOptions['codespaces-public-port'],
 		};
 
 		const buildSnapshotOnlyOptions: Record<string, YargsOptions> = {
@@ -554,6 +580,9 @@ export async function parseOptionsAndRunCLI(
 								'  wp-playground start --no-auto-mount    # Disable auto-detection'
 						)
 						.options(startCommandOptions)
+						.middleware((argv) => {
+							argv['login'] ??= !argv['codespaces-public-port'];
+						}, true)
 			)
 			.command(
 				'server',
@@ -618,16 +647,11 @@ export async function parseOptionsAndRunCLI(
 				if (
 					args['wp'] !== undefined &&
 					typeof args['wp'] === 'string' &&
-					!isValidWordPressSlug(args['wp'])
+					!isValidWordPressVersion(args['wp'])
 				) {
-					try {
-						// Check if is valid URL
-						new URL(args['wp']);
-					} catch {
-						throw new Error(
-							'Unrecognized WordPress version. Please use "latest", "beta", "trunk", "nightly", a URL, or a numeric version such as "6.2", "6.0.1", "6.2-beta1", or "6.2-RC1" (see --help for details).'
-						);
-					}
+					throw new Error(
+						'Unrecognized WordPress version. Please use "latest", "beta", "trunk", "nightly", an http(s) URL, or a numeric version such as "7.1", "7.0.1", "7.1-beta1", or "7.1-RC1" (see --help for details).'
+					);
 				}
 
 				const siteUrlArg = args['site-url'];
@@ -831,6 +855,7 @@ export interface RunCLIArgs {
 	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot' | 'php';
 	debug?: boolean;
 	login?: boolean;
+	codespacesPublicPort?: boolean;
 	mount?: Mount[];
 	'mount-before-install'?: Mount[];
 	outfile?: string;
@@ -877,6 +902,11 @@ export interface RunCLIArgs {
 	 * Set via php.defineConstant(), process-specific only.
 	 */
 	'define-number'?: Record<string, number>;
+	/**
+	 * php.ini entries set via the --php-ini flag.
+	 * Written to the ini file PHP reads each entry from.
+	 */
+	'php-ini'?: Record<string, string>;
 	defaultedDebugConstants?: string[];
 
 	// --------- Blueprint V1 args -----------
@@ -1065,6 +1095,24 @@ export async function runCLI(
 		});
 	}
 
+	if (args.codespacesPublicPort) {
+		if (!process.env['CODESPACE_NAME']) {
+			cliOutput.printWarning(
+				'--codespaces-public-port has no effect outside GitHub Codespaces.'
+			);
+		} else {
+			cliOutput.printWarning(
+				'The forwarded port will be public. Anyone with its URL can open ' +
+					'this site without signing in to GitHub, and WordPress can ' +
+					'write to any mounted host directories.' +
+					(args.login
+						? ' Auto-login is on, so every visitor is signed in as ' +
+							'an administrator.'
+						: '')
+			);
+		}
+	}
+
 	const selectedPort = args.command === 'server' ? (args.port ?? 9400) : 0;
 
 	// Declare file lock manager outside scope of startServer
@@ -1080,6 +1128,7 @@ export async function runCLI(
 			: !(await isPortInUse(selectedPort))
 				? selectedPort
 				: 0,
+		codespacesPublicPort: args.codespacesPublicPort,
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;

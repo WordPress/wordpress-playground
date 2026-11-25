@@ -2,7 +2,12 @@ import type { FilesystemOperation } from '@php-wasm/fs-journal';
 import { journalFSEvents, replayFSJournal } from '@php-wasm/fs-journal';
 import type { EmscriptenDownloadMonitor } from '@php-wasm/progress';
 import { setURLScope } from '@php-wasm/scopes';
-import { formatBytes, joinPaths, sendmailSpawnHandler } from '@php-wasm/util';
+import {
+	ensureAbsolutePath,
+	formatBytes,
+	joinPaths,
+	sendmailSpawnHandler,
+} from '@php-wasm/util';
 import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
 import PostalMime from 'postal-mime';
 import type { Email } from 'postal-mime';
@@ -22,7 +27,7 @@ import {
 	LatestMinifiedWordPressVersion,
 	MinifiedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { wordPressSiteUrl } from './config';
+import { playgroundOrigin, wordPressSiteUrl, releaseBase } from './config';
 import {
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
@@ -161,12 +166,27 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		});
 	}
 
+	/** Give PHP the same public WordPress origin used by its iframe and HTTP bridge. */
 	protected computeSiteUrl(scope: string) {
 		return setURLScope(wordPressSiteUrl, scope).toString();
 	}
 
 	// NOTE: Version-specific boot methods are implemented in the concrete worker entrypoints
 
+	/**
+	 * Create the PHP runtime pool and route siteUrl requests into its WordPress files.
+	 *
+	 * siteUrl is WordPress's public scoped URL, even when PHP runs on the app origin.
+	 * For each PHP instance, define PLAYGROUND_PARENT_ORIGIN in split-origin mode.
+	 * The injected WordPress scripts use it to send navigation, pointer, thumbnail,
+	 * and tool messages back to remote.html instead of assuming their parent shares
+	 * WordPress's origin. The value comes from the app module URL, not user input.
+	 *
+	 * Known remote asset paths get a marked 404 when absent from the local files.
+	 * The service worker uses that marker to fetch the shared public asset instead
+	 * of treating every missing URL, including PHP routes, as a static download.
+	 * Existing runtime hooks set up networking, mail capture, and shared files.
+	 */
 	protected async createRequestHandler({
 		siteUrl,
 		sapiName,
@@ -290,6 +310,12 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 				});
 			},
 			onPHPInstanceCreated: async (php: PHP, { isPrimary }) => {
+				if (new URL(siteUrl).origin !== playgroundOrigin) {
+					php.defineConstant(
+						'PLAYGROUND_PARENT_ORIGIN',
+						playgroundOrigin
+					);
+				}
 				/**
 				 * The remote runtime has no mail server. Capture sendmail stdin as an
 				 * event through a null transport; consumers must relay the message if
@@ -400,6 +426,22 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		return requestHandler;
 	}
 
+	/**
+	 * Finish WordPress startup and identify static files omitted from minified builds.
+	 *
+	 * Enable outbound networking only after installation, then read the installed
+	 * WordPress version. A saved site may contain a different version than requested;
+	 * using the requested version could select the wrong public asset directory.
+	 *
+	 * Minified WordPress omits static files from its ZIP. wordpress-remote-asset-paths
+	 * tells createRequestHandler() which missing files to download, rather than
+	 * treating them as normal WordPress 404s. Older saved sites can lack this list;
+	 * this recovery also runs without a deployment. Fetch it for the installed WP
+	 * version from this app build's release directory and save it with the site.
+	 * Release URLs matter when reopening a saved site after an app deployment:
+	 * its list and asset pack must come from files that deployment actually serves.
+	 * If recovery fails, log a warning and continue startup without the missing list.
+	 */
 	protected async finalizeAfterBoot(
 		requestHandler: any,
 		withNetworking: boolean,
@@ -444,13 +486,20 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			!primaryPhp.fileExists(remoteAssetListPath)
 		) {
 			const listUrl = new URL(
-				joinPaths(wpStaticAssetsDir, 'wordpress-remote-asset-paths'),
-				wordPressSiteUrl
+				joinPaths(
+					releaseBase,
+					wpStaticAssetsDir,
+					'wordpress-remote-asset-paths'
+				),
+				playgroundOrigin
 			);
 			try {
-				const remoteAssetPaths = await fetch(listUrl).then((res) =>
-					res.text()
-				);
+				const response = await fetch(listUrl);
+				// Reject error pages instead of saving them as asset paths. The catch
+				// below logs the failure and lets startup continue without this list;
+				// leaving the file absent allows the next boot to try again.
+				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+				const remoteAssetPaths = await response.text();
 				primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
 			} catch {
 				logger.warn(
@@ -495,6 +544,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	 */
 	async getWordPressModuleDetails() {
 		return {
+			releaseBase,
 			majorVersion:
 				this.loadedWordPressVersion || this.requestedWordPressVersion,
 			staticAssetsDirectory: this.loadedWordPressVersion
@@ -622,6 +672,16 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		options: MountDescriptor,
 		onProgress?: SyncProgressCallback
 	) {
+		// Block bulk access to saved sites through both startup mounts and mountOpfs().
+		// The site manager still needs direct directory access to list saved sites.
+		if (options.device.type === 'opfs') {
+			const path = ensureAbsolutePath(options.device.path);
+			if (path === '/' || path === '/sites') {
+				throw new Error(
+					'Cannot mount the OPFS root or the /sites directory.'
+				);
+			}
+		}
 		if (
 			hasOwnProperty(this.opfsMounts, options.mountpoint) ||
 			hasOwnProperty(this.unmounts, options.mountpoint)
@@ -632,18 +692,33 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		}
 		const handle = await directoryHandleFromMountDevice(options.device);
 		let opfsMount: DirectoryHandleMount | undefined;
-		const unmount = await php.mount(
-			options.mountpoint,
-			createDirectoryHandleMountHandler(handle, {
-				initialSync: {
-					onProgress,
-					direction: options.initialSyncDirection,
-				},
-				onMount(mount) {
-					opfsMount = mount;
-				},
-			})
-		);
+		const mountHandler = createDirectoryHandleMountHandler(handle, {
+			initialSync: {
+				onProgress,
+				direction: options.initialSyncDirection,
+			},
+			onMount: (mount) => {
+				opfsMount = mount;
+			},
+		});
+		const unmount = await php.mount(options.mountpoint, async (...args) => {
+			// Runtime rotation invokes this handler again after detaching the old
+			// journal. Explicit flushes must use the replacement, but only after
+			// initial sync succeeds: a failed copy discards its journal and must
+			// allow another save, whether this is the first mount or a replacement.
+			delete this.opfsMounts[options.mountpoint];
+			opfsMount = undefined;
+			try {
+				const unmount = await mountHandler(...args);
+				if (opfsMount !== undefined) {
+					this.opfsMounts[options.mountpoint] = opfsMount;
+				}
+				return unmount;
+			} catch (error) {
+				delete this.unmounts[options.mountpoint];
+				throw error;
+			}
+		});
 		if (opfsMount === undefined) {
 			try {
 				await unmount();
@@ -655,7 +730,6 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			);
 		}
 		this.unmounts[options.mountpoint] = unmount;
-		this.opfsMounts[options.mountpoint] = opfsMount;
 	}
 }
 

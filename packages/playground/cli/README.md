@@ -150,10 +150,12 @@ The `start` command supports these common optional arguments. Run `npx @wp-playg
 - `--skip-browser`: Do not open the site in your default browser.
 - `--reset`: Delete the stored site directory and start fresh.
 - `--no-auto-mount`: Disable automatic project detection.
+- `--codespaces-public-port`: In GitHub Codespaces, make the forwarded port public so anyone with the URL can open the site without signing in to GitHub. Ports stay private by default. Turns off the default auto-login unless you also pass `--login`.
 
 The `server` command supports these common optional arguments. Run `npx @wp-playground/cli@latest server --help` for the full list:
 
 - `--port=<port>`: The port number for the server to listen on. Defaults to 9400.
+- `--codespaces-public-port`: In GitHub Codespaces, make the forwarded port public so anyone with the URL can open the site without signing in to GitHub. Ports stay private by default. ⚠️ Combined with `--login`, every visitor is signed in as an administrator and can change mounted files.
 - `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
 - `--php=<version>`: PHP version to use. Defaults to PHP 8.3.
 - `--auto-mount`: Automatically mount the current directory (plugin, theme, wp-content, etc.).

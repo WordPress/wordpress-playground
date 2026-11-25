@@ -1,8 +1,5 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import {
-	usePlaygroundClient,
-	usePlaygroundClientInfo,
-} from '../use-playground-client';
+import { useState, useCallback, useRef } from 'react';
+import { usePlaygroundClient } from '../use-playground-client';
 import { useActiveSite, useAppDispatch } from '../state/redux/store';
 import { updateSiteMetadata } from '../state/redux/slice-sites';
 import { setAutoBackupDue } from '../state/redux/slice-ui';
@@ -11,10 +8,6 @@ import { getLegacyPlaygroundRuntimeWpContentPaths } from '@wp-playground/bluepri
 import { joinPaths, phpVars } from '@php-wasm/util';
 import { logger } from '@php-wasm/logger';
 import saveAs from 'file-saver';
-import {
-	setBackupRequestCallback,
-	requestRemoteBackup,
-} from '../state/redux/tab-coordinator';
 
 function sanitizeForFilename(name: string): string {
 	return name
@@ -150,39 +143,16 @@ async function getWordPressSiteName(
 
 export function useBackup() {
 	const playground = usePlaygroundClient();
-	const clientInfo = usePlaygroundClientInfo();
 	const activeSite = useActiveSite();
 	const dispatch = useAppDispatch();
 	const [isBackingUp, setIsBackingUp] = useState(false);
-	const [isRequestingRemote, setIsRequestingRemote] = useState(false);
 	// The state above renders the buttons; these guard the work itself. Two
 	// calls in the same turn — a double click, or two relay requests from a
 	// WordPress page — would both read the state as false and start a backup
 	// each, racing over the backup history.
 	const isBackingUpRef = useRef(false);
-	const isRequestingRemoteRef = useRef(false);
-
-	const isMainMode = clientInfo && !clientInfo.isDependentMode;
-	const isDependentMode = clientInfo?.isDependentMode ?? false;
 
 	const performBackup = useCallback(async (): Promise<boolean> => {
-		// In dependent mode, request backup from the main tab
-		if (isDependentMode && activeSite) {
-			if (isRequestingRemoteRef.current) return false;
-			isRequestingRemoteRef.current = true;
-			setIsRequestingRemote(true);
-			try {
-				const succeeded = await requestRemoteBackup(activeSite.slug);
-				if (succeeded) {
-					dispatch(setAutoBackupDue(false));
-				}
-				return succeeded;
-			} finally {
-				isRequestingRemoteRef.current = false;
-				setIsRequestingRemote(false);
-			}
-		}
-
 		if (!playground || !activeSite || isBackingUpRef.current) {
 			return false;
 		}
@@ -226,23 +196,11 @@ export function useBackup() {
 			isBackingUpRef.current = false;
 			setIsBackingUp(false);
 		}
-	}, [playground, activeSite, isDependentMode, dispatch]);
-
-	// Register this tab as the backup handler when in main mode
-	useEffect(() => {
-		if (isMainMode && playground && activeSite) {
-			setBackupRequestCallback(performBackup);
-			return () => {
-				setBackupRequestCallback(null);
-			};
-		}
-	}, [isMainMode, playground, activeSite, performBackup]);
+	}, [playground, activeSite, dispatch]);
 
 	return {
 		performBackup,
 		isBackingUp,
-		isRequestingRemote,
-		isDependentMode,
 		canBackup: !!playground && !!activeSite,
 	};
 }

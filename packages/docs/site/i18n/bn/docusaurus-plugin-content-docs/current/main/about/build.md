@@ -33,7 +33,9 @@ You can seamlessly integrate Playground into your development workflow to launch
 ## Save changes done on a Block Theme and create GitHub Pull Requests
 -->
 
-## একটি ব্লক থিমে করা পরিবর্তনগুলো সংরক্ষণ করুন এবং গিটহাব পুল রিকোয়েস্ট তৈরি করুন
+<a id="একটি-ব্লক-থিমে-করা-পরিবর্তনগুলো-সংরক্ষণ-করুন-এবং-গিটহাব-পুল-রিকোয়েস্ট-তৈরি-করুন"></a>
+
+## একটি ব্লক থিমে করা পরিবর্তনগুলো সংরক্ষণ করুন এবং গিটহাব পুল রিকোয়েস্ট তৈরি করুন {#save-changes-done-on-a-block-theme-and-create-github-pull-requests}
 
 <!--
 You can connect your Playground instance to a GitHub repository and create a Pull Request with the changes you’ve made through the WordPress UI, leveraging the [Create Block Theme](https://wordpress.org/plugins/create-block-theme/) plugin.
@@ -73,7 +75,9 @@ Some more examples of this workflow:
 ## Synchronize your playground instance with a local folder and create GitHub Pull Requests
 -->
 
-## আপনার প্লেগ্রাউন্ড ইনস্ট্যান্সকে একটি লোকাল ফোল্ডারের সাথে সিঙ্ক্রোনাইজ করুন এবং গিটহাব পুল রিকোয়েস্ট তৈরি করুন
+<a id="আপনার-প্লেগ্রাউন্ড-ইনস্ট্যান্সকে-একটি-লোকাল-ফোল্ডারের-সাথে-সিঙ্ক্রোনাইজ-করুন-এবং-গিটহাব-পুল-রিকোয়েস্ট-তৈরি-করুন"></a>
+
+## আপনার প্লেগ্রাউন্ড ইনস্ট্যান্সকে একটি লোকাল ফোল্ডারের সাথে সিঙ্ক্রোনাইজ করুন এবং গিটহাব পুল রিকোয়েস্ট তৈরি করুন {#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests}
 
 <!--
 ![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)

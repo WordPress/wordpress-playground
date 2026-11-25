@@ -38,7 +38,7 @@ const config = {
 	i18n: {
 		defaultLocale: 'en',
 		path: 'i18n',
-		locales: ['en', 'bn', 'es', 'fr', 'ja', 'pt-br', 'tl', 'gu'],
+		locales: ['en', 'bn', 'es', 'fr', 'ja', 'pt-br', 'tl', 'gu', 'hi'],
 		localeConfigs: {
 			en: {
 				label: 'English',
@@ -71,6 +71,10 @@ const config = {
 			gu: {
 				label: 'ગુજરાતી',
 				path: 'gu',
+			},
+			hi: {
+				label: 'हिन्दी',
+				path: 'hi',
 			},
 		},
 	},
@@ -106,6 +110,7 @@ const config = {
 			},
 		],
 		'./plugins/generate-translation-availability.js',
+		'./plugins/generate-handbook-manifest.js',
 		'./plugins/redirect-docs-to-developer-wordpress-org.js',
 		'./plugins/kapa-ai-plugin.js',
 	],

@@ -111,40 +111,47 @@
 		"parent": "guides",
 		"order": 70
 	},
+	"guides/import-content-with-blueprints": {
+		"title": "Importing content into WordPress with Blueprints",
+		"slug": "import-content-with-blueprints",
+		"markdown_source": "docs/main/guides/import-content-with-blueprints.md",
+		"parent": "guides",
+		"order": 80
+	},
 	"guides/github-action-pr-preview": {
 		"title": "Adding PR Preview Buttons with GitHub Actions",
 		"slug": "github-action-pr-preview",
 		"markdown_source": "docs/main/guides/github-action-pr-preview.md",
 		"parent": "guides",
-		"order": 80
+		"order": 90
 	},
 	"guides/playground-for-everyone": {
 		"title": "WordPress Playground for Everyone",
 		"slug": "playground-for-everyone",
 		"markdown_source": "docs/main/guides/playground-for-everyone.md",
 		"parent": "guides",
-		"order": 90
+		"order": 100
 	},
 	"guides/programmatic-playground-cli": {
 		"title": "Programmatic Usage of Playground CLI",
 		"slug": "programmatic-playground-cli",
 		"markdown_source": "docs/main/guides/programmatic-playground-cli.md",
 		"parent": "guides",
-		"order": 100
+		"order": 110
 	},
 	"guides/phpunit-testing": {
 		"title": "Running PHPUnit with the Playground CLI",
 		"slug": "phpunit-testing",
 		"markdown_source": "docs/main/guides/phpunit-testing.md",
 		"parent": "guides",
-		"order": 110
+		"order": 120
 	},
 	"guides/e2e-testing-with-playwright": {
 		"title": "E2E Testing with Playwright and WordPress Playground",
 		"slug": "e2e-testing-with-playwright",
 		"markdown_source": "docs/main/guides/e2e-testing-with-playwright.md",
 		"parent": "guides",
-		"order": 120
+		"order": 130
 	},
 	"contributing": {
 		"title": "Contributing to WordPress Playground project",
@@ -202,12 +209,19 @@
 		"parent": "contributing",
 		"order": 70
 	},
+	"contributing/github-ui": {
+		"title": "Contribute with the GitHub web interface",
+		"slug": "github-ui",
+		"markdown_source": "docs/main/contributing/github-ui.md",
+		"parent": "contributing",
+		"order": 80
+	},
 	"contributing/translations": {
 		"title": "Contributions to translations",
 		"slug": "translations",
 		"markdown_source": "docs/main/contributing/translations.md",
 		"parent": "contributing",
-		"order": 80
+		"order": 90
 	},
 	"links-and-resources": {
 		"title": "Links and Resources",
@@ -503,89 +517,96 @@
 		"parent": "developers/architecture",
 		"order": 40
 	},
+	"developers/architecture/php-wasm-packages": {
+		"title": "PHP.wasm packages",
+		"slug": "php-wasm-packages",
+		"markdown_source": "docs/developers/23-architecture/06-php-wasm-packages.md",
+		"parent": "developers/architecture",
+		"order": 50
+	},
 	"developers/architecture/wasm-asyncify": {
 		"title": "Asyncify",
 		"slug": "wasm-asyncify",
 		"markdown_source": "docs/developers/23-architecture/07-wasm-asyncify.md",
 		"parent": "developers/architecture",
-		"order": 50
+		"order": 60
 	},
 	"developers/architecture/browser-concepts": {
 		"title": "Running PHP apps in the browser with ServiceWorkers and Worker Threads",
 		"slug": "browser-concepts",
 		"markdown_source": "docs/developers/23-architecture/08-browser-concepts.md",
 		"parent": "developers/architecture",
-		"order": 60
+		"order": 70
 	},
 	"developers/architecture/browser-tab-orchestrates-execution": {
 		"title": "Browser tab orchestrates the execution",
 		"slug": "browser-tab-orchestrates-execution",
 		"markdown_source": "docs/developers/23-architecture/09-browser-tab-orchestrates-execution.md",
 		"parent": "developers/architecture",
-		"order": 70
+		"order": 80
 	},
 	"developers/architecture/browser-iframe-rendering": {
 		"title": "Iframe-based rendering",
 		"slug": "browser-iframe-rendering",
 		"markdown_source": "docs/developers/23-architecture/10-browser-iframe-rendering.md",
 		"parent": "developers/architecture",
-		"order": 80
+		"order": 90
 	},
 	"developers/architecture/browser-php-worker-threads": {
 		"title": "PHP Worker Threads",
 		"slug": "browser-php-worker-threads",
 		"markdown_source": "docs/developers/23-architecture/11-browser-php-worker-threads.md",
 		"parent": "developers/architecture",
-		"order": 90
+		"order": 100
 	},
 	"developers/architecture/browser-service-workers": {
 		"title": "Service Workers",
 		"slug": "browser-service-workers",
 		"markdown_source": "docs/developers/23-architecture/12-browser-service-workers.md",
 		"parent": "developers/architecture",
-		"order": 100
+		"order": 110
 	},
 	"developers/architecture/browser-scopes": {
 		"title": "Scopes",
 		"slug": "browser-scopes",
 		"markdown_source": "docs/developers/23-architecture/13-browser-scopes.md",
 		"parent": "developers/architecture",
-		"order": 110
+		"order": 120
 	},
 	"developers/architecture/browser-cross-process-communication": {
 		"title": "Cross-process communication",
 		"slug": "browser-cross-process-communication",
 		"markdown_source": "docs/developers/23-architecture/14-browser-cross-process-communication.md",
 		"parent": "developers/architecture",
-		"order": 120
+		"order": 130
 	},
 	"developers/architecture/wordpress": {
 		"title": "WordPress support",
 		"slug": "wordpress",
 		"markdown_source": "docs/developers/23-architecture/15-wordpress.md",
 		"parent": "developers/architecture",
-		"order": 130
+		"order": 140
 	},
 	"developers/architecture/wordpress-database": {
 		"title": "How does it work?",
 		"slug": "wordpress-database",
 		"markdown_source": "docs/developers/23-architecture/16-wordpress-database.md",
 		"parent": "developers/architecture",
-		"order": 140
+		"order": 150
 	},
 	"developers/architecture/browser-wordpress": {
 		"title": "Bundling WordPress for the browser",
 		"slug": "browser-wordpress",
 		"markdown_source": "docs/developers/23-architecture/17-browser-wordpress.md",
 		"parent": "developers/architecture",
-		"order": 150
+		"order": 160
 	},
 	"developers/architecture/host-your-own-playground": {
 		"title": "Host your own Playground",
 		"slug": "host-your-own-playground",
 		"markdown_source": "docs/developers/23-architecture/18-host-your-own-playground.md",
 		"parent": "developers/architecture",
-		"order": 160
+		"order": 170
 	},
 	"developers/limitations": {
 		"title": "Limitations",

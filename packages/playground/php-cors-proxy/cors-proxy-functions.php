@@ -46,6 +46,10 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
     }
 
     $host = $parsedUrl['host'];
+    $port = $parsedUrl['port'] ?? ($parsedUrl['scheme'] === 'https' ? 443 : 80);
+    if ($port < 1 || $port > 65535) {
+        throw new CorsProxyException("Invalid port");
+    }
 
     if (
         ( isset( $_SERVER['HTTP_HOST'] ) &&
@@ -56,13 +60,17 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
         throw new CorsProxyException("URL cannot target the CORS proxy host.");
     }
 
-    // Ensure the hostname does not resolve to a private IP
+    // Resolve IPv4 only. The connection must use this same address family
+    // and the validated IP, never a second DNS lookup (including AAAA).
     $resolved_ips = $resolve_function($host);
-    if ($resolved_ips === false) {
+    if (empty($resolved_ips)) {
         throw new CorsProxyException("Hostname could not be resolved");
     }
 
     foreach ($resolved_ips as $ip) {
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            throw new CorsProxyException("Invalid IPv4 address");
+        }
         if (is_private_ip($ip)) {
             throw new CorsProxyException("Private IPs are forbidden");
         }
@@ -70,8 +78,25 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
 
     return [
         'host' => $host,
-        'ip' => $resolved_ips[0]
+        'ip' => $resolved_ips[0],
+        'port' => $port,
     ];
+}
+
+/**
+ * Bind the connection to the validated destination. Keep the URL's hostname
+ * for HTTP Host and TLS verification, but never resolve it again in cURL.
+ */
+function set_curl_destination($ch, $resolved) {
+    if (!curl_setopt_array($ch, [
+        CURLOPT_RESOLVE => ["{$resolved['host']}:{$resolved['port']}:{$resolved['ip']}"],
+        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        // An environment-configured HTTP/SOCKS proxy could resolve the
+        // target itself, bypassing our validated address entirely.
+        CURLOPT_PROXY => '',
+    ])) {
+        throw new CorsProxyException("Could not pin the target address");
+    }
 }
 
 if (!function_exists('is_private_ip')) {
@@ -372,13 +397,66 @@ function kv_headers_to_curl_format($headers) {
     return $curl_headers;
 }
 
+/**
+ * Answers whether a response header instructs the web server or CDN in
+ * front of PHP rather than the client.
+ *
+ * For example, nginx performs an internal redirect when PHP sends
+ * X-Accel-Redirect. The proxy must not relay these from a target, or the
+ * target could control the proxy's own server.
+ */
+function is_server_control_response_header($name) {
+    $name = strtolower($name);
+    $prefixes = [
+        // nginx: X-Accel-Redirect, X-Accel-Expires, X-Accel-Buffering, etc.
+        'x-accel-',
+        // LiteSpeed: X-LiteSpeed-Location, X-LiteSpeed-Cache-Control, etc.
+        'x-litespeed-',
+    ];
+    foreach ($prefixes as $prefix) {
+        if (str_starts_with($name, $prefix)) {
+            return true;
+        }
+    }
+    // CDN-targeted cache control. RFC 9213 defines CDN-Cache-Control and
+    // names CDN-specific variants the same way, e.g.
+    // Cloudflare-CDN-Cache-Control. A CDN obeys these over Cache-Control, so
+    // relaying one would override the proxy's Cache-Control: no-cache.
+    if (
+        $name === 'cdn-cache-control' ||
+        str_ends_with($name, '-cdn-cache-control')
+    ) {
+        return true;
+    }
+    return in_array($name, [
+        // Apache mod_xsendfile. X-Sendfile-Temporary also deletes the file
+        // after sending it when the server allows that.
+        'x-sendfile',
+        'x-sendfile-temporary',
+        // lighttpd.
+        'x-sendfile2',
+        'x-lighttpd-send-file',
+        // Other cache directives aimed at CDNs rather than browsers.
+        'surrogate-control',
+        'edge-control',
+        // CGI and FastCGI servers take the response status from this header,
+        // overriding the status PHP would send.
+        'status',
+    ], true);
+}
+
 function rewrite_relative_redirect(
     $request_url,
     $redirect_location,
     $proxy_absolute_url
 ) {
-    $target_hostname = parse_url($request_url, PHP_URL_HOST);
+    $target_scheme = parse_url($request_url, PHP_URL_SCHEME) ?: 'https';
     if (!parse_url($redirect_location, PHP_URL_HOST)) {
+        $target_authority = parse_url($request_url, PHP_URL_HOST);
+        $target_port = parse_url($request_url, PHP_URL_PORT);
+        if ($target_port !== null) {
+            $target_authority .= ':' . $target_port;
+        }
         $redirect_path = parse_url($redirect_location, PHP_URL_PATH);
         if ($redirect_path && $redirect_path[0] !== '/') {
             $request_path = parse_url($request_url, PHP_URL_PATH);
@@ -386,12 +464,9 @@ function rewrite_relative_redirect(
             $redirect_location = $request_path_parent . '/' . $redirect_path;
         }
 
-        $redirect_location = $target_hostname . $redirect_location;
-    }
-
-    if (!parse_url($redirect_location, PHP_URL_SCHEME)) {
-        $target_scheme = parse_url($request_url, PHP_URL_SCHEME) ?: 'https';
-        $redirect_location = "$target_scheme://$redirect_location";
+        $redirect_location = "$target_scheme://$target_authority$redirect_location";
+    } else if (!parse_url($redirect_location, PHP_URL_SCHEME)) {
+        $redirect_location = "$target_scheme:$redirect_location";
     }
 
     $last_char = $proxy_absolute_url[strlen($proxy_absolute_url) - 1];

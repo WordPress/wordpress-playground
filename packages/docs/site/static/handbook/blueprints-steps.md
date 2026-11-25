@@ -30,6 +30,8 @@ Each step is an object that contains a `step` property that specifies the type o
 
 <a id="ActivatePluginStep"></a>
 
+<a id="activatePlugin"></a>
+
 ## activatePlugin
 
 Activates a WordPress plugin (if it's installed).
@@ -71,6 +73,8 @@ activatePlugin(
 ---
 
 <a id="ActivateThemeStep"></a>
+
+<a id="activateTheme"></a>
 
 ## activateTheme
 
@@ -149,6 +153,8 @@ cp(
 
 <a id="DefineSiteUrlStep"></a>
 
+<a id="defineSiteUrl"></a>
+
 ## defineSiteUrl
 
 Sets [`WP_HOME`](https://developer.wordpress.org/advanced-administration/wordpress/wp-config/#blog-address-url) and [`WP_SITEURL`](https://developer.wordpress.org/advanced-administration/wordpress/wp-config/#wp-siteurl) constants for the WordPress installation.
@@ -169,26 +175,28 @@ or deploying Playground on a custom domain.
 
 <a id="DefineWpConfigConstsStep"></a>
 
+<a id="defineWpConfigConsts"></a>
+
 ## defineWpConfigConsts
 
-Defines constants in a [`wp-config.php`](https://developer.wordpress.org/advanced-administration/wordpress/wp-config/) file.
+Defines PHP constants for WordPress. Use the `method` option to write them to
+[`wp-config.php`](https://developer.wordpress.org/advanced-administration/wordpress/wp-config/).
 
 This step can be called multiple times, and the constants will be merged.
 
 ### Parameters
 
 - **consts** (Record) – The constants to define
-- **method** (optional) – The method of defining the constants in wp-config.php. Possible values are:
-    - rewrite-wp-config: Default. Rewrites the wp-config.php file to
-      explicitly call define() with the requested
-      name and value. This method alters the file
-      on the disk, but it doesn't conflict with
-      existing define() calls in wp-config.php.
+- **method** (optional) – How Playground defines the constants.
+    - `define-before-run` (default) uses PHP's `auto_prepend_file` setting to define
+      constants with string, number, or boolean values before the requested script
+      runs. These values take precedence over later definitions in `wp-config.php`.
+      This method skips `null`, arrays, and objects. Use it to keep `wp-config.php`
+      intact, for example when working with a mounted project.
 
-    - define-before-run: Defines the constant before running the requested
-      script. It doesn't alter any files on the disk, but
-      constants defined this way may conflict with existing
-      define() calls in wp-config.php.
+    - `rewrite-wp-config` adds or updates the corresponding `define()` calls in
+      `wp-config.php`. Use it to replace an existing definition in that file or to
+      keep the constants in a `wp-config.php` you plan to use outside Playground.
 
 - **virtualize** (boolean) (optional)
 
@@ -225,6 +233,8 @@ defineWpConfigConsts(
 
 <a id="EnableMultisiteStep"></a>
 
+<a id="enableMultisite"></a>
+
 ## enableMultisite
 
 Defines the [Multisite](https://developer.wordpress.org/advanced-administration/multisite/create-network/) constants in a `wp-config.php` file.
@@ -257,13 +267,49 @@ enableMultisite(playground, {}, progress);
 
 <a id="ImportThemeStarterContentStep"></a>
 
+<a id="importThemeStarterContent"></a>
+
 ## importThemeStarterContent
 
-Imports a theme Starter Content into WordPress.
+Imports a theme's starter content into WordPress and publishes it.
+The theme must already be installed. If it has no starter content, this step does nothing.
+
+To import starter content when installing a theme, use `installTheme` with
+`options.importStarterContent` set to `true`. Use this standalone step when you need to
+add or modify starter content after installing the theme and before importing it.
+
+For example, this complete Blueprint writes and activates a plugin that registers a
+Home page as starter content for the active theme, then imports it and sets it as the
+site's front page. The plugin runs on `after_setup_theme` at priority 100, after callbacks
+with lower priorities, and replaces previously registered starter content. Callbacks
+registered later at priority 100, or at a higher priority, can replace this content again
+before it is imported. All plugin code is included inline; no external PHP file is needed.
+
+```json
+{
+	"steps": [
+		{
+			"step": "writeFile",
+			"path": "/wordpress/wp-content/plugins/theme-starter-content.php",
+			"data": "<?php\n// Plugin Name: Theme Starter Content\nadd_action( 'after_setup_theme', function () {\n    add_theme_support( 'starter-content', array(\n        'posts' => array(\n            'home' => array(\n                'post_type' => 'page',\n                'post_title' => 'Home',\n                'post_content' => 'Welcome to my Playground!'\n            )\n        ),\n        'options' => array(\n            'show_on_front' => 'page',\n            'page_on_front' => '{{home}}'\n        )\n    ) );\n}, 100 );"
+		},
+		{
+			"step": "activatePlugin",
+			"pluginPath": "theme-starter-content.php"
+		},
+		{
+			"step": "importThemeStarterContent"
+		}
+	]
+}
+```
+
+Learn more about supported content and placeholders in
+[Starter content for themes in 4.7](https://make.wordpress.org/core/2016/11/30/starter-content-for-themes-in-4-7/).
 
 ### Parameters
 
-- **themeSlug** (string) (optional) – The name of the theme to import content from.
+- **themeSlug** (string) (optional) – The slug of an installed theme to import content from. Defaults to the active theme.
 
 ### Blueprint API example
 
@@ -286,6 +332,8 @@ importThemeStarterContent(playground, {}, progress);
 ---
 
 <a id="ImportWordPressFilesStep"></a>
+
+<a id="importWordPressFiles"></a>
 
 ## importWordPressFiles
 
@@ -348,6 +396,8 @@ importWordPressFiles(
 
 <a id="ImportWxrStep"></a>
 
+<a id="importWxr"></a>
+
 ## importWxr
 
 Imports a WXR file into WordPress.
@@ -407,6 +457,8 @@ importWxr(
 ---
 
 <a id="InstallPluginStep"></a>
+
+<a id="installPlugin"></a>
 
 ## installPlugin
 
@@ -475,6 +527,8 @@ installPlugin(
 ---
 
 <a id="InstallThemeStep"></a>
+
+<a id="installTheme"></a>
 
 ## installTheme
 
@@ -650,6 +704,8 @@ mv(
 
 <a id="ResetDataStep"></a>
 
+<a id="resetData"></a>
+
 ## resetData
 
 Deletes the selected WordPress content through WordPress APIs so dependent
@@ -758,6 +814,8 @@ rmdir(
 
 <a id="RunPHPStep"></a>
 
+<a id="runPHP"></a>
+
 ## runPHP
 
 Runs PHP code.
@@ -795,6 +853,8 @@ runPHP(
 ---
 
 <a id="RunPHPWithOptionsStep"></a>
+
+<a id="runPHPWithOptions"></a>
 
 ## runPHPWithOptions
 
@@ -840,6 +900,8 @@ runPHPWithOptions(
 ---
 
 <a id="RunSqlStep"></a>
+
+<a id="runSql"></a>
 
 ## runSql
 
@@ -892,13 +954,17 @@ runSql(
 
 <a id="SetSiteLanguageStep"></a>
 
+<a id="setSiteLanguage"></a>
+
 ## setSiteLanguage
 
 Sets the site language and download translations.
 
 ### Parameters
 
-- **language** (string) – The language to set, e.g. 'en_US'
+- **language** (string) – The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available
+  translation using navigator.languages, in preference order, with regional
+  language fallbacks. Falls back to 'en_US' if no match or browser is unavailable.
 
 ### Blueprint API example
 
@@ -928,6 +994,8 @@ setSiteLanguage(
 ---
 
 <a id="SetSiteOptionsStep"></a>
+
+<a id="setSiteOptions"></a>
 
 ## setSiteOptions
 
@@ -1020,6 +1088,8 @@ unzip(
 
 <a id="UpdateUserMetaStep"></a>
 
+<a id="updateUserMeta"></a>
+
 ## updateUserMeta
 
 Updates user meta. This is equivalent to calling [`update_user_meta`](https://developer.wordpress.org/reference/functions/update_user_meta/) for each
@@ -1105,6 +1175,8 @@ wpCLI(
 
 <a id="WriteFileStep"></a>
 
+<a id="writeFile"></a>
+
 ## writeFile
 
 Writes data to a file at the specified path.
@@ -1145,6 +1217,8 @@ writeFile(
 
 <a id="WriteFilesStep"></a>
 
+<a id="writeFiles"></a>
+
 ## writeFiles
 
 Writes multiple files to a specified directory in the Playground
@@ -1159,10 +1233,10 @@ my-plugin/
 
 ### Parameters
 
-- **filesTree** (DirectoryResource) – The 'filesTree' defines the directory structure, supporting 'literal:directory' or
-  'git:directory' types. The 'name' represents the root directory, while 'files' is an object
-  where keys are file paths, and values contain either file content as a string or nested objects
-  for subdirectories.
+- **filesTree** – The 'filesTree' defines the directory structure. Inline directories can provide 'name' and
+  'files' without a 'resource' property. Explicit 'literal:directory' and 'git:directory'
+  resources are also supported. The 'name' represents the root directory, while 'files' maps
+  file paths to contents or nested subdirectories.
 - **writeToPath** (string) – The path of the file to write to
 
 ### Blueprint API example

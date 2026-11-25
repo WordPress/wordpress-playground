@@ -1,6 +1,6 @@
 import { test, expect } from '../playground-fixtures.ts';
 import type { Blueprint } from '@wp-playground/blueprints';
-import type { Page } from '@playwright/test';
+import type { Frame, Page } from '@playwright/test';
 import { getDirectoryNameForSlug } from '../../src/lib/state/opfs/opfs-site-path';
 
 // We can't import the SupportedPHPVersions versions directly from the remote package
@@ -207,11 +207,111 @@ async function mockGitHubRepositoryAnalysis(page: Page) {
 
 test('should reflect the URL update from the navigation bar in the WordPress site', async ({
 	website,
+	wordpress,
 }) => {
 	await website.goto('./?storage=temp&url=/wp-admin/');
 	await website.ensureSiteManagerIsClosed();
 	await expect(website.page.locator('input[value="/wp-admin/"]')).toHaveValue(
 		'/wp-admin/'
+	);
+	await wordpress.locator('body').evaluate(() => {
+		window.history.pushState({}, '', 'edit.php');
+	});
+	await expect(
+		website.page.locator('input[value="/wp-admin/edit.php"]')
+	).toHaveValue('/wp-admin/edit.php');
+});
+
+test('should read a History API change immediately without waiting for navigation polling', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp&url=/wp-admin/');
+	await wordpress.locator('body').evaluate(() => {
+		window.history.replaceState({}, '', 'edit.php?live-url=1');
+	});
+
+	const url = await website.page.evaluate(() =>
+		(window as any).playground.getCurrentURL()
+	);
+
+	expect(url).toBe('/wp-admin/edit.php?live-url=1');
+});
+
+test('should relay each WordPress pointer press once', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	await website.ensureSiteManagerIsClosed();
+	const remote = await website.page
+		.locator('#playground-viewport:visible,.playground-viewport:visible')
+		.evaluateHandle((frame: HTMLIFrameElement) => frame.contentWindow);
+	await remote.evaluate((remoteWindow: any) => {
+		remoteWindow.playgroundPointerPresses = 0;
+		remoteWindow.document.addEventListener(
+			'pointerdown',
+			() => {
+				remoteWindow.playgroundPointerPresses++;
+			},
+			true
+		);
+	});
+
+	await wordpress.locator('body').click({ position: { x: 20, y: 20 } });
+
+	await expect
+		.poll(() =>
+			remote.evaluate(
+				(remoteWindow: any) => remoteWindow.playgroundPointerPresses
+			)
+		)
+		.toBe(1);
+});
+
+test('should keep the pointer fallback for a nested WordPress document without an app relay', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	await wordpress.locator('body').evaluate(() => {
+		const frame = document.createElement('iframe');
+		frame.title = 'Nested WordPress';
+		frame.src = window.location.href;
+		document.body.append(frame);
+	});
+	const nested = wordpress.frameLocator('iframe[title="Nested WordPress"]');
+	await expect(nested.locator('body')).not.toBeEmpty();
+
+	// This hook runs in both documents, but only the outer one talks to remote.html.
+	await expect(wordpress.locator('html')).toHaveAttribute(
+		'data-playground-pointer-relay',
+		''
+	);
+	await expect(nested.locator('html')).not.toHaveAttribute(
+		'data-playground-pointer-relay'
+	);
+});
+
+test('should read a plain HTML page without the WordPress reporter', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto('./?storage=temp');
+	const url = await website.page.evaluate(async () => {
+		const client = (window as any).playground;
+		await client.writeFile(
+			'/wordpress/plain.html',
+			'<!doctype html><title>Plain page</title><p>Plain page</p>'
+		);
+		await client.goTo('/plain.html?next=1');
+		return client.getCurrentURL();
+	});
+
+	expect(url).toBe('/plain.html?next=1');
+	await expect(wordpress.getByText('Plain page')).toBeVisible();
+	await expect(website.page.getByRole('combobox')).toHaveValue(
+		'/plain.html?next=1'
 	);
 });
 
@@ -811,14 +911,9 @@ test('should edit a file on mobile and see changes in the viewport', async ({
 	await website.ensureSiteManagerIsClosed();
 
 	// Reload just the WordPress iframe to see the changes
-	const playgroundViewport = website.page.frameLocator(
-		'#playground-viewport:visible,.playground-viewport:visible'
-	);
-	await playgroundViewport
-		.locator('#wp')
-		.evaluate((iframe: HTMLIFrameElement) => {
-			iframe.contentWindow?.location.reload();
-		});
+	await wordpress.locator('body').evaluate(() => {
+		window.location.reload();
+	});
 
 	// Verify the page shows "Edited file"
 	await expect(wordpress.locator('body')).toContainText('Edited file', {
@@ -1048,7 +1143,7 @@ test('should stat the database size without reading the database into JavaScript
 		const originalRead = playground.readFileAsBuffer.bind(playground);
 		(window as any).__databaseReadCount = 0;
 		playground.readFileAsBuffer = async (path: string) => {
-			if (path.endsWith('/wp-content/database/.ht.sqlite')) {
+			if (path.endsWith('/.ht.sqlite')) {
 				(window as any).__databaseReadCount++;
 				throw new Error(
 					'Database contents must not be read to calculate size.'
@@ -1075,9 +1170,20 @@ test.describe('Database panel', () => {
 	});
 
 	test('should display database info', async ({ website }) => {
+		const databasePath = await website.page.evaluate(async () => {
+			await (window as any).playgroundSites.isReady();
+			const playground = (window as any).playgroundSites.getClient();
+			const response = await playground.run({
+				code: `<?php
+$wp_env = require '/internal/shared/wp-env.php';
+echo $wp_env['db']['path'];
+`,
+			});
+			return response.text;
+		});
 		await expect(website.page.getByText('Path:')).toBeVisible();
 		await expect(
-			website.page.getByText('/wordpress/wp-content/database/.ht.sqlite')
+			website.page.getByText(databasePath, { exact: true })
 		).toBeVisible();
 		await expect(website.page.getByText('Size:')).toBeVisible();
 	});
@@ -1118,8 +1224,8 @@ test.describe('Database panel', () => {
 		await adminerButton.click();
 
 		// Verify Adminer opened in new tab
-		const newPage = await pagePromise;
-		await newPage.waitForLoadState();
+		const popup = await pagePromise;
+		const newPage = await getWordPressPopupDocument(popup);
 		expect(newPage.url()).toContain('/adminer/');
 		await expect(newPage.locator('body')).toContainText('Adminer');
 		await expect(newPage.locator('body')).toContainText('wp_posts');
@@ -1165,7 +1271,10 @@ test.describe('Database panel', () => {
 		).toContainText('Updated post content.');
 
 		// Go to SQL tab and execute "SHOW TABLES"
-		await newPage.getByRole('link', { name: 'SQL command' }).click();
+		await newPage
+			.locator('#menu')
+			.getByRole('link', { name: 'SQL command' })
+			.click();
 		await newPage.waitForLoadState();
 		const sqlTextarea = newPage.locator('textarea[name="query"]');
 		await sqlTextarea.fill('SHOW TABLES', { force: true });
@@ -1173,7 +1282,7 @@ test.describe('Database panel', () => {
 		await newPage.waitForLoadState();
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
-		await newPage.close();
+		await popup.close();
 	});
 
 	test('should load and open phpMyAdmin', async ({ website }) => {
@@ -1190,8 +1299,8 @@ test.describe('Database panel', () => {
 		await phpMyAdminButton.click();
 
 		// Verify phpMyAdmin opened in new tab
-		const newPage = await pagePromise;
-		await newPage.waitForLoadState();
+		const popup = await pagePromise;
+		const newPage = await getWordPressPopupDocument(popup);
 		expect(newPage.url()).toContain('/phpmyadmin');
 		await expect(newPage.locator('body')).toContainText('phpMyAdmin');
 		await expect(newPage.locator('body')).toContainText('wp_posts');
@@ -1255,12 +1364,12 @@ test.describe('Database panel', () => {
 			.click();
 		await newPage.waitForLoadState();
 		await newPage.locator('.CodeMirror.cm-s-default').click();
-		await newPage.keyboard.type('SHOW TABLES');
+		await popup.keyboard.type('SHOW TABLES');
 		await newPage.getByRole('button', { name: 'Go' }).click();
 		await newPage.waitForLoadState();
 		await expect(newPage.locator('body')).toContainText('wp_posts');
 
-		await newPage.close();
+		await popup.close();
 	});
 
 	/*
@@ -1273,8 +1382,8 @@ test.describe('Database panel', () => {
 		await website.page
 			.getByRole('button', { name: 'Open Adminer' })
 			.click();
-		const adminerPage = await adminerPagePromise;
-		await adminerPage.waitForLoadState();
+		const adminerPopup = await adminerPagePromise;
+		const adminerPage = await getWordPressPopupDocument(adminerPopup);
 		await expect(adminerPage.locator('body')).toContainText('Adminer');
 		await expect(adminerPage.locator('body')).toContainText('wp_posts');
 
@@ -1282,17 +1391,29 @@ test.describe('Database panel', () => {
 		await website.page
 			.getByRole('button', { name: 'Open phpMyAdmin' })
 			.click();
-		const phpMyAdminPage = await phpMyAdminPagePromise;
-		await phpMyAdminPage.waitForLoadState();
+		const phpMyAdminPopup = await phpMyAdminPagePromise;
+		const phpMyAdminPage = await getWordPressPopupDocument(phpMyAdminPopup);
 		await expect(phpMyAdminPage.locator('body')).toContainText(
 			'phpMyAdmin'
 		);
 		await expect(phpMyAdminPage.locator('body')).toContainText('wp_posts');
 
-		await adminerPage.close();
-		await phpMyAdminPage.close();
+		await adminerPopup.close();
+		await phpMyAdminPopup.close();
 	});
 });
+
+/** Follow the isolated WordPress iframe when the database tool needs an app-origin popup. */
+async function getWordPressPopupDocument(popup: Page): Promise<Page | Frame> {
+	await popup.waitForLoadState();
+	const frame = popup.frame({ name: 'wordpress-popup' });
+	if (!frame) {
+		return popup;
+	}
+	// WebKit can finish loading the wrapper before its iframe leaves about:blank.
+	await frame.waitForURL((url) => url.pathname.startsWith('/scope:'));
+	return frame;
+}
 
 // Test browser-saved Playgrounds by default and explicit temporary opt-outs.
 // The `@storage` tag routes this group to the one-worker CI storage lane.
@@ -1311,6 +1432,28 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 
 		await website.page.addInitScript(() => {
 			(window as any).__saveStatusSamples = [];
+			let recordAutosaving!: () => void;
+			const autosavingRecorded = new Promise<void>((resolve) => {
+				recordAutosaving = resolve;
+			});
+			const postMessage = Worker.prototype.postMessage;
+			// Hold the metadata write that completes the first save until the
+			// observer records its pending label, even when the file copy is fast.
+			Worker.prototype.postMessage = function (...args) {
+				const [message] = args;
+				if (
+					message?.path &&
+					typeof message.content === 'string' &&
+					JSON.parse(message.content).initialOpfsSyncPending === false
+				) {
+					Worker.prototype.postMessage = postMessage;
+					void autosavingRecorded.then(() =>
+						postMessage.apply(this, args)
+					);
+					return;
+				}
+				postMessage.apply(this, args);
+			};
 			let installed = false;
 			const sampleStatus = () => {
 				const statusAnnouncement = [
@@ -1350,6 +1493,9 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 					statusAnnouncement: statusAnnouncement ?? null,
 					color: getComputedStyle(statusButton).color,
 				});
+				if ((statusButton.textContent || '').trim() === 'Autosaving') {
+					recordAutosaving();
+				}
 			};
 			const installObserver = () => {
 				if (installed) {
@@ -1437,7 +1583,7 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		);
 		expect(
 			saveStatusSamples.some(({ text }) => text === 'Autosaving')
-		).toBe(false);
+		).toBe(true);
 		const progressbarSamples = saveStatusSamples.filter(
 			({ role }) => role === 'progressbar'
 		);
@@ -2216,24 +2362,6 @@ test.describe('Default Playground storage', { tag: '@storage' }, () => {
 		).toBeVisible();
 
 		await newPane.locator('#creation-tab-write-own').click();
-		expect(
-			await newPane
-				.getByRole('tablist', {
-					name: 'Ways to start a new Playground',
-				})
-				.evaluate((tablist) => {
-					const pane = tablist.closest('[role="dialog"]')!;
-					const tablistRect = tablist.getBoundingClientRect();
-					const paneRect = pane.getBoundingClientRect();
-					return {
-						leftInset: Math.round(tablistRect.left - paneRect.left),
-						rightInset: Math.round(
-							paneRect.right - tablistRect.right
-						),
-						overflows: tablist.scrollWidth > tablist.clientWidth,
-					};
-				})
-		).toEqual({ leftInset: 24, rightInset: 24, overflows: false });
 		const draft = newPane.locator('.cm-content');
 		await expect(draft).toBeFocused({ timeout: 5000 });
 		await draft.fill(

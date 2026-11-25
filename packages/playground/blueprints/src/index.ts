@@ -80,6 +80,7 @@ export {
 } from './lib/resolve-remote-blueprint';
 export type { ResolveRemoteBlueprintOptions } from './lib/resolve-remote-blueprint';
 export { getLegacyPlaygroundRuntimeWpContentPaths } from './lib/utils/legacy-playground-runtime-wp-content-paths';
+export { replaceSiteUrl } from './lib/utils/replace-site-url';
 export { resolveRuntimeConfiguration } from './lib/resolve-runtime-configuration';
 export type { ResolveRuntimeConfigurationOptions } from './lib/resolve-runtime-configuration';
 export { assertBlueprintV2WordPressVersionCompatibility } from './lib/v2/resolve-runtime-configuration';

@@ -1,26 +1,27 @@
 const fs = require('fs');
 // This plugin works with native Node filesystem paths, not Playground paths.
 const path = require('path');
+const { getHandbookEntries } = require('./generate-handbook-manifest');
 
 const DEVELOPER_WORDPRESS_ORG_PLAYGROUND_URL =
 	'https://developer.wordpress.org/playground/';
 
-module.exports = function redirectDocsToDeveloperWordPressOrg() {
+module.exports = function redirectDocsToDeveloperWordPressOrg({ i18n }) {
+	let entries;
 	return {
 		name: 'redirect-docs-to-developer-wordpress-org',
-		async postBuild({ outDir, i18n }) {
+		allContentLoaded({ allContent }) {
+			if (i18n.currentLocale === i18n.defaultLocale) {
+				entries = getHandbookEntries(allContent);
+			}
+		},
+		async postBuild({ outDir }) {
 			if (i18n.currentLocale !== i18n.defaultLocale) {
 				return;
 			}
 
-			const siteDir = path.resolve(__dirname, '..');
-			const manifest = require(path.join(siteDir, 'manifest.json'));
-
-			for (const [manifestPath, entry] of Object.entries(manifest)) {
-				const route = getMarkdownRoute(
-					path.join(siteDir, entry.markdown_source),
-					manifestPath
-				);
+			for (const { key: manifestPath, doc } of entries) {
+				const route = addTrailingSlash(doc.slug);
 				const outputFilePath = getOutputFilePath(outDir, route);
 
 				if (!fs.existsSync(outputFilePath)) {
@@ -39,18 +40,6 @@ module.exports = function redirectDocsToDeveloperWordPressOrg() {
 		},
 	};
 };
-
-function getMarkdownRoute(markdownPath, manifestPath) {
-	const markdown = fs.readFileSync(markdownPath, 'utf8');
-	const frontMatter = markdown.match(/^---\n([\s\S]*?)\n---/);
-	const slug = frontMatter?.[1].match(/^slug:\s*(.+)$/m)?.[1].trim();
-
-	if (slug) {
-		return addTrailingSlash(slug);
-	}
-
-	return addTrailingSlash(`/${manifestPath}`);
-}
 
 function getDeveloperWordPressOrgUrl(manifestPath) {
 	if (manifestPath === 'handbook') {

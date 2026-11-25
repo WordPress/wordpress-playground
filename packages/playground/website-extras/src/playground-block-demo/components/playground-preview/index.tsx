@@ -52,6 +52,7 @@ import {
 	IconPlay,
 } from './icons';
 import { speak } from '@wordpress/a11y';
+import { getRemoteUrl } from '../../../php-playground/constants';
 
 export type PlaygroundDemoProps = Partial<Attributes> & {
 	showAddNewFile?: boolean;
@@ -269,7 +270,11 @@ export default function PlaygroundPreview({
 				blueprint?: object;
 			} = {
 				iframe: iframeRef.current,
-				remoteUrl: 'https://playground.wordpress.net/remote.html',
+				// The standalone extras dev server has no remote.html. Deployed builds
+				// include it on this app's origin, so they use their own release.
+				remoteUrl: import.meta.env.DEV
+					? 'https://playground.wordpress.net/remote.html'
+					: getRemoteUrl().href,
 			};
 			if (finalBlueprint) {
 				configuration.blueprint = finalBlueprint;

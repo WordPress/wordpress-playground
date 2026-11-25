@@ -13,7 +13,9 @@ Makakatulong ang WordPress Playground upang mabilis kang makalikha at makapag-ar
 
 Maaari mong i-integrate nang seamless ang Playground sa iyong development workflow upang mabilis na ilunsad ang lokal na WordPress environment para sa pag-test ng iyong code. Magagawa mo ito nang direkta [mula sa terminal](/developers/local-development/wp-now) o sa [paborito mong IDE](/developers/local-development/vscode-extension).
 
-## I-save ang Mga Pagbabago sa Isang Block Theme at Gumawa ng GitHub Pull Requests
+<a id="i-save-ang-mga-pagbabago-sa-isang-block-theme-at-gumawa-ng-github-pull-requests"></a>
+
+## I-save ang Mga Pagbabago sa Isang Block Theme at Gumawa ng GitHub Pull Requests {#save-changes-done-on-a-block-theme-and-create-github-pull-requests}
 
 Maaari mong ikonekta ang iyong Playground instance sa isang GitHub repository at lumikha ng Pull Request para sa mga pagbabagong ginawa mo sa pamamagitan ng WordPress UI, gamit ang [Create Block Theme](https://wordpress.org/plugins/create-block-theme/) plugin.
 
@@ -27,7 +29,9 @@ Narito ang ilan pang halimbawa ng workflow na ito:
 - [Developer Hours: Creating WordPress Playground Blueprints for Testing and Demos](https://www.youtube.com/watch?v=gKrij8V3nK0&t=2488s)
 - [Recap Hallway Hangout: Theme Building with Playground, Create-block-theme plugin, and GitHub](https://make.wordpress.org/core/2024/06/25/recap-hallway-hangout-theme-building-with-playground-create-block-theme-plugin-and-github/)
 
-## Pag-synchronize ng Iyong Playground Instance sa Lokal na Folder at Paglikha ng GitHub Pull Requests
+<a id="pag-synchronize-ng-iyong-playground-instance-sa-lokal-na-folder-at-paglikha-ng-github-pull-requests"></a>
+
+## Pag-synchronize ng Iyong Playground Instance sa Lokal na Folder at Paglikha ng GitHub Pull Requests {#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests}
 
 ![Storage Type Device Snapshot](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/storage-type-device.webp)
 
