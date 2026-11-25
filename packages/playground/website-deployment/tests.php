@@ -99,6 +99,80 @@ assert_equal(
     'Playground API entry point should not be edge cached'
 );
 
+// The client reduces document.referrer to a bare host, but a client that
+// skips that must not be able to store something else in the rollup.
+foreach (
+    array( 'direct', 'internal', 'private-address', 'unknown' )
+    as $mywp_event_marker
+) {
+    assert_equal(
+        false,
+        mywp_event_is_reportable_referrer_host( $mywp_event_marker ),
+        'Markers stand in for a host rather than being one'
+    );
+}
+
+foreach (
+    array( 'news.ycombinator.com', 'make.wordpress.org', 'a.b.example.co.uk' )
+    as $mywp_event_host
+) {
+    assert_equal(
+        true,
+        mywp_event_is_reportable_referrer_host( $mywp_event_host ),
+        "Referring host $mywp_event_host should be reportable"
+    );
+}
+
+foreach (
+    array(
+        'localhost',
+        'wiki',
+        '192.168.1.5',
+        '10.0.0.1',
+        'www.example.com',
+        'example.com.',
+        'Example.com',
+        'exam ple.com',
+        'exa/mple.com',
+        str_repeat( 'a', 130 ) . '.example.com',
+    )
+    as $mywp_event_rejected_host
+) {
+    assert_equal(
+        false,
+        mywp_event_is_reportable_referrer_host( $mywp_event_rejected_host ),
+        "Referring host $mywp_event_rejected_host should be rejected"
+    );
+}
+
+assert_equal(
+    false,
+    mywp_event_is_reportable_referrer_host( 'private-address' ),
+    'private-address stands in for a host rather than being one'
+);
+
+$mywp_event_referrer_bumps = array();
+mywp_event_add_referrer_source_bump(
+    $mywp_event_referrer_bumps,
+    'returning_visit',
+    array( 'referrer_source' => 'localhost' )
+);
+mywp_event_add_referrer_source_bump(
+    $mywp_event_referrer_bumps,
+    'returning_visit',
+    array( 'referrer_source' => 'direct' )
+);
+mywp_event_add_referrer_source_bump(
+    $mywp_event_referrer_bumps,
+    'returning_visit',
+    array( 'referrer_source' => 'make.wordpress.org' )
+);
+assert_equal(
+    'direct,make.wordpress.org',
+    implode( ',', array_column( $mywp_event_referrer_bumps, 'value' ) ),
+    'Only markers and reportable hosts are recorded'
+);
+
 $mywp_event_server_snapshot = $_SERVER;
 
 $_SERVER['HTTP_HOST'] = 'my.wordpress.net';
@@ -393,7 +467,164 @@ assert_equal(
     'Dashboard should reject unsafe plugin slugs'
 );
 
+$_GET = array(
+    'area' => 'plugin',
+    'plugin_slug' => 'travel-app',
+);
+assert_equal(
+    'traveler',
+    mywp_event_dashboard_get_current_area( array() )['plugin_slug'],
+    'Dashboard should open the current slug for a renamed plugin link'
+);
+
 $_GET = $mywp_event_get_snapshot;
+
+$folded_plugin_slug_rows = mywp_event_dashboard_fold_renamed_plugin_slug_rows(
+    array(
+        array(
+            'name' => 'blueprint_installed:plugin_slug',
+            'value' => 'friends',
+            'views' => 7,
+        ),
+        array(
+            'name' => 'blueprint_installed:plugin_slug',
+            'value' => 'travel-app',
+            'views' => 5,
+        ),
+        array(
+            'name' => 'blueprint_installed:plugin_slug',
+            'value' => 'traveler',
+            'views' => 4,
+        ),
+        array(
+            'name' => 'blueprint_installed:blueprint_source',
+            'value' => 'travel-app',
+            'views' => 2,
+        ),
+    )
+);
+assert_equal(
+    'blueprint_installed:blueprint_source=travel-app:2,'
+        . 'blueprint_installed:plugin_slug=traveler:9,'
+        . 'blueprint_installed:plugin_slug=friends:7',
+    implode(
+        ',',
+        array_map(
+            function ( $row ) {
+                return "{$row['name']}={$row['value']}:{$row['views']}";
+            },
+            $folded_plugin_slug_rows
+        )
+    ),
+    'Dashboard should merge renamed plugin slugs and keep the query ordering'
+);
+
+$folded_referrer_source_rows =
+    mywp_event_dashboard_fold_rare_referrer_source_rows(
+        array(
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'alex.kirk.at',
+                'views' => 1,
+            ),
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'activitypub.blog',
+                'views' => 2,
+            ),
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'automattic.com',
+                'views' => 1,
+            ),
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'example.com',
+                'views' => 3,
+            ),
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'wordpress.org',
+                'views' => 1,
+            ),
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'wpapps.kirk.at',
+                'views' => 1,
+            ),
+            array(
+                'name' => 'wordpress_installed:referrer_source',
+                'value' => 'direct',
+                'views' => 1,
+            ),
+            array(
+                'name' => 'returning_visit:referrer_source',
+                'value' => 'make.wordpress.org',
+                'views' => 1,
+            ),
+            array(
+                'name' => 'returning_visit:site_age_bucket',
+                'value' => 'same-day',
+                'views' => 1,
+            ),
+        )
+    );
+assert_equal(
+    'returning_visit:referrer_source=make.wordpress.org:1,'
+        . 'returning_visit:site_age_bucket=same-day:1,'
+        . 'wordpress_installed:referrer_source=other-external:3,'
+        . 'wordpress_installed:referrer_source=activitypub.blog:2,'
+        . 'wordpress_installed:referrer_source=alex.kirk.at:1,'
+        . 'wordpress_installed:referrer_source=automattic.com:1,'
+        . 'wordpress_installed:referrer_source=direct:1,'
+        . 'wordpress_installed:referrer_source=wordpress.org:1,'
+        . 'wordpress_installed:referrer_source=wpapps.kirk.at:1',
+    implode(
+        ',',
+        array_map(
+            function ( $row ) {
+                return "{$row['name']}={$row['value']}:{$row['views']}";
+            },
+            $folded_referrer_source_rows
+        )
+    ),
+    'Dashboard should not fold allowlisted referrer hosts'
+);
+
+$folded_plugin_slug_timeline =
+    mywp_event_dashboard_fold_renamed_plugin_slug_timeline(
+        array(
+            array(
+                'period' => '2026-09-01',
+                'value' => 'travel-app',
+                'views' => 3,
+            ),
+            array(
+                'period' => '2026-09-01',
+                'value' => 'traveler',
+                'views' => 2,
+            ),
+            array(
+                'period' => '2026-09-02',
+                'value' => 'wordcamp-companion',
+                'views' => 1,
+            ),
+        )
+    );
+assert_equal(
+    '2026-09-01=traveler:5,'
+        . '2026-09-02=session-planner-for-wordcamps:1',
+    implode(
+        ',',
+        array_map(
+            function ( $row ) {
+                return "{$row['period']}={$row['value']}:{$row['views']}";
+            },
+            $folded_plugin_slug_timeline
+        )
+    ),
+    'Dashboard should merge renamed plugin slugs within a timeline period'
+);
 
 assert_equal(
     '/mywp-event-dashboard.php?range=90&granularity=hour&area=plugin&plugin_slug=friends',
@@ -470,6 +701,85 @@ assert_equal(
     'friends',
     $dashboard_filtered_timeline[0]['value'],
     'Dashboard should keep the selected timeline value'
+);
+
+$dashboard_streak_timeline = array(
+    array(
+        'period' => '2026-09-01',
+        'value' => 'daily_streak',
+        'views' => 8,
+    ),
+    array(
+        'period' => '2026-09-02',
+        'value' => 'weekly_streak',
+        'views' => 7,
+    ),
+    array(
+        'period' => '2026-09-03',
+        'value' => 'daily_streak',
+        'views' => 9,
+    ),
+    array(
+        'period' => '2026-09-03 08:00',
+        'value' => 'daily_streak',
+        'views' => 3,
+    ),
+    array(
+        'period' => '2026-09-04',
+        'value' => 'daily_streak',
+        'views' => 4,
+    ),
+);
+assert_equal(
+    12,
+    mywp_event_dashboard_timeline_value_count_on_date(
+        $dashboard_streak_timeline,
+        'daily_streak',
+        '2026-09-03'
+    ),
+    'Dashboard should count daily streak pings for one UTC date'
+);
+assert_equal(
+    16,
+    mywp_event_dashboard_timeline_value_count_between_dates(
+        $dashboard_streak_timeline,
+        'daily_streak',
+        '2026-09-03',
+        '2026-09-04'
+    ),
+    'Dashboard should sum daily streak pings across a UTC date range'
+);
+
+$dashboard_streak_length_timeline = array(
+    array(
+        'period' => '2026-09-03',
+        'value' => '1',
+        'views' => 5,
+    ),
+    array(
+        'period' => '2026-09-03',
+        'value' => '3',
+        'views' => 2,
+    ),
+    array(
+        'period' => '2026-09-03 08:00',
+        'value' => '31+',
+        'views' => 1,
+    ),
+    array(
+        'period' => '2026-09-04',
+        'value' => '4',
+        'views' => 9,
+    ),
+);
+assert_equal(
+    3,
+    mywp_event_dashboard_timeline_numeric_value_count_at_least_on_date(
+        $dashboard_streak_length_timeline,
+        3,
+        '2026-09-03'
+    ),
+    'Dashboard should count streak lengths above a threshold for one UTC date'
 );
 
 $event_bumps = mywp_event_collect_stat_bumps( array(
@@ -607,6 +917,73 @@ assert_equal(
         true
     ),
     'Allowed request source was not counted'
+);
+
+$daily_streak_bumps = mywp_event_collect_stat_bumps( array(
+    'schema' => 'personal-wp-event/v1',
+    'app' => 'personal-wp',
+    'event' => 'daily_streak',
+    'properties' => array(
+        'length' => '3',
+    ),
+) );
+
+assert_equal(
+    true,
+    in_array(
+        array(
+            'name' => 'daily_streak:length',
+            'value' => '3',
+            'views' => 1,
+        ),
+        $daily_streak_bumps,
+        true
+    ),
+    'Allowed daily streak length was not counted'
+);
+
+$capped_daily_streak_bumps = mywp_event_collect_stat_bumps( array(
+    'schema' => 'personal-wp-event/v1',
+    'app' => 'personal-wp',
+    'event' => 'daily_streak',
+    'properties' => array(
+        'length' => '31+',
+    ),
+) );
+
+assert_equal(
+    true,
+    in_array(
+        array(
+            'name' => 'daily_streak:length',
+            'value' => '31+',
+            'views' => 1,
+        ),
+        $capped_daily_streak_bumps,
+        true
+    ),
+    'Capped daily streak length was not counted'
+);
+
+assert_equal(
+    false,
+    in_array(
+        array(
+            'name' => 'daily_streak:length',
+            'value' => '365',
+            'views' => 1,
+        ),
+        mywp_event_collect_stat_bumps( array(
+            'schema' => 'personal-wp-event/v1',
+            'app' => 'personal-wp',
+            'event' => 'daily_streak',
+            'properties' => array(
+                'length' => '365',
+            ),
+        ) ),
+        true
+    ),
+    'Unrecognized daily streak length should not be counted'
 );
 
 $remote_access_bumps = mywp_event_collect_stat_bumps( array(

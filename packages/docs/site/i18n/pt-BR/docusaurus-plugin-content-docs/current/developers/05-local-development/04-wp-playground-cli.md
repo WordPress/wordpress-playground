@@ -452,7 +452,9 @@ npx @wp-playground/cli@latest start --reset
 ## Command and Arguments
 -->
 
-## Comando e argumentos
+<a id="comando-e-argumentos"></a>
+
+## Comando e argumentos {#command-and-arguments}
 
 <!--
 Playground CLI is simple, configurable, and unopinionated. You can set it up according

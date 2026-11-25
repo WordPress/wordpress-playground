@@ -2,6 +2,7 @@
 title: Panimula
 slug: /
 id: introduction
+description: Maligayang pagdating sa dokumentasyon ng WordPress Playground! Ipinakikilala ng pahinang ito ang istruktura ng dokumentasyon at tumutulong sa iyo na maghanap ng daan.
 ---
 
 # Dokumentasyon ng WordPress Playground
@@ -69,10 +70,20 @@ Kung ikaw ay developer o tech user, maaari mong direktang tingnan ang mga API:
 Ang WordPress Playground ay open-source at malugod na tinatanggap ang lahat ng kontribyutor mula sa code, disenyo, dokumentasyon, hanggang triage. Huwag mag-alala, _hindi mo kailangang malaman ang WebAssembly_ para makapag-ambag!
 
 - Tingnan ang [Contributors Handbook](/contributing) para sa detalye kung paano ka makakatulong.
-- Sumali sa `#meta-playground` channel sa Slack (tingnan ang [WordPress Slack page](https://make.wordpress.org/chat/) para sa impormasyon sa pag-signup)
+- Sumali sa `#playground` channel sa Slack (tingnan ang [WordPress Slack page](https://make.wordpress.org/chat/) para sa impormasyon sa pag-signup)
 
-<div class="callout callout-tip">
+Tulad ng sa lahat ng proyekto ng WordPress, nais naming matiyak ang magiliw na kapaligiran para sa lahat. Dahil dito, inaasahan sa lahat ng kontribyutor na sundin ang aming [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/).
 
-Tingnan ang aming [Code of Conduct](https://make.wordpress.org/handbook/community-code-of-conduct/) upang matiyak ang magiliw na kapaligiran para sa lahat.
+## Paggamit ng Playground kasama ang mga AI assistant
 
-</div>
+Ang WordPress Playground ay dinisenyo para gumana kasama ang mga AI coding agent at AI-powered na tool. Tumutakbo ito nang buo sa client-side sa WebAssembly — walang authentication, walang kailangang backend, at naka-isolate sa browser nang walang persistent na side effect sa labas ng sandbox — kaya ito ay isang ligtas at maaasahang environment para sa AI-generated na demo at prototype.
+
+- **[Paggamit ng Playground kasama ang mga AI agent](/guides/agent-skill-wp-playground)** — I-install ang `wp-playground` skill para sa Claude Code, Cursor, Gemini CLI, GitHub Copilot, at iba pang coding agent. Ilarawan kung ano ang kailangan mo; ang agent ang magpapatakbo ng mga command.
+- **[AI-readable site index](https://playground.wordpress.net/llms.txt)** — Machine-readable na buod ng mga kakayahan, API, at docs ng Playground sa format na `llms.txt`.
+- **[AGENTS.md](https://github.com/WordPress/wordpress-playground/blob/trunk/AGENTS.md)** — Gabay para sa mga AI coding agent na nag-aambag sa codebase na ito.
+
+## Lisensya
+
+Ang WordPress Playground ay malayang software na inilabas sa ilalim ng mga tuntunin ng GNU General Public License version 2 o (sa iyong pagpipilian) anumang mas bagong bersyon. Para sa kumpletong lisensya, tingnan ang [LICENSE.md](https://github.com/WordPress/wordpress-playground/blob/trunk/LICENSE).
+
+<br/><br/><p align="center"><img src="https://s.w.org/style/images/codeispoetry.png?1" alt="Code is Poetry." /></p>

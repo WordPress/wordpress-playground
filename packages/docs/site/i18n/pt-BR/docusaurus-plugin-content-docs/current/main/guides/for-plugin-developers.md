@@ -531,13 +531,13 @@ Aqui está uma pequena demonstração deste fluxo de trabalho em ação:
 <!--
 <div class="callout callout-info">
 
-Check [About Playground &gt; Build &gt; Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
+Check [About Playground &gt; Build &gt; Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests) for more info.
 
 </div>
 -->
 
 <div class="callout callout-info">
 
-Confira [Sobre o Playground &gt; Construir &gt; Sincronizar sua instância do playground com uma pasta local e criar Pull Requests do GitHub](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) para mais informações.
+Confira [Sobre o Playground &gt; Construir &gt; Sincronizar sua instância do playground com uma pasta local e criar Pull Requests do GitHub](/about/build#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests) para mais informações.
 
 </div>

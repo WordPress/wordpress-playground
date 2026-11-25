@@ -1,5 +1,6 @@
+import https from 'https';
+import http from 'http';
 import fs from 'fs';
-import { rootCertificates } from 'tls';
 import path from 'path';
 import {
 	PHP,
@@ -10,6 +11,27 @@ import { loadNodeRuntime } from '../lib';
 import { jspi } from 'wasm-feature-detect';
 
 const runtimeMode = (await jspi()) ? 'jspi' : 'asyncify';
+
+const selfSignedCert = {
+	key: fs.readFileSync(path.join(__dirname, 'test-data', 'key.pem')),
+	cert: fs.readFileSync(path.join(__dirname, 'test-data', 'cert.pem')),
+};
+const httpsServer = https.createServer(selfSignedCert, (req, res) => {
+	res.writeHead(200, { 'Content-Type': 'image/jpeg' });
+	res.end(fs.readFileSync(path.join(__dirname, 'test-data', 'image.jpg')));
+});
+const httpServer = http.createServer((req, res) => {
+	res.writeHead(301, { Location: httpsUrl });
+	res.end();
+});
+const listen = (server: http.Server) =>
+	new Promise<number>((resolve) => {
+		server.listen(0, '127.0.0.1', () => {
+			resolve((server.address() as any).port);
+		});
+	});
+const httpsUrl = `https://127.0.0.1:${await listen(httpsServer)}/image.jpg`;
+const httpUrl = `http://127.0.0.1:${await listen(httpServer)}/image.jpg`;
 
 describe(`Imagick – ${runtimeMode}`, () => {
 	const phpVersions =
@@ -26,7 +48,7 @@ describe(`Imagick – ${runtimeMode}`, () => {
 			});
 			php.writeFile(
 				'/internal/shared/ca-bundle.crt',
-				rootCertificates.join('\n')
+				selfSignedCert.cert.toString()
 			);
 
 			// Create a simple test JPEG image in VFS
@@ -365,7 +387,7 @@ describe(`Imagick – ${runtimeMode}`, () => {
 		test('read image from HTTP URL', async () => {
 			const result = await php.run({
 				code: `<?php
-					$url = 'https://raw.githubusercontent.com/WordPress/wordpress-playground/8bf0bcb0c6a20d84e17d2a09decadc674f66d964/packages/php-wasm/node/src/test/test-data/image.jpg';
+					$url = '${httpsUrl}';
 					$imagick = new Imagick($url);
 					echo $imagick->getImageWidth() . 'x' . $imagick->getImageHeight();
 				`,
@@ -377,8 +399,7 @@ describe(`Imagick – ${runtimeMode}`, () => {
 		test('read image from http:// wrapper', async () => {
 			const result = await php.run({
 				code: `<?php
-					// Note: GitHub redirects http to https, so this tests the wrapper
-					$url = 'http://raw.githubusercontent.com/WordPress/wordpress-playground/8bf0bcb0c6a20d84e17d2a09decadc674f66d964/packages/php-wasm/node/src/test/test-data/image.jpg';
+					$url = '${httpUrl}';
 					$imagick = new Imagick($url);
 					echo $imagick->getImageWidth() . 'x' . $imagick->getImageHeight();
 				`,
@@ -390,7 +411,7 @@ describe(`Imagick – ${runtimeMode}`, () => {
 		test('process image from URL and save to VFS', async () => {
 			const result = await php.run({
 				code: `<?php
-					$url = 'https://raw.githubusercontent.com/WordPress/wordpress-playground/8bf0bcb0c6a20d84e17d2a09decadc674f66d964/packages/php-wasm/node/src/test/test-data/image.jpg';
+					$url = '${httpsUrl}';
 					$imagick = new Imagick($url);
 
 					// Resize and convert to GIF

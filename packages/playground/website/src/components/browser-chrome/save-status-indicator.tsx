@@ -471,9 +471,9 @@ function getSaveStatus(
 
 /**
  * `initialOpfsSyncPending` alone is not enough to mean "autosaving": explicit
- * browser saves also do their first MEMFS-to-OPFS sync after boot. Known
- * autosaved Playgrounds keep the completed-state label while the pending OPFS
- * sync finishes because they are already represented as autosaves in Site Manager.
+ * browser saves also do their first MEMFS-to-OPFS sync after boot. Autosaved
+ * Playgrounds say "Autosaving" until that first copy finishes; being listed in
+ * Site Manager does not mean their files have reached browser storage yet.
  */
 function getSyncLabel({
 	site,
@@ -486,7 +486,9 @@ function getSyncLabel({
 		return 'Saving';
 	}
 	if (site && isAutosavedSite(site)) {
-		return 'Autosaved';
+		return site.metadata.initialOpfsSyncPending
+			? 'Autosaving'
+			: 'Autosaved';
 	}
 	return opfsSync?.operation === 'autosave' ? 'Autosaving' : 'Saving';
 }

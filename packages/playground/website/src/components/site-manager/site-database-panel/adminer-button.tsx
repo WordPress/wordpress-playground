@@ -3,6 +3,7 @@ import { logger } from '@php-wasm/logger';
 import { external } from '@wordpress/icons';
 import { useEffect, useState } from 'react';
 import css from './style.module.css';
+import { getWordPressPopupUrl } from '../../../lib/wordpress-popup';
 import {
 	type PlaygroundClient,
 	type StepDefinition,
@@ -53,6 +54,7 @@ async function installAdminer(playground: PlaygroundClient) {
 	await runBlueprintV1Steps(blueprint, playground as UniversalPHP);
 }
 
+/** Install and open Adminer without moving WordPress into another storage partition. */
 export function AdminerButton({
 	playground,
 }: {
@@ -91,6 +93,7 @@ export function AdminerButton({
 		};
 	}, [playground]);
 
+	/** Open the installed tool through the matching WordPress browsing context. */
 	const handleOpenAdminer = async () => {
 		if (!playground) {
 			return;
@@ -117,7 +120,7 @@ export function AdminerButton({
 		const playgroundUrl = await playground.absoluteUrl;
 		if (playgroundUrl) {
 			window.open(
-				`${playgroundUrl}/adminer/`,
+				getWordPressPopupUrl(`${playgroundUrl}/adminer/`),
 				'_blank',
 				'noopener,noreferrer'
 			);

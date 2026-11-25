@@ -8,9 +8,14 @@ export class CDPServer extends EventEmitter {
 	private connected = false;
 	private buffer: any[] = [];
 
-	constructor(port = 9229) {
+	constructor(host = '127.0.0.1', port = 9229) {
 		super();
-		this.wss = new WebSocketServer({ port: port });
+		this.wss = new WebSocketServer({
+			host,
+			port,
+			verifyClient: ({ origin }: { origin: string }) =>
+				!origin || origin.startsWith('devtools://'),
+		});
 		this.wss.on('connection', (ws: WebSocket) => {
 			// Only one client at a time
 			if (this.ws) {

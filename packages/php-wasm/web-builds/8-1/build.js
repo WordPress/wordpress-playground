@@ -62,7 +62,6 @@ async function build() {
 		bundle: true,
 		tsconfig: `${packagePath}/tsconfig.json`,
 		external: ['@php-wasm/*', 'wasm-feature-detect'],
-		loader: { '.wasm': 'file', '.so': 'file' },
 		plugins: [externalPathPlugin],
 	});
 
@@ -83,7 +82,6 @@ async function build() {
 		external: ['@php-wasm/*', 'wasm-feature-detect'],
 		supported: { 'dynamic-import': true, 'top-level-await': true },
 		format: 'esm',
-		loader: { '.wasm': 'file', '.so': 'file' },
 		plugins: [externalPathPlugin],
 	});
 

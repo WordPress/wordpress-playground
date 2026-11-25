@@ -22,7 +22,9 @@ WordPress Playground's documentation site is maintained by volunteers like you, 
 All documentation-related issues are labeled [Type] Documentation or [Type] Developer Documentation in the WordPress/wordpress-playground repository. Browse the list of open issues to find one you'd like to work on. Alternatively, if you believe something is missing from the current documentation, open an issue to discuss your suggestion.
 -->
 
-## હું કેવી રીતે યોગદાન આપી શકું?
+<a id="હું-કેવી-રીતે-યોગદાન-આપી-શકું"></a>
+
+## હું કેવી રીતે યોગદાન આપી શકું? {#how-can-i-contribute}
 
 <!--
 ## How can I contribute?

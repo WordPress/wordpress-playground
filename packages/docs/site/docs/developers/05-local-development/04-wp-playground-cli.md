@@ -141,6 +141,10 @@ CLI command loading a blueprint:
 npx @wp-playground/cli@latest server --blueprint=my-blueprint.json
 ```
 
+#### Missing constants after a login step in CLI 3.1.64
+
+In CLI 3.1.64, running `login` followed by `defineWpConfigConsts` with multiple workers can lose constants, including `SQLITE_JOURNAL_MODE`. If you encounter this, start the server with `--workers=1`. If you need multiple workers, set `"method": "rewrite-wp-config"` on the `defineWpConfigConsts` step to write those constants to `wp-config.php`. The [SQLite corruption report](https://github.com/WordPress/wordpress-playground/issues/4615) tracks the underlying issue.
+
 ### Mounting folders manually
 
 Some projects have a specific structure that requires a custom configuration; for example, your repository contains all the files in the `/wp-content/` folder. So in this scenario, you can specify to the Playground CLI that it will mount your project from that folder using the `--mount` flag.
@@ -205,11 +209,11 @@ Mount before WP install: /wordpress ->
 The database location depends on what you mount:
 
 - **Auto-mounting wp-content or full WordPress**:
-    - Database: `<your-local-project>/wp-content/database/.ht.sqlite`
+    - Database directory: `<your-local-project>/wp-content/database/`
     - ✅ **Persisted locally** in your project folder
 
 - **Auto-mounting plugin/theme only**:
-    - Database: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/.ht.sqlite`
+    - Database directory: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/`
     - ⚠️ **Lost when server stops** (temp directories are cleaned up)
 
 - **Custom mounts**: Database location follows your mount configuration
@@ -254,7 +258,7 @@ project directory.
 The database location depends on your configuration:
 
 - **Default (automatic persistence)**:
-    - Database: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/.ht.sqlite`
+    - Database directory: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/`
     - **Persisted automatically** between sessions
 - **Full WordPress directory or explicit `/wordpress` mount**:
     - Database: Follows the mounted WordPress directory
@@ -290,10 +294,12 @@ The `start` command supports these common optional arguments. Run
 - `--skip-browser`: Do not open the site in your default browser.
 - `--reset`: Delete the stored site and start fresh. Defaults to false.
 - `--no-auto-mount`: Disable automatic project detection.
+- `--codespaces-public-port`: In GitHub Codespaces, make the forwarded port public so anyone with the URL can open the site without signing in to GitHub. Ports stay private by default. Turns off the default auto-login unless you also pass `--login`.
 
 The `server` command supports these common optional arguments. Run `npx @wp-playground/cli@latest server --help` for the full list:
 
 - `--port=<port>`: The port number for the server to listen on. Defaults to 9400.
+- `--codespaces-public-port`: In GitHub Codespaces, make the forwarded port public so anyone with the URL can open the site without signing in to GitHub. Ports stay private by default. ⚠️ Combined with `--login`, every visitor is signed in as an administrator and can change mounted files.
 - `--version`: Show version number.
 - `--site-url=<url>`: Site URL to use for WordPress. Defaults to `http://127.0.0.1:{port}`.
 - `--wp=<version>`: The version of WordPress to use. Defaults to the latest.

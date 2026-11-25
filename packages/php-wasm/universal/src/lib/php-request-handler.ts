@@ -1,4 +1,9 @@
-import { dirname, joinPaths } from '@php-wasm/util';
+import {
+	basename,
+	dirname,
+	joinPathUnderRoot,
+	joinPaths,
+} from '@php-wasm/util';
 import {
 	ensurePathPrefix,
 	toRelativeUrl,
@@ -33,9 +38,7 @@ export type FileNotFoundToInternalRedirect = {
 export type FileNotFoundTo404 = { type: '404' };
 
 export type FileNotFoundAction =
-	| FileNotFoundToResponse
-	| FileNotFoundToInternalRedirect
-	| FileNotFoundTo404;
+	FileNotFoundToResponse | FileNotFoundToInternalRedirect | FileNotFoundTo404;
 
 export type FileNotFoundGetActionCallback = (
 	relativePath: string
@@ -370,24 +373,22 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * version of WordPress Playground does by default).
 	 *
 	 * In the request mode, you pass an object containing the request information
-	 * (method, headers, body, etc.) and the path to the PHP file to run:
+	 * (method, headers, body, etc.) and the URL to request:
 	 *
 	 * ```ts
-	 * const php = PHP.load('7.4', {
-	 * 	requestHandler: {
-	 * 		documentRoot: "/www"
-	 * 	}
-	 * })
-	 * php.writeFile("/www/index.php", `<?php echo file_get_contents("php://input");`);
-	 * const result = await php.request({
-	 * 	method: "GET",
+	 * await client.writeFile(
+	 * 	'/index.php',
+	 * 	`<?php echo file_get_contents('php://input');`
+	 * );
+	 * const result = await client.request({
+	 * 	url: '/index.php',
+	 * 	method: 'POST',
 	 * 	headers: {
-	 * 		"Content-Type": "text/plain"
+	 * 		'Content-Type': 'text/plain',
 	 * 	},
-	 * 	body: "Hello world!",
-	 * 	path: "/www/index.php"
+	 * 	body: 'Hello world!',
 	 * });
-	 * // result.text === "Hello world!"
+	 * // result.text === 'Hello world!'
 	 * ```
 	 *
 	 * The `request()` method cannot be used in conjunction with `cli()`.
@@ -465,11 +466,17 @@ export class PHPRequestHandler implements AsyncDisposable {
 			/**
 			 * URL.pathname returns a URL-encoded path. We need to decode it
 			 * before using it as a filesystem path.
+			 *
+			 * This only undoes the encoding applied by #applyRewriteRules().
+			 * Each byte of the original request path is decoded exactly once.
 			 */
 			decodeURIComponent(rewrittenRequestUrl.pathname),
 			this.#PATHNAME
 		);
 		let fsPath = this.#resolveToFsPath(siteRelativePath);
+		if (fsPath === undefined) {
+			return StreamedPHPResponse.forHttpCode(404);
+		}
 		if (primaryPhp.isDir(fsPath)) {
 			// Ensure directory URIs have a trailing slash. Otherwise,
 			// relative URIs in index.php or index.html files are relative
@@ -539,11 +546,12 @@ export class PHPRequestHandler implements AsyncDisposable {
 				pathToTry = dirname(pathToTry);
 				const resolvedPathToTry = this.#resolveToFsPath(pathToTry);
 				if (
+					resolvedPathToTry !== undefined &&
 					primaryPhp.isFile(resolvedPathToTry) &&
 					// Only run partial path resolution for PHP files.
-					resolvedPathToTry.endsWith('.php')
+					isPHPFilePath(resolvedPathToTry)
 				) {
-					fsPath = this.#resolveToFsPath(pathToTry);
+					fsPath = resolvedPathToTry;
 					break;
 				}
 			}
@@ -558,9 +566,17 @@ export class PHPRequestHandler implements AsyncDisposable {
 					return StreamedPHPResponse.fromPHPResponse(
 						fileNotFoundAction.response
 					);
-				case 'internal-redirect':
-					fsPath = joinPaths(this.#DOCROOT, fileNotFoundAction.uri);
+				case 'internal-redirect': {
+					const redirectPath = joinPathUnderRoot(
+						this.#DOCROOT,
+						fileNotFoundAction.uri
+					);
+					if (redirectPath === undefined) {
+						return StreamedPHPResponse.forHttpCode(404);
+					}
+					fsPath = redirectPath;
 					break;
+				}
 				case '404':
 					return StreamedPHPResponse.forHttpCode(404);
 				default:
@@ -577,21 +593,30 @@ export class PHPRequestHandler implements AsyncDisposable {
 		// We need to confirm that the current target file exists because
 		// file-not-found fallback actions may redirect to non-existent files.
 		if (primaryPhp.isFile(fsPath)) {
-			if (fsPath.endsWith('.php')) {
+			if (isPHPFilePath(fsPath)) {
 				return await this.#spawnPHPAndDispatchRequest(
 					request,
 					originalRequestUrl,
 					rewrittenRequestUrl,
 					fsPath
 				);
-			} else {
+			}
+			// A host filesystem can resolve an unlisted name, such as the
+			// Windows `x.php::$DATA`, to another file. Only send listed names.
+			const lowerCaseName = basename(fsPath).toLowerCase();
+
+			const isListed = primaryPhp
+				.listFiles(dirname(fsPath))
+				.some((name) => name.toLowerCase() === lowerCaseName);
+
+			if (isListed) {
 				return StreamedPHPResponse.fromPHPResponse(
 					this.#serveStaticFile(primaryPhp, fsPath)
 				);
 			}
-		} else {
-			return StreamedPHPResponse.forHttpCode(404);
 		}
+
+		return StreamedPHPResponse.forHttpCode(404);
 	}
 
 	/**
@@ -610,7 +635,11 @@ export class PHPRequestHandler implements AsyncDisposable {
 			this.rewriteRules
 		);
 		const rewrittenRequestUrl = new URL(
-			joinPaths(this.#PATHNAME, rewrittenRequestPath),
+			// Encode percent signs in the path so each byte is decoded once.
+			joinPaths(this.#PATHNAME, rewrittenRequestPath).replace(
+				/^[^?#]*/,
+				(path) => path.replaceAll('%', '%25')
+			),
 			originalRequestUrl.toString()
 		);
 		// Merge the query string parameters from the original request URL.
@@ -627,9 +656,10 @@ export class PHPRequestHandler implements AsyncDisposable {
 	 * filesystem path is used instead of the document root.
 	 *
 	 * @param urlPath - The URL path to resolve (e.g., '/phpmyadmin/index.php')
-	 * @returns The resolved filesystem path
+	 * @returns The normalized filesystem path, or undefined when it would
+	 *          leave the document root or the matched alias path.
 	 */
-	#resolveToFsPath(urlPath: string): string {
+	#resolveToFsPath(urlPath: string): string | undefined {
 		// Check if the URL path matches any alias
 		for (const alias of this.#pathAliases) {
 			if (
@@ -638,11 +668,11 @@ export class PHPRequestHandler implements AsyncDisposable {
 			) {
 				// Replace the URL prefix with the filesystem path
 				const relativePath = urlPath.slice(alias.urlPrefix.length);
-				return joinPaths(alias.fsPath, relativePath);
+				return joinPathUnderRoot(alias.fsPath, relativePath);
 			}
 		}
 		// No alias matched, use the document root
-		return joinPaths(this.#DOCROOT, urlPath);
+		return joinPathUnderRoot(this.#DOCROOT, urlPath);
 	}
 
 	/**
@@ -1034,6 +1064,19 @@ export function applyRewriteRules(path: string, rules: RewriteRule[]): string {
 		}
 	}
 	return path;
+}
+
+/**
+ * Checks whether a filesystem path names a PHP script.
+ *
+ * The check ignores case because case-insensitive host filesystems,
+ * such as the macOS default, resolve `/X.PHP` to `/x.php`.
+ *
+ * @param fsPath - The filesystem path to check.
+ * @returns `true` if PHP should run the file, `false` otherwise.
+ */
+function isPHPFilePath(fsPath: string): boolean {
+	return fsPath.toLowerCase().endsWith('.php');
 }
 
 /**

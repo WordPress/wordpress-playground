@@ -49,5 +49,5 @@ ul {
 }
 
 :root :where(.wp-block-list.has-background) {
-  padding: 1.25em 2.375em;
+  padding: var(--wp--style--block-background-padding, 1.25em 2.375em);
 }

@@ -64,7 +64,7 @@
 									"const": "latest"
 								}
 							],
-							"description": "The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4."
+							"description": "The preferred PHP version to use. If not specified, the recommended PHP version for WordPress will be used. Use `latest` for the latest supported version.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4."
 						},
 						"wp": {
 							"anyOf": [
@@ -644,7 +644,7 @@
 						"method": {
 							"type": "string",
 							"enum": ["rewrite-wp-config", "define-before-run"],
-							"description": "The method of defining the constants in wp-config.php. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php."
+							"description": "How Playground defines the constants.\n\n- `define-before-run` (default) uses PHP's `auto_prepend_file` setting to define   constants with string, number, or boolean values before the requested script   runs. These values take precedence over later definitions in `wp-config.php`.   This method skips `null`, arrays, and objects. Use it to keep `wp-config.php`   intact, for example when working with a mounted project.\n\n- `rewrite-wp-config` adds or updates the corresponding `define()` calls in   `wp-config.php`. Use it to replace an existing definition in that file or to   keep the constants in a `wp-config.php` you plan to use outside Playground."
 						},
 						"virtualize": {
 							"type": "boolean",
@@ -808,7 +808,7 @@
 						},
 						"themeSlug": {
 							"type": "string",
-							"description": "The name of the theme to import content from."
+							"description": "The slug of an installed theme to import content from. Defaults to the active theme."
 						}
 					},
 					"required": ["step"]
@@ -1465,8 +1465,29 @@
 							"description": "The path of the file to write to"
 						},
 						"filesTree": {
-							"$ref": "#/definitions/DirectoryReference",
-							"description": "The 'filesTree' defines the directory structure, supporting 'literal:directory' or 'git:directory' types. The 'name' represents the root directory, while 'files' is an object where keys are file paths, and values contain either file content as a string or nested objects for subdirectories."
+							"anyOf": [
+								{
+									"$ref": "#/definitions/DirectoryReference"
+								},
+								{
+									"type": "object",
+									"additionalProperties": false,
+									"properties": {
+										"resource": {
+											"type": "string",
+											"const": "literal:directory"
+										},
+										"files": {
+											"$ref": "#/definitions/FileTree"
+										},
+										"name": {
+											"type": "string"
+										}
+									},
+									"required": ["files", "name"]
+								}
+							],
+							"description": "The 'filesTree' defines the directory structure. Inline directories can provide 'name' and 'files' without a 'resource' property. Explicit 'literal:directory' and 'git:directory' resources are also supported. The 'name' represents the root directory, while 'files' maps file paths to contents or nested subdirectories."
 						}
 					},
 					"required": ["filesTree", "step", "writeToPath"]
@@ -1535,7 +1556,7 @@
 						},
 						"language": {
 							"type": "string",
-							"description": "The language to set, e.g. 'en_US'"
+							"description": "The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available translation using navigator.languages, in preference order, with regional language fallbacks. Falls back to 'en_US' if no match or browser is unavailable."
 						}
 					},
 					"required": ["language", "step"]
@@ -1831,6 +1852,10 @@
 				"code": {
 					"type": "string",
 					"description": "The code snippet to eval instead of a php file."
+				},
+				"usePrimaryPhp": {
+					"type": "boolean",
+					"description": "Run on the primary PHP instance instead of any pooled instance.\n\nPooled instances see shared paths through a proxy filesystem whose node cache is not invalidated when the primary deletes a file. A job that spans several runs and rewrites its own state files must stay on the primary so every run sees the same filesystem. The run waits for the primary to become free."
 				}
 			},
 			"additionalProperties": false
@@ -2295,13 +2320,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 													}
 												}
 											]
@@ -2718,13 +2743,13 @@
 															{
 																"type": "array",
 																"items": {
-																	"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																	"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 																}
 															},
 															{
 																"type": "object",
 																"additionalProperties": {
-																	"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																	"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 																}
 															}
 														]
@@ -3130,13 +3155,13 @@
 																{
 																	"type": "array",
 																	"items": {
-																		"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																		"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 																	}
 																},
 																{
 																	"type": "object",
 																	"additionalProperties": {
-																		"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																		"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 																	}
 																}
 															]
@@ -3276,13 +3301,13 @@
 																			{
 																				"type": "array",
 																				"items": {
-																					"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																					"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 																				}
 																			},
 																			{
 																				"type": "object",
 																				"additionalProperties": {
-																					"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																					"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 																				}
 																			}
 																		]
@@ -3819,13 +3844,13 @@
 																					{
 																						"type": "array",
 																						"items": {
-																							"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																							"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 																						}
 																					},
 																					{
 																						"type": "object",
 																						"additionalProperties": {
-																							"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																							"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 																						}
 																					}
 																				]
@@ -3967,13 +3992,13 @@
 																								{
 																									"type": "array",
 																									"items": {
-																										"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																										"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 																									}
 																								},
 																								{
 																									"type": "object",
 																									"additionalProperties": {
-																										"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+																										"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 																									}
 																								}
 																							]
@@ -4271,13 +4296,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 													}
 												}
 											]
@@ -4490,7 +4515,7 @@
 									},
 									"language": {
 										"type": "string",
-										"description": "The language to set, e.g. 'en_US'"
+										"description": "The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available translation using navigator.languages, in preference order, with regional language fallbacks. Falls back to 'en_US' if no match or browser is unavailable."
 									}
 								},
 								"required": ["step", "language"],
@@ -4520,13 +4545,13 @@
 												{
 													"type": "array",
 													"items": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 													}
 												},
 												{
 													"type": "object",
 													"additionalProperties": {
-														"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+														"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 													}
 												}
 											]
@@ -4823,7 +4848,7 @@
 			],
 			"description": "Plugin directory reference, e.g. \"jetpack\", \"jetpack@6.4\", or \"akismet@6.4.3\".\n\nThese refer to a specific plugin slugs in the WordPress.org plugin repository.\n\nFor example, a reference to \"wordpress-seo\" means the Yoast SEO plugin as seen on https://wordpress.org/plugins/wordpress-seo/.\n\nThe Plugin Directory Reference are only meaningful in:\n\n* The top-level `plugins` array\n* The `installPlugin` imperative step"
 		},
-		"alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862": {
+		"alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724": {
 			"anyOf": [
 				{
 					"type": "string"
@@ -4837,13 +4862,13 @@
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+						"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 					}
 				},
 				{
 					"type": "object",
 					"additionalProperties": {
-						"$ref": "#/definitions/alias-1337903113-148441-148535-1337903113-100587-148549-1337903113-100553-148549-1337903113-0-165862"
+						"$ref": "#/definitions/alias-1337903113-152642-152736-1337903113-104577-152750-1337903113-104543-152750-1337903113-0-170724"
 					}
 				}
 			]

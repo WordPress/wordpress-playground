@@ -312,40 +312,19 @@ function applyQueryOverridesToDeclaration(
 		blueprint.steps = blueprint.steps || [];
 		blueprint.steps.unshift(
 			{
-				step: 'mkdir',
-				path: '/tmp/gutenberg',
-			},
-			{
 				step: 'writeFile',
-				path: '/tmp/gutenberg/artifact.zip',
+				path: '/tmp/gutenberg.zip',
 				data: {
 					resource: 'url',
-					url: `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg-plugin&${refType}=${gutenbergRef}`,
+					url: `/plugin-proxy.php?org=WordPress&repo=gutenberg&workflow=Build%20Gutenberg%20Plugin%20Zip&artifact=gutenberg.zip&${refType}=${gutenbergRef}`,
 					caption: `Downloading Gutenberg ${refLabel} ${gutenbergRef}`,
 				},
-			},
-			/**
-			 * GitHub CI artifacts are doubly zipped:
-			 *
-			 * artifact.zip
-			 *    gutenberg.zip
-			 *       gutenberg.php
-			 *       ... other files ...
-			 *
-			 * This step extracts the inner zip file so that we get
-			 * access directly to gutenberg.zip and can use it to
-			 * install the plugin.
-			 */
-			{
-				step: 'unzip',
-				zipPath: '/tmp/gutenberg/artifact.zip',
-				extractToPath: '/tmp/gutenberg',
 			},
 			{
 				step: 'installPlugin',
 				pluginData: {
 					resource: 'vfs',
-					path: '/tmp/gutenberg/gutenberg.zip',
+					path: '/tmp/gutenberg.zip',
 				},
 			}
 		);

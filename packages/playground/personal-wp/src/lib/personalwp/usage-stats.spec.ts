@@ -3,13 +3,17 @@ import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import type { SiteMetadata } from '../state/redux/slice-sites';
 import {
 	classifyBlueprintUrl,
+	normalizeReferrer,
 	getBlueprintUsageStatsProperties,
 	getSiteUsageStatsProperties,
+	getStreakUsageStatsUpdate,
 	getUsageStatsDate,
 	isUsageStatsAllowedOnCurrentHost,
 	logPersonalWpEvent,
 	shouldLogReturningVisitUsageStats,
 } from './usage-stats';
+
+const DAY = 24 * 60 * 60 * 1000;
 
 describe('Personal WP usage stats', () => {
 	afterEach(() => {
@@ -295,6 +299,73 @@ describe('Personal WP usage stats', () => {
 		expect(classifyBlueprintUrl('http://[invalid')).toBe('invalid-url');
 	});
 
+	it('reports only the referring host, never the path', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(normalizeReferrer('')).toBe('direct');
+		expect(normalizeReferrer('https://my.wordpress.net/builder')).toBe(
+			'internal'
+		);
+		expect(
+			normalizeReferrer('https://news.ycombinator.com/item?id=1')
+		).toBe('news.ycombinator.com');
+		expect(normalizeReferrer('https://www.example.com/a-post#top')).toBe(
+			'example.com'
+		);
+		expect(normalizeReferrer('https://Blog.Example.CO.UK:8443/x')).toBe(
+			'blog.example.co.uk'
+		);
+	});
+
+	it('keeps make.wordpress.org distinct from wordpress.org', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(normalizeReferrer('https://make.wordpress.org/core/')).toBe(
+			'make.wordpress.org'
+		);
+		expect(normalizeReferrer('https://wordpress.org/plugins/')).toBe(
+			'wordpress.org'
+		);
+	});
+
+	it('reports a host that names a network as private-address', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(normalizeReferrer('http://wiki/page')).toBe('private-address');
+		expect(normalizeReferrer('http://localhost:3000/')).toBe(
+			'private-address'
+		);
+		expect(normalizeReferrer('http://192.168.1.5/dashboard')).toBe(
+			'private-address'
+		);
+		expect(normalizeReferrer('http://[::1]/dashboard')).toBe(
+			'private-address'
+		);
+		expect(normalizeReferrer('http://[2001:db8::1]/dashboard')).toBe(
+			'private-address'
+		);
+	});
+
+	it('keeps an unreadable referrer apart from a private address', () => {
+		vi.stubGlobal('location', {
+			origin: 'https://my.wordpress.net',
+		});
+
+		expect(normalizeReferrer('android-app://com.example.reader')).toBe(
+			'unknown'
+		);
+		expect(normalizeReferrer('not a url')).toBe('unknown');
+		expect(
+			normalizeReferrer(`https://${'a'.repeat(130)}.example.com/`)
+		).toBe('unknown');
+	});
+
 	it('does not report blueprint identifiers', () => {
 		vi.stubGlobal('location', {
 			href: 'https://playground.wordpress.net/',
@@ -313,5 +384,150 @@ describe('Personal WP usage stats', () => {
 			blueprint_source: 'same-origin',
 		});
 		expect(JSON.stringify(properties)).not.toContain('token=secret');
+	});
+
+	it('ignores a backward clock jump instead of resetting and re-emitting the streak', () => {
+		const day1 = Date.UTC(2026, 5, 10);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, day1);
+		metadata = { ...metadata, ...first.metadata };
+
+		const day2 = getStreakUsageStatsUpdate(metadata, day1 + DAY);
+		expect(day2.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { length: '2' },
+		});
+		metadata = { ...metadata, ...day2.metadata };
+
+		// The client's clock jumps back to before the last-recorded day.
+		const clockSkewedBackward = getStreakUsageStatsUpdate(
+			metadata,
+			day1 - 3 * DAY
+		);
+		expect(clockSkewedBackward.events).toEqual([]);
+		expect(clockSkewedBackward.metadata).toEqual({});
+	});
+
+	it('advances the daily streak once per day and resets after a gap', () => {
+		const day1 = Date.UTC(2026, 5, 1);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, day1);
+		expect(first.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { length: '1' },
+		});
+		metadata = { ...metadata, ...first.metadata };
+
+		const laterSameDay = getStreakUsageStatsUpdate(
+			metadata,
+			day1 + 12 * 60 * 60 * 1000
+		);
+		expect(laterSameDay.events).toEqual([]);
+
+		const day2 = getStreakUsageStatsUpdate(metadata, day1 + DAY);
+		expect(day2.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { length: '2' },
+		});
+		metadata = { ...metadata, ...day2.metadata };
+
+		const afterGap = getStreakUsageStatsUpdate(metadata, day1 + 4 * DAY);
+		expect(afterGap.events).toContainEqual({
+			event: 'daily_streak',
+			properties: { length: '1' },
+		});
+	});
+
+	it('walks the daily streak length boundaries across consecutive days', () => {
+		const start = Date.UTC(2026, 5, 1);
+		let metadata = {} as SiteMetadata;
+		const lengths: string[] = [];
+
+		for (let day = 0; day < 31; day++) {
+			const update = getStreakUsageStatsUpdate(
+				metadata,
+				start + day * DAY
+			);
+			metadata = { ...metadata, ...update.metadata };
+			const dailyEvent = update.events.find(
+				(event) => event.event === 'daily_streak'
+			);
+			lengths.push(dailyEvent!.properties.length as string);
+		}
+
+		expect(lengths[0]).toBe('1');
+		expect(lengths[29]).toBe('30');
+		expect(lengths[30]).toBe('31+');
+	});
+
+	it('advances the weekly streak across calendar weeks and resets on a skipped week', () => {
+		const monday1 = Date.UTC(2026, 5, 1);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, monday1);
+		expect(first.events).toContainEqual({
+			event: 'weekly_streak',
+			properties: { length: '1' },
+		});
+		metadata = { ...metadata, ...first.metadata };
+
+		const fridaySameWeek = getStreakUsageStatsUpdate(
+			metadata,
+			monday1 + 4 * DAY
+		);
+		expect(
+			fridaySameWeek.events.some(
+				(event) => event.event === 'weekly_streak'
+			)
+		).toBe(false);
+
+		const monday2 = getStreakUsageStatsUpdate(metadata, monday1 + 7 * DAY);
+		expect(monday2.events).toContainEqual({
+			event: 'weekly_streak',
+			properties: { length: '2' },
+		});
+		metadata = { ...metadata, ...monday2.metadata };
+
+		const mondaySkippedWeek = getStreakUsageStatsUpdate(
+			metadata,
+			monday1 + 21 * DAY
+		);
+		expect(mondaySkippedWeek.events).toContainEqual({
+			event: 'weekly_streak',
+			properties: { length: '1' },
+		});
+	});
+
+	it('advances the monthly streak across a year boundary and resets on a skipped month', () => {
+		const december = Date.UTC(2025, 11, 15);
+		let metadata = {} as SiteMetadata;
+
+		const first = getStreakUsageStatsUpdate(metadata, december);
+		expect(first.events).toContainEqual({
+			event: 'monthly_streak',
+			properties: { length: '1' },
+		});
+		metadata = { ...metadata, ...first.metadata };
+
+		const january = getStreakUsageStatsUpdate(
+			metadata,
+			Date.UTC(2026, 0, 10)
+		);
+		expect(january.events).toContainEqual({
+			event: 'monthly_streak',
+			properties: { length: '2' },
+		});
+		metadata = { ...metadata, ...january.metadata };
+
+		const marchSkippedFebruary = getStreakUsageStatsUpdate(
+			metadata,
+			Date.UTC(2026, 2, 5)
+		);
+		expect(marchSkippedFebruary.events).toContainEqual({
+			event: 'monthly_streak',
+			properties: { length: '1' },
+		});
 	});
 });

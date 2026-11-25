@@ -86,7 +86,7 @@ GitHub リポジトリに保存されているテーマは、Blueprints を使�
 A theme stored in a GitHub repository can also be loaded in a Playground instance with Blueprints.
 -->
 
-[`installTheme` ブループリント ステップ](/blueprints/steps#InstallThemeStep)の`themeData`プロパティを使用して、Playgroundインスタンス内のリポジトリのファイルからテーマを構築する[`git:directory`リソース](/blueprints/steps/resources#gitdirectoryreference)を定義できます。
+[`installTheme` ブループリント ステップ](/blueprints/steps#InstallThemeStep)の`themeData`プロパティを使用して、Playgroundインスタンス内のリポジトリのファイルからテーマを構築する[`git:directory`リソース](https://developer.wordpress.org/playground/blueprints/steps/resources/#gitdirectoryreference)を定義できます。
 
 <!--
 With the `themeData` property of the [`installTheme` blueprint step](/blueprints/steps#InstallThemeStep), you can define a [`git:directory` resource](/blueprints/steps/resources#gitdirectoryreference) that will build a theme from the files from a repository in the Playground instance.

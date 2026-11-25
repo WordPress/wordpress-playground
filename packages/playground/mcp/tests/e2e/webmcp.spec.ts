@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 
 const test = base.extend<{ webmcpPage: Page }>({
 	webmcpPage: async ({ page }, use) => {
-		// WebMCP (navigator.modelContext) is only available in
+		// WebMCP (document.modelContext) is only available in
 		// Chrome 148+ Canary behind chrome://flags/#enable-webmcp-testing.
 		// Playwright uses a stock Chromium that doesn't
 		// expose the API, so we inject a mock before the page
@@ -20,7 +20,7 @@ const test = base.extend<{ webmcpPage: Page }>({
 
 			(window as any).__webmcpExecutors = {};
 
-			Object.defineProperty(navigator as any, 'modelContext', {
+			Object.defineProperty(document as any, 'modelContext', {
 				configurable: true,
 				value: {
 					get tools() {
@@ -30,7 +30,7 @@ const test = base.extend<{ webmcpPage: Page }>({
 						registeredTools.length = 0;
 						(window as any).__webmcpExecutors = {};
 					},
-					registerTool(
+					async registerTool(
 						tool: (typeof registeredTools)[0],
 						options?: { signal?: AbortSignal }
 					) {
@@ -120,6 +120,7 @@ test('WebMCP registers all tools', async ({ webmcpPage }) => {
 		'playground_get_current_url',
 		'playground_get_site_info',
 		'playground_get_website_url',
+		'playground_list_emails',
 		'playground_list_files',
 		'playground_list_sites',
 		'playground_mkdir',
@@ -130,6 +131,51 @@ test('WebMCP registers all tools', async ({ webmcpPage }) => {
 		'playground_save_in_browser',
 		'playground_write_file',
 	]);
+});
+
+test('WebMCP cleanup preserves other tools and allows registration again', async ({
+	webmcpPage,
+}) => {
+	const clientModule = `/website-server/@fs/${process.cwd()}/packages/playground/mcp/src/client.ts`;
+	const result = await webmcpPage.evaluate(async (modulePath) => {
+		const { registerWebMCPTools, unregisterWebMCPTools } = await import(
+			/* @vite-ignore */ modulePath
+		);
+		const registry = (document as any).modelContext;
+		await registry.registerTool({
+			name: 'other_tool',
+			description: 'An unrelated tool',
+			execute: async () => ({}),
+		});
+
+		unregisterWebMCPTools();
+		const afterCleanup = registry.tools.map(
+			(tool: { name: string }) => tool.name
+		);
+
+		await registerWebMCPTools({
+			list: () => [],
+			getClient: () => undefined,
+			rename: async () => {},
+			saveInBrowser: async () => ({ slug: 'site', storage: 'temporary' }),
+		});
+		const afterRegistration = registry.tools.map(
+			(tool: { name: string }) => tool.name
+		);
+		unregisterWebMCPTools();
+		return {
+			afterCleanup,
+			afterRegistration,
+			afterSecondCleanup: registry.tools.map(
+				(tool: { name: string }) => tool.name
+			),
+		};
+	}, clientModule);
+
+	expect(result.afterCleanup).toEqual(['other_tool']);
+	expect(result.afterRegistration).toContain('playground_get_site_info');
+	expect(result.afterRegistration).toContain('other_tool');
+	expect(result.afterSecondCleanup).toEqual(['other_tool']);
 });
 
 test('WebMCP playground_execute_php runs PHP code', async ({ webmcpPage }) => {

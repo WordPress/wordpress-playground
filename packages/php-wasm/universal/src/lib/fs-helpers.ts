@@ -152,7 +152,11 @@ export class FSHelpers {
 		if (options?.recursive) {
 			FSHelpers.listFiles(FS, path).forEach((file) => {
 				const filePath = `${path}/${file}`;
-				if (FSHelpers.isDir(FS, filePath)) {
+				// A directory link is an entry to unlink, not a tree to remove.
+				if (
+					!FSHelpers.isSymlink(FS, filePath) &&
+					FSHelpers.isDir(FS, filePath)
+				) {
 					FSHelpers.rmdir(FS, filePath, options);
 				} else {
 					FSHelpers.unlink(FS, filePath);

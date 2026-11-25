@@ -3,6 +3,7 @@ import { logger } from '@php-wasm/logger';
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { external } from '@wordpress/icons';
 import css from './style.module.css';
+import { getWordPressPopupUrl } from '../../../lib/wordpress-popup';
 import {
 	type PlaygroundClient,
 	type UniversalPHP,
@@ -27,6 +28,7 @@ async function installPhpMyAdmin(playground: PlaygroundClient) {
 	await runBlueprintV1Steps(blueprint, playground as UniversalPHP);
 }
 
+/** Install and open phpMyAdmin without moving WordPress into another storage partition. */
 export function PhpMyAdminButton({
 	playground,
 }: {
@@ -65,6 +67,7 @@ export function PhpMyAdminButton({
 		};
 	}, [playground]);
 
+	/** Open the installed tool through the matching WordPress browsing context. */
 	const handleOpenPhpMyAdmin = async () => {
 		if (!playground) {
 			return;
@@ -91,7 +94,9 @@ export function PhpMyAdminButton({
 		const playgroundUrl = await playground.absoluteUrl;
 		if (playgroundUrl) {
 			window.open(
-				`${playgroundUrl}${PHPMYADMIN_URL_PATH}${PHPMYADMIN_ENTRY_PATH}`,
+				getWordPressPopupUrl(
+					`${playgroundUrl}${PHPMYADMIN_URL_PATH}${PHPMYADMIN_ENTRY_PATH}`
+				),
 				'_blank',
 				'noopener,noreferrer'
 			);

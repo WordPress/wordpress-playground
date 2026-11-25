@@ -185,8 +185,8 @@
 	stroke: #fff;
 }
 
-/* Backup reminder — speech bubble pointing at the latch */
-.auto-backup-prompt {
+/* Site notices — speech bubble pointing at the latch */
+.site-prompt {
 	position: absolute;
 	bottom: calc(100% + 12px);
 	left: 8px;
@@ -203,10 +203,10 @@
 		-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 	font-size: 13px;
 	line-height: 1.4;
-	animation: auto-backup-prompt-in 0.2s ease;
+	animation: site-prompt-in 0.2s ease;
 }
 
-.auto-backup-prompt::after {
+.site-prompt::after {
 	content: '';
 	position: absolute;
 	top: 100%;
@@ -217,13 +217,13 @@
 	filter: drop-shadow(0 1px 0 #dcdcde);
 }
 
-.auto-backup-prompt-text {
+.site-prompt-text {
 	flex: 1;
 	margin: 0;
 	padding: 10px 4px 10px 12px;
 }
 
-.auto-backup-prompt-link {
+.site-prompt-link {
 	padding: 0;
 	border: none;
 	background: none;
@@ -233,11 +233,11 @@
 	cursor: pointer;
 }
 
-.auto-backup-prompt-link:hover {
+.site-prompt-link:hover {
 	color: #1e1e1e;
 }
 
-.auto-backup-prompt-dismiss {
+.site-prompt-dismiss {
 	flex: none;
 	padding: 6px 10px;
 	border: none;
@@ -249,11 +249,11 @@
 	cursor: pointer;
 }
 
-.auto-backup-prompt-dismiss:hover {
+.site-prompt-dismiss:hover {
 	color: #1e1e1e;
 }
 
-@keyframes auto-backup-prompt-in {
+@keyframes site-prompt-in {
 	from {
 		opacity: 0;
 		transform: translateY(4px);

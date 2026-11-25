@@ -381,7 +381,7 @@ Para patakbuhin ang code na iyon habang nagse-setup ng site, gamitin ang [`runPH
 
 ### I-import ang bagong content
 
-Gamitin natin ang [`importWxr` step](/blueprints/steps#ImportWXRStep) para mag-import ng WordPress export (`WXR`) file na tumutulong mag-test ng WordPress themes. Ang file ay available sa [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) repository, at maaari mong ma-access ito sa pamamagitan ng `raw.githubusercontent.com` address: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
+Gamitin natin ang [`importWxr` step](/blueprints/steps#ImportWxrStep) para mag-import ng WordPress export (`WXR`) file na tumutulong mag-test ng WordPress themes. Ang file ay available sa [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) repository, at maaari mong ma-access ito sa pamamagitan ng `raw.githubusercontent.com` address: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml).
 
 Ganito ang itsura ng final na Blueprint:
 

@@ -30,7 +30,9 @@ Você pode usar Blueprints de uma das seguintes maneiras:
 
 <!-- ## URL Fragment -->
 
-## Fragmento de URL
+<a id="fragmento-de-url"></a>
+
+## Fragmento de URL {#url-fragment}
 
 <!-- The easiest way to start using Blueprints is to paste one into the URL "fragment" on WordPress Playground website, e.g. `https://playground.wordpress.net/#{"preferredVersions...`. -->
 
@@ -283,7 +285,9 @@ Para saber mais sobre pacotes de Blueprint, consulte a documentação de
 
 <!-- ## JavaScript API -->
 
-## API JavaScript
+<a id="api-javascript"></a>
+
+## API JavaScript {#javascript-api}
 
 <!-- You can also use Blueprints with the JavaScript API using the `startPlaygroundWeb()` function from the `@wp-playground/client` package. Here's a small, self-contained example you can run on JSFiddle or CodePen: -->
 
