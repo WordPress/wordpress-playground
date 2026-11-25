@@ -51,7 +51,7 @@ When a browser exposes `document.modelContext`, playground.wordpress.net registe
 ## External MCP Server & CLI for Coding Agents
 
 - **Local CLI Server:** `npx @wp-playground/cli@latest server --auto-mount --login`
-- **MCP Bridge (`@wp-playground/mcp`):** `npx @wp-playground/mcp@latest` starts a local MCP server over stdio and WebSocket. Open Playground separately with a matching `?mcp-port=<port>` URL to connect the browser; the `playground_get_website_url` tool provides the exact URL.
+- For the **MCP bridge** (`@wp-playground/mcp`), use an MCP server version that matches the browser bridge in your Playground build. Open the URL returned by `playground_get_website_url` to connect. If the WebSocket connects but `playground_list_sites` stays empty, check for a version mismatch. For a matching local setup, [run the website and MCP server from the same checkout](https://github.com/WordPress/wordpress-playground/tree/trunk/packages/playground/mcp#development).
 
 ## Pull Request Previews and Git Resources
 
