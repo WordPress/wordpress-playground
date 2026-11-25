@@ -121,8 +121,8 @@ PLAYGROUND_RELEASE_ID=<id> ~/website-deployment/apply-update.sh \
 3. Renames the staging directory to `/srv/htdocs/releases/<id>/`.
 4. Records the complete root inventory and backs up every affected existing file under
    `~/website-backups/<id>/`, including files being removed. Records newly added files as absent.
-5. Replaces the root `custom-redirects.php`, copies the release's entry pages to
-   the web root, writes a root `/sw.js` that imports `/releases/<id>/sw.js`, and
+5. Replaces the root `custom-redirects.php`, copies the release's entry pages and
+   `favicon.ico` to the web root, writes a root `/sw.js` that imports `/releases/<id>/sw.js`, and
    writes `release.json` naming the release, previous release, installation time and owned root files.
    Removes root files dropped by the new release and their empty parent directories.
    Any activation error restores the snapshot and removes newly introduced files. Each file is replaced through a

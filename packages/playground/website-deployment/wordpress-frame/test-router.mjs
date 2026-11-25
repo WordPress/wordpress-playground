@@ -240,6 +240,7 @@ process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
 	}
 
 	const first = await makeBuild('A');
+	await writeFile(join(webRoot, 'favicon.ico'), 'old root icon');
 	await symlink('main.js', join(first, 'assets/alias.js'));
 	await install('A', first);
 	// PHP endpoints never enter the public tree, where Nginx would run them.
@@ -309,6 +310,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 			assert.equal((await request(path, host)).status, 200, path);
 		}
 	}
+	assert.equal(await (await request('/favicon.ico', app)).text(), 'icon A');
 	await assert.rejects(readFile(phpCalls)); // No static request reached PHP.
 
 	// The app host's missing paths keep the existing handler: no-store entry pages,
@@ -440,6 +442,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		'main A'
 	);
 	assert.equal(await (await request('/status.php', app)).text(), 'B');
+	assert.equal(await (await request('/favicon.ico', app)).text(), 'icon B');
 	assert.match(
 		await readFile(join(backups, 'B/remote.html'), 'utf8'),
 		/remote A$/
@@ -483,6 +486,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		rollback('previous', { PLAYGROUND_TEST_PURGE_FAILURE: '1' }),
 		failure('Fixture edge purge failed')
 	);
+	assert.equal(await (await request('/favicon.ico', app)).text(), 'icon A');
 	assert.equal(
 		JSON.parse(await readFile(join(webRoot, 'release.json'), 'utf8'))
 			.release,
@@ -717,6 +721,10 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	);
 	await assert.rejects(stat(join(webRoot, 'release.json')));
 	await assert.rejects(stat(join(webRoot, 'remote.html')));
+	assert.equal(
+		await readFile(join(webRoot, 'favicon.ico'), 'utf8'),
+		'old root icon'
+	);
 	await assert.rejects(stat(join(webRoot, 'new-page.html')));
 	assert.equal(
 		await readFile(join(backups, 'pending-edge-purge'), 'utf8'),
@@ -953,6 +961,7 @@ async function makeBuild(release, origins = [app, wordpress]) {
 			? { 'obsolete/page.html': 'obsolete' }
 			: { 'new-page.html': 'new page' }),
 		'sw.js': `// worker ${release}`,
+		'favicon.ico': `icon ${release}`,
 		'assets/main.js': `main ${release}`,
 		'assets/runtime.wasm': 'runtime',
 		'client/index.js': `sdk ${release}`,

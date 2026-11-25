@@ -186,6 +186,7 @@ function activate( $root, $backups, $release, $retention, $app_origin, $wordpres
 	$sources = array(
 		'custom-redirects.php' => "$private/public-entry.php",
 		'__wp__/index.php'     => __DIR__ . '/__wp__/index.php',
+		'favicon.ico'          => "$public/favicon.ico",
 	);
 	// Keep pages needing custom headers or routing on PHP. The shared predicate in
 	// custom-redirects-lib.php reads the existing rules instead of a second page list.
