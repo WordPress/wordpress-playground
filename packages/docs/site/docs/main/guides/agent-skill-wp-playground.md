@@ -49,6 +49,9 @@ node shared/scripts/skillpack-build.mjs --clean --targets=codex,vscode,claude,cu
 
 # Install into your WordPress project
 node shared/scripts/skillpack-install.mjs --dest=../your-wp-project --targets=codex,vscode,claude,cursor,antigravity
+
+# Go to your WordPress project
+cd ../your-wp-project
 ```
 
 This copies all skills, including `blueprint`, into:
@@ -174,4 +177,4 @@ Your coding agent reads the files it needs before generating commands, ensuring 
 
 - [WordPress Playground for Plugin Developers](/guides/for-plugin-developers) — Showcase and develop plugins with Playground
 - [WordPress Playground for Theme Developers](/guides/for-theme-developers) — Build and demo themes using Playground
-- [Upstream Playground documentation](https://wordpress.github.io/wordpress-playground/) — Full reference for APIs, architecture, and advanced configuration
+- [Playground documentation](/) — Full reference for APIs, architecture, and advanced configuration
