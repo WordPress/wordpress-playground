@@ -5,6 +5,8 @@ import type {
 	WorkerBootOptions,
 } from './playground-worker-endpoint';
 import { RELOAD_REQUIRED, RUNTIME_CLOSED } from './shared-runtime';
+import { basename, dirname } from '@php-wasm/util';
+import { isValidReleaseId } from './release-id';
 // @ts-ignore -- Resolved by Vite.
 import sharedWorkerUrl from './shared-playground-worker.ts?worker&url';
 
@@ -15,8 +17,13 @@ export type SharedRuntimeAPI = PlaygroundWorkerEndpoint & {
 };
 
 /**
- * Join this site's shared PHP worker using the build-configured WordPress origin.
- * Sandbox sessions use the HTTP helper, not a direct app-service-worker port.
+ * Connect this page to the site's shared PHP runtime instead of starting another
+ * runtime per tab. Personal WP and SDK clients can opt in with workerMode: 'shared';
+ * the main website uses dedicated workers. Hosted SDK clients use the remote build's
+ * release URLs too, so this connection must still find a previous release's worker.
+ * On an update, wait for the old runtime to finish work and save its files before
+ * connecting to the replacement, so two versions cannot write the site at once.
+ * Sandbox HTTP requests still use the bridge, not a direct app-service-worker port.
  */
 export async function connectSharedRuntime(
 	scope: string,
@@ -105,7 +112,7 @@ export async function connectSharedRuntime(
 		},
 	});
 
-	/** Keep sandbox HTTP on the helper path, including after a worker restart. */
+	/** Keep sandbox HTTP on the bridge path, including after a worker restart. */
 	const register = (serviceWorker: ServiceWorker) => {
 		if (wordPressSiteUrl !== playgroundOrigin) return;
 		if (retired) {
@@ -185,7 +192,9 @@ async function connectCurrentSharedWorker(
 		previous.url !== current.url ||
 		previous.name !== current.name
 	) {
-		// Without a recorded identity, probe the unversioned worker URL and name.
+		// SHARED_WORKER_NAME_COMPAT: see the deployment guide's removal checklist.
+		// Older Personal WP builds did not record a versioned worker name. Probe
+		// that name so an existing runtime can save and close before its replacement.
 		const retiring = previous ?? {
 			url: new URL(sharedWorkerUrl, location.href).href,
 			name: `playground:${scope}`,
@@ -226,9 +235,19 @@ function readSharedWorkerIdentity(
 			return;
 		const url = new URL(value.url);
 		const entrypoint = new URL(sharedWorkerUrl, location.href);
+		// A deploy changes the worker's directory. Find the previous runtime at
+		// its saved URL so it can save and close before a new runtime writes the site.
+		// Only accept the same worker filename at the root or /releases/<id>/;
+		// never start an unrelated script just because localStorage names it.
+		const previousDirectory = dirname(url.pathname);
+		const isKnownWorkerLocation =
+			basename(url.pathname) === basename(entrypoint.pathname) &&
+			(previousDirectory === '/' ||
+				(dirname(previousDirectory) === '/releases' &&
+					isValidReleaseId(basename(previousDirectory))));
 		if (
 			url.origin !== entrypoint.origin ||
-			url.pathname !== entrypoint.pathname
+			(url.pathname !== entrypoint.pathname && !isKnownWorkerLocation)
 		)
 			return;
 		return value;

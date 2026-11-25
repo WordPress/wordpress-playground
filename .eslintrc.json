@@ -4,7 +4,7 @@
 	"plugins": ["@nx", "playground-dev"],
 	"overrides": [
 		{
-			"files": ["*.ts", "*.tsx", "*.js", "*.jsx"],
+			"files": ["*.ts", "*.mts", "*.tsx", "*.js", "*.jsx"],
 			"extends": ["plugin:comment-length/recommended"],
 			"rules": {
 				"@nx/enforce-module-boundaries": [
@@ -71,7 +71,7 @@
 			}
 		},
 		{
-			"files": ["*.ts", "*.tsx"],
+			"files": ["*.ts", "*.mts", "*.tsx"],
 			"extends": ["plugin:@nx/typescript"],
 			"rules": {
 				"@typescript-eslint/ban-ts-comment": 0,

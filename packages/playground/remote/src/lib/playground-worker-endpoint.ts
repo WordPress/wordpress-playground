@@ -27,7 +27,7 @@ import {
 	LatestMinifiedWordPressVersion,
 	MinifiedWordPressVersions,
 } from '@wp-playground/wordpress-builds';
-import { playgroundOrigin, wordPressSiteUrl } from './config';
+import { playgroundOrigin, wordPressSiteUrl, releaseBase } from './config';
 import {
 	backfillStaticFilesRemovedFromMinifiedBuild,
 	hasCachedStaticFilesRemovedFromMinifiedBuild,
@@ -166,7 +166,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 		});
 	}
 
-	/** Give PHP the same public WordPress origin used by its iframe and HTTP helper. */
+	/** Give PHP the same public WordPress origin used by its iframe and HTTP bridge. */
 	protected computeSiteUrl(scope: string) {
 		return setURLScope(wordPressSiteUrl, scope).toString();
 	}
@@ -433,12 +433,14 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	 * WordPress version. A saved site may contain a different version than requested;
 	 * using the requested version could select the wrong public asset directory.
 	 *
-	 * Older saved sites may lack wordpress-remote-asset-paths. Fetch that list from
-	 * the installed version's directory on the shared app origin and save it in the
-	 * site's files. The WordPress host serves virtual site pages, not these platform
-	 * downloads. Add the listed paths to the set used by createRequestHandler() to
-	 * distinguish omitted static files from normal WordPress 404s. If recovery fails,
-	 * log a warning and continue startup without the missing list.
+	 * Minified WordPress omits static files from its ZIP. wordpress-remote-asset-paths
+	 * tells createRequestHandler() which missing files to download, rather than
+	 * treating them as normal WordPress 404s. Older saved sites can lack this list;
+	 * this recovery also runs without a deployment. Fetch it for the installed WP
+	 * version from this app build's release directory and save it with the site.
+	 * Release URLs matter when reopening a saved site after an app deployment:
+	 * its list and asset pack must come from files that deployment actually serves.
+	 * If recovery fails, log a warning and continue startup without the missing list.
 	 */
 	protected async finalizeAfterBoot(
 		requestHandler: any,
@@ -484,13 +486,20 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 			!primaryPhp.fileExists(remoteAssetListPath)
 		) {
 			const listUrl = new URL(
-				joinPaths(wpStaticAssetsDir, 'wordpress-remote-asset-paths'),
+				joinPaths(
+					releaseBase,
+					wpStaticAssetsDir,
+					'wordpress-remote-asset-paths'
+				),
 				playgroundOrigin
 			);
 			try {
-				const remoteAssetPaths = await fetch(listUrl).then((res) =>
-					res.text()
-				);
+				const response = await fetch(listUrl);
+				// Reject error pages instead of saving them as asset paths. The catch
+				// below logs the failure and lets startup continue without this list;
+				// leaving the file absent allows the next boot to try again.
+				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+				const remoteAssetPaths = await response.text();
 				primaryPhp.writeFile(remoteAssetListPath, remoteAssetPaths);
 			} catch {
 				logger.warn(
@@ -535,6 +544,7 @@ export abstract class PlaygroundWorkerEndpoint extends PHPWorker {
 	 */
 	async getWordPressModuleDetails() {
 		return {
+			releaseBase,
 			majorVersion:
 				this.loadedWordPressVersion || this.requestedWordPressVersion,
 			staticAssetsDirectory: this.loadedWordPressVersion

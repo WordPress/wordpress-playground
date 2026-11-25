@@ -38,12 +38,29 @@ export async function cachedDownload(
 	cacheKey: string,
 	monitor: EmscriptenDownloadMonitor
 ) {
-	const artifactPath = path.join(CACHE_FOLDER, cacheKey);
+	const artifactPath = getCachePath(cacheKey);
 	if (!fs.existsSync(artifactPath)) {
 		fs.ensureDirSync(CACHE_FOLDER);
 		await downloadTo(remoteUrl, artifactPath, monitor);
 	}
 	return readAsFile(artifactPath);
+}
+
+/**
+ * Returns the path of a file directly inside CACHE_FOLDER.
+ *
+ * Cache file names are derived from WordPress versions, so anything other
+ * than a plain file name is rejected rather than joined into a native path.
+ */
+export function getCachePath(fileName: string) {
+	if (
+		!/^[A-Za-z0-9._-]+$/.test(fileName) ||
+		fileName === '.' ||
+		fileName === '..'
+	) {
+		throw new Error(`Invalid cache file name: ${JSON.stringify(fileName)}`);
+	}
+	return path.join(CACHE_FOLDER, fileName);
 }
 
 async function downloadTo(
@@ -52,6 +69,11 @@ async function downloadTo(
 	monitor: EmscriptenDownloadMonitor
 ) {
 	const response = await monitor.monitorFetch(fetch(remoteUrl));
+	if (!response.ok) {
+		throw new Error(
+			`Failed to download ${remoteUrl}: ${response.status} ${response.statusText}`.trim()
+		);
+	}
 	const reader = response.body!.getReader();
 	const tmpPath = `${localPath}.partial`;
 	const writer = fs.createWriteStream(tmpPath);
