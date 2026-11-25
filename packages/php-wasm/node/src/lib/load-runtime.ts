@@ -23,6 +23,10 @@ import {
 } from './extensions/load-extensions';
 import { dirname, joinPaths, toPosixPath } from '@php-wasm/util';
 import { jspi } from 'wasm-feature-detect';
+import {
+	createOpenSslConfigPreRunStep,
+	DEFAULT_OPENSSL_CONF_PATH,
+} from './openssl-config';
 
 export interface PHPLoaderOptions {
 	followSymlinks?: boolean;
@@ -168,6 +172,14 @@ export async function loadNodeRuntime(
 		);
 	}
 
+	const callerPreRun = normalizePreRunHooks(
+		(options.emscriptenOptions as any)?.preRun
+	);
+	const defaultPreRun = [
+		createOpenSslConfigPreRunStep(),
+		...(isLegacy ? [createLegacyPhpIniPreRunStep()] : []),
+	];
+
 	let emscriptenOptions: EmscriptenOptions = {
 		/**
 		 * Emscripten default behavior is to kill the process when
@@ -184,20 +196,15 @@ export async function loadNodeRuntime(
 			return bindUserSpace({ fileLockManager }, userSpaceContext);
 		},
 		...(options.emscriptenOptions || {}),
+		ENV: {
+			OPENSSL_CONF: DEFAULT_OPENSSL_CONF_PATH,
+			...(options.emscriptenOptions?.ENV || {}),
+		},
 		phpWasmAsyncMode,
 		processId,
-		// For legacy PHP: pre-create php.ini via a preRun step. See
-		// createLegacyPhpIniPreRunStep for why this must run before
-		// the PHP SAPI starts. Merge with any caller-provided preRun
-		// hooks (the spread above may have set them).
-		...(isLegacy
-			? {
-					preRun: [
-						createLegacyPhpIniPreRunStep(),
-						...((options.emscriptenOptions as any)?.preRun ?? []),
-					],
-				}
-			: {}),
+		// Seed runtime config files before PHP SAPI startup while keeping any
+		// caller-provided preRun hooks authoritative by running them afterwards.
+		preRun: [...defaultPreRun, ...callerPreRun],
 		onRuntimeInitialized: (phpRuntime: PHPRuntime) => {
 			// Node.js omits "." and ".." from readdirSync(), unlike MEMFS and native PHP.
 			const nodeFs = phpRuntime.FS.filesystems.NODEFS;
@@ -407,4 +414,14 @@ function hasBuiltInExtension(
 		}
 		return !('source' in extension) && extension.name === name;
 	});
+}
+
+function normalizePreRunHooks(preRun: unknown): Array<(module: any) => void> {
+	if (Array.isArray(preRun)) {
+		return preRun;
+	}
+	if (typeof preRun === 'function') {
+		return [preRun as (module: any) => void];
+	}
+	return [];
 }
