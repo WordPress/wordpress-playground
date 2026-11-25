@@ -229,9 +229,9 @@ jobs:
             kind: plugin
 ```
 
-<!-- Use `kind: theme` for one theme ZIP. For multiple ZIPs or extra setup steps, use a custom `blueprint:` as shown in [Built artifacts with a custom blueprint](#built-artifacts-with-a-custom-blueprint). -->
+<!-- Use `kind: theme` for one theme ZIP. For multiple ZIPs or extra setup steps, use a custom `blueprint:` instead of `kind`, as shown in [Built artifacts with a custom blueprint](#built-artifacts-with-a-custom-blueprint). -->
 
-एक थीम ZIP के लिए `kind: theme` उपयोग करें। कई ZIP या सेटअप के अतिरिक्त चरणों के लिए, कस्टम `blueprint:` उपयोग करें, जैसा [कस्टम Blueprint के साथ बने आर्टिफ़ैक्ट](#built-artifacts-with-a-custom-blueprint) में दिखाया गया है।
+एक थीम ZIP के लिए `kind: theme` उपयोग करें। कई ZIP या सेटअप के अतिरिक्त चरणों के लिए, `kind` की जगह कस्टम `blueprint:` उपयोग करें, जैसा [कस्टम Blueprint के साथ बने आर्टिफ़ैक्ट](#built-artifacts-with-a-custom-blueprint) में दिखाया गया है।
 
 <!-- Open a pull request. The build workflow runs your build command. After it succeeds, the publish workflow creates or updates the `ci-artifacts` prerelease, uploads the built ZIP, and adds a Preview button to the PR description. -->
 
@@ -353,9 +353,9 @@ jobs:
                 ( cd build && zip -qr my-plugin.zip my-plugin )
 ```
 
-<!-- Then put `blueprint` under `jobs.publish.with` in `.github/workflows/pr-preview-publish.yml`: -->
+<!-- Then, in `.github/workflows/pr-preview-publish.yml`, put `blueprint` under `jobs.publish.with` in place of `kind`. The publish workflow accepts exactly one of `kind`, `blueprint`, and `blueprint-from-artifact`: -->
 
-फिर `.github/workflows/pr-preview-publish.yml` में `blueprint` को `jobs.publish.with` के अंदर रखें:
+फिर `.github/workflows/pr-preview-publish.yml` में `jobs.publish.with` के अंदर `kind` की जगह `blueprint` रखें। पब्लिश वर्कफ़्लो `kind`, `blueprint` और `blueprint-from-artifact` में से ठीक एक ही इनपुट स्वीकार करता है:
 
 ```yaml
 jobs:

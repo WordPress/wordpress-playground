@@ -152,7 +152,7 @@ jobs:
             kind: plugin
 ```
 
-Use `kind: theme` for one theme ZIP. For multiple ZIPs or extra setup steps, use a custom `blueprint:` as shown in [Built artifacts with a custom blueprint](#built-artifacts-with-a-custom-blueprint).
+Use `kind: theme` for one theme ZIP. For multiple ZIPs or extra setup steps, use a custom `blueprint:` instead of `kind`, as shown in [Built artifacts with a custom blueprint](#built-artifacts-with-a-custom-blueprint).
 
 Open a pull request. The build workflow runs your build command. After it succeeds, the publish workflow creates or updates the `ci-artifacts` prerelease, uploads the built ZIP, and adds a Preview button to the PR description.
 
@@ -244,7 +244,7 @@ jobs:
                 ( cd build && zip -qr my-plugin.zip my-plugin )
 ```
 
-Then put `blueprint` under `jobs.publish.with` in `.github/workflows/pr-preview-publish.yml`:
+Then, in `.github/workflows/pr-preview-publish.yml`, put `blueprint` under `jobs.publish.with` in place of `kind`. The publish workflow accepts exactly one of `kind`, `blueprint`, and `blueprint-from-artifact`:
 
 ```yaml
 jobs:
