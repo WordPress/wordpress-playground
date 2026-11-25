@@ -49,6 +49,9 @@ node shared/scripts/skillpack-build.mjs --clean --targets=codex,vscode,claude,cu
 
 # Install into your WordPress project
 node shared/scripts/skillpack-install.mjs --dest=../your-wp-project --targets=codex,vscode,claude,cursor,antigravity
+
+# Go to your WordPress project
+cd ../your-wp-project
 ```
 
 This copies all skills, including `blueprint`, into:
