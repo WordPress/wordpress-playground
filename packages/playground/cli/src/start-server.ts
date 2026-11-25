@@ -29,6 +29,12 @@ export interface ServerOptions {
 	 * Handler for requests. Always returns StreamedPHPResponse.
 	 */
 	handleRequest: (request: PHPRequest) => Promise<StreamedPHPResponse>;
+	/**
+	 * Make the forwarded port public when running in GitHub Codespaces.
+	 * Codespaces ports are private by default, so only the codespace owner
+	 * can reach them.
+	 */
+	codespacesPublicPort?: boolean;
 }
 
 export function isPortInUse(port: number): Promise<boolean> {
@@ -98,11 +104,18 @@ export async function startServer(
 	const address = server.address();
 	const port = (address! as AddressInfo).port;
 
-	// Codespaces ports default to private, breaking CORS.
-	// Publish once the tunnel is ready.
+	// Codespaces ports default to private. Publishing one exposes the site to
+	// anyone with the URL, so only do it on request.
 	const codespaceName = process.env['CODESPACE_NAME'];
 	if (codespaceName) {
-		setCodespacesPortPublic(port, codespaceName);
+		if (options.codespacesPublicPort) {
+			setCodespacesPortPublic(port, codespaceName);
+		} else {
+			logger.log(
+				`Playground does not change the visibility of port ${port}. To make it public, run: ` +
+					`gh codespace ports visibility ${port}:public -c ${codespaceName}`
+			);
+		}
 	}
 
 	try {

@@ -49,7 +49,7 @@ The screenshots below use translation files as examples, but the same GitHub con
 3. If GitHub asks you to fork the repository, follow the prompt. This creates a copy under your GitHub account.
 4. Make your changes in the editor.
 
-![Editing a documentation file in GitHub](/img/contributing/editing-translations.webp)
+![Editing a documentation file in GitHub](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editing-translations.webp)
 
 GitHub's web editor is best for small, focused changes. If your update is large or needs local preview, use the local workflow in [Documentation contributions](/contributing/documentation).
 
@@ -63,7 +63,7 @@ GitHub's web editor is best for small, focused changes. If your update is large 
    If you are comfortable editing another file, you can also add the page to
    [`packages/docs/site/sidebars.js`](https://github.com/WordPress/wordpress-playground/blob/trunk/packages/docs/site/sidebars.js).
 
-![Creating a new documentation file in GitHub](/img/contributing/adding-file-github-ui.webp)
+![Creating a new documentation file in GitHub](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/adding-file-github-ui.webp)
 
 For new English documentation pages, add front matter at the top of the file:
 
@@ -83,10 +83,10 @@ Keep the original English content in a comment above the translation so reviewer
 ## Review your changes
 
 Before submitting, use the **Preview** tab in GitHub to check basic Markdown formatting. This is not
-a full Docusaurus preview, so also review links and images carefully. Site-relative paths such as
-`/img/contributing/example.webp` may not behave the same way in GitHub's Markdown preview.
+a full Docusaurus preview, so also review links and images carefully. For screenshots, use the raw
+GitHub URL of the committed image so it also loads in the WordPress.org handbook.
 
-![Editing content in the GitHub web editor](/img/contributing/editor-github-ui.webp)
+![Editing content in the GitHub web editor](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/contributing/editor-github-ui.webp)
 
 Look for:
 

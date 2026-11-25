@@ -724,19 +724,6 @@ async function addDirectoryEntries(
 	}
 }
 
-export async function deleteDirectory(path: string) {
-	let parentDirHandle = await navigator.storage.getDirectory();
-
-	const pathParts = path.split('/').filter((p) => p.length > 0);
-	const targetName = pathParts.pop();
-
-	for (const part of pathParts) {
-		parentDirHandle = await parentDirHandle.getDirectoryHandle(part);
-	}
-
-	await parentDirHandle.removeEntry(targetName!, { recursive: true });
-}
-
 const lastWriteByPath = new Map<string, Promise<void>>();
 
 /**
