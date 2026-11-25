@@ -101,7 +101,10 @@ For example, the following code embeds a Playground with a preinstalled Gutenber
 Por exemplo, o código a seguir incorpora um Playground com o plugin Gutenberg pré-instalado e abre o editor de posts:
 
 ```html
-<iframe src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"> </iframe>
+<iframe
+	src="https://playground.wordpress.net/?plugin=gutenberg&url=/wp-admin/post-new.php&mode=seamless"
+>
+</iframe>
 ```
 
 <!--
@@ -208,16 +211,16 @@ use a [flag `--php-extension`](/developers/local-development/wp-playground-cli#l
 **Política de CORS**
 
 <!--
-To import files from a URL, such as a site zip package or PHP extension
-manifest and `.so` artifact, they must be served with the
-`Access-Control-Allow-Origin` header set. For reference, see:
+When Playground imports a file from another origin, such as a site ZIP, PHP
+extension manifest, or `.so` artifact, the server must send an
+`Access-Control-Allow-Origin` header that allows the Playground origin. See
 [Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
 -->
 
-Para importar arquivos de uma URL, como um pacote zip de site ou o manifesto e
-o artefato `.so` de uma extensão PHP, eles devem ser servidos com o cabeçalho
-`Access-Control-Allow-Origin` configurado. Para referência, veja:
-[Cross-Origin Resource Sharing (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
+Quando o Playground importa um arquivo de outra origem, como um ZIP de site,
+um manifesto de extensão PHP ou um artefato `.so`, o servidor precisa enviar um
+cabeçalho `Access-Control-Allow-Origin` que permita a origem do Playground.
+Consulte [Compartilhamento de recursos entre origens (CORS)](https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS#the_http_response_headers).
 
 </div>
 

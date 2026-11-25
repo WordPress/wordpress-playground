@@ -9,7 +9,7 @@ description: Discover the different ways to use Blueprints, including via URL fr
 You can use Blueprints in one of the following ways:
 
 - Open **New → Blueprint gallery** in the Playground Dock and choose an example.
-- Open **New → Blueprint URL** and enter a public Blueprint JSON or ZIP bundle URL.
+- Open **New → From a URL** and enter a public Blueprint JSON or ZIP bundle URL.
 - Open **New → Write a Blueprint** to author a Blueprint in the browser.
 - Open **Blueprint** to inspect or edit the current Playground's Blueprint.
 - Pass a Blueprint as a URL fragment.

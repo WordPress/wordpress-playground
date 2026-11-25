@@ -143,13 +143,13 @@ Isso se chama [Query API](/developers/apis/query-api/) e você pode saber mais s
 
 <!--
 Click the **Autosaved** or **Unsaved** status in the Dock to open **Store
-permanently**, then choose **Save in browser storage**.
+permanently**, choose **Save in browser storage**, and click **Save**.
 
 ![The Store permanently pane with browser storage selected](/img/dock/store-permanently-browser.webp)
 -->
 
 Clique no status **Autosaved** ou **Unsaved** no Dock para abrir **Store
-permanently** e escolha **Save in browser storage**.
+permanently**, escolha **Save in browser storage** e clique em **Save**.
 
 ![O painel Store permanently com o armazenamento do navegador selecionado](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/store-permanently-browser.webp)
 

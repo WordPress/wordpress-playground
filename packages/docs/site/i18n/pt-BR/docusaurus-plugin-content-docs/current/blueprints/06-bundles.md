@@ -72,10 +72,10 @@ Blueprint bundles can be distributed in various formats:
 -->
 
 <!--
-The WordPress Playground website supports Blueprint bundles through **New → Blueprint URL** in the Dock or through the `?blueprint-url=` query parameter. You can provide a URL to a ZIP file containing your Blueprint bundle:
+The WordPress Playground website supports Blueprint bundles through **New → From a URL** in the Dock or through the `?blueprint-url=` query parameter. You can provide a URL to a ZIP file containing your Blueprint bundle:
 -->
 
-O site do WordPress Playground aceita pacotes de Blueprint por **New → Blueprint URL** no Dock ou pelo parâmetro de consulta `?blueprint-url=`. Você pode informar a URL de um arquivo ZIP com o seu pacote de Blueprint:
+O site do WordPress Playground aceita pacotes de Blueprint por **New → From a URL** no Dock ou pelo parâmetro de consulta `?blueprint-url=`. Você pode informar a URL de um arquivo ZIP com o seu pacote de Blueprint:
 
 ```
 https://playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint-bundle.zip

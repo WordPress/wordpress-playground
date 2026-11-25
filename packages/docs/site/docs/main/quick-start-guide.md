@@ -62,7 +62,7 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 ## Store a Playground in browser storage
 
 Click the **Autosaved** or **Unsaved** status in the Dock to open **Store
-permanently**, then choose **Save in browser storage**.
+permanently**, choose **Save in browser storage**, and click **Save**.
 
 ![The Store permanently pane with browser storage selected](/img/dock/store-permanently-browser.webp)
 

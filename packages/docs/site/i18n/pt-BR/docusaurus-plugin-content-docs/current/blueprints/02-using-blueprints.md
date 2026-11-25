@@ -18,7 +18,7 @@ Você pode usar Blueprints de uma das seguintes maneiras:
 
 <!--
 - Open **New → Blueprint gallery** in the Playground Dock and choose an example.
-- Open **New → Blueprint URL** and enter a public Blueprint JSON or ZIP bundle URL.
+- Open **New → From a URL** and enter a public Blueprint JSON or ZIP bundle URL.
 - Open **New → Write a Blueprint** to author a Blueprint in the browser.
 - Open **Blueprint** to inspect or edit the current Playground's Blueprint.
 - Pass a Blueprint as a URL fragment.
@@ -32,7 +32,7 @@ When the Playground URL includes the `mcp-port` parameter, Playground rejects Bl
 -->
 
 - Abra **New → Blueprint gallery** no Dock do Playground e escolha um exemplo.
-- Abra **New → Blueprint URL** e insira a URL pública de um Blueprint JSON ou de um pacote ZIP.
+- Abra **New → From a URL** e insira a URL pública de um Blueprint JSON ou de um pacote ZIP.
 - Abra **New → Write a Blueprint** para criar um Blueprint no navegador.
 - Abra **Blueprint** para inspecionar ou editar o Blueprint do Playground atual.
 - Passe um Blueprint como fragmento de URL.

@@ -1,7 +1,7 @@
 ---
-title: How to run Blueprints
+title: Como executar Blueprints
 slug: /blueprints/tutorial/how-to-load-run-blueprints
-description: Learn the various methods for loading and running Blueprints, including using a URL fragment or the blueprint-url parameter.
+description: Conheça as diferentes maneiras de carregar e executar Blueprints, incluindo o uso de um fragmento de URL ou do parâmetro `blueprint-url`.
 ---
 
 <!--
@@ -16,7 +16,7 @@ description: Learn the various methods for loading and running Blueprints, inclu
 The easiest way to run a Blueprint from the website is through the Dock:
 
 - Open **New → Blueprint gallery** to choose an example.
-- Open **New → Blueprint URL** to run a public Blueprint JSON or ZIP bundle URL.
+- Open **New → From a URL** to run a public Blueprint JSON or ZIP bundle URL.
 - Open **New → Write a Blueprint** to write a Blueprint in the browser.
 - Open **Blueprint** to inspect or edit the current Playground's Blueprint.
 
@@ -30,7 +30,7 @@ See [Using Blueprints](/blueprints/using-blueprints) for the full list of UI pat
 A maneira mais fácil de executar um Blueprint pelo site é usar o Dock:
 
 - Abra **New → Blueprint gallery** para escolher um exemplo.
-- Abra **New → Blueprint URL** para executar uma URL pública de Blueprint JSON ou de pacote ZIP.
+- Abra **New → From a URL** para executar uma URL pública de Blueprint JSON ou de pacote ZIP.
 - Abra **New → Write a Blueprint** para escrever um Blueprint no navegador.
 - Abra **Blueprint** para inspecionar ou editar o Blueprint do Playground atual.
 
