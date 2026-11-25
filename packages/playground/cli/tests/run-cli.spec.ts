@@ -1545,6 +1545,57 @@ describe('start command', () => {
 		}
 	}, 180000);
 
+	test('turns off default auto-login when making the Codespaces port public', async () => {
+		vi.stubEnv('CODESPACE_NAME', 'test-codespace');
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-test-codespaces-public-')
+		);
+		const pluginDir = path.join(tmpDir, 'sample-plugin');
+		mkdirSync(pluginDir, { recursive: true });
+		writeFileSync(
+			path.join(pluginDir, 'sample-plugin.php'),
+			`<?php\n/*\nPlugin Name: Sample Plugin\n*/\n`
+		);
+		// `start` stores the site under a hash of the working directory.
+		const sitePath = path.join(
+			os.homedir(),
+			'.wordpress-playground/sites',
+			createHash('sha256').update(tmpDir).digest('hex')
+		);
+		const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+		try {
+			await using cliResult = (await parseOptionsAndRunCLI([
+				'start',
+				`--path=${pluginDir}`,
+				'--skip-browser',
+				'--quiet',
+				'--codespaces-public-port',
+			])) as CLIServerResult;
+			const { serverUrl } = cliResult[internalsKeyForTesting].cliServer;
+
+			const getWpAdmin = () =>
+				new Promise<http.IncomingMessage>((resolve, reject) => {
+					// http.get() exposes redirect responses; fetch() follows them.
+					http.get(new URL('/wp-admin/', serverUrl), (res) => {
+						res.resume();
+						resolve(res);
+					}).on('error', reject);
+				});
+			// The first request only clears a stale auto-login cookie.
+			await getWpAdmin();
+			const res = await getWpAdmin();
+
+			expect(res.statusCode).toBe(302);
+			expect(res.headers['location']).toContain('/wp-login.php');
+		} finally {
+			vi.unstubAllEnvs();
+			cwdSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true, force: true });
+			rmSync(sitePath, { recursive: true, force: true });
+		}
+	}, 180000);
+
 	test('does not expose v2 --mode on the start command', async () => {
 		const tmpDir = await mkdtemp(
 			path.join(tmpdir(), 'playground-test-start-existing-wp-')

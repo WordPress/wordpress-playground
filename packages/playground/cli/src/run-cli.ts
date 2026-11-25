@@ -437,6 +437,15 @@ export async function parseOptionsAndRunCLI(
 					return n;
 				},
 			},
+			'codespaces-public-port': {
+				describe:
+					'In GitHub Codespaces, make the forwarded port public so anyone ' +
+					'with the URL can open the site without signing in to GitHub. ' +
+					"Turns off the start command's default auto-login unless " +
+					'--login is passed.',
+				type: 'boolean',
+				default: false,
+			},
 			'experimental-multi-worker': {
 				deprecated:
 					'Use --workers=<n|auto> instead. The value of this flag is ignored.',
@@ -486,7 +495,7 @@ export async function parseOptionsAndRunCLI(
 			login: {
 				describe: 'Auto-login as the admin user.',
 				type: 'boolean',
-				default: true,
+				defaultDescription: 'true',
 			},
 			xdebug: {
 				describe: 'Enable Xdebug for debugging.',
@@ -539,6 +548,8 @@ export async function parseOptionsAndRunCLI(
 			'php-ini': sharedOptions['php-ini'],
 			// Tools
 			phpmyadmin: sharedOptions['phpmyadmin'],
+			'codespaces-public-port':
+				serverOnlyOptions['codespaces-public-port'],
 		};
 
 		const buildSnapshotOnlyOptions: Record<string, YargsOptions> = {
@@ -569,6 +580,9 @@ export async function parseOptionsAndRunCLI(
 								'  wp-playground start --no-auto-mount    # Disable auto-detection'
 						)
 						.options(startCommandOptions)
+						.middleware((argv) => {
+							argv['login'] ??= !argv['codespaces-public-port'];
+						}, true)
 			)
 			.command(
 				'server',
@@ -841,6 +855,7 @@ export interface RunCLIArgs {
 	command: 'start' | 'server' | 'run-blueprint' | 'build-snapshot' | 'php';
 	debug?: boolean;
 	login?: boolean;
+	codespacesPublicPort?: boolean;
 	mount?: Mount[];
 	'mount-before-install'?: Mount[];
 	outfile?: string;
@@ -1080,6 +1095,24 @@ export async function runCLI(
 		});
 	}
 
+	if (args.codespacesPublicPort) {
+		if (!process.env['CODESPACE_NAME']) {
+			cliOutput.printWarning(
+				'--codespaces-public-port has no effect outside GitHub Codespaces.'
+			);
+		} else {
+			cliOutput.printWarning(
+				'The forwarded port will be public. Anyone with its URL can open ' +
+					'this site without signing in to GitHub, and WordPress can ' +
+					'write to any mounted host directories.' +
+					(args.login
+						? ' Auto-login is on, so every visitor is signed in as ' +
+							'an administrator.'
+						: '')
+			);
+		}
+	}
+
 	const selectedPort = args.command === 'server' ? (args.port ?? 9400) : 0;
 
 	// Declare file lock manager outside scope of startServer
@@ -1095,6 +1128,7 @@ export async function runCLI(
 			: !(await isPortInUse(selectedPort))
 				? selectedPort
 				: 0,
+		codespacesPublicPort: args.codespacesPublicPort,
 		onBind: async (server: Server, port: number) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;
