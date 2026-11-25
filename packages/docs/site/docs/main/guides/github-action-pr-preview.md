@@ -347,7 +347,7 @@ When reviewing the result, check that:
 
 **The publish workflow run is `startup_failure` with no logs:** The reusable publish workflow needs `contents: write` and `pull-requests: write`. Grant those permissions to the publish job, either with a top-level `permissions:` block that the job inherits or with `jobs.publish.permissions:`. The example above includes both so later workflow edits cannot accidentally narrow the publish job permissions.
 
-**Button not appearing:** The workflow file must exist on the default branch before it runs on PRs. Check the Actions tab for errors and confirm the calling workflow grants `pull-requests: write`.
+**Button not appearing:** In the build-step setup, the publish workflow must exist on the default branch, because `workflow_run` only starts workflows from there. Check the Actions tab for errors and confirm the calling workflow grants `pull-requests: write`.
 
 **`Resource not accessible by integration`:** The workflow calling the action cannot write to the pull request. For same-repository PRs, add `permissions: pull-requests: write`. For public fork PRs, use the two-workflow build-step setup.
 
