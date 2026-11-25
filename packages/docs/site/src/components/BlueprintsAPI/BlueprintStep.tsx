@@ -1,4 +1,6 @@
 import React from 'react';
+import Link from '@docusaurus/Link';
+import Heading from '@theme/Heading';
 import { getStepAPI } from './model';
 import { BlueprintStepRunButton } from './BlueprintStepRunButton';
 import { BlueprintStepTabbedExample } from './BlueprintStepTabbedExample';
@@ -9,25 +11,17 @@ export default function BlueprintStep({ name }) {
 	const stepApi = getStepAPI(name);
 	return (
 		<section className="margin-vert--md markdown">
-			<h2 className="anchor anchorWithStickyNavbar_blueprint" id={name}>
+			<Heading
+				as="h2"
+				className="anchorWithStickyNavbar_blueprint"
+				id={name}
+			>
+				<Link
+					id={stepApi.stepId}
+					className="anchorWithStickyNavbar_blueprint"
+				/>
 				{stepApi.stepId}
-				<a
-					href={`#${name}`}
-					className="hash-link"
-					aria-label={`Direct link to ${name}`}
-					title={`Direct link to ${name}`}
-				>
-					​
-				</a>
-				<a
-					href={`#${stepApi.stepId}`}
-					className="hash-link"
-					aria-label={`Direct link to ${stepApi.stepId}`}
-					title={`Direct link to ${stepApi.stepId}`}
-				>
-					​
-				</a>
-			</h2>
+			</Heading>
 			<BlueprintStepDescription name={name} />
 
 			<h3>Parameters</h3>

@@ -14,7 +14,9 @@ description: Un guide sur la façon de contribuer à la documentation de Playgro
 Toutes les issues liées à la documentation sont étiquetées [`[Type] Documentation`](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Documentation%22) ou [`[Type] Developer Documentation`](https://github.com/WordPress/wordpress-playground/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22%5BType%5D%20Developer%20Documentation%22) dans le dépôt [WordPress/wordpress-playground](https://github.com/WordPress/wordpress-playground). Parcourez la liste des issues ouvertes pour en trouver une sur laquelle vous aimeriez travailler. Alternativement, si vous pensez qu'il manque quelque chose à la documentation actuelle, ouvrez une issue pour discuter de votre suggestion.
 
 <!--## How can I contribute?-->
-## Comment puis-je contribuer ?
+<a id="comment-puis-je-contribuer-"></a>
+
+## Comment puis-je contribuer ? {#how-can-i-contribute}
 
 <!--You can contribute by [opening an issue in the project repository](https://github.com/WordPress/wordpress-playground/issues/new) and describing what you'd like to add or change.-->
 Vous pouvez contribuer en [ouvrant une issue dans le dépôt du projet](https://github.com/WordPress/wordpress-playground/issues/new) et en décrivant ce que vous aimeriez ajouter ou modifier.

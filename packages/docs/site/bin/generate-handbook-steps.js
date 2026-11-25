@@ -63,14 +63,12 @@ for (const entry of steps) {
 	if (!step) {
 		throw new Error(`No step ID found for ${entry.name}`);
 	}
-	lines.push(
-		`<a id="${entry.name}"></a>`,
-		'',
-		`## ${step}`,
-		'',
-		summary(entry.comment),
-		''
-	);
+	lines.push(`<a id="${entry.name}"></a>`, '');
+	// The handbook lowercases heading IDs, so keep the original step ID linkable.
+	if (step !== step.toLowerCase()) {
+		lines.push(`<a id="${step}"></a>`, '');
+	}
+	lines.push(`## ${step}`, '', summary(entry.comment), '');
 	const parameters = properties.filter(
 		(property) => property.name !== 'step'
 	);

@@ -39,21 +39,6 @@ function getBundlePath(siteSlug: string): string {
 }
 
 /**
- * Check if a site has a persisted blueprint bundle.
- */
-export async function hasBlueprintBundle(siteSlug: string): Promise<boolean> {
-	try {
-		const backend = await OpfsFilesystemBackend.fromPath(
-			getBundlePath(siteSlug)
-		);
-		const files = await backend.listFiles('/');
-		return files.length > 0;
-	} catch {
-		return false;
-	}
-}
-
-/**
  * Copies a Blueprint bundle into a site's OPFS directory.
  *
  * The returned backend points to the copied bundle. Callers creating a site can

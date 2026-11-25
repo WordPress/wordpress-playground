@@ -75,7 +75,6 @@ There's a set of redirections in place to make it easier the access to some of t
 - [Synchronization between two Playgrounds](https://playground.wordpress.net/demos/sync.html)
 - [Time Travel](https://playground.wordpress.net/demos/time-traveling.html)
 - [WP-CLI](https://playground.wordpress.net/demos/wp-cli.html)
-- [PHP implementation of Blueprints](https://playground.wordpress.net/demos/php-blueprints.html)
 -->
 
 ## ওয়ার্ডপ্রেস প্লেগ্রাউন্ড দিয়ে তৈরি অ্যাপ {#apps-built-with-wordpress-playground}
@@ -93,7 +92,6 @@ There's a set of redirections in place to make it easier the access to some of t
 - [দুটি প্লেগ্রাউন্ডের মধ্যে সিনক্রোনাইজেশন](https://playground.wordpress.net/demos/sync.html)
 - [টাইম ট্রাভেল](https://playground.wordpress.net/demos/time-traveling.html)
 - [WP-CLI](https://playground.wordpress.net/demos/wp-cli.html)
-- [ব্লুপ্রিন্টের PHP ইমপ্লিমেন্টেশন](https://playground.wordpress.net/demos/php-blueprints.html)
 
 <!--
 ## Reading materials

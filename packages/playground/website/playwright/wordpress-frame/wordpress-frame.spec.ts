@@ -11,12 +11,23 @@ import { test, expect } from '@playwright/test';
 import type { Frame, Page } from '@playwright/test';
 import { getURLScope, setURLScope } from '@php-wasm/scopes';
 import { createServer } from 'node:http';
+import { readFile, writeFile } from 'node:fs/promises';
+import { joinPaths } from '@php-wasm/util';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path';
 import {
 	appOrigin as root,
 	wordPressOrigin as wpOrigin,
 } from '../../bin/wordpress-frame/origins.mjs';
+
+/** Match the WordPress bridge at its static release path or a versioned alias. */
+function isWordPressBridgeFrame(url: string) {
+	const { pathname } = new URL(url);
+	return (
+		isWordPressBridgePath(pathname) ||
+		/^\/releases\/[^/]+\/wordpress-bridge\.html$/.test(pathname)
+	);
+}
 
 // These checks create saved sites and inspect shared download counters.
 test.describe.configure({ mode: 'default' });
@@ -152,50 +163,74 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		}
 	});
 
-	test('cached app HTML uses the sandbox in a referrer-free embed', async ({
+	// Keep the real /api.html URL: a made-up cache URL takes the asset-cache path
+	// and violates the entry's path check. This exercises network-first fallback
+	// and the public SDK handshake in an external, referrer-free iframe. Make the
+	// PHP fallback return 503 so we test a real HTTP failure, without routing mocks
+	// that may not apply to a service worker's own fetch().
+	test('a cached API entry still connects in a referrer-free embed when HTTP fails', async ({
 		page,
 	}) => {
 		const url = new URL('/', external);
-		url.searchParams.set('target', root + '/?wp=6.9&php=8.3&storage=temp');
+		url.searchParams.set('target', root + '/remote.html');
+		url.searchParams.set('no-referrer', '1');
+		url.searchParams.set('sdk', 'web');
 		await page.goto(url.href);
-		const app = await (await page
-			.locator('#embed')
-			.elementHandle())!.contentFrame();
-		await ready(app!);
-		const api = new URL('/api.html', root);
-		expect(await probeFramedAPI(page, api.href, 10000)).toBe(true);
+		await page.waitForFunction(() => (window as any).clientReady);
+		const app = page
+			.frames()
+			.find((frame) => frame.url().startsWith(root + '/remote.html'))!;
+		await page.evaluate(async (appOrigin) => {
+			const { startPlaygroundAPI } = await import(
+				appOrigin + '/client/index.js'
+			);
+			(window as any).connectCachedAPI = async () => {
+				document.querySelector('#cached-api')?.remove();
+				const iframe = document.createElement('iframe');
+				iframe.id = 'cached-api';
+				iframe.referrerPolicy = 'no-referrer';
+				document.body.append(iframe);
+				const client = await startPlaygroundAPI({
+					iframe,
+					apiUrl: appOrigin + '/api.html',
+				});
+				await client.isReady();
+			};
+			await (window as any).connectCachedAPI();
+		}, root);
 		await expect
 			.poll(() =>
-				app!.evaluate(async () => {
-					return Boolean(
+				app.evaluate(async () =>
+					Boolean(
 						await caches.match(
 							new URL('/api.html', window.location.origin).href,
-							{ ignoreSearch: true }
+							{
+								ignoreSearch: true,
+							}
 						)
-					);
-				})
+					)
+				)
 			)
 			.toBe(true);
-		// Use a cache-only URL so this checks replayed HTML without relying on the
-		// browser's offline emulation to permit service-worker navigations.
-		api.pathname = '/cached-api.html';
-		expect((await page.request.get(api.href)).status()).toBe(404);
-		await app!.evaluate(async (cachedUrl) => {
-			for (const name of await caches.keys()) {
-				const cache = await caches.open(name);
-				const response = await cache.match(
-					new URL('/api.html', window.location.origin).href,
-					{ ignoreSearch: true }
-				);
-				if (response) {
-					await cache.put(cachedUrl, response);
-					return;
-				}
-			}
-			throw new Error('The real API document was not cached');
-		}, api.href);
-		// The cached API document must work with the same unchanged no-referrer URL.
-		expect(await probeFramedAPI(page, api.href, 10000)).toBe(true);
+
+		const webRoot = joinPaths(
+			__dirname,
+			'../../../../../dist/packages/playground/website-preview'
+		);
+		const entryFile = joinPaths(webRoot, 'custom-redirects.php');
+		const entryPHP = await readFile(entryFile);
+		try {
+			await writeFile(entryFile, '<?php http_response_code(503);');
+			// APIRequestContext bypasses service workers and confirms HTTP really fails.
+			expect((await page.request.get(root + '/api.html')).status()).toBe(
+				503
+			);
+			await test.step('connect the API again using cached HTML', async () => {
+				await page.evaluate(() => (window as any).connectCachedAPI());
+			});
+		} finally {
+			await writeFile(entryFile, entryPHP);
+		}
 	});
 
 	test('WordPress cannot read existing parent documents, OPFS or API connections', async ({
@@ -264,12 +299,10 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			)
 		).toBe(404);
 
-		const helper = remote
+		const bridge = remote
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
-		await helper.evaluate(async (appOrigin) => {
+			.find((frame) => isWordPressBridgeFrame(frame.url()))!;
+		await bridge.evaluate(async (appOrigin) => {
 			const scope = new URL(window.location.href).searchParams.get(
 				'scope'
 			);
@@ -294,31 +327,29 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		).toBe(false);
 	});
 
-	test('a WordPress cache entry cannot replace another Playground request helper', async ({
+	test("a WordPress cache entry cannot replace another site's WordPress bridge", async ({
 		page,
 		context,
 	}) => {
 		await page.goto('/?wp=6.9&php=8.3&storage=temp');
-		await poisonHelperCache(await ready(page));
+		await poisonBridgeCache(await ready(page));
 
 		const other = await context.newPage();
 		await other.goto(root + '/?wp=6.9&php=8.3&storage=temp');
 		const wp = await ready(other);
-		const helper = wp
+		const bridge = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
+			.find((frame) => isWordPressBridgeFrame(frame.url()))!;
 		expect(
-			await helper.evaluate(() =>
-				Boolean((window as any).cachedHelperExecuted)
+			await bridge.evaluate(() =>
+				Boolean((window as any).cachedBridgeExecuted)
 			)
 		).toBe(false);
 		await other.close();
 	});
 
-	test('offline startup ignores poisoned WordPress helper cache entries', async ({
+	test('offline startup ignores poisoned WordPress bridge cache entries', async ({
 		page,
 		context,
 		browserName,
@@ -331,20 +362,18 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		await ready(page);
 		// Cache documents first fetched before the app service worker took control.
 		await page.reload();
-		await poisonHelperCache(await ready(page));
+		await poisonBridgeCache(await ready(page));
 
 		await context.setOffline(true);
 		await page.reload();
 		const wp = await ready(page);
-		const helper = wp
+		const bridge = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
+			.find((frame) => isWordPressBridgeFrame(frame.url()))!;
 		expect(
-			await helper.evaluate(() =>
-				Boolean((window as any).cachedHelperExecuted)
+			await bridge.evaluate(() =>
+				Boolean((window as any).cachedBridgeExecuted)
 			)
 		).toBe(false);
 		await page.evaluate(() =>
@@ -1394,38 +1423,36 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	}
 
 	/**
-	 * Model a WordPress plugin replacing cached helper HTML with its own script.
+	 * Model a WordPress plugin replacing cached bridge HTML with its own script.
 	 *
-	 * Prepend a visible execution marker to the real helper, keeping its normal
-	 * request connection working. A broken helper or boot timeout must not pass
+	 * Prepend a visible execution marker to the real bridge, keeping its normal
+	 * request connection working. A broken bridge or boot timeout must not pass
 	 * as protection against the injected script. Replace matching entries in every
 	 * existing cache, including older releases, and create an attacker-named cache:
 	 * user code on the WordPress origin can write all of them, not just its own.
 	 */
-	async function poisonHelperCache(wp: Frame) {
-		const helper = wp
+	async function poisonBridgeCache(wp: Frame) {
+		const bridge = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
-		const helperPath = new URL(helper.url()).pathname;
-		await wp.evaluate(async (helperPath) => {
-			const url = new URL(helperPath, window.location.origin).href;
+			.find((frame) => isWordPressBridgeFrame(frame.url()))!;
+		const bridgePath = new URL(bridge.url()).pathname;
+		await wp.evaluate(async (bridgePath) => {
+			const url = new URL(bridgePath, window.location.origin).href;
 			const response = await fetch(url, {
 				referrerPolicy: 'no-referrer',
 			});
 			if (!response.ok)
-				throw new Error('The real request helper did not load');
-			// Keep the real helper working so a timeout cannot mask execution of the injected script.
+				throw new Error('The real WordPress bridge did not load');
+			// Keep the real bridge working so a timeout cannot mask execution of the injected script.
 			const html =
-				'<script>window.cachedHelperExecuted = true;</script>' +
+				'<script>window.cachedBridgeExecuted = true;</script>' +
 				(await response.text());
 			const names = new Set(['attacker-cache', ...(await caches.keys())]);
 			for (const name of names) {
 				const cache = await caches.open(name);
 				const keys = (await cache.keys()).filter(
-					(key) => new URL(key.url).pathname === helperPath
+					(key) => new URL(key.url).pathname === bridgePath
 				);
 				for (const key of [url, ...keys]) {
 					await cache.put(
@@ -1436,76 +1463,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 					);
 				}
 			}
-		}, helperPath);
-	}
-
-	/**
-	 * Check that an embedded app API can complete its normal isReady() handshake.
-	 *
-	 * Create the iframe below the supplied page or frame with no referrer and no
-	 * extra origin parameter, as existing integrations may do. Retry the legacy
-	 * APPLY message while the document boots; only this iframe's reply for the
-	 * generated request ID counts as success. Remove the iframe and timers on
-	 * success or timeout. A timeout returns false; it does not explain why boot
-	 * failed, so these embed-compatibility checks require a successful handshake.
-	 */
-	async function probeFramedAPI(
-		parent: Page | Frame,
-		apiUrl: string,
-		timeoutMs: number
-	) {
-		return await parent.evaluate(
-			async ({ apiUrl, timeoutMs, origin }) => {
-				const iframe = document.createElement('iframe');
-				iframe.hidden = true;
-				iframe.referrerPolicy = 'no-referrer';
-				iframe.src = apiUrl;
-				const id = crypto.randomUUID();
-				return await new Promise<boolean>((resolve) => {
-					const interval = setInterval(
-						() =>
-							iframe.contentWindow?.postMessage(
-								{
-									id,
-									type: 'APPLY',
-									path: ['isReady'],
-									argumentList: [],
-								},
-								origin
-							),
-						100
-					);
-					const timeout = setTimeout(() => finish(false), timeoutMs);
-					window.addEventListener('message', onMessage);
-					document.body.append(iframe);
-
-					/**
-					 * Match the reply to this iframe, app origin, and request ID.
-					 * Other Playground frames also send API messages during boot;
-					 * accepting one of those would hide a broken embedded API.
-					 */
-					function onMessage(event: MessageEvent) {
-						if (
-							event.source === iframe.contentWindow &&
-							event.origin === origin &&
-							event.data?.id === id &&
-							event.data.type === 'RAW'
-						)
-							finish(true);
-					}
-
-					/** Stop probing and remove the listener and temporary iframe on either outcome. */
-					function finish(connected: boolean) {
-						clearInterval(interval);
-						clearTimeout(timeout);
-						window.removeEventListener('message', onMessage);
-						iframe.remove();
-						resolve(connected);
-					}
-				});
-			},
-			{ apiUrl, timeoutMs, origin: root }
-		);
+		}, bridgePath);
 	}
 
 	/**
@@ -1515,7 +1473,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	 * WordPress origin with a /scope:... path. A browser error page can also deny
 	 * parent access; treating that as a loaded site would make security checks pass
 	 * when the real HTTP connection was broken. Read the frame from the visible
-	 * viewport element so hidden request helpers are not mistaken for WordPress.
+	 * viewport element so hidden WordPress bridges are not mistaken for WordPress.
 	 */
 	async function ready(page: Page | Frame): Promise<Frame> {
 		await page.waitForFunction(() =>

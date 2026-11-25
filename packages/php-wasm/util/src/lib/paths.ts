@@ -77,6 +77,23 @@ export function resolvePathUnder(path: string, parentPath: string) {
 }
 
 /**
+ * Joins a path to a root directory and returns the result only when it
+ * stays inside that root.
+ *
+ * Unlike `resolvePathUnder()`, the path is always relative to the root,
+ * even with a leading slash, and the root itself is a valid result.
+ * This matches how a web server maps a URL path to its document root.
+ *
+ * @param root The directory the result must stay in.
+ * @param path The path to join to the root.
+ * @returns The normalized path, or undefined when it is outside the root.
+ */
+export function joinPathUnderRoot(root: string, path: string) {
+	const joinedPath = normalizePath(joinPaths(root, path));
+	return isParentOf(root, joinedPath) ? joinedPath : undefined;
+}
+
+/**
  * Returns the directory name of a path.
  *
  * @param path

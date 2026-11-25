@@ -996,6 +996,8 @@ echo $wp_env['db']['type'] === 'sqlite'
 	results.push({
 		wp,
 		php,
+		consoleErrors,
+		frameUrls: page.frames().map((frame) => frame.url()),
 		front: frontStatus,
 		post: postStatus,
 		admin: adminStatus,
@@ -1055,6 +1057,8 @@ if (failures.length > 0) {
 	console.log(`${'='.repeat(70)}`);
 	for (const r of failures) {
 		console.log(`\n--- WP ${r.wp} (PHP ${r.php}) ---`);
+		console.log('Browser errors:', r.consoleErrors);
+		console.log('Frame URLs:', r.frameUrls);
 		for (const p of PHASES) {
 			const s = r[p];
 			if (!s || isPass(s) || isSkip(s)) continue;

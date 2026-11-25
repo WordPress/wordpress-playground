@@ -53,7 +53,7 @@ All translated documentation pages are located within the `packages/docs/site/i1
 For a language to work correctly, its file structure must mirror the original English documentation found in `packages/docs/site/docs`.
 
 For example, the Spanish (es) translation for `docs/main/intro.md` must be placed at:
-packages`/docs/site/i18n/es/docusaurus-plugin-content-docs/current/main/intro.md`.
+`packages/docs/site/i18n/es/docusaurus-plugin-content-docs/current/main/intro.md`.
 
 If a translated file does not exist for a specific language, Docusaurus will automatically fall back to the English version of that page.
 
@@ -105,7 +105,7 @@ All languages are available once the i18n setup for a language is complete and t
 - https://wordpress.github.io/wordpress-playground/es/
 - https://wordpress.github.io/wordpress-playground/fr/
 
-Assuming the `fr` language is the first language with the Documentation hub pages (Quick Start Guide, Playground web instance, About Playground, Guides,... ) completely translated to French, the `docusaurus.config.js` should look like this in that branch so `npm run build:docs` properly generate the `fr` subsite and only displays the french language in the `localeDropdown` language switcher.
+Assuming the `fr` language is the first language with the Documentation hub pages (Quick Start Guide, Playground web instance, About Playground, Guides,... ) completely translated to French, the `docusaurus.config.js` should look like this in that branch so `npm run build:docs` properly generates the `fr` subsite and only displays the French language in the `localeDropdown` language switcher.
 
 ```
   {
@@ -145,7 +145,7 @@ Follow these steps to translate a page:
 - Check if you have the latest version of the documentation
 - Copy the original .md file from `packages/docs/site/docs/...` to the corresponding path in the language directory (e.g., `packages/docs/site/i18n/<LANGUAGE_CODE>/...`). It is crucial to replicate the original file structure.
 - Translate the content of the new file, keeping the original content commented out `<!-- English Content -->`.
-- The assets are listed at `packages/docs/site/static/img/` only place assets inside the translation folder when it requires localized content.
+- The assets are listed at `packages/docs/site/static/img/`. Only place assets inside the translation folder when they require localized content.
 - Once the translations are ready, check if the docs build script is running properly `npm run build:docs`.
 
 4. **Create a pull request with your changes**
@@ -182,20 +182,31 @@ You can use the following markdown in your tracking issue:
   - [ ] contributor-day.md
   - [ ] contributor-day-table-lead.md
   - [ ] documentation.md
+  - [ ] github-ui.md
   - [ ] index.md
   - [ ] releases.md
   - [ ] translations.md
 - guides
+  - [ ] agent-skill-wp-playground.md
+  - [ ] ai-assistants-mcp.md
+  - [ ] e2e-testing-with-playwright.md
   - [ ] for-plugin-developers.md
   - [ ] for-theme-developers.md
   - [ ] github-action-pr-preview.md
+  - [ ] import-content-with-blueprints.md
   - [ ] index.md
+  - [ ] php-code-snippets.md
+  - [ ] php-frameworks.md
+  - [ ] phpunit-testing.md
+  - [ ] playground-for-everyone.md
+  - [ ] programmatic-playground-cli.md
   - [ ] providing-content-for-your-demo.md
   - [ ] wordpress-native-ios-app.md
 - [ ] changelog.md
 - [ ] intro.md
 - [ ] quick-start-guide.md
 - [ ] resources.md
+- [ ] troubleshooting.md
 - [ ] web-instance.md
 
 </details>
@@ -242,17 +253,24 @@ You can use the following markdown in your tracking issue:
     - [ ] 04-blueprint-json-in-api-client.md
     - [ ] 05-blueprint-functions-in-api-client.md
     - [ ] 06-mount-data.md
+    - [ ] 07-php-extensions.md
+    - [ ] 08-build-php-extensions.md
+    - [ ] 09-php-extension-dependencies.md
   - query-api
+    - [ ] 01-index.md
+  - sites-api
     - [ ] 01-index.md
 - 07-xdebug
   - [ ] 01-introduction.md
   - [ ] 02-getting-started.md
+  - [ ] 03-trace-and-profile.md
 - 23-architecture
   - [ ] 01-index.md
   - [ ] 02-wasm-php-overview.md
   - [ ] 03-wasm-php-compiling.md
   - [ ] 04-wasm-php-javascript-module.md
   - [ ] 05-wasm-php-filesystem.md
+  - [ ] 06-php-wasm-packages.md
   - [ ] 07-wasm-asyncify.md
   - [ ] 08-browser-concepts.md
   - [ ] 09-browser-tab-orchestrates-execution.md
@@ -350,4 +368,4 @@ This practice also helps the maintenance team identify outdated translations. Wh
 
 To find a reviewer fluent in the language of your PR, you can post a request on the [Make WordPress Polyglots blog](https://make.wordpress.org/polyglots/). Be sure to include the locale tag (e.g., #ja for Japanese) to notify the appropriate General Translation Editors (GTEs).
 
-When the PR is merged, the translated version of that page should appear under `https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}`, if you are contributing for the first time request your [Contributor Badge](/contributing/contributor-badge).
+When the PR is merged, the translated version of that page should appear under `https://wordpress.github.io/wordpress-playground/{%LANGUAGE%}`. If you are contributing for the first time, request your [Contributor Badge](/contributing/contributor-badge).
