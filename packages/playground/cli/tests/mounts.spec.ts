@@ -1,6 +1,18 @@
 import path from 'node:path';
-import { describe, expect, test } from 'vitest';
-import { expandAutoMounts } from '../src/mounts';
+import { tmpdir } from 'node:os';
+import {
+	mkdirSync,
+	mkdtempSync,
+	realpathSync,
+	rmSync,
+	symlinkSync,
+	writeFileSync,
+} from 'node:fs';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { loadNodeRuntime } from '@php-wasm/node';
+import { PHP } from '@php-wasm/universal';
+import { RecommendedPHPVersion } from '@wp-playground/common';
+import { expandAutoMounts, mountResources } from '../src/mounts';
 import type { RunCLIArgs } from '../src';
 
 describe('expandAutoMounts', () => {
@@ -95,6 +107,7 @@ describe('expandAutoMounts', () => {
 					),
 					vfsPath: '/wordpress/wp-content/plugins',
 					autoMounted: true,
+					followSymlinks: false,
 				},
 				{
 					hostPath: path.join(
@@ -103,6 +116,7 @@ describe('expandAutoMounts', () => {
 					),
 					vfsPath: '/wordpress/wp-content/themes',
 					autoMounted: true,
+					followSymlinks: false,
 				},
 			]);
 			const steps = result['additional-blueprint-steps'];
@@ -132,6 +146,7 @@ describe('expandAutoMounts', () => {
 					),
 					vfsPath: '/wordpress/wp-content/themes',
 					autoMounted: true,
+					followSymlinks: false,
 				},
 			]);
 		});
@@ -152,8 +167,50 @@ describe('expandAutoMounts', () => {
 					),
 					vfsPath: '/wordpress/wp-content/mu-plugins',
 					autoMounted: true,
+					followSymlinks: false,
 				},
 			]);
+		});
+
+		describe('with a symlinked child', () => {
+			let hostTmpDir: string;
+			let wpContentPath: string;
+			let symlinkPath: string;
+
+			beforeEach(() => {
+				hostTmpDir = realpathSync(
+					mkdtempSync(path.join(tmpdir(), 'playground-test-mount-'))
+				);
+				wpContentPath = path.join(hostTmpDir, 'foo');
+				symlinkPath = path.join(wpContentPath, 'plugins');
+				mkdirSync(wpContentPath);
+				mkdirSync(path.join(hostTmpDir, 'bar'));
+				symlinkSync(path.join(hostTmpDir, 'bar'), symlinkPath);
+			});
+
+			afterEach(() => {
+				rmSync(hostTmpDir, { recursive: true, force: true });
+			});
+
+			test('should reject the symlink without followSymlinks', () => {
+				expect(() =>
+					expandAutoMounts(createBasicArgs(wpContentPath))
+				).toThrow(symlinkPath);
+			});
+
+			test('should mount the symlink with followSymlinks', () => {
+				const result = expandAutoMounts({
+					...createBasicArgs(wpContentPath),
+					followSymlinks: true,
+				});
+
+				expect(result.mount).toContainEqual({
+					hostPath: symlinkPath,
+					vfsPath: '/wordpress/wp-content/plugins',
+					autoMounted: true,
+					followSymlinks: true,
+				});
+			});
 		});
 	});
 
@@ -379,4 +436,44 @@ describe('expandAutoMounts', () => {
 			expect(result.outfile).toBe('custom.zip');
 		});
 	});
+});
+
+describe('mountResources', () => {
+	let hostTmpDir: string;
+	let symlinkPath: string;
+	let php: PHP;
+
+	beforeEach(async () => {
+		hostTmpDir = mkdtempSync(path.join(tmpdir(), 'playground-test-mount-'));
+		symlinkPath = path.join(hostTmpDir, 'foo');
+		mkdirSync(path.join(hostTmpDir, 'bar'));
+		writeFileSync(path.join(hostTmpDir, 'bar', 'baz.txt'), 'baz');
+		symlinkSync(path.join(hostTmpDir, 'bar'), symlinkPath);
+		php = new PHP(await loadNodeRuntime(RecommendedPHPVersion));
+	});
+
+	afterEach(() => {
+		php.exit();
+		rmSync(hostTmpDir, { recursive: true, force: true });
+	});
+
+	test('should reject an auto-mounted symlink without followSymlinks', async () => {
+		await expect(
+			mountResources(php, [
+				{ hostPath: symlinkPath, vfsPath: '/qux', autoMounted: true },
+			])
+		).rejects.toThrow(symlinkPath);
+		expect(php.fileExists('/qux')).toBe(false);
+	});
+
+	test.each([{ autoMounted: true, followSymlinks: true }, {}])(
+		'should mount a symlink with %o',
+		async (options) => {
+			await mountResources(php, [
+				{ hostPath: symlinkPath, vfsPath: '/qux', ...options },
+			]);
+
+			expect(php.readFileAsText('/qux/baz.txt')).toBe('baz');
+		}
+	);
 });

@@ -222,6 +222,49 @@ describe.each([true, false])(
 			}
 		});
 
+		it('Keeps later mounts when a NODEFS source becomes a symlink before runtime recreation', async () => {
+			const recreateRuntimeSpy = vitest.fn(recreateRuntime);
+
+			const php = new PHP(await recreateRuntime());
+			php.enableRuntimeRotation({
+				recreateRuntime: recreateRuntimeSpy,
+				maxRequests: 1,
+			});
+
+			const tempDir = fs.realpathSync(
+				fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'))
+			);
+			const fooDir = path.join(tempDir, 'foo');
+			const barDir = path.join(tempDir, 'bar');
+			const bazDir = path.join(tempDir, 'baz');
+			fs.mkdirSync(fooDir);
+			fs.mkdirSync(barDir);
+			fs.mkdirSync(bazDir);
+			fs.writeFileSync(path.join(barDir, 'bar.txt'), 'bar');
+			fs.writeFileSync(path.join(bazDir, 'baz.txt'), 'baz');
+
+			try {
+				await php.mount(
+					'/foo',
+					createNodeFsMountHandler(fooDir, { followSymlinks: false })
+				);
+				await php.mount('/bar', createNodeFsMountHandler(barDir));
+
+				await php.run({ code: `` });
+				fs.rmdirSync(fooDir);
+				fs.symlinkSync(bazDir, fooDir);
+
+				await expect(php.run({ code: `` })).resolves.toBeDefined();
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
+
+				expect(php.fileExists('/foo/baz.txt')).toBe(false);
+				expect(php.readFileAsText('/bar/bar.txt')).toBe('bar');
+			} finally {
+				fs.rmSync(tempDir, { recursive: true, force: true });
+				php.exit();
+			}
+		});
+
 		it('Preserves 4 WordPress plugin mounts through PHP runtime recreation', async () => {
 			// Rotate the PHP runtime
 			const recreateRuntimeSpy = vitest.fn(recreateRuntime);

@@ -62,6 +62,18 @@ describe('Mounting', () => {
 		}
 	});
 
+	it('Should reject a symlinked local source path when followSymlinks is false', async () => {
+		await expect(
+			php.mount(
+				directoryMountPoint,
+				createNodeFsMountHandler(testSymlinkedDataPath, {
+					followSymlinks: false,
+				})
+			)
+		).rejects.toThrow(testSymlinkedDataPath);
+		expect(php.isDir(directoryMountPoint)).toBe(false);
+	});
+
 	it('Should include dot entries when PHP scans an empty mounted directory', async () => {
 		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'temp-'));
 		const unmount = await php.mount(

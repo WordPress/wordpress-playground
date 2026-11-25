@@ -535,6 +535,7 @@ export async function parseOptionsAndRunCLI(
 			'define-bool': sharedOptions['define-bool'],
 			'define-number': sharedOptions['define-number'],
 			'php-ini': sharedOptions['php-ini'],
+			'follow-symlinks': sharedOptions['follow-symlinks'],
 			// Tools
 			phpmyadmin: sharedOptions['phpmyadmin'],
 		};
