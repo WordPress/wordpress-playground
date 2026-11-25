@@ -1,4 +1,5 @@
 import Ajv from 'ajv';
+import { makePortableSchema } from '../../../bin/make-portable-schema';
 import publicSchema from '../../../public/blueprint-schema.json';
 import blueprintV2Validator from '../../../public/blueprint-v2-schema-validator';
 import { validateBlueprintDeclaration } from '../../lib/validate-blueprint-declaration';
@@ -33,7 +34,7 @@ describe('public Blueprint schema', () => {
 	it.each([
 		['v1', { landingPage: '/wp-admin/' }],
 		[
-			'v1 Performance Lab (Weston’s strict-mode reproduction)',
+			'v1 with $schema, plugins, and login',
 			{
 				$schema:
 					'https://playground.wordpress.net/blueprint-schema.json',
@@ -144,12 +145,12 @@ describe('public Blueprint schema', () => {
 		['array', [], false],
 		['object', {}, false],
 	])('preserves constant validation for %s values', (_type, value, valid) => {
-		for (const blueprint of [
-			{ constants: { EXAMPLE: value } },
-			{ version: 2, constants: { EXAMPLE: value } },
-		]) {
-			expect(publicBlueprintValidator(blueprint)).toBe(valid);
-		}
+		const v1Blueprint = { constants: { EXAMPLE: value } };
+		const v2Blueprint = { version: 2, constants: { EXAMPLE: value } };
+		expect(publicBlueprintValidator(v1Blueprint)).toBe(valid);
+		expect(validateBlueprint(v1Blueprint).valid).toBe(valid);
+		expect(publicBlueprintValidator(v2Blueprint)).toBe(valid);
+		expect(blueprintV2Validator(v2Blueprint)).toBe(valid);
 	});
 
 	it.each([
@@ -159,12 +160,12 @@ describe('public Blueprint schema', () => {
 		[true, false],
 		['unknown', false],
 	])('preserves enum constraints for template_lock=%s', (value, valid) => {
-		expect(
-			publicBlueprintValidator({
-				version: 2,
-				postTypes: { book: { template_lock: value } },
-			})
-		).toBe(valid);
+		const blueprint = {
+			version: 2,
+			postTypes: { book: { template_lock: value } },
+		};
+		expect(publicBlueprintValidator(blueprint)).toBe(valid);
+		expect(blueprintV2Validator(blueprint)).toBe(valid);
 	});
 
 	it.each([
@@ -178,10 +179,172 @@ describe('public Blueprint schema', () => {
 		{ version: 2, blueprintMeta: { homepage: 'https://?' } },
 		{ version: 2, blueprintMeta: { homepage: 'https://#' } },
 		{ version: 2, pluginz: [] },
+		{
+			version: 2,
+			content: [
+				{
+					type: 'wxr',
+					source: 'https://example.com/content.wxr',
+				},
+			],
+		},
+		{
+			version: 2,
+			content: [
+				{
+					type: 'wxr',
+					source: 'https://example.com/content.wxr',
+					authorsMode: 'map',
+					authorsMap: { oldAuthor: 'admin' },
+				},
+			],
+		},
+		{
+			version: 2,
+			content: [
+				{
+					type: 'wxr',
+					source: 'https://example.com/content.wxr',
+					authorsMode: 'map',
+				},
+			],
+		},
+		{
+			version: 2,
+			content: [
+				{
+					type: 'unknown',
+					source: 'https://example.com/content.wxr',
+				},
+			],
+		},
+		{
+			version: 2,
+			additionalStepsAfterExecution: [
+				{
+					step: 'activatePlugin',
+					pluginPath: 'akismet/akismet.php',
+				},
+			],
+		},
+		{
+			version: 2,
+			additionalStepsAfterExecution: [{ step: 'unknownStep' }],
+		},
 	])('agrees with the dedicated v2 validator', (blueprint) => {
 		expect(publicBlueprintValidator(blueprint)).toBe(
 			blueprintV2Validator(blueprint)
 		);
+	});
+});
+
+describe('makePortableSchema', () => {
+	it('preserves property and definition names named discriminator', () => {
+		const schema = {
+			type: 'object',
+			discriminator: { propertyName: 'kind' },
+			properties: {
+				discriminator: {
+					type: ['string', 'number'],
+				},
+			},
+			required: ['discriminator'],
+			additionalProperties: false,
+			definitions: {
+				discriminator: {
+					type: ['boolean'],
+				},
+			},
+		};
+
+		const portable = makePortableSchema(schema);
+		expect(portable).not.toHaveProperty('discriminator');
+		expect(portable).toMatchObject({
+			properties: {
+				discriminator: {
+					anyOf: [{ type: 'string' }, { type: 'number' }],
+				},
+			},
+			definitions: {
+				discriminator: {
+					type: 'boolean',
+				},
+			},
+		});
+
+		const validate = new Ajv({ strict: true }).compile(portable);
+		expect(validate({ discriminator: 'ok' })).toBe(true);
+		expect(validate({ discriminator: 42 })).toBe(true);
+		expect(validate({ discriminator: true })).toBe(false);
+	});
+
+	it('preserves literal data keywords without rewriting nested keys', () => {
+		const schema = {
+			type: 'object',
+			default: {
+				discriminator: { propertyName: 'step' },
+				type: ['string', 'number'],
+			},
+			const: {
+				discriminator: 'keep-me',
+				type: ['a', 'b'],
+			},
+			enum: [{ discriminator: 'x', type: ['string'] }],
+			examples: [{ discriminator: 'y', type: ['boolean'] }],
+		};
+
+		const portable = makePortableSchema(schema);
+		expect(portable['default']).toEqual(schema.default);
+		expect(portable['const']).toEqual(schema.const);
+		expect(portable['enum']).toEqual(schema.enum);
+		expect(portable['examples']).toEqual(schema.examples);
+	});
+
+	it('merges union types into allOf when anyOf already exists', () => {
+		const withoutAllOf = makePortableSchema({
+			type: ['string', 'number'],
+			anyOf: [{ enum: ['ok', 1] }, { enum: ['also-ok', 2] }],
+		});
+		const withAllOf = makePortableSchema({
+			type: ['string', 'number'],
+			anyOf: [{ enum: ['ok', 1] }, { enum: ['also-ok', 2] }],
+			allOf: [{ not: { const: 2 } }],
+		});
+
+		const validateWithoutAllOf = new Ajv({ strict: true }).compile(
+			withoutAllOf
+		);
+		expect(validateWithoutAllOf('ok')).toBe(true);
+		expect(validateWithoutAllOf(2)).toBe(true);
+		expect(validateWithoutAllOf(false)).toBe(false);
+
+		const validateWithAllOf = new Ajv({ strict: true }).compile(withAllOf);
+		expect(validateWithAllOf('also-ok')).toBe(true);
+		expect(validateWithAllOf(1)).toBe(true);
+		expect(validateWithAllOf(2)).toBe(false);
+	});
+
+	it('preserves array dependencies and transforms schema dependencies', () => {
+		const portable = makePortableSchema({
+			type: 'object',
+			dependencies: {
+				a: ['b'],
+				c: {
+					discriminator: { propertyName: 'step' },
+					type: ['object'],
+				},
+			},
+		});
+
+		expect(portable).toEqual({
+			type: 'object',
+			dependencies: {
+				a: ['b'],
+				c: {
+					type: 'object',
+				},
+			},
+		});
 	});
 });
 

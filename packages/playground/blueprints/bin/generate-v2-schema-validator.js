@@ -34,7 +34,8 @@ const standaloneFormats = _`{
 /**
  * Generates the dedicated runtime validator for Blueprint v2 declarations.
  *
- * Returns the portable schema used in the published multi-version schema.
+ * Returns the Blueprint v2 schema before generate-schema.js strips AJV
+ * extensions for the published multi-version schema.
  *
  * @param retry The schema generator's existing CI retry wrapper.
  * @param prettierConfig The repository's Prettier configuration.

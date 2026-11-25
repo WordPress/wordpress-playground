@@ -4,6 +4,7 @@ import Ajv from 'ajv';
 import ajvStandaloneCode from 'ajv/dist/standalone/index.js';
 import prettier from 'prettier';
 import { generateBlueprintV2SchemaValidator } from './generate-v2-schema-validator.js';
+import { makePortableSchema } from './make-portable-schema.js';
 
 /** @type {import('ts-json-schema-generator/dist/src/Config').Config} */
 const config = {
@@ -87,35 +88,6 @@ const formattedSchemaString = await prettier.format(rawSchemaString, {
 	parser: 'json',
 });
 fs.writeFileSync(output_path, formattedSchemaString);
-
-/** Keeps AJV extensions in runtime validators, out of the published schema. */
-function makePortableSchema(schema) {
-	if (schema === null || typeof schema !== 'object') {
-		return schema;
-	}
-	if (Array.isArray(schema)) {
-		return schema.map(makePortableSchema);
-	}
-
-	const result = {};
-	for (const [key, value] of Object.entries(schema)) {
-		if (
-			key !== 'discriminator' &&
-			!(key === 'type' && Array.isArray(value))
-		) {
-			result[key] = makePortableSchema(value);
-		}
-	}
-	if (Array.isArray(schema.type)) {
-		const union = { anyOf: schema.type.map((type) => ({ type })) };
-		if (result.anyOf) {
-			result.allOf = [...(result.allOf ?? []), union];
-		} else {
-			result.anyOf = union.anyOf;
-		}
-	}
-	return result;
-}
 
 /** Combines the independently generated schemas without shadowing definitions. */
 function createPublicSchema(v1Schema, v2Schema) {
