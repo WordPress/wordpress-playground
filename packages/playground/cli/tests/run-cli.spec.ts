@@ -639,6 +639,75 @@ describe.each(blueprintVersions)(
 			}
 		});
 
+		// Regression test: the host filesystem may resolve a request path
+		// to a file the request handler does not recognize. Windows treats
+		// backslashes as separators and ignores trailing dots, trailing
+		// spaces, and the `::$DATA` stream suffix. macOS and Windows ignore
+		// letter case. None of these may return PHP source or a file from
+		// outside the mounted directory.
+		test('should not disclose PHP source or files outside a mounted directory', async () => {
+			const hostTmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-mount-')
+			);
+			const hostPluginDir = path.join(hostTmpDir, 'foo');
+			mkdirSync(hostPluginDir);
+			writeFileSync(
+				path.join(hostPluginDir, 'bar.php'),
+				`<?php echo 'bar' . ' was executed';`
+			);
+			writeFileSync(
+				path.join(hostTmpDir, 'baz.txt'),
+				'outside the mount'
+			);
+			const pluginUrl = '/wp-content/plugins/foo';
+
+			try {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					mount: [
+						{
+							hostPath: hostPluginDir,
+							vfsPath: `/wordpress${pluginUrl}`,
+						},
+					],
+				});
+
+				const executed = await fetch(
+					new URL(`${pluginUrl}/bar.php`, cliServer.serverUrl)
+				);
+				expect(await executed.text()).toBe('bar was executed');
+
+				for (const requestPath of [
+					`${pluginUrl}/bar.php/`,
+					`${pluginUrl}/bar.php%2f`,
+					`${pluginUrl}/bar.php%252f`,
+					`${pluginUrl}/BAR.PHP`,
+					`${pluginUrl}/bar.php.`,
+					`${pluginUrl}/bar.php%20`,
+					`${pluginUrl}/bar.php%20%3f`,
+					`${pluginUrl}/bar.php%20.`,
+					`${pluginUrl}/bar.php::$DATA`,
+					`${pluginUrl}/..%2fbaz.txt`,
+					`${pluginUrl}/..%252fbaz.txt`,
+					`${pluginUrl}/..%5cbaz.txt`,
+					`${pluginUrl}/..%255cbaz.txt`,
+					`${pluginUrl}/bar.php%5c..%5c..%5cbaz.txt`,
+				]) {
+					const response = await fetch(
+						new URL(requestPath, cliServer.serverUrl)
+					);
+					const text = await response.text();
+					expect(text, requestPath).not.toContain('<?php');
+					expect(text, requestPath).not.toContain(
+						'outside the mount'
+					);
+				}
+			} finally {
+				rmSync(hostTmpDir, { recursive: true, force: true });
+			}
+		}, 60_000);
+
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
 
 		describe('auto-mount', () => {
@@ -1783,35 +1852,39 @@ describe('other run-cli behaviors', () => {
 			expect(response.status).toBe(500);
 		});
 
-		test('disposes spawned workers when boot fails on the non-debug path', async () => {
-			// Regression: a boot failure now rejects instead of calling
-			// process.exit(), so the non-debug catch must still run
-			// disposeCLI() to terminate spawned workers — otherwise they keep
-			// a library caller's event loop alive. An invalid Blueprint step
-			// fails boot after the worker has spawned.
-			const terminateSpy = vi.spyOn(Worker.prototype, 'terminate');
-			try {
-				await expect(
-					runCLI({
-						command: 'server',
-						wordpressInstallMode: 'do-not-attempt-installing',
-						skipSqliteSetup: true,
-						verbosity: 'normal',
-						workers: 1,
-						blueprint: {
-							steps: [
-								{
-									step: 'thisStepDoesNotExistForTesting',
-								} as any,
-							],
-						},
-					} as RunCLIArgs & { command: 'server' })
-				).rejects.toThrow();
-				expect(terminateSpy).toHaveBeenCalled();
-			} finally {
-				terminateSpy.mockRestore();
-			}
-		}, 60_000 /* full boot before the failing step; allow Windows headroom */);
+		test(
+			'disposes spawned workers when boot fails on the non-debug path',
+			async () => {
+				// Regression: a boot failure now rejects instead of calling
+				// process.exit(), so the non-debug catch must still run
+				// disposeCLI() to terminate spawned workers — otherwise they keep
+				// a library caller's event loop alive. An invalid Blueprint step
+				// fails boot after the worker has spawned.
+				const terminateSpy = vi.spyOn(Worker.prototype, 'terminate');
+				try {
+					await expect(
+						runCLI({
+							command: 'server',
+							wordpressInstallMode: 'do-not-attempt-installing',
+							skipSqliteSetup: true,
+							verbosity: 'normal',
+							workers: 1,
+							blueprint: {
+								steps: [
+									{
+										step: 'thisStepDoesNotExistForTesting',
+									} as any,
+								],
+							},
+						} as RunCLIArgs & { command: 'server' })
+					).rejects.toThrow();
+					expect(terminateSpy).toHaveBeenCalled();
+				} finally {
+					terminateSpy.mockRestore();
+				}
+			},
+			60_000 /* full boot before the failing step; allow Windows headroom */
+		);
 	});
 
 	describe('streaming responses', () => {
