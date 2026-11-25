@@ -521,10 +521,6 @@
 	margin-bottom: 18px !important;
 }
 
-.playgroundsColumns .playgroundsSection h2 {
-	text-align: center;
-}
-
 .playgroundsList .siteRowContent {
 	min-height: 88px;
 	padding: 20px 24px;
@@ -585,26 +581,6 @@
 	line-height: 1.25;
 }
 
-.blueprintsSection .blueprintsRow {
-	display: grid;
-	gap: 24px 20px;
-	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-	padding: 0 8px 16px 0;
-}
-
-.blueprintsSection .blueprintPreviewCard {
-	min-width: 0;
-}
-
-.blueprintsSection .blueprintPreviewTitle {
-	font-size: 18px;
-	line-height: 1.25;
-}
-
-.blueprintsSection .blueprintPreviewThumbnail {
-	border-radius: 8px;
-}
-
 @media (max-width: 1050px) {
 	.playgroundsSection .creationTitle {
 		font-size: 16px;
@@ -616,35 +592,6 @@
 		max-height: none;
 		overflow-y: visible;
 		scrollbar-gutter: auto;
-	}
-
-	.blueprintsSection .blueprintsRow {
-		gap: 8px;
-		grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-	}
-
-	.blueprintsSection .blueprintPreviewCard {
-		align-items: center;
-		background: none;
-		border: none;
-		flex-direction: column;
-		gap: 8px;
-		overflow: visible;
-		padding: 0;
-	}
-
-	.blueprintsSection .blueprintPreviewThumbnail {
-		aspect-ratio: 4 / 3;
-		border: 2px solid #3c4349;
-		border-radius: 8px;
-		height: auto;
-		width: 100% !important;
-	}
-
-	.blueprintsSection .blueprintPreviewTitle {
-		font-size: 16px;
-		text-align: center;
-		white-space: normal;
 	}
 }
 
@@ -1345,8 +1292,7 @@
 }
 
 .playgrounds-pane .siteRowName,
-.playgrounds-pane .creationTitle,
-.playgrounds-pane .blueprintTitle {
+.playgrounds-pane .creationTitle {
 	color: var(--ink) !important;
 }
 
@@ -1354,8 +1300,7 @@
 	font-size: 16px;
 }
 
-.playgrounds-pane .siteRowDate,
-.playgrounds-pane .blueprintDescription {
+.playgrounds-pane .siteRowDate {
 	color: var(--ink-muted) !important;
 }
 
@@ -1394,7 +1339,6 @@
 }
 
 .playgrounds-pane .creationButton,
-.playgrounds-pane .blueprintCard,
 .playgrounds-pane .blueprintPreviewCard {
 	background: #ffffff;
 	border: 1px solid var(--interactive-border);
@@ -1421,7 +1365,6 @@
 
 /* The WordPress mark hardcodes a white path fill, which an svg-level rule can't
    override. Recolor the path itself so the logo is visible on the light pane. */
-.playgrounds-pane .newPlaygroundIcon :global(svg path),
 .playgrounds-pane .siteRowLogo :global(svg path),
 .playgrounds-pane .blueprintPlaceholder :global(svg path) {
 	fill: var(--accent);
@@ -1465,8 +1408,7 @@
 	color: var(--ink-faint);
 }
 
-.playgrounds-pane .blueprintPreviewThumbnail,
-.playgrounds-pane .blueprintThumbnail {
+.playgrounds-pane .blueprintPreviewThumbnail {
 	background: var(--surface-recessed);
 	border-color: var(--interactive-border);
 }

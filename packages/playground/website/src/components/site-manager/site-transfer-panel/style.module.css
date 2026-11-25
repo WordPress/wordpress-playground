@@ -379,13 +379,6 @@
 	}
 }
 
-/* A rejected key is marked at the field so a replacement can be pasted
-   without losing the chosen site or creating another Playground. */
-.field-error {
-	color: #b32d2e;
-	font-size: 13px;
-	margin: 0;
-}
 
 .panel
 	.hero-input
