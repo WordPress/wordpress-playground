@@ -1038,6 +1038,24 @@ phpLoaderOptions.forEach((options) => {
 			});
 		});
 
+		describe('SAPI name', { skip }, () => {
+			it('should be php-wasm when serving a request', async () => {
+				const response = await php.run({
+					code: `<?php echo PHP_SAPI, ' ', php_sapi_name();`,
+				});
+				expect(response.text).toBe('php-wasm php-wasm');
+			});
+
+			it('should be cli when running php.cli()', async () => {
+				const response = await php.cli([
+					'php',
+					'-r',
+					`echo PHP_SAPI, ' ', php_sapi_name();`,
+				]);
+				expect(await response.stdoutText).toBe('cli cli');
+			});
+		});
+
 		describe('CLI', { skip }, () => {
 			let consoleLogMock: any;
 			let consoleErrorMock: any;
@@ -1085,6 +1103,101 @@ phpLoaderOptions.forEach((options) => {
 				expect(await response2.stdoutText).toBe('Hello');
 				const response3 = await php.cli(['php', '-r', 'echo "Hello";']);
 				expect(await response3.stdoutText).toBe('Hello');
+			});
+
+			it('should reject php.cli() after php.run() when runtime rotation is disabled', async () => {
+				await php.run({ code: `<?php echo "Hello";` });
+				await expect(
+					php.cli(['php', '-r', 'echo "Hello";'])
+				).rejects.toThrow('php.cli() needs a PHP runtime');
+				const response = await php.run({ code: `<?php echo "Hello";` });
+				expect(response.text).toBe('Hello');
+			});
+
+			it('should reject a second php.cli() when runtime rotation is disabled', async () => {
+				const response = await php.cli(['php', '-r', 'echo "Hello";']);
+				await response.exitCode;
+				await expect(
+					php.cli(['php', '-r', 'echo "Hello";'])
+				).rejects.toThrow('php.cli() needs a PHP runtime');
+			});
+
+			it('should reject php.run() after php.cli() when runtime rotation is disabled', async () => {
+				const response = await php.cli(['php', '-r', 'echo "Hello";']);
+				await response.exitCode;
+				await expect(
+					php.run({ code: `<?php echo "Hello";` })
+				).rejects.toThrow('php.cli() already ran on this PHP runtime');
+			});
+
+			it('should reject php.cli() that waits for the first php.run() when runtime rotation is disabled', async () => {
+				const running = php.run({ code: `<?php echo "Hello";` });
+				await expect(
+					php.cli(['php', '-r', 'echo "Hello";'])
+				).rejects.toThrow('php.cli() needs a PHP runtime');
+				expect((await running).text).toBe('Hello');
+			});
+
+			it('should keep the runtime usable when php.cli() fails before the session starts', async () => {
+				const emscriptenModule = php[__private__dont__use];
+				const ccall = emscriptenModule.ccall;
+				emscriptenModule.ccall = (name: string, ...args: any[]) => {
+					if (name === 'wasm_add_cli_arg') {
+						throw new Error('wasm_add_cli_arg failed');
+					}
+					return ccall.call(emscriptenModule, name, ...args);
+				};
+				const failed = await php.cli(['php', '-r', 'echo "Hello";']);
+				await expect(failed.exitCode).rejects.toThrow(
+					'wasm_add_cli_arg failed'
+				);
+				emscriptenModule.ccall = ccall;
+				const response = await php.run({ code: `<?php echo "Hello";` });
+				expect(response.text).toBe('Hello');
+			});
+
+			it('should release the lock when php.cli() fails to recreate the runtime', async () => {
+				let failNextRecreate = true;
+				php.enableRuntimeRotation({
+					recreateRuntime: () => {
+						if (failNextRecreate) {
+							failNextRecreate = false;
+							throw new Error('recreateRuntime failed');
+						}
+						return loadNodeRuntime(phpVersion as any, options);
+					},
+				});
+				await php.run({ code: `<?php echo "Hello";` });
+				await expect(
+					php.cli(['php', '-r', 'echo "Hello";'])
+				).rejects.toThrow('recreateRuntime failed');
+				const response = await php.cli(['php', '-r', 'echo "Hello";']);
+				expect(await response.stdoutText).toBe('Hello');
+			});
+
+			it('should not leave an unhandled rejection when the CLI session crashes', async () => {
+				const onUnhandledRejection = vi.fn();
+				process.on('unhandledRejection', onUnhandledRejection);
+				try {
+					const emscriptenModule = php[__private__dont__use];
+					const ccall = emscriptenModule.ccall;
+					emscriptenModule.ccall = (name: string, ...args: any[]) =>
+						name === 'run_cli'
+							? Promise.reject(new Error('run_cli crashed'))
+							: ccall.call(emscriptenModule, name, ...args);
+					const response = await php.cli([
+						'php',
+						'-r',
+						'echo "Hello";',
+					]);
+					await expect(response.exitCode).rejects.toThrow(
+						'run_cli crashed'
+					);
+					await new Promise((resolve) => setTimeout(resolve));
+					expect(onUnhandledRejection).not.toHaveBeenCalled();
+				} finally {
+					process.off('unhandledRejection', onUnhandledRejection);
+				}
 			});
 		});
 

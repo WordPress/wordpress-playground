@@ -15,7 +15,7 @@ const currentDirPath =
 		: path.dirname(fileURLToPath(import.meta.url));
 const dependencyFilename = path.join(currentDirPath, '5_2_17', 'php_5_2.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 9917342;
+export const dependenciesTotalSize = 9917367;
 const phpVersionString = '5.2.17';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
@@ -10350,29 +10350,29 @@ export function init(RuntimeName, PHPLoader) {
 		___c_longjmp = Module['___c_longjmp'] = wasmExports['__c_longjmp'];
 	}
 
-	var _file_globals = (Module['_file_globals'] = 4026688);
+	var _file_globals = (Module['_file_globals'] = 4026704);
 
-	var _sapi_module = (Module['_sapi_module'] = 4031884);
+	var _sapi_module = (Module['_sapi_module'] = 4031900);
 
-	var _sapi_globals = (Module['_sapi_globals'] = 4032024);
+	var _sapi_globals = (Module['_sapi_globals'] = 4032040);
 
-	var _compiler_globals = (Module['_compiler_globals'] = 4025568);
+	var _compiler_globals = (Module['_compiler_globals'] = 4025584);
 
-	var _executor_globals = (Module['_executor_globals'] = 4025912);
+	var _executor_globals = (Module['_executor_globals'] = 4025928);
 
-	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 4020008);
+	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 4020024);
 
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 4020012);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 4020028);
 
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 4020016);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 4020032);
 
-	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 4020020);
+	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 4020036);
 
-	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 4020024);
+	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 4020040);
 
-	var _std_object_handlers = (Module['_std_object_handlers'] = 3648060);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 3648076);
 
-	var ___heap_base = 5123760;
+	var ___heap_base = 5123776;
 
 	var wasmImports = {
 		/** @export */ __assert_fail: ___assert_fail,

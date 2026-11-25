@@ -80,7 +80,7 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 		wordPressZip,
 		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion,
-		sapiName = 'cli',
+		sapiName,
 		extensions = [],
 		withNetworking = true,
 		shouldInstallWordPress,

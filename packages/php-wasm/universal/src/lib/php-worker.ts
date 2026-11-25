@@ -39,6 +39,7 @@ export type LimitedPHPApi = Pick<
 	| 'chdir'
 	| 'run'
 	| 'runStream'
+	| 'cli'
 	| 'onMessage'
 > & {
 	documentRoot: PHP['documentRoot'];
@@ -316,7 +317,10 @@ export class PHPWorker implements LimitedPHPApi, AsyncDisposable {
 		return { php, reap };
 	}
 
-	/** @inheritDoc @php-wasm/universal!/PHP.setSapiName */
+	/**
+	 * @inheritDoc @php-wasm/universal!/PHP.setSapiName
+	 * @deprecated Run command-line programs through `cli()` instead.
+	 */
 	setSapiName(newName: string): void {
 		_private.get(this)!.php!.setSapiName(newName);
 	}

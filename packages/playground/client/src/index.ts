@@ -108,6 +108,8 @@ export interface StartPlaygroundOptions {
 	 * The SAPI name PHP will use.
 	 * @internal
 	 * @private
+	 * @deprecated PHP reports `php-wasm` for requests and `cli` for
+	 * `php.cli()`.
 	 */
 	sapiName?: string;
 	mounts?: Array<MountDescriptor>;
