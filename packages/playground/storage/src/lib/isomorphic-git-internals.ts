@@ -793,6 +793,18 @@ export class GitTree {
 				mode = '040000';
 			}
 			const path = payload.subarray(space + 1, nullchar).toString('utf8');
+			const isUnsafeEntryName =
+				path === '' ||
+				path === '.' ||
+				path === '..' ||
+				path.toLowerCase() === '.git' ||
+				path.includes('/') ||
+				path.includes('\\');
+			if (isUnsafeEntryName) {
+				throw new Error(
+					`Invalid Git tree entry name: ${JSON.stringify(path)}.`
+				);
+			}
 			const oid = payload
 				.subarray(nullchar + 1, nullchar + 21)
 				.toString('hex');
