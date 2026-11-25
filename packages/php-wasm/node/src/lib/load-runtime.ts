@@ -172,6 +172,7 @@ export async function loadNodeRuntime(
 		);
 	}
 
+	const callerEnv = options.emscriptenOptions?.ENV;
 	const callerPreRun = normalizePreRunHooks(
 		(options.emscriptenOptions as any)?.preRun
 	);
@@ -197,8 +198,10 @@ export async function loadNodeRuntime(
 		},
 		...(options.emscriptenOptions || {}),
 		ENV: {
-			OPENSSL_CONF: DEFAULT_OPENSSL_CONF_PATH,
-			...(options.emscriptenOptions?.ENV || {}),
+			...(callerEnv || {}),
+			...(callerEnv?.['OPENSSL_CONF'] === undefined
+				? { OPENSSL_CONF: DEFAULT_OPENSSL_CONF_PATH }
+				: {}),
 		},
 		phpWasmAsyncMode,
 		processId,
