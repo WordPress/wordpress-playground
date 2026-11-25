@@ -58,7 +58,7 @@ Ce hub de documentation se concentre sur la prise en main de WordPress Playgroun
 - **[À propos de Playground](/about)** : pour en savoir plus sur WordPress Playground, sa sécurité, ce que vous pouvez accomplir avec et ses limitations actuelles, consultez cette section.
     <!-- -   **[About Playground](/about)**: To learn about WordPress Playground, how safe it is, what you can do with and some of its current limitations, visit this section. -->
 
-Découvrez comment vous pouvez exploiter WordPress Playground pour [construire](/about/build), [tester](/about/test) et [lancer](/about/launch) vos produits.
+Découvrez comment vous pouvez exploiter WordPress Playground pour [construire](./about/build), [tester](./about/test) et [lancer](./about/launch) vos produits.
 
 <!-- Discover how you can leverage WordPress Playground to [Build](./about/build), [Test](./about/test), and [Launch](./about/launch) your products. -->
 
@@ -138,7 +138,7 @@ WordPress Playground est un projet open-source et accueille tous les contributeu
 WordPress Playground is an open-source project and welcomes all contributors from code to design, and from documentation to triage. Don't worry, _you don't need to know WebAssembly_ to contribute!
 -->
 
-- Consultez le [manuel de contribution](/contributing/) pour tous les détails sur la façon dont vous pouvez contribuer.
+- Consultez le [manuel de contribution](./contributing/) pour tous les détails sur la façon dont vous pouvez contribuer.
 - Rejoignez-nous sur le canal `#playground` sur Slack (voir la [page Slack WordPress](https://make.wordpress.org/chat/) pour les informations d’inscription)
 
 <!--

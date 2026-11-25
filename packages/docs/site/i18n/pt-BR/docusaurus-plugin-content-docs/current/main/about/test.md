@@ -37,7 +37,7 @@ Por exemplo, o seguinte link carregará o tema ["pendant"](https://wordpress.org
 
 [https://playground.wordpress.net/?theme=pendant&plugin=gutenberg](https://playground.wordpress.net/?theme=pendant&plugin=gutenberg)
 
-Mas você também pode testar [configurações mais elaboradas usando blueprints](https://wordpress.github.io/blueprints/), por exemplo testando o código de um plugin de um gist (veja [blueprint](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) e [demonstração ao vivo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json))
+Mas você também pode testar [configurações mais elaboradas usando blueprints](https://developer.wordpress.org/playground/blueprints/examples/), por exemplo testando o código de um plugin de um gist (veja [blueprint](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) e [demonstração ao vivo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json))
 
 <!--
 ## Live preview pull requests

@@ -59,7 +59,7 @@ Key Features:
 
 **દસ્તાવેજીકરણ**
 
-`wp-now` એક અલગ GitHub રિપોઝીટરી, [પ્લેગ્રાઉન્ડ ટૂલ્સ](https://github.com/WordPress/playground-tools/) માં જાળવવામાં આવે છે. તમે નવીનતમ દસ્તાવેજીકરણ [સમર્પિત README ફાઇલ](https://developer.wordpress.org/playground/developers/local-development/wp-playground-cli/) માં શોધી શકો છો.
+`wp-now` એક અલગ GitHub રિપોઝીટરી, [પ્લેગ્રાઉન્ડ ટૂલ્સ](https://github.com/WordPress/playground-tools/) માં જાળવવામાં આવે છે. તમે નવીનતમ દસ્તાવેજીકરણ [Playground CLI દસ્તાવેજીકરણ](https://developer.wordpress.org/playground/developers/local-development/wp-playground-cli/) માં શોધી શકો છો.
 
 </div>
 
@@ -68,7 +68,7 @@ Key Features:
 
 **Documentation**
 
-`wp-now` is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [dedicated README file](https://developer.wordpress.org/playground/developers/local-development/wp-playground-cli/).
+`wp-now` is maintained in a different GitHub repository, [Playground Tools](https://github.com/WordPress/playground-tools/). You can find the latest documentation in the [Playground CLI documentation](https://developer.wordpress.org/playground/developers/local-development/wp-playground-cli/).
 
 </div>
 -->
