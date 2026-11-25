@@ -185,3 +185,24 @@ slug into the `resource` value, such as `"wordpress.org/plugins/woocommerce"`.
 Shorthands such as `plugins`, `login`, `siteOptions`, and `constants` are
 expanded before the `steps` array. If one action must happen before another,
 write both actions as explicit steps in the order you need.
+
+## Installing WordPress in another language
+
+In Blueprint v1, put `setSiteLanguage` before every other executable step to create a new
+site with translated starter content:
+
+```json
+{
+	"steps": [{ "step": "setSiteLanguage", "language": "de_DE" }]
+}
+```
+
+Playground reads this initial step before booting WordPress and preloads core translations
+for installation. The new site uses the translated WordPress default title, “My Site,”
+and WordPress creates its sample post, page, comment, and category in that language.
+The step still runs afterward to download translations for installed plugins and themes.
+Comments and disabled steps before `setSiteLanguage` are ignored.
+
+A language step after another executable step changes the site language at its normal
+position without translating existing content. Existing sites and custom site archives
+keep their stored titles and content regardless of the step's position.

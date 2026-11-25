@@ -101,17 +101,23 @@ export class BlueprintsV1Handler {
 			wpDetails = await resolveWordPressRelease(
 				runtimeConfiguration.wpVersion
 			);
-			preinstalledWpContentPath = path.join(
-				CACHE_FOLDER,
-				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
-			);
-			wordPressZip = fs.existsSync(preinstalledWpContentPath)
-				? readAsFile(preinstalledWpContentPath)
-				: await cachedDownload(
-						wpDetails.releaseUrl,
-						`${wpDetails.version}.zip`,
-						monitor
-					);
+			// A cached installed database already contains starter content in its original
+			// language. Localized installations must start from the release archive.
+			if (!runtimeConfiguration.installationLanguage) {
+				preinstalledWpContentPath = path.join(
+					CACHE_FOLDER,
+					`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
+				);
+			}
+			wordPressZip =
+				preinstalledWpContentPath &&
+				fs.existsSync(preinstalledWpContentPath)
+					? readAsFile(preinstalledWpContentPath)
+					: await cachedDownload(
+							wpDetails.releaseUrl,
+							`${wpDetails.version}.zip`,
+							monitor
+						);
 			logger.debug(
 				`Resolved WordPress release URL: ${wpDetails?.releaseUrl}`
 			);
@@ -141,6 +147,7 @@ export class BlueprintsV1Handler {
 			{
 				phpVersion: runtimeConfiguration.phpVersion,
 				wpVersion: runtimeConfiguration.wpVersion,
+				installationLanguage: runtimeConfiguration.installationLanguage,
 				siteUrl: this.siteUrl,
 				wordpressInstallMode:
 					this.args.wordpressInstallMode || 'download-and-install',
