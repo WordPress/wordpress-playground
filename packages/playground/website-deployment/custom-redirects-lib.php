@@ -605,6 +605,11 @@ function playground_get_custom_response_headers( $requested_path ) {
 		return array( 'Origin-Agent-Cluster: ?1' );
 	} elseif ( in_array( $filename, array( 'mywp-event.php', 'mywp-event-dashboard.php', 'relay.php' ), true ) ) {
 		return array( 'Cache-Control: no-store' );
+	} elseif ( in_array( $requested_path, array( '/.well-known/ard.json', '/.well-known/mcp.json' ), true ) ) {
+		return array(
+			'Access-Control-Allow-Origin: *',
+			'A8C-Edge-Cache: cache',
+		);
 	} elseif ( str_ends_with( $filename, 'store.zip' ) ) {
 		// Disable compression so zip file can be read piece by piece
 		// using file offsets embedded in the zip's metadata.

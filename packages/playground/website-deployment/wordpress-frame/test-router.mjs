@@ -319,11 +319,30 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		assert.match(response.headers.get('cache-control'), /no-store/);
 	}
 	assert.equal(await (await request('/status.php', app)).text(), 'A');
-	// The AI discovery manifest lives in the release; WP Cloud lets /.well-known/ reach PHP.
+	// WP Cloud lets the app host's /.well-known/ requests reach the active release.
+	const ard = await request('/.well-known/ard.json', app, {
+		Origin: 'https://registry.example',
+	});
+	assert.equal(ard.status, 200);
+	assert.match(ard.headers.get('content-type'), /^application\/json/);
+	assert.equal(ard.headers.get('access-control-allow-origin'), '*');
+	assert.equal(ard.headers.get('a8c-edge-cache'), 'cache');
+	assert.deepEqual(JSON.parse(await ard.text()), {
+		entries: [],
+		release: 'A',
+	});
 	assert.equal(
-		await (await request('/.well-known/mcp.json', app)).text(),
-		'manifest A'
+		(await request('/.well-known/ard.json', wordpress)).status,
+		404
 	);
+	const mcp = await request('/.well-known/mcp.json', app, {
+		Origin: 'https://registry.example',
+	});
+	assert.equal(mcp.status, 200);
+	assert.match(mcp.headers.get('content-type'), /^application\/json/);
+	assert.equal(mcp.headers.get('access-control-allow-origin'), '*');
+	assert.equal(mcp.headers.get('a8c-edge-cache'), 'cache');
+	assert.equal(await mcp.text(), 'manifest A');
 	const sdk = await request('/client/index.js', app);
 	assert.equal(sdk.headers.get('access-control-allow-origin'), '*');
 	assert.equal(
@@ -956,6 +975,7 @@ async function makeBuild(release, origins = [app, wordpress]) {
 		'assets/main.js': `main ${release}`,
 		'assets/runtime.wasm': 'runtime',
 		'client/index.js': `sdk ${release}`,
+		'.well-known/ard.json': JSON.stringify({ entries: [], release }),
 		'.well-known/mcp.json': `manifest ${release}`,
 		'status.php': `<?php echo ${JSON.stringify(release)};`,
 		'wp-6.8/wp-includes/js/script.js': 'wordpress script',
