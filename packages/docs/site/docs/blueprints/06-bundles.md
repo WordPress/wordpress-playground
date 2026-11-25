@@ -26,11 +26,13 @@ Blueprint bundles can be distributed in various formats:
 
 ### On the Website
 
-The WordPress Playground website supports Blueprint bundles through **New → Blueprint URL** in the Dock or through the `?blueprint-url=` query parameter. You can provide a URL to a ZIP file containing your Blueprint bundle:
+The WordPress Playground website supports Blueprint bundles through **New → From a URL** in the Dock or through the `?blueprint-url=` query parameter. You can provide a URL to a ZIP file containing your Blueprint bundle:
 
 ```
 https://playground.wordpress.net/?blueprint-url=https://example.com/my-blueprint-bundle.zip
 ```
+
+When the Playground URL includes the `mcp-port` parameter, Playground rejects the `blueprint-url` parameter. Remove `mcp-port` from the URL to load a bundle this way.
 
 The ZIP file should contain a `blueprint.json` file at the root level, along with any additional resources referenced by the Blueprint.
 
