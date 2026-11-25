@@ -1706,11 +1706,11 @@ export class PHP implements Disposable {
 			return this.subProcess(argv, options);
 		}
 
+		const release = await this.semaphore.acquire();
+
 		if (this.#phpWasmInitCalled) {
 			this.#rotationOptions.needsRotating = true;
 		}
-
-		const release = await this.semaphore.acquire();
 
 		return await this.#executeWithErrorHandling(() => {
 			const env = options.env || {};
