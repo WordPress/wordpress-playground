@@ -7,10 +7,10 @@ import { isWordPressBridgePath } from './src/lib/wordpress-bridge-path';
  *
  * The app on :5400 proxies its runtime-module requests to this server on :4400,
  * preserving Host: 127.0.0.1:5400. Let those requests reach Vite. A browser request
- * to :4400 uses a different Host and may load only the HTTP helper and worker
+ * to :4400 uses a different Host and may load only the WordPress bridge and worker
  * loaders, never remote.html, api.html, or arbitrary source modules.
  *
- * Generate the helper with an app-origin source-module URL. Unlike a production
+ * Generate the bridge with an app-origin source-module URL. Unlike a production
  * build, Vite has not extracted the source HTML's inline script; serving it
  * unchanged would make the bridge identify :4400 as its app parent. Its service
  * worker also starts through an app-origin module import, keeping one module graph.
@@ -84,7 +84,7 @@ export function wordPressFrameDevPlugin(
 						target.pathname = '/src/lib/wordpress-bridge.ts';
 						res.setHeader('Content-Type', 'text/html');
 						res.end(
-							`<!doctype html><title>WordPress request transport</title><script type="module" src=${JSON.stringify(target.href)}></script>`
+							`<!doctype html><title>WordPress bridge</title><script type="module" src=${JSON.stringify(target.href)}></script>`
 						);
 						return;
 					}

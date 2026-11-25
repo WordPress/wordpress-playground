@@ -75,7 +75,6 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 - [Synchronization between two Playgrounds](https://playground.wordpress.net/demos/sync.html)
 - [Time Travel](https://playground.wordpress.net/demos/time-traveling.html)
 - [WP-CLI](https://playground.wordpress.net/demos/wp-cli.html)
-- [PHP implementation of Blueprints](https://playground.wordpress.net/demos/php-blueprints.html)
 -->
 
 ## Mga App na Ginawa Gamit ang WordPress Playground {#apps-built-with-wordpress-playground}
@@ -93,7 +92,6 @@ May mga redirect para mas madaling ma-access ang ilang tool na may kinalaman sa 
 - [Pag-synchronize sa pagitan ng dalawang Playground](https://playground.wordpress.net/demos/sync.html)
 - [Time Travel](https://playground.wordpress.net/demos/time-traveling.html)
 - [WP-CLI](https://playground.wordpress.net/demos/wp-cli.html)
-- [Implementasyon ng Blueprints sa PHP](https://playground.wordpress.net/demos/php-blueprints.html)
 
 <!--
 ## Reading materials

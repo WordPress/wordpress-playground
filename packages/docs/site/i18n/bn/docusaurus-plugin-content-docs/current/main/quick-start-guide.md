@@ -32,7 +32,9 @@ This page will guide you through each of these. Oh, and if you're a visual learn
 ## Start a new WordPress site
 -->
 
-## একটি নতুন ওয়ার্ডপ্রেস সাইট শুরু করুন
+<a id="একটি-নতুন-ওয়ার্ডপ্রেস-সাইট-শুরু-করুন"></a>
+
+## একটি নতুন ওয়ার্ডপ্রেস সাইট শুরু করুন {#start-a-new-wordpress-site}
 
 <!--
 Every time you visit the [official demo on playground.wordpress.net](https://playground.wordpress.net/), you get a fresh WordPress site.
@@ -80,7 +82,9 @@ Everything you build stays in your browser and is **not** sent anywhere. Once yo
 ## Try a block, a theme, or a plugin
 -->
 
-## একটি ব্লক, থিম বা প্লাগইন ট্রাই করুন
+<a id="একটি-ব্লক-থিম-বা-প্লাগইন-ট্রাই-করুন"></a>
+
+## একটি ব্লক, থিম বা প্লাগইন ট্রাই করুন {#try-a-block-a-theme-or-a-plugin}
 
 <!--
 You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/).
@@ -262,7 +266,9 @@ You can specify major versions like `wp=6.2` or `php=8.1` and expect the most re
 ## Import a WXR file
 -->
 
-## একটি WXR ফাইল ইমপোর্ট করুন
+<a id="একটি-wxr-ফাইল-ইমপোর্ট-করুন"></a>
+
+## একটি WXR ফাইল ইমপোর্ট করুন {#use-a-specific-wordpress-or-php-version}
 
 <!--
 You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php).

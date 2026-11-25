@@ -1,6 +1,7 @@
 import {
 	basename,
 	dirname,
+	joinPathUnderRoot,
 	joinPaths,
 	normalizePath,
 	resolvePathUnder,
@@ -28,6 +29,31 @@ describe('joinPaths', () => {
 			'../wp-content'
 		);
 		expect(joinPaths('/', '/')).toEqual('/');
+	});
+});
+
+describe('joinPathUnderRoot', () => {
+	it.each([
+		['/wordpress', '/wp-admin/index.php', '/wordpress/wp-admin/index.php'],
+		['/wordpress', 'wp-admin/index.php', '/wordpress/wp-admin/index.php'],
+		['/wordpress/', '/index.php', '/wordpress/index.php'],
+		['/wordpress', '/', '/wordpress'],
+		['/wordpress', '/wp-admin/../index.php', '/wordpress/index.php'],
+		['/wordpress', '/index.php/', '/wordpress/index.php'],
+		['/wordpress', '/index.php/.', '/wordpress/index.php'],
+		['/wordpress', '/..\\secret.txt', '/wordpress/..\\secret.txt'],
+		['/', '/../tmp/file.php', '/tmp/file.php'],
+	])('joins %s and %s into %s', (root, path, expected) => {
+		expect(joinPathUnderRoot(root, path)).toEqual(expected);
+	});
+
+	it.each([
+		['/wordpress', '/../internal/secret.txt'],
+		['/wordpress', '/wp-admin/../../internal/secret.txt'],
+		['/wordpress', '/../wordpress-other/secret.txt'],
+		['/wordpress', '/..'],
+	])('rejects %s and %s', (root, path) => {
+		expect(joinPathUnderRoot(root, path)).toBeUndefined();
 	});
 });
 

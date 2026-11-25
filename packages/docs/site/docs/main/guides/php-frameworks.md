@@ -140,7 +140,6 @@ one step:
 ```json
 {
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
-	"landingPage": "/symfony-package-radar/public/index.php",
 	"preferredVersions": {
 		"php": "8.4",
 		"wp": false
@@ -152,8 +151,8 @@ one step:
 		{
 			"step": "unzip",
 			"zipFile": {
-				"resource": "bundled",
-				"path": "./symfony-package-radar.zip"
+				"resource": "url",
+				"url": "https://wordpress.github.io/blueprints/blueprints/symfony-package-radar/symfony-package-radar.zip?v=wp-php-toolkit-html-2026-06-09"
 			},
 			"extractToPath": "/app"
 		}
@@ -161,9 +160,9 @@ one step:
 }
 ```
 
-Use `bundled` resources when the ZIP ships next to `blueprint.json`, or use a
-`url` resource when the ZIP is hosted separately. See [Blueprint bundles](/blueprints/bundles)
-for packaging details.
+An inline `<php-snippet>` fetches the ZIP from the URL in the Blueprint. If you
+distribute the ZIP alongside `blueprint.json` in a [Blueprint bundle](/blueprints/bundles),
+use a `bundled` resource with the relative `path` to the ZIP.
 
 For a full-page Playground website, use a Blueprint like the gallery demo. It
 adds a tiny router at the Playground document root so the Symfony `public/`

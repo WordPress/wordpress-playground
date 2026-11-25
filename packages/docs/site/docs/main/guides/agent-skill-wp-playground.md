@@ -16,8 +16,10 @@ Before installing the skill, confirm you have:
 
 | Requirement | Minimum version       | Check command   |
 | ----------- | --------------------- | --------------- |
-| Node.js     | 20.18                 | `node -v`       |
+| Node.js     | 22.20                 | `node -v`       |
 | npm / npx   | Included with Node.js | `npx --version` |
+
+The `npx skills` CLI needs Node.js 22.20 or later. The Playground CLI itself runs on Node.js 20.18 or later.
 
 You also need a coding agent that supports agent skills: Antigravity, Claude Code, Codex, Copilot, Cursor, or Gemini CLI. Make sure your CLI or IDE runs the latest version. Output quality depends on your chosen model.
 
@@ -25,13 +27,17 @@ You also need a coding agent that supports agent skills: Antigravity, Claude Cod
 
 ### 1. Install via terminal
 
-Install the skill using the `npx skills` CLI:
+Install the skill using the `npx skills` CLI. Add the `blueprint` skill too: the wp-playground skill hands Blueprint authoring to it.
 
 ```bash
-npx skills add wordpress/agent-skills --skill wp-playground
+npx skills add wordpress/agent-skills --skill wp-playground blueprint
 ```
 
+The CLI asks which coding agents to install to, and whether to install in the project or globally. In a project install, Claude Code skills go into `.claude/skills/`. Codex, Cursor, GitHub Copilot, Gemini CLI, and Antigravity share `.agents/skills/`.
+
 ### 2. Install manually
+
+Without `--skills`, the install command installs all skills. It replaces each matching skill folder, so back up any local changes in those folders first. To install only `wp-playground` and `blueprint`, add `--skills=wp-playground,blueprint` to the install command.
 
 ```bash
 # Clone agent-skills
@@ -39,31 +45,35 @@ git clone https://github.com/WordPress/agent-skills.git
 cd agent-skills
 
 # Build the distribution
-node shared/scripts/skillpack-build.mjs --clean
+node shared/scripts/skillpack-build.mjs --clean --targets=codex,vscode,claude,cursor,antigravity
 
 # Install into your WordPress project
-node shared/scripts/skillpack-install.mjs --dest=../your-wp-project --targets=codex,vscode,claude,cursor,antigravity,gemini
+node shared/scripts/skillpack-install.mjs --dest=../your-wp-project --targets=codex,vscode,claude,cursor,antigravity
+
+# Go to your WordPress project
+cd ../your-wp-project
 ```
 
-This copies skills into:
+This copies all skills, including `blueprint`, into:
 
 - `.github/skills/` for VS Code / GitHub Copilot
 - `.claude/skills/` for Claude Code
 - `.cursor/skills/` for Cursor
-- `.agent/skills/` for Antigravity
-- `.gemini/skills/` for Gemini CLI
+- `.agents/skills/` for Antigravity and Gemini CLI
 - `.codex/skills/` for Codex
 
-Verify installation by checking the skill directory exists for your agent:
+After a manual install, verify that the skill directory exists for your agent:
 
 | Agent          | Skill directory                 |
 | -------------- | ------------------------------- |
 | Claude Code    | `.claude/skills/wp-playground/` |
-| Gemini CLI     | `.gemini/skills/wp-playground/` |
+| Gemini CLI     | `.agents/skills/wp-playground/` |
 | GitHub Copilot | `.github/skills/wp-playground/` |
 | Cursor         | `.cursor/skills/wp-playground/` |
-| Antigravity    | `.agent/skills/wp-playground/`  |
+| Antigravity    | `.agents/skills/wp-playground/` |
 | Codex          | `.codex/skills/wp-playground/`  |
+
+After a project install with `npx skills`, check `.claude/skills/wp-playground/` for Claude Code and `.agents/skills/wp-playground/` for the other agents. A global install puts skills in your home directory instead. Run `npx skills list`, or `npx skills ls -g` for a global install, to see what is installed.
 
 Some agents also support listing skills directly:
 
@@ -154,15 +164,17 @@ The agent breaks these into the right sequence of Blueprint steps and CLI flags.
 
 The wp-playground skill is a set of Markdown files that your coding agent loads into its context when your request matches Playground-related patterns. The skill includes:
 
-- **SKILL.MD** — The main procedure: guardrails, step-by-step workflows, verification checks, and failure modes.
-- **references/cli-commands.md** — A CLI cheatsheet with every flag and default value.
-- **references/blueprint.md** — Blueprint structure, common steps, and authoring tips.
-- **references/debugging.md** — Xdebug setup, path mapping, and troubleshooting steps.
+- **SKILL.md** — The routing procedure: it identifies the workflow you need and loads only the matching reference, plus guardrails, verification checks, and failure modes.
+- **references/cli.md** — Local runs with `@wp-playground/cli`: server, mounts, Blueprint execution, snapshots, and version switching.
+- **references/debugging.md** — Xdebug setup, path mapping, logs, and stuck CLI runs.
+- **references/website.md** — Browser-only workflows on playground.wordpress.net, such as Blueprint URLs and share links.
 
-Your coding agent reads these files before generating commands, ensuring correct flags and warning you about common pitfalls.
+The `references/webmcp.md`, `references/mcp.md`, and `references/sites-api.md` files cover the ways an agent can work with an open Playground site. Blueprint structure, steps, and authoring live in the separate `blueprint` skill, which the wp-playground skill uses for any Blueprint work.
+
+Your coding agent reads the files it needs before generating commands, ensuring correct flags and warning you about common pitfalls.
 
 ## Next steps
 
 - [WordPress Playground for Plugin Developers](/guides/for-plugin-developers) — Showcase and develop plugins with Playground
 - [WordPress Playground for Theme Developers](/guides/for-theme-developers) — Build and demo themes using Playground
-- [Upstream Playground documentation](https://wordpress.github.io/wordpress-playground/) — Full reference for APIs, architecture, and advanced configuration
+- [Playground documentation](/) — Full reference for APIs, architecture, and advanced configuration

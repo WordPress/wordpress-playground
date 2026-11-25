@@ -531,13 +531,13 @@ Narito ang isang maliit na demo ng workflow na ito sa aksyon:
 <!--
 <div class="callout callout-info">
 
-Check [About Playground &gt; Build &gt; Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) for more info.
+Check [About Playground &gt; Build &gt; Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests) for more info.
 
 </div>
 -->
 
 <div class="callout callout-info">
 
-Tingnan ang [About Playground &gt; Build &gt; Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) para sa karagdagang impormasyon.
+Tingnan ang [About Playground &gt; Build &gt; Synchronize your playground instance with a local folder and create GitHub Pull Requests](/about/build#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests) para sa karagdagang impormasyon.
 
 </div>
