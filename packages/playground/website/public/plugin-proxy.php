@@ -96,7 +96,23 @@ class PluginDownloader
 		}
 	}
 
-	private function streamArtifactFromBranch($organization, $repo, $branchName, $workflow_name, $artifact_name)
+	/**
+	 * Streams an artifact from the newest run of a workflow on a branch.
+	 *
+	 * GitHub's `branch` filter matches the branch name only, so it also returns
+	 * runs of pull requests from forks that happen to use the same name. A fork
+	 * can upload an artifact with any name it likes, so only runs whose code
+	 * came from the expected repository are considered.
+	 *
+	 * @param string   $organization       GitHub organization that owns the repository.
+	 * @param string   $repo               Repository name.
+	 * @param string   $branchName         Branch the runs were triggered from.
+	 * @param string   $workflow_name      Workflow name, as set by `name:` in its file.
+	 * @param string   $artifact_name      Artifact name, or a prefix ending in '-'.
+	 * @param int|null $head_repository_id ID of the repository the branch lives in.
+	 *                                      Null means the repository being queried.
+	 */
+	private function streamArtifactFromBranch($organization, $repo, $branchName, $workflow_name, $artifact_name, $head_repository_id = null)
 	{
 		$branchName = urlencode($branchName);
 
@@ -123,6 +139,9 @@ class PluginDownloader
 
 		$artifactsUrls = [];
 		foreach ($ciRuns->workflow_runs as $run) {
+			if (!$this->isRunFromRepository($run, $head_repository_id)) {
+				continue;
+			}
 			$artifactsUrls[] = $run->artifacts_url;
 		}
 		if (!$artifactsUrls) {
@@ -217,6 +236,25 @@ class PluginDownloader
 		}
 	}
 
+	/**
+	 * Tells whether a workflow run built code from the given repository.
+	 *
+	 * @param object   $run                Workflow run returned by the GitHub API.
+	 * @param int|null $head_repository_id Expected head repository ID. Null means
+	 *                                     the repository the run belongs to.
+	 * @return bool
+	 */
+	private function isRunFromRepository($run, $head_repository_id)
+	{
+		$run_head_repository_id = $run->head_repository->id ?? null;
+		if ($run_head_repository_id === null) {
+			// The head repository was deleted, so the run cannot be attributed.
+			return false;
+		}
+		$expected_repository_id = $head_repository_id ?? ($run->repository->id ?? null);
+		return $run_head_repository_id === $expected_repository_id;
+	}
+
 	public function streamFromGithubBranch($organization, $repo, $branch, $workflow_name, $artifact_name)
 	{
 		$this->streamArtifactFromBranch($organization, $repo, $branch, $workflow_name, $artifact_name);
@@ -229,12 +267,19 @@ class PluginDownloader
 			throw new ApiException('invalid_pr_number');
 		}
 		try {
+			// A pull request whose fork was deleted has no head repository,
+			// so none of its runs can be told apart from another fork's.
+			$head_repository_id = $prDetails->head->repo->id ?? null;
+			if ($head_repository_id === null) {
+				throw new ApiException('artifact_not_found');
+			}
 			$this->streamArtifactFromBranch(
 				$organization,
 				$repo,
 				$prDetails->head->ref,
 				$workflow_name,
-				$artifact_name
+				$artifact_name,
+				$head_repository_id
 			);
 		} catch (RateLimitedException $e) {
 			throw $e;
