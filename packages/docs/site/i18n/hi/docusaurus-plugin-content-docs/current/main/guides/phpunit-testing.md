@@ -5,9 +5,9 @@ description: Playground CLI से WordPress प्लगइन और थीम
 sidebar_class_name: navbar-build-item
 ---
 
-<!-- The [Playground CLI](/developers/local-development/wp-playground-cli) includes a `php` subcommand that runs PHP scripts directly inside the Playground environment. By mounting your plugin or theme into the Playground filesystem, you can run PHPUnit without a local database. Every run starts with a clean WordPress installation, so tests are fully isolated. -->
+<!-- The [Playground CLI](/developers/local-development/wp-playground-cli) includes a `php` subcommand that runs PHP scripts directly inside the Playground environment. By mounting your plugin or theme into the Playground filesystem, you can run PHPUnit without a local database. Every run starts with a clean WordPress installation. Your mounted plugin or theme directory is the real folder on your disk, so files a test writes there remain after the run. -->
 
-[Playground CLI](/developers/local-development/wp-playground-cli) में एक `php` सबकमांड है, जो PHP स्क्रिप्ट को सीधे Playground एनवायरनमेंट के अंदर चलाता है। अपने प्लगइन या थीम को Playground फ़ाइल सिस्टम में माउंट करके, आप लोकल डेटाबेस के बिना PHPUnit चला सकते हैं। हर रन एक साफ़ WordPress इंस्टॉलेशन से शुरू होता है, इसलिए परीक्षण पूरी तरह अलग-अलग रहते हैं।
+[Playground CLI](/developers/local-development/wp-playground-cli) में एक `php` सबकमांड है, जो PHP स्क्रिप्ट को सीधे Playground एनवायरनमेंट के अंदर चलाता है। अपने प्लगइन या थीम को Playground फ़ाइल सिस्टम में माउंट करके, आप लोकल डेटाबेस के बिना PHPUnit चला सकते हैं। हर रन एक साफ़ WordPress इंस्टॉलेशन से शुरू होता है। माउंट की गई प्लगइन या थीम डायरेक्टरी आपकी डिस्क का असली फ़ोल्डर होती है, इसलिए कोई परीक्षण उसमें जो फ़ाइलें लिखता है, वे रन के बाद भी बनी रहती हैं।
 
 <div class="callout callout-info">
 
@@ -33,9 +33,9 @@ npx @wp-playground/cli@latest php \
   -c /wordpress/wp-content/themes/THEME_NAME/phpunit.xml.dist
 ```
 
-<!-- The `--auto-mount` flag detects whether the current directory is a plugin, theme, `wp-content` directory, or WordPress installation and mounts it at the matching path under `/wordpress/`. The `--` separates CLI flags from arguments passed to the PHP interpreter, and you can pass any arguments supported by your PHPUnit configuration. -->
+<!-- The `--auto-mount` flag detects whether the current directory is a plugin, theme, or WordPress installation and mounts it at the matching path under `/wordpress/`. The `--` separates CLI flags from arguments passed to the PHP interpreter, and you can pass any arguments supported by your PHPUnit configuration. -->
 
-फ़्लैग `--auto-mount` पहचानता है कि मौजूदा डायरेक्टरी प्लगइन है, थीम है, `wp-content` डायरेक्टरी है या WordPress इंस्टॉलेशन, और उसे `/wordpress/` के अंदर उससे मेल खाते पाथ पर माउंट करता है। `--` CLI फ़्लैग को उन आर्गुमेंट से अलग करता है जो PHP इंटरप्रेटर को भेजे जाते हैं, और आप अपने PHPUnit कॉन्फ़िगरेशन में समर्थित कोई भी आर्गुमेंट दे सकते हैं।
+फ़्लैग `--auto-mount` पहचानता है कि मौजूदा डायरेक्टरी प्लगइन है, थीम है या WordPress इंस्टॉलेशन, और उसे `/wordpress/` के अंदर उससे मेल खाते पाथ पर माउंट करता है। `--` CLI फ़्लैग को उन आर्गुमेंट से अलग करता है जो PHP इंटरप्रेटर को भेजे जाते हैं, और आप अपने PHPUnit कॉन्फ़िगरेशन में समर्थित कोई भी आर्गुमेंट दे सकते हैं।
 
 <!-- For a plugin, the path would use `plugins/` instead: -->
 

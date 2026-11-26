@@ -5,7 +5,7 @@ description: Run PHPUnit tests for WordPress plugins and themes using the Playgr
 sidebar_class_name: navbar-build-item
 ---
 
-The [Playground CLI](/developers/local-development/wp-playground-cli) includes a `php` subcommand that runs PHP scripts directly inside the Playground environment. By mounting your plugin or theme into the Playground filesystem, you can run PHPUnit without a local database. Every run starts with a clean WordPress installation, so tests are fully isolated.
+The [Playground CLI](/developers/local-development/wp-playground-cli) includes a `php` subcommand that runs PHP scripts directly inside the Playground environment. By mounting your plugin or theme into the Playground filesystem, you can run PHPUnit without a local database. Every run starts with a clean WordPress installation. Your mounted plugin or theme directory is the real folder on your disk, so files a test writes there remain after the run.
 
 <div class="callout callout-info">
 
@@ -25,7 +25,7 @@ npx @wp-playground/cli@latest php \
   -c /wordpress/wp-content/themes/THEME_NAME/phpunit.xml.dist
 ```
 
-The `--auto-mount` flag detects whether the current directory is a plugin, theme, `wp-content` directory, or WordPress installation and mounts it at the matching path under `/wordpress/`. The `--` separates CLI flags from arguments passed to the PHP interpreter, and you can pass any arguments supported by your PHPUnit configuration.
+The `--auto-mount` flag detects whether the current directory is a plugin, theme, or WordPress installation and mounts it at the matching path under `/wordpress/`. The `--` separates CLI flags from arguments passed to the PHP interpreter, and you can pass any arguments supported by your PHPUnit configuration.
 
 For a plugin, the path would use `plugins/` instead:
 
