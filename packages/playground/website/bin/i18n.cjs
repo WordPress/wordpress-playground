@@ -397,13 +397,33 @@ function getPotHeaders() {
 	};
 }
 
+function getHeaderValue(headers, name) {
+	if (!headers) {
+		return undefined;
+	}
+	const lower = name.toLowerCase();
+	for (const [key, value] of Object.entries(headers)) {
+		if (key.toLowerCase() === lower && value) {
+			return value;
+		}
+	}
+	return undefined;
+}
+
 function getLocaleHeaders(locale, existingPo) {
+	const existingHeaders = existingPo?.headers;
 	return {
 		...getPotHeaders(),
-		...(existingPo?.headers || {}),
+		'PO-Revision-Date':
+			getHeaderValue(existingHeaders, 'PO-Revision-Date') ||
+			'YEAR-MO-DA HO:MI+ZONE',
+		'Last-Translator':
+			getHeaderValue(existingHeaders, 'Last-Translator') ||
+			'FULL NAME <EMAIL@ADDRESS>',
 		Language: locale.locale,
 		'Language-Team': `${locale.englishName} <LL@li.org>`,
 		'Plural-Forms': locale.pluralForms,
+		'Content-Type': 'text/plain; charset=UTF-8',
 		'X-Domain': TEXT_DOMAIN,
 	};
 }
@@ -417,7 +437,7 @@ function compareMessages(a, b) {
 }
 
 function parsePo(poFile) {
-	return gettextParser.po.parse(fs.readFileSync(poFile));
+	return gettextParser.po.parse(fs.readFileSync(poFile), 'utf-8');
 }
 
 function getPoFile(locale) {
