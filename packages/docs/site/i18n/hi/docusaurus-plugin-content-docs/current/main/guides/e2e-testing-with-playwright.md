@@ -22,12 +22,12 @@ sidebar_class_name: navbar-build-item
 ## ज़रूरी चीज़ें {#prerequisites}
 
 <!--
-- **Node.js 20** or later
+- **Node.js 20.18** or later
 - A WordPress plugin/theme or an entire WordPress site to test
 - **Recommended:** enable the `@typescript-eslint/no-floating-promises` ESLint rule to catch missing `await` on async Playwright calls
 -->
 
-- **Node.js 20** या उसके बाद का संस्करण
+- **Node.js 20.18** या उसके बाद का संस्करण
 - परीक्षण के लिए एक WordPress प्लगइन/थीम या पूरी WordPress साइट
 - **सुझाव:** async Playwright कॉल में छूटे हुए `await` पकड़ने के लिए `@typescript-eslint/no-floating-promises` ESLint नियम सक्षम करें
 
@@ -124,9 +124,9 @@ WordPress Playground प्रोजेक्ट अपने परीक्ष
 
 ```typescript
 import { test, expect } from '@playwright/test';
-import { runCLI } from '@wp-playground/cli';
+import { runCLI, type RunCLIServer } from '@wp-playground/cli';
 
-let cli: Awaited<ReturnType<typeof runCLI>>;
+let cli: RunCLIServer;
 
 test.beforeAll(async () => {
 	cli = await runCLI({
@@ -139,7 +139,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-	await cli?.server?.close();
+	await cli?.[Symbol.asyncDispose]();
 });
 
 test('WordPress dashboard loads', async ({ page }) => {
@@ -275,9 +275,9 @@ await expect.soft(page.getByRole('heading', { level: 1 })).toContainText('Settin
 
 ### Playground सर्वर शुरू करना {#starting-a-playground-server}
 
-<!-- The `runCLI` function starts a local Playground server and returns an object with `serverUrl` (the URL string) and `server` (the HTTP server instance). Pass a Blueprint to configure the WordPress instance: -->
+<!-- The `runCLI` function starts a local Playground server and returns an object with `serverUrl` (the URL string) and `server` (the HTTP server instance). When your tests finish, call `[Symbol.asyncDispose]()` on the returned object to stop the server and clean up its resources. Pass a Blueprint to configure the WordPress instance: -->
 
-फ़ंक्शन `runCLI` एक लोकल Playground सर्वर शुरू करता है और एक ऑब्जेक्ट लौटाता है, जिसमें `serverUrl` (URL स्ट्रिंग) और `server` (HTTP सर्वर इंस्टेंस) होते हैं। WordPress इंस्टेंस को कॉन्फ़िगर करने के लिए एक Blueprint पास करें:
+फ़ंक्शन `runCLI` एक लोकल Playground सर्वर शुरू करता है और एक ऑब्जेक्ट लौटाता है, जिसमें `serverUrl` (URL स्ट्रिंग) और `server` (HTTP सर्वर इंस्टेंस) होते हैं। परीक्षण पूरे होने पर सर्वर बंद करने और उसके संसाधन साफ़ करने के लिए लौटाए गए ऑब्जेक्ट पर `[Symbol.asyncDispose]()` कॉल करें। WordPress इंस्टेंस को कॉन्फ़िगर करने के लिए एक Blueprint पास करें:
 
 ```typescript
 const cli = await runCLI({
@@ -312,7 +312,7 @@ test.describe('Plugin settings', () => {
 		cli = await runCLI({ command: 'server', blueprint });
 	});
 	test.afterAll(async () => {
-		await cli?.server?.close();
+		await cli?.[Symbol.asyncDispose]();
 	});
 	// Tests share the same WordPress instance
 });
@@ -327,7 +327,7 @@ test.beforeEach(async () => {
 	cli = await runCLI({ command: 'server', blueprint });
 });
 test.afterEach(async () => {
-	await cli?.server?.close();
+	await cli?.[Symbol.asyncDispose]();
 });
 ```
 
@@ -566,11 +566,11 @@ const versionMatrix = [
 	{ php: '8.1', wp: '6.5' },
 	{ php: '8.2', wp: '6.7' },
 	{ php: '8.3', wp: 'latest' },
-];
+] as const;
 
 for (const { php, wp } of versionMatrix) {
 	test.describe(`PHP ${php} + WP ${wp}`, () => {
-		let versionCli: Awaited<ReturnType<typeof runCLI>>;
+		let versionCli: RunCLIServer;
 
 		test.beforeAll(async () => {
 			versionCli = await runCLI({
@@ -607,7 +607,7 @@ for (const { php, wp } of versionMatrix) {
 		});
 
 		test.afterAll(async () => {
-			await versionCli?.server?.close();
+			await versionCli?.[Symbol.asyncDispose]();
 		});
 	});
 }

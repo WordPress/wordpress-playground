@@ -39,9 +39,11 @@ export function buildPlaygroundAnnotationMetadata(
 }
 
 /**
- * Serializes flat key-value pairs for the `oai-annotation-metadata` attribute,
- * omitting entries that exceed the browser's six-property, 256-character string,
- * or 2,048-byte serialized-object limits.
+ * Serializes flat key-value pairs for the `oai-annotation-metadata` attribute.
+ * ChatGPT ignores invalid metadata, so this omits entries that would exceed the
+ * six-property, 256-character string, or 2,048-byte serialized-object limits.
+ *
+ * @see https://learn.chatgpt.com/docs/annotations-extensibility#add-context-to-a-selection
  */
 export function serializeAnnotationMetadata(
 	metadata: Record<string, AnnotationMetadataPrimitive | undefined>
