@@ -33,6 +33,9 @@ describe('PHP OpenSSL configuration', () => {
 							'hasKey' => $key !== false,
 							'exported' => $exported,
 							'hasPemHeader' => strpos($pem, 'BEGIN') !== false,
+							'detailsBits' => is_array($details) ? $details['bits'] : null,
+							'isRsaType' => is_array($details) && $details['type'] === OPENSSL_KEYTYPE_RSA,
+							'hasPublicKey' => is_array($details) && isset($details['key']) && strpos($details['key'], 'BEGIN PUBLIC KEY') !== false,
 							'verified' => $verified,
 							'opensslConf' => getenv('OPENSSL_CONF'),
 							'errors' => $errors,
@@ -46,6 +49,9 @@ describe('PHP OpenSSL configuration', () => {
 					hasKey: true,
 					exported: true,
 					hasPemHeader: true,
+					detailsBits: 2048,
+					isRsaType: true,
+					hasPublicKey: true,
 					verified: 1,
 					opensslConf: DEFAULT_OPENSSL_CONF_PATH,
 				});
@@ -91,6 +97,45 @@ describe('PHP OpenSSL configuration', () => {
 			});
 		} finally {
 			php.exit();
+		}
+	});
+
+	it('applies default OpenSSL configuration consistently across repeated fresh runtimes', async () => {
+		for (let run = 0; run < 2; run++) {
+			const php = new PHP(
+				await loadNodeRuntime(LatestSupportedPHPVersion)
+			);
+			try {
+				const result = await php.run({
+					code: `<?php
+						$key = openssl_pkey_new(array(
+							'private_key_bits' => 2048,
+							'private_key_type' => OPENSSL_KEYTYPE_RSA,
+						));
+						$pem = '';
+						$exported = $key !== false ? openssl_pkey_export($key, $pem) : false;
+						$details = $key !== false ? openssl_pkey_get_details($key) : false;
+						echo json_encode(array(
+							'opensslConf' => getenv('OPENSSL_CONF'),
+							'hasKey' => $key !== false,
+							'exported' => $exported,
+							'detailsBits' => is_array($details) ? $details['bits'] : null,
+							'isRsaType' => is_array($details) && $details['type'] === OPENSSL_KEYTYPE_RSA,
+						));
+					`,
+				});
+
+				expect(result.errors).toBe('');
+				expect(JSON.parse(result.text)).toEqual({
+					opensslConf: DEFAULT_OPENSSL_CONF_PATH,
+					hasKey: true,
+					exported: true,
+					detailsBits: 2048,
+					isRsaType: true,
+				});
+			} finally {
+				php.exit();
+			}
 		}
 	});
 
