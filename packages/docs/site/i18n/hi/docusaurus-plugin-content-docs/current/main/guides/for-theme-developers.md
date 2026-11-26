@@ -130,14 +130,14 @@ GitHub रिपॉज़िटरी में रखी थीम भी ब�
 <!--
 Some useful tools and resources provided by the Playground project to work with blueprints are:
 
-- Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
+- Check the [Blueprints Gallery](https://wordpress.github.io/blueprints/) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups.
 - The [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) tool provides a visual interface to drag or click the steps to create a blueprint for WordPress Playground. You can also create your own steps!
 - The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance.
 -->
 
 ब्लूप्रिंट के साथ काम करने के लिए Playground प्रोजेक्ट के कुछ उपयोगी टूल और संसाधन ये हैं:
 
-- [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) देखें, जहाँ अलग-अलग सेटअप वाली WordPress साइट लॉन्च करने के लिए WordPress Playground के इस्तेमाल के असल कोड उदाहरण हैं।
+- [Blueprints Gallery](https://wordpress.github.io/blueprints/) देखें, जहाँ अलग-अलग सेटअप वाली WordPress साइट लॉन्च करने के लिए WordPress Playground के इस्तेमाल के असल कोड उदाहरण हैं।
 - [WordPress Playground Step Library](https://akirk.github.io/playground-step-library/#) टूल एक विज़ुअल इंटरफ़ेस देता है, जिसमें स्टेप को खींचकर या क्लिक करके WordPress Playground के लिए ब्लूप्रिंट बनाया जा सकता है। आप अपने खुद के स्टेप भी बना सकते हैं!
 - [Blueprints builder](https://playground.wordpress.net/builder/builder.html) टूल से आप अपना ब्लूप्रिंट ऑनलाइन संपादित कर सकते हैं और उसे सीधे Playground इंस्टेंस में चला सकते हैं।
 
@@ -307,9 +307,9 @@ For example, you can add a demo-specific body class that your theme can use for 
 
 <div class="callout callout-tip">
 
-<!-- The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) and ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) examples from the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) are great references for loading, activating, importing content, and configuring a block theme on a Playground instance. -->
+<!-- The ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) and ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) examples from the [Blueprints Gallery](https://wordpress.github.io/blueprints/) are great references for loading, activating, importing content, and configuring a block theme on a Playground instance. -->
 
-[Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) के ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) और ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) उदाहरण, Playground इंस्टेंस पर किसी ब्लॉक थीम को लोड करने, एक्टिवेट करने, उसमें सामग्री इम्पोर्ट करने और उसे कॉन्फ़िगर करने के लिए बढ़िया संदर्भ हैं।
+[Blueprints Gallery](https://wordpress.github.io/blueprints/) के ["Stylish Press"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/stylish-press) और ["Loading, activating, and configuring a theme from a GitHub repository"](https://github.com/WordPress/blueprints/tree/trunk/blueprints/install-activate-setup-theme-from-gh-repo) उदाहरण, Playground इंस्टेंस पर किसी ब्लॉक थीम को लोड करने, एक्टिवेट करने, उसमें सामग्री इम्पोर्ट करने और उसे कॉन्फ़िगर करने के लिए बढ़िया संदर्भ हैं।
 
 </div>
 
