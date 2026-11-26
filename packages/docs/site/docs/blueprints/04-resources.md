@@ -5,7 +5,7 @@ description: A technical reference for "Resource References." Learn how to use e
 
 # Resources References
 
-"Resource References" allow you use external files in Blueprints
+"Resource References" allow you to use external files in Blueprints.
 
 <div class="callout callout-info">
 
