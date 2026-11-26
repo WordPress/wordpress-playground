@@ -33,7 +33,7 @@ npx tsx my-script.ts
 
 ## Setting a blueprint
 
-You can provide a blueprint in two ways: either as an object literal directly passed to the `blueprint` property, or as a string containing the path to an external `.json` file.
+You can provide a blueprint in two ways: either as an object literal directly passed to the `blueprint` property, or as a string containing the path to an external `.json` file. The string form works at runtime, but the exported `RunCLIArgs` type does not include it, so TypeScript reports a type error for it.
 
 ```TypeScript
 import { runCLI } from "@wp-playground/cli";
@@ -80,7 +80,7 @@ const myBlueprint: BlueprintDeclaration = {
 
 ## Mounting a plugin programmatically
 
-You can mount local directories programmatically using `runCLI`. The options `mount` and `mount-before-install` are available. The `hostPath` property expects a path to a directory on your local machine. This path should be relative to where your script is being executed.
+You can mount local directories programmatically using `runCLI`. The options `mount` and `mount-before-install` are available. The `hostPath` property expects a path to a directory on your local machine. A relative path is resolved from the current working directory, the directory you run the script from.
 
 ```TypeScript
 import { runCLI } from "@wp-playground/cli";
@@ -285,7 +285,7 @@ import { runCLI } from "@wp-playground/cli";
 try {
   const cliServer = await runCLI({
     command: 'server',
-    debug: true, // Enable PHP error logging.
+    verbosity: 'debug', // If boot fails, the thrown error includes the PHP error log.
   });
 
   // Your test code here
