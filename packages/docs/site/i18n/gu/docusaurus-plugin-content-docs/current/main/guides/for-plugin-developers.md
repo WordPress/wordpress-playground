@@ -229,6 +229,6 @@ Google Chrome સાથે તમે પ્લેગ્રાઉન્ડ ઇન
 
 <div class="callout callout-info">
 
-[પ્લેગ્રાઉન્ડ વિશે &gt; Build &gt; તમારા પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને સ્થાનિક ફોલ્ડર સાથે સમન્વય કરો અને GitHub Pull Requests બનાવો](/about/build#synchronize-your-playground-instance-with-a-local-folder-and-create-github-pull-requests) માટે વધુ માહિતી તપાસો.
+[પ્લેગ્રાઉન્ડ વિશે &gt; Build &gt; તમારા પ્લેગ્રાઉન્ડ ઇન્સ્ટન્સને સ્થાનિક ફોલ્ડર સાથે સમન્વય કરો અને GitHub Pull Requests બનાવો](/about/build#synchronize-your-playground-with-a-local-folder-and-create-github-pull-requests) માટે વધુ માહિતી તપાસો.
 
 </div>

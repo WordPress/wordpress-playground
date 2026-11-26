@@ -11,6 +11,7 @@ import type {
 import {
 	isLegacyPHPVersion,
 	PHP,
+	PHP_EXTENSIONS_DIR,
 	PHPRequestHandler,
 	sandboxedSpawnHandlerFactory,
 	setPhpIniEntries,
@@ -420,7 +421,28 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			php.requestHandler = requestHandler;
 		}
 		if (options.phpIniEntries) {
-			await setPhpIniEntries(php, options.phpIniEntries);
+			// PHP reads php.ini first and the extension ini files after, so an
+			// entry such as `xdebug.mode` set in php.ini loses to the value
+			// xdebug.ini ships. Entries named after an extension that has its
+			// own ini file go to that file. Every other entry goes to php.ini.
+			const entriesByPath = new Map<string | undefined, PhpIniOptions>();
+			for (const [key, value] of Object.entries(options.phpIniEntries)) {
+				const [extensionName, setting] = key.split('.');
+				const extensionIniPath = setting
+					? joinPaths(PHP_EXTENSIONS_DIR, `${extensionName}.ini`)
+					: undefined;
+				const path =
+					extensionIniPath && (await php.fileExists(extensionIniPath))
+						? extensionIniPath
+						: undefined;
+				entriesByPath.set(path, {
+					...entriesByPath.get(path),
+					[key]: value,
+				});
+			}
+			for (const [path, pathEntries] of entriesByPath) {
+				await setPhpIniEntries(php, pathEntries, path);
+			}
 		}
 
 		await applyLegacyPhpIniOverrides(php, {
@@ -428,43 +450,42 @@ export async function bootRequestHandler(options: BootRequestHandlerOptions) {
 			phpIniEntries: options.phpIniEntries,
 		});
 
-		// Use the new AST-based SQLite driver.
-		// TODO: Remove this once the new driver is the default; when this is closed:
-		//         https://github.com/WordPress/sqlite-database-integration/issues/195
-		php.defineConstant('WP_SQLITE_AST_DRIVER', true);
-
-		// Define any custom constants provided via CLI or configuration
-		if (options.constants) {
-			for (const key in options.constants) {
-				php.defineConstant(key, options.constants[key]);
-			}
-		}
-
 		/**
-		 * Set up mu-plugins in /internal/mu-plugins
-		 * using auto_prepend_file to provide platform-level
-		 * customization without altering the installed WordPress
-		 * site.
+		 * Only the first boot of the primary PHP instance writes the
+		 * boot constants and the platform-level files below. Other
+		 * workers and proc_open() children share `/internal` and its
+		 * constants, so they must not rewrite them and race with
+		 * concurrent writers.
 		 *
-		 * We only do that in the primary PHP instance –
-		 * the filesystem there is the source of truth
-		 * for all other PHP instances.
+		 * The `.boot-files-written` file is our primitive synchronization
+		 * mechanism. It works, because secondary workers are only booted
+		 * once the primary worker has fully booted.
+		 *
+		 * Secondary PHP instances read these files through the
+		 * `/internal/shared` mount set up in `onPHPInstanceCreated`
+		 * (proxyFileSystem in the web worker).
 		 */
-		if (
-			isPrimary &&
-			/**
-			 * Only the first PHP instance of the first worker created
-			 * during WordPress boot writes these files – otherwise we'll keep
-			 * overwriting them with concurrent writers living in other worker
-			 * threads.
-			 *
-			 * The `.boot-files-written` file is our primitive synchronization
-			 * mechanism. It works, because secondary workers are only booted
-			 * once the primary worker has fully booted.
-			 */
-			!php.isFile('/internal/.boot-files-written')
-		) {
+		const isFirstBoot =
+			isPrimary && !php.isFile('/internal/.boot-files-written');
+
+		if (isFirstBoot) {
+			// Use the new AST-based SQLite driver.
+			// TODO: Remove this once the new driver is the default; when this is closed:
+			//         https://github.com/WordPress/sqlite-database-integration/issues/195
+			php.defineConstant('WP_SQLITE_AST_DRIVER', true);
+
+			// Define any custom constants provided via CLI or configuration
+			if (options.constants) {
+				for (const [key, value] of Object.entries(options.constants)) {
+					php.defineConstant(key, value);
+				}
+			}
+
 			// TODO: There is a race here when multiple workers are calling bootRequestHandler(). Fix it.
+
+			// Set up mu-plugins in /internal/mu-plugins using
+			// auto_prepend_file to provide platform-level customization
+			// without altering the installed WordPress site.
 			await setupPlatformLevelMuPlugins(php, {
 				phpVersion: options.phpVersion,
 			});

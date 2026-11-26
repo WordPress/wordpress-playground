@@ -17,6 +17,21 @@
  * the previous webapp version. Therefore, we can't allow the previous version
  * to run when a new version becomes available.
  *
+ * ## Separate app and WordPress origins
+ *
+ * The same worker bundle runs on both origins, which serve the same release
+ * files. The configured app origin (or, outside WP Cloud, the module URL) identifies
+ * the app; self.location.origin identifies the registration serving requests.
+ * In a split-origin deployment, only the WordPress registration serves virtual
+ * /scope:... pages. Scoped app navigations serve a trusted iframe wrapper; other
+ * scoped app requests are rejected so user HTML cannot access app storage.
+ *
+ * PHP stays in an app-origin worker. The WordPress service worker sends HTTP
+ * requests to a hidden iframe on its own origin, which forwards them to its
+ * app-origin parent and PHP. Replies return through that iframe. A scope picks
+ * the PHP instance; it is not authorization between pages sharing the WordPress
+ * origin. The app can also still be embedded as a fresh document from WordPress.
+ *
  * ## Caching strategy
  *
  * Playground uses caching heavily to achieve great loading speeds and provide
@@ -30,7 +45,7 @@
  *
  * ### HTTP cache in the browser
  *
- * This service worker skips the browser HTTP cache for all network requests. This is because
+ * On the app origin, this service worker skips the browser HTTP cache for asset downloads because
  * the HTTP cache caused a particularly nasty problem in Playground deployments.
  *
  * Installing a new service worker purged the CacheStorage and requested a new set of assets
@@ -42,6 +57,12 @@
  * See https://github.com/WordPress/wordpress-playground/pull/1822 for more details.
  *
  * ### CacheStorage in the service worker
+ *
+ * In the split-origin setup, the WordPress origin never uses CacheStorage for
+ * platform assets: every WordPress page can replace those entries. Its bridge
+ * HTML is generated below from trusted worker code. Release
+ * files come from the server and the browser HTTP cache. The app
+ * keeps its own origin-protected CacheStorage for PHP and WordPress downloads.
  *
  * Playground primarily relies on the **Cache first** strategy. This means assets are:
  *
@@ -101,6 +122,25 @@
 declare const self: ServiceWorkerGlobalScope;
 
 import {
+	runtimeStaticAssetsDirectory,
+	wordPressStaticAssetOrigin,
+} from './src/lib/wordpress-static-assets';
+import {
+	playgroundOrigin,
+	wordPressSiteUrl,
+	releaseBase,
+	usesMultiReleaseDirectoryLayout,
+} from './src/lib/config';
+// @ts-ignore -- Provided by Vite.
+import { buildVersion } from 'virtual:remote-config';
+import {
+	getWordPressBridgePath,
+	isWordPressBridgePath,
+} from './src/lib/wordpress-bridge-path';
+// @ts-ignore -- Vite bundles the bridge for both its network and worker-generated HTML.
+import wordpressBridgeScriptUrl from './src/lib/wordpress-bridge.ts?worker&url';
+
+import {
 	getURLScope,
 	isURLScoped,
 	removeURLScope,
@@ -114,10 +154,12 @@ import {
 	broadcastMessageExpectReply,
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
+import { joinPaths } from '@php-wasm/util';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
 import {
 	cacheFirstFetch,
+	fetchBlueprintsIndex,
 	networkFirstFetch,
 	cacheOfflineModeAssetsForCurrentRelease,
 	isCurrentServiceWorkerActive,
@@ -132,6 +174,13 @@ import {
 	handleRemoteAccessRelayRequest,
 } from '@wp-playground/remote-access';
 
+import { RELOAD_REQUIRED } from './src/lib/shared-runtime';
+import {
+	registerSharedRuntime,
+	hasSharedRuntime,
+	sendSharedRuntimeRequest,
+} from './src/lib/shared-runtime-service-worker';
+
 if (!(self as any).document) {
 	// Workaround: vite translates import.meta.url
 	// to document.currentScript which fails inside of
@@ -143,6 +192,7 @@ if (!(self as any).document) {
 
 self.addEventListener('message', (event) => {
 	handleRemoteAccessRelayMessage(event);
+	registerSharedRuntime(event);
 });
 
 /**
@@ -197,12 +247,31 @@ self.addEventListener('install', (event) => {
  * * Clients.claim() docs https://developer.mozilla.org/en-US/docs/Web/API/Clients/claim
  */
 self.addEventListener('activate', function (event) {
+	/**
+	 * Take control of open pages without reloading them, then prepare asset caching.
+	 *
+	 * Only the app registration purges old platform caches. The WordPress
+	 * registration must not use its origin's user-writable cache for platform
+	 * assets. In split-origin mode the app fills its cache on demand instead of
+	 * downloading the full offline manifest, including unused PHP and WordPress
+	 * versions. Builds without a sandbox retain the existing offline prefetch.
+	 */
 	async function doActivate() {
 		await self.clients.claim();
 
 		if (shouldCacheUrl(new URL(location.href))) {
 			await purgeEverythingFromPreviousRelease();
-			cacheOfflineModeAssetsForCurrentRelease();
+			// The split-origin preview shares this root cache on demand. Do not
+			// prefetch unused runtimes, editors, or WordPress versions.
+			if (wordPressSiteUrl === playgroundOrigin) {
+				cacheOfflineModeAssetsForCurrentRelease(
+					new URL(self.location.href).searchParams.get(
+						'shared-worker'
+					) === '1'
+						? ['/personal-wp-version.json']
+						: []
+				);
+			}
 		}
 	}
 	event.waitUntil(doActivate());
@@ -218,16 +287,122 @@ self.addEventListener('fetch', (event) => {
 	}
 
 	const url = new URL(event.request.url);
+	// Handle scoped pages only on this registration's origin. The app worker
+	// must not intercept sandbox URLs, and the PHP connection rejects their
+	// app-origin aliases so WordPress cannot run with app storage access.
+	if (isURLScoped(url) && url.origin !== self.location.origin) return;
+	if (
+		isURLScoped(url) &&
+		self.location.origin === playgroundOrigin &&
+		wordPressSiteUrl !== playgroundOrigin
+	) {
+		// App aliases serve only the trusted iframe wrapper, never WordPress HTML.
+		return event.respondWith(
+			event.request.method === 'GET' &&
+				event.request.mode === 'navigate' &&
+				event.request.destination === 'document'
+				? networkFirstFetch(
+						new Request(
+							new URL('/wordpress-popup.html', playgroundOrigin)
+						)
+					)
+				: Promise.resolve(new Response('Not found', { status: 404 }))
+		);
+	}
+
+	// A static release's app names the bridge in its own release directory.
+	const isOwnReleaseBridge =
+		usesMultiReleaseDirectoryLayout &&
+		url.pathname === joinPaths(releaseBase, 'wordpress-bridge.html');
+	if (
+		self.location.origin !== playgroundOrigin &&
+		url.origin === self.location.origin &&
+		(isWordPressBridgePath(url.pathname) || isOwnReleaseBridge)
+	) {
+		// PRE_RELEASE_BRIDGE_URL_COMPAT: builds without release directories use root
+		// bridge aliases. Development and portable builds still use them too; see
+		// the deployment removal checklist.
+		// An installed worker can belong to a different release than the app.
+		// Generate HTML only for our release path, our buildVersion alias, and the
+		// unversioned compatibility alias. Otherwise our HTML would substitute our
+		// script for the app's requested version. Other release paths fall through
+		// to HTTP below; let other build-version aliases reach HTTP here too.
+		if (
+			!isOwnReleaseBridge &&
+			url.pathname !== '/wordpress-bridge.html' &&
+			url.pathname !== getWordPressBridgePath(buildVersion)
+		)
+			return;
+		// WordPress can replace any CacheStorage entry on this origin. Generate
+		// the bridge from trusted worker code, including when starting offline.
+		// Its script comes from the server, never WordPress-writable cached bytes.
+		// Static releases serve it on this host too, so no CORS is needed.
+		const scriptUrl = new URL(
+			wordpressBridgeScriptUrl,
+			usesMultiReleaseDirectoryLayout
+				? self.location.origin
+				: playgroundOrigin
+		);
+		return event.respondWith(
+			new Response(
+				`<!doctype html><title>WordPress bridge</title><script type="module" src=${JSON.stringify(scriptUrl.href)}></script>`,
+				{
+					headers: {
+						'Content-Type': 'text/html',
+						'Cache-Control': 'no-store',
+					},
+				}
+			)
+		);
+	}
 
 	// Don't handle requests to the service worker script itself.
 	if (url.pathname.startsWith(self.location.pathname)) {
 		return;
 	}
 
+	// Let HTTP own other releases' app downloads. Replacing this worker while
+	// its response is streaming aborts that download in WebKit. Downloads outside
+	// the worker survive the update; this release keeps its normal offline cache.
+	const isAppAssetFromAnotherRelease =
+		(url.pathname.startsWith('/releases/') &&
+			!url.pathname.startsWith(releaseBase)) ||
+		// PRE_RELEASE_ASSETS_COMPAT: rollback can restore the root-only asset layout.
+		// Managed builds put their own app assets under releaseBase instead.
+		(usesMultiReleaseDirectoryLayout &&
+			url.pathname.startsWith('/assets/'));
+	if (
+		self.location.origin === playgroundOrigin &&
+		url.origin === playgroundOrigin &&
+		isAppAssetFromAnotherRelease
+	) {
+		return;
+	}
+
+	// Release files are public platform code shared by both hosts, even when a
+	// WordPress page requests them. Do not redirect them into its scope.
+	if (
+		self.location.origin !== playgroundOrigin &&
+		url.origin === self.location.origin &&
+		url.pathname.startsWith('/releases/')
+	) {
+		// Explicitly forward the request so Firefox keeps workers controlled.
+		// An unhandled worker script can lose its controller, sending its scoped
+		// resource fetches to the server instead of the running WordPress site.
+		return event.respondWith(fetch(event.request));
+	}
+
 	// Vite's /@fs/ modules remain app assets when a scoped WordPress document
 	// imports them during development. Sending them through WordPress turns the
 	// module graph into scoped 404 responses.
+	const sharedMode =
+		new URL(self.location.href).searchParams.get('shared-worker') === '1';
+	if (sharedMode && url.pathname.endsWith('/shared-playground-worker.js')) {
+		// Refresh the stable entrypoint online while preserving offline startup.
+		return event.respondWith(networkFirstFetch(event.request));
+	}
 	const isReservedUrl =
+		(sharedMode && url.pathname.endsWith('/personal-wp-version.json')) ||
 		url.pathname.startsWith('/plugin-proxy') ||
 		url.pathname.startsWith('/client/index.js') ||
 		url.pathname.startsWith('/relay/') ||
@@ -249,6 +424,23 @@ self.addEventListener('fetch', (event) => {
 	const isSiteThumbnailWorker =
 		event.request.destination === 'worker' &&
 		url.searchParams.has('playground-site-thumbnail-worker');
+	if (
+		isSiteThumbnailWorker &&
+		self.location.origin !== playgroundOrigin &&
+		url.origin === self.location.origin &&
+		url.pathname.startsWith('/assets/')
+	) {
+		// The same-origin worker loader must not come from a WordPress-writable cache either.
+		const scriptUrl = new URL(url.pathname + url.search, playgroundOrigin);
+		return event.respondWith(
+			new Response(`importScripts(${JSON.stringify(scriptUrl.href)});`, {
+				headers: {
+					'Content-Type': 'text/javascript',
+					'Cache-Control': 'no-store',
+				},
+			})
+		);
+	}
 	if (isSiteThumbnailModule || isSiteThumbnailWorker) {
 		return event.respondWith(
 			shouldCacheUrl(url)
@@ -292,7 +484,11 @@ self.addEventListener('fetch', (event) => {
 		// ignore
 	}
 
-	if (referrerUrl && isURLScoped(referrerUrl)) {
+	if (
+		referrerUrl &&
+		referrerUrl.origin === wordPressSiteUrl &&
+		isURLScoped(referrerUrl)
+	) {
 		if (url.origin !== referrerUrl.origin) {
 			// Cross-origin requests can be handled by the service worker when they
 			// are initiated from a page in the service worker's scope.
@@ -312,39 +508,20 @@ self.addEventListener('fetch', (event) => {
 		return event.respondWith(Response.redirect(scopedRedirectTarget));
 	}
 
-	/**
-	 * A proxy that enables offline caching of cross-origin requests.
-	 *
-	 * For example, the following request fetching the list of all the Blueprints
-	 * from the Blueprints directory:
-	 *
-	 * https://playground.wordpress.net/proxy/network-first-fetch/https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json
-	 *
-	 * would be proxied to:
-	 *
-	 * https://raw.githubusercontent.com/WordPress/blueprints/trunk/index.json
-	 *
-	 * And the response would be cached for when Playground is running in the
-	 * offline mode.
-	 */
-	if (url.pathname.startsWith('/proxy/')) {
-		const segments = url.pathname.split('/');
-		const command = segments[2];
-		switch (command) {
-			case 'network-first-fetch': {
-				const proxiedUrl =
-					url.pathname.substring(
-						'/proxy/'.length + command.length + 1
-					) +
-					(url?.search ? '?' + url.search : '') +
-					(url?.hash ? '#' + url.hash : '');
-				const requestWithTargetUrl = cloneRequest(event.request, {
-					url: proxiedUrl,
-				});
-				return event.respondWith(
-					requestWithTargetUrl.then(networkFirstFetch)
-				);
-			}
+	// The directory listing needs an offline fallback, but arbitrary upstream
+	// responses must never become executable documents on the Playground origin.
+	if (
+		self.location.origin === playgroundOrigin &&
+		url.origin === playgroundOrigin
+	) {
+		if (url.pathname === '/blueprints-index.json') {
+			return event.respondWith(fetchBlueprintsIndex());
+		}
+		// Do not replay old proxy responses from the asset cache either.
+		if (url.pathname.startsWith('/proxy/')) {
+			return event.respondWith(
+				new Response('Not found', { status: 404 })
+			);
 		}
 	}
 
@@ -371,12 +548,10 @@ self.addEventListener('fetch', (event) => {
 	 *
 	 * ## The problem with deployments
 	 *
-	 * App deployments remove all the static assets associated with the
-	 * previous app version. Meanwhile, cached entry documents still hold
-	 * references to those assets.
-	 *
-	 * If we just loaded a cached entry document, the client would crash
-	 * with seemingly random errors.
+	 * Cached entry documents reference their own build's assets. Managed releases
+	 * retain those files for 30 days after becoming inactive; older root-only
+	 * deployments replaced them immediately. Replaying an old entry online can
+	 * therefore reference expired files or keep running code we have since fixed.
 	 *
 	 * Instead, we fetch the most recent version of each entry document from
 	 * the network.
@@ -394,7 +569,10 @@ self.addEventListener('fetch', (event) => {
 	if (
 		url.pathname === '/remote.html' ||
 		url.pathname === '/api.html' ||
-		url.pathname === '/'
+		url.pathname === '/' ||
+		// Personal WP serves its app shell at reflected routes such as /my-apps/.
+		// Cached HTML at those routes can otherwise boot an old build in a new tab.
+		(sharedMode && event.request.mode === 'navigate')
 	) {
 		event.respondWith(networkFirstFetch(event.request));
 		return;
@@ -414,8 +592,24 @@ self.addEventListener('fetch', (event) => {
 });
 
 /**
- * A request to a PHP Worker Thread or to a regular static asset,
- * but initiated by a scoped referer (e.g. fetch() from a block editor iframe).
+ * Serve a scoped WordPress URL through PHP, with shared static files as a fallback.
+ *
+ * For /scope:site-a/wp-admin/edit.php, ask the running PHP instance for site-a to
+ * handle the HTTP request. Dedicated runtimes receive it through window messages;
+ * in split-origin mode the hidden WordPress iframe carries those messages across
+ * to remote.html. If this service worker has a registered shared runtime, use its
+ * direct connection instead. The caller also redirects unscoped same-origin URLs
+ * from a scoped referrer (for example, a block-editor iframe) into this path.
+ *
+ * Only a 404 marked x-backfill-from: remote-host permits a public asset fetch.
+ * For a minified build's omitted CSS file, remove /scope:site-a/, apply WordPress
+ * rewrites, and fetch from the runtime's release-qualified static directory on
+ * this origin. Legacy unprefixed aliases use the app origin. Do not turn arbitrary
+ * PHP 404s into network requests. Use the browser HTTP cache for these public files,
+ * not WordPress-writable CacheStorage.
+ *
+ * Wrap asset bodies and headers in a new Response without buffering. This also
+ * permits a navigation or same-origin fetch to consume a legacy cross-origin asset.
  */
 async function handleScopedRequest(event: FetchEvent, scope: string) {
 	const fullUrl = new URL(event.request.url);
@@ -426,13 +620,47 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		);
 	}
 
-	const workerResponse = await convertFetchEventToPHPRequest(event);
+	const workerResponse = await convertFetchEventToPHPRequest(
+		event,
+		(await hasSharedRuntime(scope))
+			? (message, scope) =>
+					sendSharedRuntimeRequest(message, scope, event)
+			: undefined
+	);
+	if (
+		workerResponse.headers.has('x-playground-reload-required') &&
+		event.clientId
+	) {
+		const client = await self.clients.get(event.clientId);
+		client?.postMessage({
+			type: RELOAD_REQUIRED,
+			ready:
+				workerResponse.headers.get('x-playground-runtime-closed') ===
+				'1',
+		});
+	}
 
 	if (
 		workerResponse.status === 404 &&
 		workerResponse.headers.get('x-backfill-from') === 'remote-host'
 	) {
-		const { staticAssetsDirectory } = await getScopedWpDetails(scope!);
+		const details = await getScopedWpDetails(scope!, event);
+		if (details instanceof Response) {
+			if (
+				details.headers.has('x-playground-reload-required') &&
+				event.clientId
+			) {
+				const client = await self.clients.get(event.clientId);
+				client?.postMessage({
+					type: RELOAD_REQUIRED,
+					ready:
+						details.headers.get('x-playground-runtime-closed') ===
+						'1',
+				});
+			}
+			return details;
+		}
+		const { staticAssetsDirectory } = details;
 		if (!staticAssetsDirectory) {
 			const plain404Response = workerResponse.clone();
 			plain404Response.headers.delete('x-backfill-from');
@@ -440,7 +668,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		}
 
 		// If we get a 404 for a static file, try to fetch it from
-		// the from the static assets directory at the remote server.
+		// the runtime’s static assets directory.
 		const requestedUrl = new URL(event.request.url);
 		const resolvedUrl = removeURLScope(requestedUrl);
 		resolvedUrl.pathname = applyRewriteRules(
@@ -452,10 +680,29 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 			!resolvedUrl.pathname.startsWith('/@fs') &&
 			!resolvedUrl.pathname.startsWith('/assets')
 		) {
-			resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
+			resolvedUrl.pathname = joinPaths(
+				'/',
+				staticAssetsDirectory,
+				resolvedUrl.pathname
+			);
 		}
+		// Release-qualified directories belong to the runtime's retained release.
+		// PRE_RELEASE_ASSETS_COMPAT: older tabs omit a release directory and still
+		// fetch /wp-<version> from the app host. Portable builds use that layout too.
+		const assetOrigin = wordPressStaticAssetOrigin(
+			staticAssetsDirectory,
+			self.location.origin,
+			playgroundOrigin
+		);
+		const crossOrigin = assetOrigin !== self.location.origin;
+		const assetUrl = new URL(
+			resolvedUrl.pathname + resolvedUrl.search,
+			assetOrigin
+		);
 		const request = await cloneRequest(event.request, {
-			url: resolvedUrl,
+			url: assetUrl,
+			// Unprefixed app-host assets require CORS when this is the WordPress worker.
+			...(crossOrigin && { mode: 'cors' }),
 			// Omit credentials to avoid causing cache aborts due to presence of
 			// cookies
 			credentials: 'omit',
@@ -470,7 +717,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		 * request to the remote server as it is and let WordPress manage its
 		 * own HTTP caching.
 		 */
-		return fetch(request).catch((e) => {
+		const response = await fetch(request).catch((e) => {
 			if (e?.name === 'TypeError') {
 				// This could be an ERR_HTTP2_PROTOCOL_ERROR that sometimes
 				// happen on playground.wordpress.net. Let's add a randomized
@@ -486,6 +733,16 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 			// Otherwise let's just re-throw the error
 			throw e;
 		});
+		if (
+			crossOrigin &&
+			(event.request.mode === 'navigate' ||
+				event.request.mode === 'same-origin')
+		) {
+			// Navigation and same-origin requests cannot accept a CORS response.
+			// Rebuild the response without buffering its streamed body.
+			return new Response(response.body, response);
+		}
+		return response;
 	}
 
 	// Path the block-editor.js file to ensure the site editor's iframe
@@ -501,7 +758,8 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 	) {
 		const script = await workerResponse.text();
 		const newScript = `${controlledIframe} ${script.replace(
-			/\(\s*"iframe",/,
+			// Rolldown uses backticks for the tag name; older builds use quotes.
+			/\(\s*(["'`])iframe\1,/,
 			'(__playground_ControlledIframe,'
 		)}`;
 		return new Response(newScript, {
@@ -570,16 +828,41 @@ window.__playground_ControlledIframe = window.wp.element.forwardRef(function (pr
 			return props.src;
 		}
 	}, [props.src, props.srcDoc]);
+	const iframeRef = window.wp.compose.useMergeRefs([
+		ref,
+		source === props.src ? null : __playground_skipCredentialless,
+	]);
 	return (
 		window.wp.element.createElement('iframe', {
 			...props,
-			ref: ref,
+			ref: iframeRef,
 			src: source,
 			// Make sure there's no srcDoc, as it would interfere with the src.
 			srcDoc: undefined
 		})
 	)
-});`;
+});
+
+// Gutenberg 22.4–22.7 adds the "credentialless" attribute to every iframe in a
+// cross-origin isolated editor, except the editor's own iframes, like the canvas.
+// It recognizes those because their src starts with "blob:". Playground changes
+// that src to /wp-includes/empty.html, so Gutenberg adds the attribute to them too.
+// Chromium doesn't let the service worker control a credentialless iframe, so
+// the canvas would stay blank.
+//
+// To prevent that, the iframe claims it already has the attribute. Gutenberg
+// then leaves it alone. The attribute isn't really there, so the browser still
+// loads the iframe through the service worker.
+function __playground_skipCredentialless(iframe) {
+	if (iframe) {
+		iframe.hasAttribute = function (name) {
+			return (
+				name === 'credentialless' ||
+				Element.prototype.hasAttribute.call(this, name)
+			);
+		};
+	}
+}`;
 
 /**
  * Inline script served as /wp-includes/empty.html.
@@ -649,10 +932,36 @@ function emptyHtml(crossOriginIsolated: boolean) {
 
 type WPModuleDetails = {
 	staticAssetsDirectory?: string;
+	releaseBase?: string;
 };
 
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
-async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
+async function getScopedWpDetails(
+	scope: string,
+	requestClient: Pick<FetchEvent, 'clientId' | 'resultingClientId'>
+): Promise<WPModuleDetails | Response> {
+	if (await hasSharedRuntime(scope)) {
+		const result = await sendSharedRuntimeRequest(
+			{ method: 'getWordPressModuleDetails', args: [] },
+			scope,
+			requestClient
+		);
+		if (result.httpStatusCode !== undefined) {
+			return new Response(result.bytes, {
+				status: result.httpStatusCode,
+				headers: Object.fromEntries(
+					Object.entries(result.headers).map(([name, values]) => [
+						name,
+						(values as string[]).join(', '),
+					])
+				),
+			});
+		}
+		return {
+			...result,
+			staticAssetsDirectory: runtimeStaticAssetsDirectory(result),
+		};
+	}
 	if (!scopeToWpModule[scope]) {
 		const requestId = await broadcastMessageExpectReply(
 			{
@@ -660,7 +969,11 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
 			},
 			scope
 		);
-		scopeToWpModule[scope] = await awaitReply(self, requestId);
+		const result: WPModuleDetails = await awaitReply(self, requestId);
+		scopeToWpModule[scope] = {
+			...result,
+			staticAssetsDirectory: runtimeStaticAssetsDirectory(result),
+		};
 	}
 	return scopeToWpModule[scope];
 }
@@ -697,7 +1010,8 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
  *
  * 1. Response already carries `Document-Isolation-Policy`. This is what
  *    WordPress 7.1+ and Gutenberg 22.6+ send directly on editor screens in
- *    Chromium 137+. The response is left as-is.
+ *    Chromium 137+. Keep that policy, but remove legacy COEP/COOP restrictions
+ *    that can still block the editor's nested canvas.
  *
  * 2. Response carries `COEP: require-corp` or `COEP: credentialless` (older
  *    Gutenberg with the media processing experiment, or custom plugins). The
@@ -711,14 +1025,16 @@ async function getScopedWpDetails(scope: string): Promise<WPModuleDetails> {
 function applyCrossOriginIsolationHeaders(response: Response): Response {
 	// Keep the policy that WordPress or Gutenberg sends directly. See
 	// https://github.com/WordPress/gutenberg/pull/75991.
-	if (response.headers.has('document-isolation-policy')) {
-		return response;
-	}
+	const existingPolicy = response.headers.get('document-isolation-policy');
 
-	// Only rewrite if the response has COEP headers that indicate cross-origin isolation intent.
+	// Only rewrite if DIP or COEP indicates cross-origin isolation intent.
 	// COOP alone doesn't achieve cross-origin isolation, so we key off COEP.
 	const coep = response.headers.get('cross-origin-embedder-policy');
-	if (coep !== 'require-corp' && coep !== 'credentialless') {
+	if (
+		!existingPolicy &&
+		coep !== 'require-corp' &&
+		coep !== 'credentialless'
+	) {
 		return response;
 	}
 
@@ -742,11 +1058,14 @@ function applyCrossOriginIsolationHeaders(response: Response): Response {
 	 * same cross-origin isolation as `COOP: same-origin` would.
 	 */
 	const documentIsolationPolicy =
-		coep === 'require-corp'
+		existingPolicy ??
+		(coep === 'require-corp'
 			? 'isolate-and-require-corp'
-			: 'isolate-and-credentialless';
+			: 'isolate-and-credentialless');
 
 	const newHeaders = new Headers(response.headers);
+	// New WordPress plus older Gutenberg can send both DIP and COEP. Keeping
+	// COEP would still reject empty.html even though both documents have DIP.
 	newHeaders.delete('cross-origin-embedder-policy');
 	newHeaders.delete('cross-origin-opener-policy');
 	newHeaders.set('document-isolation-policy', documentIsolationPolicy);

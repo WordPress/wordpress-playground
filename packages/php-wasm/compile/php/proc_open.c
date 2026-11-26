@@ -616,6 +616,7 @@ PHP_FUNCTION(proc_open)
     // }}}
 
 	if(child <= 0) {
+		errno = -child;
 		php_error_docref(NULL, E_WARNING, "proc_open() failed - %s", strerror(errno));
 		goto exit_fail;
 	}

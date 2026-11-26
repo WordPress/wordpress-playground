@@ -217,7 +217,7 @@ Another way of generating content for your theme or plugin is via the `wp-cli` s
 You can also use the [`wp-cli` step](/blueprints/steps#WPCliStep) in combination with the [`writeFile` step](/blueprints/steps#WriteFileStep) to create posts based on existing content and to import images to the Playground instance:
 -->
 
-আপনি বিদ্যমান কন্টেন্টের উপর ভিত্তি করে পোস্ট তৈরি করতে এবং প্লেগ্রাউন্ড ইনস্ট্যান্সে ইমেজ ইমপোর্ট করতে [`writeFile` স্টেপের](/blueprints/steps#WriteFileStep) সাথে [`wp-cli` স্টেপ](/blueprints/steps#WPCliStep) ব্যবহার করতে পারেন:
+আপনি বিদ্যমান কন্টেন্টের উপর ভিত্তি করে পোস্ট তৈরি করতে এবং প্লেগ্রাউন্ড ইনস্ট্যান্সে ইমেজ ইমপোর্ট করতে [`writeFile` স্টেপের](/blueprints/steps#WriteFileStep) সাথে [`wp-cli` স্টেপ](/blueprints/steps#WPCLIStep) ব্যবহার করতে পারেন:
 
 ```json
 {

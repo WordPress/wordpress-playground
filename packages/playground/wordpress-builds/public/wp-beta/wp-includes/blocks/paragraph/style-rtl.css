@@ -79,7 +79,7 @@ p.has-drop-cap.has-background {
 }
 
 :root :where(p.has-background) {
-  padding: 1.25em 2.375em;
+  padding: var(--wp--style--block-background-padding, 1.25em 2.375em);
 }
 
 :where(p.has-text-color:not(.has-link-color)) a {

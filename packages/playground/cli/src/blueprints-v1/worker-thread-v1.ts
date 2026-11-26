@@ -42,6 +42,10 @@ export type WorkerBootWordPressOptions = {
 interface WorkerBootRequestHandlerOptions {
 	siteUrl: string;
 	phpVersion: AllPHPVersion;
+	/**
+	 * php.ini entries set via the --php-ini flag.
+	 */
+	phpIniEntries?: Record<string, string>;
 	processId: number;
 	trace: boolean;
 	nativeInternalDirPath: string;
@@ -164,6 +168,7 @@ export class PlaygroundCliBlueprintV1Worker extends PHPWorker {
 				siteUrl: options.siteUrl,
 				phpVersion: options.phpVersion,
 				maxPhpInstances: 1,
+				phpIniEntries: options.phpIniEntries,
 				createPhpRuntime: createPhpRuntimeFactory(
 					options,
 					this.fileLockManager!

@@ -13,10 +13,10 @@ const currentDirPath =
 	typeof __dirname !== 'undefined'
 		? __dirname
 		: path.dirname(fileURLToPath(import.meta.url));
-const dependencyFilename = path.join(currentDirPath, '8_5_10', 'php_8_5.wasm');
+const dependencyFilename = path.join(currentDirPath, '8_5_13', 'php_8_5.wasm');
 export { dependencyFilename };
-export const dependenciesTotalSize = 26850228;
-const phpVersionString = '8.5.10';
+export const dependenciesTotalSize = 26912235;
+const phpVersionString = '8.5.13';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	// include: shell.js
@@ -8450,6 +8450,68 @@ export function init(RuntimeName, PHPLoader) {
 
 	runtimeKeepalivePop.sig = 'v';
 
+	var Asyncify = {
+		instrumentWasmImports(imports) {
+			var importPattern =
+				/^(js_open_process|js_fd_read|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|wasm_connect|__syscall_fcntl64|js_flock|js_release_file_locks|js_waitpid|invoke_.*|__asyncjs__.*)$/;
+			for (let [x, original] of Object.entries(imports)) {
+				if (typeof original == 'function') {
+					let isAsyncifyImport =
+						original.isAsync || importPattern.test(x);
+					// Wrap async imports with a suspending WebAssembly function.
+					if (isAsyncifyImport) {
+						imports[x] = original = new WebAssembly.Suspending(
+							original
+						);
+					}
+				}
+			}
+		},
+		instrumentFunction(original) {
+			var wrapper = (...args) => original(...args);
+			wrapper.orig = original;
+			return wrapper;
+		},
+		instrumentWasmExports(exports) {
+			var exportPattern =
+				/^(php_wasm_init|wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_pclose|__wrap_popen|__wrap_pclose|wasm_read|wasm_php_exec|run_cli|wasm_recv|wasm_connect|__wasm_call_ctors|__errno_location|__funcs_on_exit|main|__main_argc_argv)$/;
+			Asyncify.asyncExports = new Set();
+			var ret = {};
+			for (let [x, original] of Object.entries(exports)) {
+				if (typeof original == 'function') {
+					// Wrap all exports with a promising WebAssembly function.
+					let isAsyncifyExport = exportPattern.test(x);
+					if (isAsyncifyExport) {
+						Asyncify.asyncExports.add(original);
+						original = Asyncify.makeAsyncFunction(original);
+					}
+					var wrapper = Asyncify.instrumentFunction(original);
+					ret[x] = wrapper;
+				} else {
+					ret[x] = original;
+				}
+			}
+			return ret;
+		},
+		asyncExports: null,
+		isAsyncExport(func) {
+			return Asyncify.asyncExports?.has(func);
+		},
+		handleAsync: async (startAsync) => {
+			runtimeKeepalivePush();
+			try {
+				return await startAsync();
+			} finally {
+				runtimeKeepalivePop();
+			}
+		},
+		handleSleep: (startAsync) =>
+			Asyncify.handleAsync(() => new Promise(startAsync)),
+		makeAsyncFunction(original) {
+			return WebAssembly.promising(original);
+		},
+	};
+
 	/** @param {number=} timeout */ var safeSetTimeout = (func, timeout) => {
 		runtimeKeepalivePush();
 		return setTimeout(() => {
@@ -8458,8 +8520,22 @@ export function init(RuntimeName, PHPLoader) {
 		}, timeout);
 	};
 
-	var _emscripten_sleep = (ms) =>
-		Asyncify.handleSleep((wakeUp) => safeSetTimeout(wakeUp, ms));
+	var _emscripten_sleep = function (ms) {
+		return Asyncify.handleSleep((wakeUp) => {
+			// select() yields between socket reads. Nested zero-delay timers are
+			// clamped by browsers, adding seconds to even a local curl download.
+			// Use a task (not a microtask) so network events still get a turn.
+			if (ms === 0 && globalThis.scheduler?.postTask) {
+				runtimeKeepalivePush();
+				globalThis.scheduler.postTask(() => {
+					runtimeKeepalivePop();
+					callUserCallback(wakeUp);
+				});
+			} else {
+				safeSetTimeout(wakeUp, ms);
+			}
+		});
+	};
 
 	_emscripten_sleep.sig = 'vi';
 
@@ -8994,13 +9070,11 @@ export function init(RuntimeName, PHPLoader) {
 		envLength
 	) {
 		if (!command) {
-			___errno_location(ERRNO_CODES.EINVAL);
-			return -1;
+			return -ERRNO_CODES.EINVAL;
 		}
 		const cmdstr = UTF8ToString(command);
 		if (!cmdstr.length) {
-			___errno_location(ERRNO_CODES.EINVAL);
-			return -1;
+			return -ERRNO_CODES.EINVAL;
 		}
 		let argsArray = [];
 		if (argsLength) {
@@ -9060,13 +9134,11 @@ export function init(RuntimeName, PHPLoader) {
 				}
 			} catch (e) {
 				if (e.code === 'SPAWN_UNSUPPORTED') {
-					___errno_location(ERRNO_CODES.ENOSYS);
-					return -1;
+					return -ERRNO_CODES.ENOSYS;
 				}
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError'))
 					throw e;
-				___errno_location(e.code);
-				return -1;
+				return -e.errno;
 			}
 			const ProcInfo = {
 				pid: cp.pid,
@@ -9080,20 +9152,31 @@ export function init(RuntimeName, PHPLoader) {
 				stderrChildFd = std[2]?.child,
 				stderrParentFd = std[2]?.parent;
 			const detachPipeDataListeners = [];
-			cp.on('exit', function (code) {
+			/**
+			 * Closes the child ends of the pipes so a blocking fread() on the
+			 * parent end sees a broken pipe instead of polling forever. Runs on
+			 * 'exit' and when the spawn wait fails, because a failed spawn may
+			 * never emit 'exit'.
+			 *
+			 * Runs at most once. After the first call, PHP may reuse these fd
+			 * numbers for unrelated streams that a late 'exit' must not close.
+			 */ let childPipesClosed = false;
+			const closeChildPipes = function () {
+				if (childPipesClosed) {
+					return;
+				}
+				childPipesClosed = true;
 				for (const detach of detachPipeDataListeners) {
 					detach();
 				}
-				for (const fd of [
-					// The child process exited. Let's clean up its output streams:
-					stdoutChildFd,
-					stderrChildFd,
-					stdinChildFd,
-				]) {
+				for (const fd of [stdoutChildFd, stderrChildFd, stdinChildFd]) {
 					if (FS.streams[fd] && !FS.isClosed(FS.streams[fd])) {
 						FS.close(FS.streams[fd]);
 					}
 				}
+			};
+			cp.on('exit', function (code) {
+				closeChildPipes();
 				ProcInfo.exitCode = code;
 				ProcInfo.exited = true;
 			});
@@ -9201,6 +9284,10 @@ export function init(RuntimeName, PHPLoader) {
 				// Process already started. Even if it exited early, PHP still
 				// needs to know about the pid and clean up the resources.
 				console.error(e);
+				closeChildPipes();
+				if (!ProcInfo.pid) {
+					return -(ERRNO_CODES[e.code] ?? ERRNO_CODES.ECHILD);
+				}
 				return ProcInfo.pid;
 			}
 			// Now we want to pass data from the STDIN source supplied by PHP
@@ -9814,68 +9901,6 @@ export function init(RuntimeName, PHPLoader) {
 		return PHPWASM.shutdownSocket(socketd, how);
 	}
 
-	var Asyncify = {
-		instrumentWasmImports(imports) {
-			var importPattern =
-				/^(js_open_process|js_fd_read|js_waitpid|js_process_status|js_create_input_device|wasm_setsockopt|wasm_shutdown|wasm_close|wasm_recv|wasm_connect|__syscall_fcntl64|js_flock|js_release_file_locks|js_waitpid|invoke_.*|__asyncjs__.*)$/;
-			for (let [x, original] of Object.entries(imports)) {
-				if (typeof original == 'function') {
-					let isAsyncifyImport =
-						original.isAsync || importPattern.test(x);
-					// Wrap async imports with a suspending WebAssembly function.
-					if (isAsyncifyImport) {
-						imports[x] = original = new WebAssembly.Suspending(
-							original
-						);
-					}
-				}
-			}
-		},
-		instrumentFunction(original) {
-			var wrapper = (...args) => original(...args);
-			wrapper.orig = original;
-			return wrapper;
-		},
-		instrumentWasmExports(exports) {
-			var exportPattern =
-				/^(php_wasm_init|wasm_sleep|wasm_read|emscripten_sleep|wasm_sapi_handle_request|wasm_sapi_request_shutdown|wasm_poll_socket|wrap_select|__wrap_select|select|php_pollfd_for|fflush|wasm_popen|wasm_pclose|__wrap_popen|__wrap_pclose|wasm_read|wasm_php_exec|run_cli|wasm_recv|wasm_connect|__wasm_call_ctors|__errno_location|__funcs_on_exit|main|__main_argc_argv)$/;
-			Asyncify.asyncExports = new Set();
-			var ret = {};
-			for (let [x, original] of Object.entries(exports)) {
-				if (typeof original == 'function') {
-					// Wrap all exports with a promising WebAssembly function.
-					let isAsyncifyExport = exportPattern.test(x);
-					if (isAsyncifyExport) {
-						Asyncify.asyncExports.add(original);
-						original = Asyncify.makeAsyncFunction(original);
-					}
-					var wrapper = Asyncify.instrumentFunction(original);
-					ret[x] = wrapper;
-				} else {
-					ret[x] = original;
-				}
-			}
-			return ret;
-		},
-		asyncExports: null,
-		isAsyncExport(func) {
-			return Asyncify.asyncExports?.has(func);
-		},
-		handleAsync: async (startAsync) => {
-			runtimeKeepalivePush();
-			try {
-				return await startAsync();
-			} finally {
-				runtimeKeepalivePop();
-			}
-		},
-		handleSleep: (startAsync) =>
-			Asyncify.handleAsync(() => new Promise(startAsync)),
-		makeAsyncFunction(original) {
-			return WebAssembly.promising(original);
-		},
-	};
-
 	var getCFunc = (ident) => {
 		var func = Module['_' + ident];
 		// closure exported function
@@ -10306,10 +10331,7 @@ export function init(RuntimeName, PHPLoader) {
 			return ERRNO_CODES.EWOULDBLOCK;
 		}
 		return returnCallback(async (wakeUp) => {
-			var retries = 0;
 			var interval = 50;
-			var timeout = 5e3;
-			var maxRetries = timeout / interval;
 			while (true) {
 				var returnCode;
 				var stream;
@@ -10333,7 +10355,6 @@ export function init(RuntimeName, PHPLoader) {
 					return wakeUp(0);
 				}
 				if (
-					++retries > maxRetries ||
 					!stream ||
 					FS.isClosed(stream) ||
 					returnCode !== ERRNO_CODES.EWOULDBLOCK ||
@@ -10435,6 +10456,7 @@ export function init(RuntimeName, PHPLoader) {
 		_php_stream_context_alloc,
 		_php_stream_context_set_option,
 		__php_stream_xport_create,
+		__efree,
 		__emalloc_16,
 		__emalloc_24,
 		__emalloc_32,
@@ -10448,7 +10470,6 @@ export function init(RuntimeName, PHPLoader) {
 		__emalloc_192,
 		__efree_56,
 		__emalloc,
-		__efree,
 		__erealloc,
 		__safe_emalloc,
 		___zend_malloc,
@@ -10678,12 +10699,10 @@ export function init(RuntimeName, PHPLoader) {
 		_zend_value_error,
 		_strtoll,
 		_strlen,
+		_vsnprintf,
 		_memcmp,
 		_free,
 		_clock_gettime,
-		_malloc,
-		_snprintf,
-		_strchr,
 		_dlopen,
 		_fiprintf,
 		_dlsym,
@@ -10691,10 +10710,13 @@ export function init(RuntimeName, PHPLoader) {
 		_strcmp,
 		_getenv,
 		_explicit_bzero,
+		_malloc,
 		___wasm_setjmp,
 		___wasm_setjmp_test,
 		___wasm_longjmp,
+		_snprintf,
 		_atoi,
+		_strchr,
 		___errno_location,
 		_strtoull,
 		_strrchr,
@@ -10850,7 +10872,6 @@ export function init(RuntimeName, PHPLoader) {
 		_sched_yield,
 		_srandom,
 		_random,
-		_vsnprintf,
 		_sqlite3_auto_extension,
 		_sqlite3_cancel_auto_extension,
 		_pthread_mutex_init,
@@ -11013,6 +11034,7 @@ export function init(RuntimeName, PHPLoader) {
 		] = wasmExports['php_stream_context_set_option'];
 		__php_stream_xport_create = Module['__php_stream_xport_create'] =
 			wasmExports['_php_stream_xport_create'];
+		__efree = Module['__efree'] = wasmExports['_efree'];
 		__emalloc_16 = Module['__emalloc_16'] = wasmExports['_emalloc_16'];
 		__emalloc_24 = Module['__emalloc_24'] = wasmExports['_emalloc_24'];
 		__emalloc_32 = Module['__emalloc_32'] = wasmExports['_emalloc_32'];
@@ -11026,7 +11048,6 @@ export function init(RuntimeName, PHPLoader) {
 		__emalloc_192 = Module['__emalloc_192'] = wasmExports['_emalloc_192'];
 		__efree_56 = Module['__efree_56'] = wasmExports['_efree_56'];
 		__emalloc = Module['__emalloc'] = wasmExports['_emalloc'];
-		__efree = Module['__efree'] = wasmExports['_efree'];
 		__erealloc = Module['__erealloc'] = wasmExports['_erealloc'];
 		__safe_emalloc = Module['__safe_emalloc'] =
 			wasmExports['_safe_emalloc'];
@@ -11521,16 +11542,11 @@ export function init(RuntimeName, PHPLoader) {
 			wasmExports['zend_value_error'];
 		_strtoll = Module['_strtoll'] = wasmExports['strtoll'];
 		_strlen = Module['_strlen'] = wasmExports['strlen'];
+		_vsnprintf = Module['_vsnprintf'] = wasmExports['vsnprintf'];
 		_memcmp = Module['_memcmp'] = wasmExports['memcmp'];
 		_free = Module['_free'] = wasmExports['free'];
 		_clock_gettime = Module['_clock_gettime'] =
 			wasmExports['clock_gettime'];
-		_malloc =
-			PHPLoader['malloc'] =
-			Module['_malloc'] =
-				wasmExports['malloc'];
-		_snprintf = Module['_snprintf'] = wasmExports['snprintf'];
-		_strchr = Module['_strchr'] = wasmExports['strchr'];
 		_dlopen = Module['_dlopen'] = wasmExports['dlopen'];
 		_fiprintf = Module['_fiprintf'] = wasmExports['fiprintf'];
 		_dlsym = Module['_dlsym'] = wasmExports['dlsym'];
@@ -11539,13 +11555,19 @@ export function init(RuntimeName, PHPLoader) {
 		_getenv = Module['_getenv'] = wasmExports['getenv'];
 		_explicit_bzero = Module['_explicit_bzero'] =
 			wasmExports['explicit_bzero'];
+		_malloc =
+			PHPLoader['malloc'] =
+			Module['_malloc'] =
+				wasmExports['malloc'];
 		___wasm_setjmp = Module['___wasm_setjmp'] =
 			wasmExports['__wasm_setjmp'];
 		___wasm_setjmp_test = Module['___wasm_setjmp_test'] =
 			wasmExports['__wasm_setjmp_test'];
 		___wasm_longjmp = Module['___wasm_longjmp'] =
 			wasmExports['__wasm_longjmp'];
+		_snprintf = Module['_snprintf'] = wasmExports['snprintf'];
 		_atoi = Module['_atoi'] = wasmExports['atoi'];
+		_strchr = Module['_strchr'] = wasmExports['strchr'];
 		___errno_location = Module['___errno_location'] =
 			wasmExports['__errno_location'];
 		_strtoull = Module['_strtoull'] = wasmExports['strtoull'];
@@ -11742,7 +11764,6 @@ export function init(RuntimeName, PHPLoader) {
 		_sched_yield = Module['_sched_yield'] = wasmExports['sched_yield'];
 		_srandom = Module['_srandom'] = wasmExports['srandom'];
 		_random = Module['_random'] = wasmExports['random'];
-		_vsnprintf = Module['_vsnprintf'] = wasmExports['vsnprintf'];
 		_sqlite3_auto_extension = Module['_sqlite3_auto_extension'] =
 			wasmExports['sqlite3_auto_extension'];
 		_sqlite3_cancel_auto_extension = Module[
@@ -11829,2810 +11850,2810 @@ export function init(RuntimeName, PHPLoader) {
 
 	var _php_date_global_timezone_db_enabled = (Module[
 		'_php_date_global_timezone_db_enabled'
-	] = 18150500);
+	] = 18151956);
 
 	var _php_date_global_timezone_db = (Module['_php_date_global_timezone_db'] =
-		18150496);
+		18151952);
 
-	var _date_globals = (Module['_date_globals'] = 18150480);
+	var _date_globals = (Module['_date_globals'] = 18151936);
 
-	var _date_module_entry = (Module['_date_module_entry'] = 16505500);
+	var _date_module_entry = (Module['_date_module_entry'] = 16507036);
 
-	var _timezonedb_builtin = (Module['_timezonedb_builtin'] = 16332832);
+	var _timezonedb_builtin = (Module['_timezonedb_builtin'] = 16334368);
 
 	var _timezonedb_idx_builtin = (Module['_timezonedb_idx_builtin'] =
-		16328048);
+		16329584);
 
 	var _timelib_timezone_db_data_builtin = (Module[
 		'_timelib_timezone_db_data_builtin'
-	] = 1084544);
+	] = 1086176);
 
 	var _timelib_error_messages = (Module['_timelib_error_messages'] =
-		16332848);
+		16334384);
 
-	var _libxml_module_entry = (Module['_libxml_module_entry'] = 17326316);
+	var _libxml_module_entry = (Module['_libxml_module_entry'] = 17327820);
 
 	var _php_openssl_certificate_ce = (Module['_php_openssl_certificate_ce'] =
-		18240576);
+		18242032);
 
-	var _openssl_globals = (Module['_openssl_globals'] = 18240588);
+	var _openssl_globals = (Module['_openssl_globals'] = 18242044);
 
-	var _openssl_module_entry = (Module['_openssl_module_entry'] = 17328492);
+	var _openssl_module_entry = (Module['_openssl_module_entry'] = 17329996);
 
 	var __pcre2_default_tables_8 = (Module['__pcre2_default_tables_8'] =
-		2387168);
+		2388560);
 
 	var __pcre2_default_compile_context_8 = (Module[
 		'__pcre2_default_compile_context_8'
-	] = 17332864);
+	] = 17334368);
 
 	var __pcre2_default_match_context_8 = (Module[
 		'__pcre2_default_match_context_8'
-	] = 17332912);
+	] = 17334416);
 
 	var __pcre2_default_convert_context_8 = (Module[
 		'__pcre2_default_convert_context_8'
-	] = 17332956);
+	] = 17334460);
 
-	var __pcre2_OP_lengths_8 = (Module['__pcre2_OP_lengths_8'] = 2388256);
+	var __pcre2_OP_lengths_8 = (Module['__pcre2_OP_lengths_8'] = 2389648);
 
-	var __pcre2_hspace_list_8 = (Module['__pcre2_hspace_list_8'] = 2388432);
+	var __pcre2_hspace_list_8 = (Module['__pcre2_hspace_list_8'] = 2389824);
 
-	var __pcre2_vspace_list_8 = (Module['__pcre2_vspace_list_8'] = 2388512);
+	var __pcre2_vspace_list_8 = (Module['__pcre2_vspace_list_8'] = 2389904);
 
 	var __pcre2_callout_start_delims_8 = (Module[
 		'__pcre2_callout_start_delims_8'
-	] = 2388544);
+	] = 2389936);
 
 	var __pcre2_callout_end_delims_8 = (Module['__pcre2_callout_end_delims_8'] =
-		2388592);
+		2389984);
 
-	var __pcre2_utf8_table1 = (Module['__pcre2_utf8_table1'] = 2388640);
+	var __pcre2_utf8_table1 = (Module['__pcre2_utf8_table1'] = 2390032);
 
 	var __pcre2_utf8_table1_size = (Module['__pcre2_utf8_table1_size'] =
-		2388664);
+		2390056);
 
-	var __pcre2_utf8_table2 = (Module['__pcre2_utf8_table2'] = 2388672);
+	var __pcre2_utf8_table2 = (Module['__pcre2_utf8_table2'] = 2390064);
 
-	var __pcre2_utf8_table3 = (Module['__pcre2_utf8_table3'] = 2388704);
+	var __pcre2_utf8_table3 = (Module['__pcre2_utf8_table3'] = 2390096);
 
-	var __pcre2_utf8_table4 = (Module['__pcre2_utf8_table4'] = 2388736);
+	var __pcre2_utf8_table4 = (Module['__pcre2_utf8_table4'] = 2390128);
 
-	var __pcre2_ucp_gentype_8 = (Module['__pcre2_ucp_gentype_8'] = 2388800);
+	var __pcre2_ucp_gentype_8 = (Module['__pcre2_ucp_gentype_8'] = 2390192);
 
-	var __pcre2_ucp_gbtable_8 = (Module['__pcre2_ucp_gbtable_8'] = 2388928);
+	var __pcre2_ucp_gbtable_8 = (Module['__pcre2_ucp_gbtable_8'] = 2390320);
 
-	var __pcre2_utt_names_8 = (Module['__pcre2_utt_names_8'] = 2388992);
+	var __pcre2_utt_names_8 = (Module['__pcre2_utt_names_8'] = 2390384);
 
-	var __pcre2_utt_8 = (Module['__pcre2_utt_8'] = 2392592);
+	var __pcre2_utt_8 = (Module['__pcre2_utt_8'] = 2393984);
 
-	var __pcre2_utt_size_8 = (Module['__pcre2_utt_size_8'] = 2395528);
+	var __pcre2_utt_size_8 = (Module['__pcre2_utt_size_8'] = 2396920);
 
 	var __pcre2_unicode_version_8 = (Module['__pcre2_unicode_version_8'] =
-		17332976);
+		17334480);
 
 	var __pcre2_ucd_caseless_sets_8 = (Module['__pcre2_ucd_caseless_sets_8'] =
-		2395536);
+		2396928);
 
 	var __pcre2_ucd_digit_sets_8 = (Module['__pcre2_ucd_digit_sets_8'] =
-		2395984);
+		2397376);
 
 	var __pcre2_ucd_script_sets_8 = (Module['__pcre2_ucd_script_sets_8'] =
-		2396272);
+		2397664);
 
 	var __pcre2_ucd_boolprop_sets_8 = (Module['__pcre2_ucd_boolprop_sets_8'] =
-		2397040);
+		2398432);
 
-	var __pcre2_ucd_records_8 = (Module['__pcre2_ucd_records_8'] = 2398464);
+	var __pcre2_ucd_records_8 = (Module['__pcre2_ucd_records_8'] = 2399856);
 
-	var __pcre2_ucd_stage1_8 = (Module['__pcre2_ucd_stage1_8'] = 2415552);
+	var __pcre2_ucd_stage1_8 = (Module['__pcre2_ucd_stage1_8'] = 2416944);
 
-	var __pcre2_ucd_stage2_8 = (Module['__pcre2_ucd_stage2_8'] = 2432960);
+	var __pcre2_ucd_stage2_8 = (Module['__pcre2_ucd_stage2_8'] = 2434352);
 
-	var _pcre_globals = (Module['_pcre_globals'] = 18240920);
+	var _pcre_globals = (Module['_pcre_globals'] = 18242376);
 
-	var _php_pcre_version = (Module['_php_pcre_version'] = 18241116);
+	var _php_pcre_version = (Module['_php_pcre_version'] = 18242572);
 
-	var _pcre_module_entry = (Module['_pcre_module_entry'] = 17333584);
+	var _pcre_module_entry = (Module['_pcre_module_entry'] = 17335088);
 
-	var _sqlite3_globals = (Module['_sqlite3_globals'] = 18241120);
+	var _sqlite3_globals = (Module['_sqlite3_globals'] = 18242576);
 
 	var _php_sqlite3_result_entry = (Module['_php_sqlite3_result_entry'] =
-		18241132);
+		18242588);
 
-	var _sqlite3_module_entry = (Module['_sqlite3_module_entry'] = 17334472);
+	var _sqlite3_module_entry = (Module['_sqlite3_module_entry'] = 17335976);
 
-	var _zlib_globals = (Module['_zlib_globals'] = 18241456);
+	var _zlib_globals = (Module['_zlib_globals'] = 18242912);
 
-	var _inflate_context_ce = (Module['_inflate_context_ce'] = 18241496);
+	var _inflate_context_ce = (Module['_inflate_context_ce'] = 18242952);
 
-	var _deflate_context_ce = (Module['_deflate_context_ce'] = 18241500);
+	var _deflate_context_ce = (Module['_deflate_context_ce'] = 18242956);
 
-	var _php_zlib_module_entry = (Module['_php_zlib_module_entry'] = 17338260);
+	var _php_zlib_module_entry = (Module['_php_zlib_module_entry'] = 17339764);
 
-	var _php_stream_gzio_ops = (Module['_php_stream_gzio_ops'] = 17337260);
+	var _php_stream_gzio_ops = (Module['_php_stream_gzio_ops'] = 17338764);
 
 	var _php_stream_gzip_wrapper = (Module['_php_stream_gzip_wrapper'] =
-		17337340);
+		17338844);
 
 	var _php_zlib_filter_factory = (Module['_php_zlib_filter_factory'] =
-		17337352);
+		17338856);
 
-	var _bcmath_globals = (Module['_bcmath_globals'] = 18241712);
+	var _bcmath_globals = (Module['_bcmath_globals'] = 18243168);
 
-	var _bcmath_module_entry = (Module['_bcmath_module_entry'] = 17340036);
+	var _bcmath_module_entry = (Module['_bcmath_module_entry'] = 17341540);
 
-	var _calendar_module_entry = (Module['_calendar_module_entry'] = 17342692);
+	var _calendar_module_entry = (Module['_calendar_module_entry'] = 17344196);
 
-	var _DayNameShort = (Module['_DayNameShort'] = 17341648);
+	var _DayNameShort = (Module['_DayNameShort'] = 17343152);
 
-	var _DayNameLong = (Module['_DayNameLong'] = 17341680);
+	var _DayNameLong = (Module['_DayNameLong'] = 17343184);
 
-	var _FrenchMonthName = (Module['_FrenchMonthName'] = 17342096);
+	var _FrenchMonthName = (Module['_FrenchMonthName'] = 17343600);
 
-	var _MonthNameShort = (Module['_MonthNameShort'] = 17341968);
+	var _MonthNameShort = (Module['_MonthNameShort'] = 17343472);
 
-	var _MonthNameLong = (Module['_MonthNameLong'] = 17342032);
+	var _MonthNameLong = (Module['_MonthNameLong'] = 17343536);
 
-	var _monthsPerYear = (Module['_monthsPerYear'] = 2521104);
+	var _monthsPerYear = (Module['_monthsPerYear'] = 2522496);
 
-	var _JewishMonthNameLeap = (Module['_JewishMonthNameLeap'] = 17341712);
+	var _JewishMonthNameLeap = (Module['_JewishMonthNameLeap'] = 17343216);
 
-	var _JewishMonthName = (Module['_JewishMonthName'] = 17341776);
+	var _JewishMonthName = (Module['_JewishMonthName'] = 17343280);
 
 	var _JewishMonthHebNameLeap = (Module['_JewishMonthHebNameLeap'] =
-		17341840);
+		17343344);
 
-	var _JewishMonthHebName = (Module['_JewishMonthHebName'] = 17341904);
+	var _JewishMonthHebName = (Module['_JewishMonthHebName'] = 17343408);
 
-	var _ctype_module_entry = (Module['_ctype_module_entry'] = 17343840);
+	var _ctype_module_entry = (Module['_ctype_module_entry'] = 17345344);
 
-	var _curl_ce = (Module['_curl_ce'] = 18242224);
+	var _curl_ce = (Module['_curl_ce'] = 18243680);
 
-	var _curl_share_ce = (Module['_curl_share_ce'] = 18242332);
+	var _curl_share_ce = (Module['_curl_share_ce'] = 18243788);
 
 	var _curl_share_persistent_ce = (Module['_curl_share_persistent_ce'] =
-		18242336);
+		18243792);
 
-	var _curl_globals = (Module['_curl_globals'] = 18242168);
+	var _curl_globals = (Module['_curl_globals'] = 18243624);
 
-	var _curl_module_entry = (Module['_curl_module_entry'] = 17345440);
+	var _curl_module_entry = (Module['_curl_module_entry'] = 17346944);
 
-	var _curl_multi_ce = (Module['_curl_multi_ce'] = 18241844);
+	var _curl_multi_ce = (Module['_curl_multi_ce'] = 18243300);
 
-	var _curl_CURLFile_class = (Module['_curl_CURLFile_class'] = 18242160);
+	var _curl_CURLFile_class = (Module['_curl_CURLFile_class'] = 18243616);
 
 	var _curl_CURLStringFile_class = (Module['_curl_CURLStringFile_class'] =
-		18242164);
+		18243620);
 
 	var _dns_polyfill_functions = (Module['_dns_polyfill_functions'] =
-		17347392);
+		17348896);
 
 	var _dns_polyfill_module_entry = (Module['_dns_polyfill_module_entry'] =
-		17347560);
+		17349064);
 
-	var _ascii_whitespace = (Module['_ascii_whitespace'] = 17347832);
+	var _ascii_whitespace = (Module['_ascii_whitespace'] = 17349336);
 
 	var _php_dom_ns_is_html_magic_token = (Module[
 		'_php_dom_ns_is_html_magic_token'
-	] = 17347744);
+	] = 17349248);
 
 	var _php_dom_ns_is_xmlns_magic_token = (Module[
 		'_php_dom_ns_is_xmlns_magic_token'
-	] = 17347764);
+	] = 17349268);
 
 	var _php_dom_ns_is_mathml_magic_token = (Module[
 		'_php_dom_ns_is_mathml_magic_token'
-	] = 17347748);
+	] = 17349252);
 
 	var _php_dom_ns_is_svg_magic_token = (Module[
 		'_php_dom_ns_is_svg_magic_token'
-	] = 17347752);
+	] = 17349256);
 
 	var _php_dom_ns_is_xlink_magic_token = (Module[
 		'_php_dom_ns_is_xlink_magic_token'
-	] = 17347756);
+	] = 17349260);
 
 	var _php_dom_ns_is_xml_magic_token = (Module[
 		'_php_dom_ns_is_xml_magic_token'
-	] = 17347760);
+	] = 17349264);
 
 	var _php_dom_obj_map_attributes = (Module['_php_dom_obj_map_attributes'] =
-		17347900);
+		17349404);
 
 	var _php_dom_obj_map_by_tag_name = (Module['_php_dom_obj_map_by_tag_name'] =
-		17347924);
+		17349428);
 
 	var _php_dom_obj_map_by_class_name = (Module[
 		'_php_dom_obj_map_by_class_name'
-	] = 17347948);
+	] = 17349452);
 
 	var _php_dom_obj_map_child_nodes = (Module['_php_dom_obj_map_child_nodes'] =
-		17347972);
+		17349476);
 
 	var _php_dom_obj_map_nodeset = (Module['_php_dom_obj_map_nodeset'] =
-		17347996);
+		17349500);
 
 	var _php_dom_obj_map_entities = (Module['_php_dom_obj_map_entities'] =
-		17348020);
+		17349524);
 
 	var _php_dom_obj_map_notations = (Module['_php_dom_obj_map_notations'] =
-		17348044);
+		17349548);
 
 	var _php_dom_obj_map_child_elements = (Module[
 		'_php_dom_obj_map_child_elements'
-	] = 17348068);
+	] = 17349572);
 
-	var _php_dom_obj_map_noop = (Module['_php_dom_obj_map_noop'] = 17348092);
+	var _php_dom_obj_map_noop = (Module['_php_dom_obj_map_noop'] = 17349596);
 
 	var _dom_adjacent_position_class_entry = (Module[
 		'_dom_adjacent_position_class_entry'
-	] = 18243640);
+	] = 18245096);
 
 	var _dom_domexception_class_entry = (Module[
 		'_dom_domexception_class_entry'
-	] = 18243644);
+	] = 18245100);
 
 	var _dom_parentnode_class_entry = (Module['_dom_parentnode_class_entry'] =
-		18243648);
+		18245104);
 
 	var _dom_modern_parentnode_class_entry = (Module[
 		'_dom_modern_parentnode_class_entry'
-	] = 18243652);
+	] = 18245108);
 
 	var _dom_childnode_class_entry = (Module['_dom_childnode_class_entry'] =
-		18243656);
+		18245112);
 
 	var _dom_modern_childnode_class_entry = (Module[
 		'_dom_modern_childnode_class_entry'
-	] = 18243660);
+	] = 18245116);
 
 	var _dom_domimplementation_class_entry = (Module[
 		'_dom_domimplementation_class_entry'
-	] = 18243664);
+	] = 18245120);
 
 	var _dom_modern_domimplementation_class_entry = (Module[
 		'_dom_modern_domimplementation_class_entry'
-	] = 18243668);
+	] = 18245124);
 
-	var _dom_node_class_entry = (Module['_dom_node_class_entry'] = 18243672);
+	var _dom_node_class_entry = (Module['_dom_node_class_entry'] = 18245128);
 
 	var _dom_modern_node_class_entry = (Module['_dom_modern_node_class_entry'] =
-		18243736);
+		18245192);
 
 	var _dom_namespace_node_class_entry = (Module[
 		'_dom_namespace_node_class_entry'
-	] = 18243800);
+	] = 18245256);
 
 	var _dom_namespace_info_class_entry = (Module[
 		'_dom_namespace_info_class_entry'
-	] = 18243864);
+	] = 18245320);
 
 	var _dom_documentfragment_class_entry = (Module[
 		'_dom_documentfragment_class_entry'
-	] = 18243868);
+	] = 18245324);
 
 	var _dom_modern_documentfragment_class_entry = (Module[
 		'_dom_modern_documentfragment_class_entry'
-	] = 18243928);
+	] = 18245384);
 
 	var _dom_abstract_base_document_class_entry = (Module[
 		'_dom_abstract_base_document_class_entry'
-	] = 18243992);
+	] = 18245448);
 
 	var _dom_document_class_entry = (Module['_dom_document_class_entry'] =
-		18244056);
+		18245512);
 
 	var _dom_html_document_class_entry = (Module[
 		'_dom_html_document_class_entry'
-	] = 18244120);
+	] = 18245576);
 
 	var _dom_xml_document_class_entry = (Module[
 		'_dom_xml_document_class_entry'
-	] = 18244124);
+	] = 18245580);
 
 	var _dom_nodelist_class_entry = (Module['_dom_nodelist_class_entry'] =
-		18244184);
+		18245640);
 
 	var _dom_modern_nodelist_class_entry = (Module[
 		'_dom_modern_nodelist_class_entry'
-	] = 18244248);
+	] = 18245704);
 
 	var _dom_namednodemap_class_entry = (Module[
 		'_dom_namednodemap_class_entry'
-	] = 18244252);
+	] = 18245708);
 
 	var _dom_modern_namednodemap_class_entry = (Module[
 		'_dom_modern_namednodemap_class_entry'
-	] = 18244312);
+	] = 18245768);
 
 	var _dom_modern_dtd_namednodemap_class_entry = (Module[
 		'_dom_modern_dtd_namednodemap_class_entry'
-	] = 18244316);
+	] = 18245772);
 
 	var _dom_html_collection_class_entry = (Module[
 		'_dom_html_collection_class_entry'
-	] = 18244320);
+	] = 18245776);
 
 	var _dom_characterdata_class_entry = (Module[
 		'_dom_characterdata_class_entry'
-	] = 18244324);
+	] = 18245780);
 
 	var _dom_modern_characterdata_class_entry = (Module[
 		'_dom_modern_characterdata_class_entry'
-	] = 18244384);
+	] = 18245840);
 
-	var _dom_attr_class_entry = (Module['_dom_attr_class_entry'] = 18244448);
+	var _dom_attr_class_entry = (Module['_dom_attr_class_entry'] = 18245904);
 
 	var _dom_modern_attr_class_entry = (Module['_dom_modern_attr_class_entry'] =
-		18244512);
+		18245968);
 
 	var _dom_element_class_entry = (Module['_dom_element_class_entry'] =
-		18244576);
+		18246032);
 
 	var _dom_modern_element_class_entry = (Module[
 		'_dom_modern_element_class_entry'
-	] = 18244640);
+	] = 18246096);
 
 	var _dom_html_element_class_entry = (Module[
 		'_dom_html_element_class_entry'
-	] = 18244704);
+	] = 18246160);
 
-	var _dom_text_class_entry = (Module['_dom_text_class_entry'] = 18244708);
+	var _dom_text_class_entry = (Module['_dom_text_class_entry'] = 18246164);
 
 	var _dom_modern_text_class_entry = (Module['_dom_modern_text_class_entry'] =
-		18244768);
+		18246224);
 
 	var _dom_comment_class_entry = (Module['_dom_comment_class_entry'] =
-		18244832);
+		18246288);
 
 	var _dom_modern_comment_class_entry = (Module[
 		'_dom_modern_comment_class_entry'
-	] = 18244836);
+	] = 18246292);
 
 	var _dom_cdatasection_class_entry = (Module[
 		'_dom_cdatasection_class_entry'
-	] = 18244840);
+	] = 18246296);
 
 	var _dom_modern_cdatasection_class_entry = (Module[
 		'_dom_modern_cdatasection_class_entry'
-	] = 18244844);
+	] = 18246300);
 
 	var _dom_documenttype_class_entry = (Module[
 		'_dom_documenttype_class_entry'
-	] = 18244848);
+	] = 18246304);
 
 	var _dom_modern_documenttype_class_entry = (Module[
 		'_dom_modern_documenttype_class_entry'
-	] = 18244912);
+	] = 18246368);
 
 	var _dom_notation_class_entry = (Module['_dom_notation_class_entry'] =
-		18244976);
+		18246432);
 
 	var _dom_modern_notation_class_entry = (Module[
 		'_dom_modern_notation_class_entry'
-	] = 18245040);
+	] = 18246496);
 
 	var _dom_entity_class_entry = (Module['_dom_entity_class_entry'] =
-		18245104);
+		18246560);
 
 	var _dom_modern_entity_class_entry = (Module[
 		'_dom_modern_entity_class_entry'
-	] = 18245168);
+	] = 18246624);
 
 	var _dom_entityreference_class_entry = (Module[
 		'_dom_entityreference_class_entry'
-	] = 18245232);
+	] = 18246688);
 
 	var _dom_modern_entityreference_class_entry = (Module[
 		'_dom_modern_entityreference_class_entry'
-	] = 18245296);
+	] = 18246752);
 
 	var _dom_processinginstruction_class_entry = (Module[
 		'_dom_processinginstruction_class_entry'
-	] = 18245360);
+	] = 18246816);
 
 	var _dom_modern_processinginstruction_class_entry = (Module[
 		'_dom_modern_processinginstruction_class_entry'
-	] = 18245424);
+	] = 18246880);
 
 	var _dom_xpath_object_handlers = (Module['_dom_xpath_object_handlers'] =
-		18245488);
+		18246944);
 
-	var _dom_xpath_class_entry = (Module['_dom_xpath_class_entry'] = 18245592);
+	var _dom_xpath_class_entry = (Module['_dom_xpath_class_entry'] = 18247048);
 
 	var _dom_modern_xpath_class_entry = (Module[
 		'_dom_modern_xpath_class_entry'
-	] = 18245656);
+	] = 18247112);
 
 	var _dom_token_list_class_entry = (Module['_dom_token_list_class_entry'] =
-		18245660);
+		18247116);
 
-	var _dom_globals = (Module['_dom_globals'] = 18242432);
+	var _dom_globals = (Module['_dom_globals'] = 18243888);
 
-	var _dom_module_entry = (Module['_dom_module_entry'] = 17417972);
+	var _dom_module_entry = (Module['_dom_module_entry'] = 17419476);
 
-	var _exif_globals = (Module['_exif_globals'] = 18246136);
+	var _exif_globals = (Module['_exif_globals'] = 18247592);
 
-	var _exif_module_entry = (Module['_exif_module_entry'] = 17455036);
+	var _exif_module_entry = (Module['_exif_module_entry'] = 17456540);
 
-	var _finfo_class_entry = (Module['_finfo_class_entry'] = 18246676);
+	var _finfo_class_entry = (Module['_finfo_class_entry'] = 18248132);
 
-	var _fileinfo_module_entry = (Module['_fileinfo_module_entry'] = 17463380);
+	var _fileinfo_module_entry = (Module['_fileinfo_module_entry'] = 17464884);
 
-	var _php_magic_database = (Module['_php_magic_database'] = 3439136);
+	var _php_magic_database = (Module['_php_magic_database'] = 3440520);
 
-	var _file_names = (Module['_file_names'] = 18246176);
+	var _file_names = (Module['_file_names'] = 18247632);
 
-	var _file_nnames = (Module['_file_nnames'] = 3439124);
+	var _file_nnames = (Module['_file_nnames'] = 3440516);
 
-	var _filter_globals = (Module['_filter_globals'] = 18246784);
+	var _filter_globals = (Module['_filter_globals'] = 18248240);
 
 	var _php_filter_exception_ce = (Module['_php_filter_exception_ce'] =
-		18246880);
+		18248336);
 
 	var _php_filter_failed_exception_ce = (Module[
 		'_php_filter_failed_exception_ce'
-	] = 18246884);
+	] = 18248340);
 
-	var _filter_module_entry = (Module['_filter_module_entry'] = 17464368);
+	var _filter_module_entry = (Module['_filter_module_entry'] = 17465872);
 
-	var _gd_image_ce = (Module['_gd_image_ce'] = 18246888);
+	var _gd_image_ce = (Module['_gd_image_ce'] = 18248344);
 
-	var _gd_module_entry = (Module['_gd_module_entry'] = 17468152);
+	var _gd_module_entry = (Module['_gd_module_entry'] = 17469656);
 
-	var _php_hash_adler32_ops = (Module['_php_hash_adler32_ops'] = 17474840);
+	var _php_hash_adler32_ops = (Module['_php_hash_adler32_ops'] = 17476344);
 
-	var _php_hash_crc32_ops = (Module['_php_hash_crc32_ops'] = 17474892);
+	var _php_hash_crc32_ops = (Module['_php_hash_crc32_ops'] = 17476396);
 
-	var _php_hash_crc32b_ops = (Module['_php_hash_crc32b_ops'] = 17474944);
+	var _php_hash_crc32b_ops = (Module['_php_hash_crc32b_ops'] = 17476448);
 
-	var _php_hash_crc32c_ops = (Module['_php_hash_crc32c_ops'] = 17474996);
+	var _php_hash_crc32c_ops = (Module['_php_hash_crc32c_ops'] = 17476500);
 
-	var _php_hash_fnv132_ops = (Module['_php_hash_fnv132_ops'] = 17475048);
+	var _php_hash_fnv132_ops = (Module['_php_hash_fnv132_ops'] = 17476552);
 
-	var _php_hash_fnv1a32_ops = (Module['_php_hash_fnv1a32_ops'] = 17475100);
+	var _php_hash_fnv1a32_ops = (Module['_php_hash_fnv1a32_ops'] = 17476604);
 
-	var _php_hash_fnv164_ops = (Module['_php_hash_fnv164_ops'] = 17475152);
+	var _php_hash_fnv164_ops = (Module['_php_hash_fnv164_ops'] = 17476656);
 
-	var _php_hash_fnv1a64_ops = (Module['_php_hash_fnv1a64_ops'] = 17475204);
+	var _php_hash_fnv1a64_ops = (Module['_php_hash_fnv1a64_ops'] = 17476708);
 
-	var _php_hash_gost_ops = (Module['_php_hash_gost_ops'] = 17474736);
+	var _php_hash_gost_ops = (Module['_php_hash_gost_ops'] = 17476240);
 
 	var _php_hash_gost_crypto_ops = (Module['_php_hash_gost_crypto_ops'] =
-		17474788);
+		17476292);
 
 	var _php_hash_3haval128_ops = (Module['_php_hash_3haval128_ops'] =
-		17475672);
+		17477176);
 
 	var _php_hash_3haval160_ops = (Module['_php_hash_3haval160_ops'] =
-		17475724);
+		17477228);
 
 	var _php_hash_3haval192_ops = (Module['_php_hash_3haval192_ops'] =
-		17475776);
+		17477280);
 
 	var _php_hash_3haval224_ops = (Module['_php_hash_3haval224_ops'] =
-		17475828);
+		17477332);
 
 	var _php_hash_3haval256_ops = (Module['_php_hash_3haval256_ops'] =
-		17475880);
+		17477384);
 
 	var _php_hash_4haval128_ops = (Module['_php_hash_4haval128_ops'] =
-		17475932);
+		17477436);
 
 	var _php_hash_4haval160_ops = (Module['_php_hash_4haval160_ops'] =
-		17475984);
+		17477488);
 
 	var _php_hash_4haval192_ops = (Module['_php_hash_4haval192_ops'] =
-		17476036);
+		17477540);
 
 	var _php_hash_4haval224_ops = (Module['_php_hash_4haval224_ops'] =
-		17476088);
+		17477592);
 
 	var _php_hash_4haval256_ops = (Module['_php_hash_4haval256_ops'] =
-		17476140);
+		17477644);
 
 	var _php_hash_5haval128_ops = (Module['_php_hash_5haval128_ops'] =
-		17476192);
+		17477696);
 
 	var _php_hash_5haval160_ops = (Module['_php_hash_5haval160_ops'] =
-		17476244);
+		17477748);
 
 	var _php_hash_5haval192_ops = (Module['_php_hash_5haval192_ops'] =
-		17476296);
+		17477800);
 
 	var _php_hash_5haval224_ops = (Module['_php_hash_5haval224_ops'] =
-		17476348);
+		17477852);
 
 	var _php_hash_5haval256_ops = (Module['_php_hash_5haval256_ops'] =
-		17476400);
+		17477904);
 
-	var _php_hash_joaat_ops = (Module['_php_hash_joaat_ops'] = 17475256);
+	var _php_hash_joaat_ops = (Module['_php_hash_joaat_ops'] = 17476760);
 
-	var _php_hash_md5_ops = (Module['_php_hash_md5_ops'] = 17473384);
+	var _php_hash_md5_ops = (Module['_php_hash_md5_ops'] = 17474888);
 
-	var _php_hash_md4_ops = (Module['_php_hash_md4_ops'] = 17473436);
+	var _php_hash_md4_ops = (Module['_php_hash_md4_ops'] = 17474940);
 
-	var _php_hash_md2_ops = (Module['_php_hash_md2_ops'] = 17473488);
+	var _php_hash_md2_ops = (Module['_php_hash_md2_ops'] = 17474992);
 
-	var _php_hash_murmur3a_ops = (Module['_php_hash_murmur3a_ops'] = 17475308);
+	var _php_hash_murmur3a_ops = (Module['_php_hash_murmur3a_ops'] = 17476812);
 
-	var _php_hash_murmur3c_ops = (Module['_php_hash_murmur3c_ops'] = 17475360);
+	var _php_hash_murmur3c_ops = (Module['_php_hash_murmur3c_ops'] = 17476864);
 
-	var _php_hash_murmur3f_ops = (Module['_php_hash_murmur3f_ops'] = 17475412);
+	var _php_hash_murmur3f_ops = (Module['_php_hash_murmur3f_ops'] = 17476916);
 
 	var _php_hash_ripemd128_ops = (Module['_php_hash_ripemd128_ops'] =
-		17474112);
+		17475616);
 
 	var _php_hash_ripemd160_ops = (Module['_php_hash_ripemd160_ops'] =
-		17474164);
+		17475668);
 
 	var _php_hash_ripemd256_ops = (Module['_php_hash_ripemd256_ops'] =
-		17474216);
+		17475720);
 
 	var _php_hash_ripemd320_ops = (Module['_php_hash_ripemd320_ops'] =
-		17474268);
+		17475772);
 
-	var _php_hash_sha1_ops = (Module['_php_hash_sha1_ops'] = 17473540);
+	var _php_hash_sha1_ops = (Module['_php_hash_sha1_ops'] = 17475044);
 
-	var _php_hash_sha256_ops = (Module['_php_hash_sha256_ops'] = 17473592);
+	var _php_hash_sha256_ops = (Module['_php_hash_sha256_ops'] = 17475096);
 
-	var _php_hash_sha224_ops = (Module['_php_hash_sha224_ops'] = 17473644);
+	var _php_hash_sha224_ops = (Module['_php_hash_sha224_ops'] = 17475148);
 
-	var _php_hash_sha384_ops = (Module['_php_hash_sha384_ops'] = 17473696);
+	var _php_hash_sha384_ops = (Module['_php_hash_sha384_ops'] = 17475200);
 
-	var _php_hash_sha512_ops = (Module['_php_hash_sha512_ops'] = 17473748);
+	var _php_hash_sha512_ops = (Module['_php_hash_sha512_ops'] = 17475252);
 
 	var _php_hash_sha512_256_ops = (Module['_php_hash_sha512_256_ops'] =
-		17473800);
+		17475304);
 
 	var _php_hash_sha512_224_ops = (Module['_php_hash_sha512_224_ops'] =
-		17473852);
+		17475356);
 
-	var _php_hash_sha3_224_ops = (Module['_php_hash_sha3_224_ops'] = 17473904);
+	var _php_hash_sha3_224_ops = (Module['_php_hash_sha3_224_ops'] = 17475408);
 
-	var _php_hash_sha3_256_ops = (Module['_php_hash_sha3_256_ops'] = 17473956);
+	var _php_hash_sha3_256_ops = (Module['_php_hash_sha3_256_ops'] = 17475460);
 
-	var _php_hash_sha3_384_ops = (Module['_php_hash_sha3_384_ops'] = 17474008);
+	var _php_hash_sha3_384_ops = (Module['_php_hash_sha3_384_ops'] = 17475512);
 
-	var _php_hash_sha3_512_ops = (Module['_php_hash_sha3_512_ops'] = 17474060);
+	var _php_hash_sha3_512_ops = (Module['_php_hash_sha3_512_ops'] = 17475564);
 
-	var _php_hash_snefru_ops = (Module['_php_hash_snefru_ops'] = 17474684);
+	var _php_hash_snefru_ops = (Module['_php_hash_snefru_ops'] = 17476188);
 
 	var _php_hash_3tiger128_ops = (Module['_php_hash_3tiger128_ops'] =
-		17474372);
+		17475876);
 
 	var _php_hash_3tiger160_ops = (Module['_php_hash_3tiger160_ops'] =
-		17474424);
+		17475928);
 
 	var _php_hash_3tiger192_ops = (Module['_php_hash_3tiger192_ops'] =
-		17474476);
+		17475980);
 
 	var _php_hash_4tiger128_ops = (Module['_php_hash_4tiger128_ops'] =
-		17474528);
+		17476032);
 
 	var _php_hash_4tiger160_ops = (Module['_php_hash_4tiger160_ops'] =
-		17474580);
+		17476084);
 
 	var _php_hash_4tiger192_ops = (Module['_php_hash_4tiger192_ops'] =
-		17474632);
+		17476136);
 
 	var _php_hash_whirlpool_ops = (Module['_php_hash_whirlpool_ops'] =
-		17474320);
+		17475824);
 
-	var _php_hash_xxh32_ops = (Module['_php_hash_xxh32_ops'] = 17475464);
+	var _php_hash_xxh32_ops = (Module['_php_hash_xxh32_ops'] = 17476968);
 
-	var _php_hash_xxh64_ops = (Module['_php_hash_xxh64_ops'] = 17475516);
+	var _php_hash_xxh64_ops = (Module['_php_hash_xxh64_ops'] = 17477020);
 
-	var _php_hash_xxh3_64_ops = (Module['_php_hash_xxh3_64_ops'] = 17475568);
+	var _php_hash_xxh3_64_ops = (Module['_php_hash_xxh3_64_ops'] = 17477072);
 
-	var _php_hash_xxh3_128_ops = (Module['_php_hash_xxh3_128_ops'] = 17475620);
+	var _php_hash_xxh3_128_ops = (Module['_php_hash_xxh3_128_ops'] = 17477124);
 
-	var _php_hashcontext_ce = (Module['_php_hashcontext_ce'] = 18247160);
+	var _php_hashcontext_ce = (Module['_php_hashcontext_ce'] = 18248616);
 
-	var _hash_module_entry = (Module['_hash_module_entry'] = 17476912);
+	var _hash_module_entry = (Module['_hash_module_entry'] = 17478416);
 
-	var _iconv_globals = (Module['_iconv_globals'] = 18247268);
+	var _iconv_globals = (Module['_iconv_globals'] = 18248724);
 
-	var _iconv_module_entry = (Module['_iconv_module_entry'] = 17478420);
+	var _iconv_module_entry = (Module['_iconv_module_entry'] = 17479924);
 
-	var _php_imagick_sc_entry = (Module['_php_imagick_sc_entry'] = 18247296);
+	var _php_imagick_sc_entry = (Module['_php_imagick_sc_entry'] = 18248752);
 
 	var _php_imagickdraw_sc_entry = (Module['_php_imagickdraw_sc_entry'] =
-		18247300);
+		18248756);
 
 	var _php_imagickpixel_sc_entry = (Module['_php_imagickpixel_sc_entry'] =
-		18247304);
+		18248760);
 
-	var _imagick_globals = (Module['_imagick_globals'] = 18247312);
+	var _imagick_globals = (Module['_imagick_globals'] = 18248768);
 
 	var _php_imagick_exception_class_entry = (Module[
 		'_php_imagick_exception_class_entry'
-	] = 18247856);
+	] = 18249312);
 
 	var _php_imagickdraw_exception_class_entry = (Module[
 		'_php_imagickdraw_exception_class_entry'
-	] = 18247860);
+	] = 18249316);
 
 	var _php_imagickpixeliterator_exception_class_entry = (Module[
 		'_php_imagickpixeliterator_exception_class_entry'
-	] = 18247864);
+	] = 18249320);
 
 	var _php_imagickpixel_exception_class_entry = (Module[
 		'_php_imagickpixel_exception_class_entry'
-	] = 18247868);
+	] = 18249324);
 
 	var _php_imagickkernel_exception_class_entry = (Module[
 		'_php_imagickkernel_exception_class_entry'
-	] = 18247872);
+	] = 18249328);
 
 	var _php_imagick_class_methods = (Module['_php_imagick_class_methods'] =
-		17495668);
+		17497172);
 
 	var _php_imagickdraw_class_methods = (Module[
 		'_php_imagickdraw_class_methods'
-	] = 17483236);
+	] = 17484740);
 
 	var _php_imagickpixeliterator_class_methods = (Module[
 		'_php_imagickpixeliterator_class_methods'
-	] = 17483864);
+	] = 17485368);
 
 	var _php_imagickpixeliterator_sc_entry = (Module[
 		'_php_imagickpixeliterator_sc_entry'
-	] = 18247876);
+	] = 18249332);
 
 	var _php_imagickpixel_class_methods = (Module[
 		'_php_imagickpixel_class_methods'
-	] = 17484488);
+	] = 17485992);
 
 	var _php_imagickkernel_class_methods = (Module[
 		'_php_imagickkernel_class_methods'
-	] = 17495904);
+	] = 17497408);
 
 	var _php_imagickkernel_sc_entry = (Module['_php_imagickkernel_sc_entry'] =
-		18247880);
+		18249336);
 
-	var _imagick_module_entry = (Module['_imagick_module_entry'] = 17495908);
+	var _imagick_module_entry = (Module['_imagick_module_entry'] = 17497412);
 
 	var _php_json_serializable_ce = (Module['_php_json_serializable_ce'] =
-		18247932);
+		18249388);
 
-	var _php_json_exception_ce = (Module['_php_json_exception_ce'] = 18247928);
+	var _php_json_exception_ce = (Module['_php_json_exception_ce'] = 18249384);
 
-	var _json_globals = (Module['_json_globals'] = 18247916);
+	var _json_globals = (Module['_json_globals'] = 18249372);
 
-	var _json_module_entry = (Module['_json_module_entry'] = 17512280);
+	var _json_module_entry = (Module['_json_module_entry'] = 17513784);
 
-	var _lexbor_module_entry = (Module['_lexbor_module_entry'] = 17347652);
+	var _lexbor_module_entry = (Module['_lexbor_module_entry'] = 17349156);
 
 	var _lexbor_hash_insert_var = (Module['_lexbor_hash_insert_var'] =
-		17348116);
+		17349620);
 
 	var _lexbor_hash_insert_lower_var = (Module[
 		'_lexbor_hash_insert_lower_var'
-	] = 17348128);
+	] = 17349632);
 
 	var _lexbor_hash_insert_upper_var = (Module[
 		'_lexbor_hash_insert_upper_var'
-	] = 17348140);
+	] = 17349644);
 
 	var _lexbor_hash_insert_raw = (Module['_lexbor_hash_insert_raw'] =
-		17348152);
+		17349656);
 
 	var _lexbor_hash_insert_lower = (Module['_lexbor_hash_insert_lower'] =
-		17348156);
+		17349660);
 
 	var _lexbor_hash_insert_upper = (Module['_lexbor_hash_insert_upper'] =
-		17348160);
+		17349664);
 
 	var _lexbor_hash_search_var = (Module['_lexbor_hash_search_var'] =
-		17348164);
+		17349668);
 
 	var _lexbor_hash_search_lower_var = (Module[
 		'_lexbor_hash_search_lower_var'
-	] = 17348172);
+	] = 17349676);
 
 	var _lexbor_hash_search_upper_var = (Module[
 		'_lexbor_hash_search_upper_var'
-	] = 17348180);
+	] = 17349684);
 
 	var _lexbor_hash_search_raw = (Module['_lexbor_hash_search_raw'] =
-		17348188);
+		17349692);
 
 	var _lexbor_hash_search_lower = (Module['_lexbor_hash_search_lower'] =
-		17348192);
+		17349696);
 
 	var _lexbor_hash_search_upper = (Module['_lexbor_hash_search_upper'] =
-		17348196);
+		17349700);
 
 	var _lexbor_str_res_map_lowercase = (Module[
 		'_lexbor_str_res_map_lowercase'
-	] = 2378608);
+	] = 2379968);
 
 	var _lexbor_str_res_ansi_replacement_character = (Module[
 		'_lexbor_str_res_ansi_replacement_character'
-	] = 2378080);
+	] = 2379440);
 
 	var _lexbor_str_res_map_uppercase = (Module[
 		'_lexbor_str_res_map_uppercase'
-	] = 2378864);
+	] = 2380224);
 
-	var _lexbor_str_res_map_num = (Module['_lexbor_str_res_map_num'] = 2378096);
+	var _lexbor_str_res_map_num = (Module['_lexbor_str_res_map_num'] = 2379456);
 
-	var _lexbor_str_res_map_hex = (Module['_lexbor_str_res_map_hex'] = 2378352);
+	var _lexbor_str_res_map_hex = (Module['_lexbor_str_res_map_hex'] = 2379712);
 
 	var _lexbor_str_res_replacement_character = (Module[
 		'_lexbor_str_res_replacement_character'
-	] = 2379120);
+	] = 2380480);
 
 	var _lexbor_str_res_alphanumeric_character = (Module[
 		'_lexbor_str_res_alphanumeric_character'
-	] = 2379760);
+	] = 2381120);
 
 	var _lexbor_str_res_alpha_character = (Module[
 		'_lexbor_str_res_alpha_character'
-	] = 2380784);
+	] = 2382144);
 
 	var _lexbor_tokenizer_chars_map = (Module['_lexbor_tokenizer_chars_map'] =
-		2381808);
+		2383168);
 
 	var _lexbor_str_res_map_hex_to_char = (Module[
 		'_lexbor_str_res_map_hex_to_char'
-	] = 2382064);
+	] = 2383424);
 
 	var _lexbor_str_res_map_hex_to_char_lowercase = (Module[
 		'_lexbor_str_res_map_hex_to_char_lowercase'
-	] = 2382096);
+	] = 2383456);
 
 	var _lexbor_str_res_char_to_two_hex_value = (Module[
 		'_lexbor_str_res_char_to_two_hex_value'
-	] = 17289152);
+	] = 17286128);
 
 	var _lexbor_str_res_char_to_two_hex_value_lowercase = (Module[
 		'_lexbor_str_res_char_to_two_hex_value_lowercase'
-	] = 17290192);
+	] = 17287168);
 
 	var _lxb_css_syntax_res_name_map = (Module['_lxb_css_syntax_res_name_map'] =
-		2661888);
+		2663280);
 
 	var _lxb_encoding_multi_big5_map = (Module['_lxb_encoding_multi_big5_map'] =
-		16516384);
+		16517920);
 
 	var _lxb_encoding_multi_euc_kr_map = (Module[
 		'_lxb_encoding_multi_euc_kr_map'
-	] = 16595520);
+	] = 16597056);
 
 	var _lxb_encoding_multi_gb18030_map = (Module[
 		'_lxb_encoding_multi_gb18030_map'
-	] = 16690528);
+	] = 16692064);
 
 	var _lxb_encoding_multi_iso_2022_jp_katakana_map = (Module[
 		'_lxb_encoding_multi_iso_2022_jp_katakana_map'
-	] = 16786288);
+	] = 16787824);
 
 	var _lxb_encoding_multi_jis0212_map = (Module[
 		'_lxb_encoding_multi_jis0212_map'
-	] = 16786544);
+	] = 16788080);
 
 	var _lxb_encoding_multi_jis0208_map = (Module[
 		'_lxb_encoding_multi_jis0208_map'
-	] = 16815392);
+	] = 16816928);
 
 	var _lxb_encoding_multi_big5_167_1106_map = (Module[
 		'_lxb_encoding_multi_big5_167_1106_map'
-	] = 16859808);
+	] = 16861344);
 
 	var _lxb_encoding_multi_big5_8211_40882_map = (Module[
 		'_lxb_encoding_multi_big5_8211_40882_map'
-	] = 16861696);
+	] = 16863232);
 
 	var _lxb_encoding_multi_big5_64012_65518_map = (Module[
 		'_lxb_encoding_multi_big5_64012_65518_map'
-	] = 16927040);
+	] = 16928576);
 
 	var _lxb_encoding_multi_big5_131210_172369_map = (Module[
 		'_lxb_encoding_multi_big5_131210_172369_map'
-	] = 16930064);
+	] = 16931600);
 
 	var _lxb_encoding_multi_big5_194708_194727_map = (Module[
 		'_lxb_encoding_multi_big5_194708_194727_map'
-	] = 17012384);
+	] = 17013920);
 
 	var _lxb_encoding_multi_euc_kr_161_1106_map = (Module[
 		'_lxb_encoding_multi_euc_kr_161_1106_map'
-	] = 17012432);
+	] = 17013968);
 
 	var _lxb_encoding_multi_euc_kr_8213_13278_map = (Module[
 		'_lxb_encoding_multi_euc_kr_8213_13278_map'
-	] = 17014336);
+	] = 17015872);
 
 	var _lxb_encoding_multi_euc_kr_19968_55204_map = (Module[
 		'_lxb_encoding_multi_euc_kr_19968_55204_map'
-	] = 17024480);
+	] = 17026016);
 
 	var _lxb_encoding_multi_euc_kr_63744_65511_map = (Module[
 		'_lxb_encoding_multi_euc_kr_63744_65511_map'
-	] = 17094960);
+	] = 17096496);
 
 	var _lxb_encoding_multi_gb18030_164_1106_map = (Module[
 		'_lxb_encoding_multi_gb18030_164_1106_map'
-	] = 17098496);
+	] = 17100032);
 
 	var _lxb_encoding_multi_gb18030_7743_40892_map = (Module[
 		'_lxb_encoding_multi_gb18030_7743_40892_map'
-	] = 17100384);
+	] = 17101920);
 
 	var _lxb_encoding_multi_gb18030_57344_65510_map = (Module[
 		'_lxb_encoding_multi_gb18030_57344_65510_map'
-	] = 17166688);
+	] = 17168224);
 
 	var _lxb_encoding_multi_iso_2022_jp_katakana_12289_12541_map = (Module[
 		'_lxb_encoding_multi_iso_2022_jp_katakana_12289_12541_map'
-	] = 17183024);
+	] = 17184560);
 
 	var _lxb_encoding_multi_jis0212_161_1120_map = (Module[
 		'_lxb_encoding_multi_jis0212_161_1120_map'
-	] = 17183536);
+	] = 17185072);
 
 	var _lxb_encoding_multi_jis0212_8470_8483_map = (Module[
 		'_lxb_encoding_multi_jis0212_8470_8483_map'
-	] = 17185456);
+	] = 17186992);
 
 	var _lxb_encoding_multi_jis0212_19970_40870_map = (Module[
 		'_lxb_encoding_multi_jis0212_19970_40870_map'
-	] = 17185488);
+	] = 17187024);
 
 	var _lxb_encoding_multi_jis0212_65374_65375_map = (Module[
 		'_lxb_encoding_multi_jis0212_65374_65375_map'
-	] = 17227288);
+	] = 17228824);
 
 	var _lxb_encoding_multi_jis0208_167_1106_map = (Module[
 		'_lxb_encoding_multi_jis0208_167_1106_map'
-	] = 17227296);
+	] = 17228832);
 
 	var _lxb_encoding_multi_jis0208_8208_13262_map = (Module[
 		'_lxb_encoding_multi_jis0208_8208_13262_map'
-	] = 17229184);
+	] = 17230720);
 
 	var _lxb_encoding_multi_jis0208_19968_40865_map = (Module[
 		'_lxb_encoding_multi_jis0208_19968_40865_map'
-	] = 17239296);
+	] = 17240832);
 
 	var _lxb_encoding_multi_jis0208_63785_65510_map = (Module[
 		'_lxb_encoding_multi_jis0208_63785_65510_map'
-	] = 17281104);
+	] = 17282640);
 
 	var _lxb_encoding_range_index_gb18030 = (Module[
 		'_lxb_encoding_range_index_gb18030'
-	] = 1624416);
+	] = 1625776);
 
-	var _lxb_encoding_res_map = (Module['_lxb_encoding_res_map'] = 17284592);
+	var _lxb_encoding_res_map = (Module['_lxb_encoding_res_map'] = 17288208);
 
 	var _lxb_encoding_res_shs_entities = (Module[
 		'_lxb_encoding_res_shs_entities'
-	] = 17285632);
+	] = 17289248);
 
 	var _lxb_encoding_single_index_ibm866 = (Module[
 		'_lxb_encoding_single_index_ibm866'
-	] = 1462096);
+	] = 1463456);
 
 	var _lxb_encoding_single_index_iso_8859_10 = (Module[
 		'_lxb_encoding_single_index_iso_8859_10'
-	] = 1463632);
+	] = 1464992);
 
 	var _lxb_encoding_single_index_iso_8859_13 = (Module[
 		'_lxb_encoding_single_index_iso_8859_13'
-	] = 1465168);
+	] = 1466528);
 
 	var _lxb_encoding_single_index_iso_8859_14 = (Module[
 		'_lxb_encoding_single_index_iso_8859_14'
-	] = 1466704);
+	] = 1468064);
 
 	var _lxb_encoding_single_index_iso_8859_15 = (Module[
 		'_lxb_encoding_single_index_iso_8859_15'
-	] = 1468240);
+	] = 1469600);
 
 	var _lxb_encoding_single_index_iso_8859_16 = (Module[
 		'_lxb_encoding_single_index_iso_8859_16'
-	] = 1469776);
+	] = 1471136);
 
 	var _lxb_encoding_single_index_iso_8859_2 = (Module[
 		'_lxb_encoding_single_index_iso_8859_2'
-	] = 1471312);
+	] = 1472672);
 
 	var _lxb_encoding_single_index_iso_8859_3 = (Module[
 		'_lxb_encoding_single_index_iso_8859_3'
-	] = 1472848);
+	] = 1474208);
 
 	var _lxb_encoding_single_index_iso_8859_4 = (Module[
 		'_lxb_encoding_single_index_iso_8859_4'
-	] = 1474384);
+	] = 1475744);
 
 	var _lxb_encoding_single_index_iso_8859_5 = (Module[
 		'_lxb_encoding_single_index_iso_8859_5'
-	] = 1475920);
+	] = 1477280);
 
 	var _lxb_encoding_single_index_iso_8859_6 = (Module[
 		'_lxb_encoding_single_index_iso_8859_6'
-	] = 1477456);
+	] = 1478816);
 
 	var _lxb_encoding_single_index_iso_8859_7 = (Module[
 		'_lxb_encoding_single_index_iso_8859_7'
-	] = 1478992);
+	] = 1480352);
 
 	var _lxb_encoding_single_index_iso_8859_8 = (Module[
 		'_lxb_encoding_single_index_iso_8859_8'
-	] = 1480528);
+	] = 1481888);
 
 	var _lxb_encoding_single_index_koi8_r = (Module[
 		'_lxb_encoding_single_index_koi8_r'
-	] = 1482064);
+	] = 1483424);
 
 	var _lxb_encoding_single_index_koi8_u = (Module[
 		'_lxb_encoding_single_index_koi8_u'
-	] = 1483600);
+	] = 1484960);
 
 	var _lxb_encoding_single_index_macintosh = (Module[
 		'_lxb_encoding_single_index_macintosh'
-	] = 1485136);
+	] = 1486496);
 
 	var _lxb_encoding_single_index_windows_1250 = (Module[
 		'_lxb_encoding_single_index_windows_1250'
-	] = 1486672);
+	] = 1488032);
 
 	var _lxb_encoding_single_index_windows_1251 = (Module[
 		'_lxb_encoding_single_index_windows_1251'
-	] = 1488208);
+	] = 1489568);
 
 	var _lxb_encoding_single_index_windows_1252 = (Module[
 		'_lxb_encoding_single_index_windows_1252'
-	] = 1489744);
+	] = 1491104);
 
 	var _lxb_encoding_single_index_windows_1253 = (Module[
 		'_lxb_encoding_single_index_windows_1253'
-	] = 1491280);
+	] = 1492640);
 
 	var _lxb_encoding_single_index_windows_1254 = (Module[
 		'_lxb_encoding_single_index_windows_1254'
-	] = 1492816);
+	] = 1494176);
 
 	var _lxb_encoding_single_index_windows_1255 = (Module[
 		'_lxb_encoding_single_index_windows_1255'
-	] = 1494352);
+	] = 1495712);
 
 	var _lxb_encoding_single_index_windows_1256 = (Module[
 		'_lxb_encoding_single_index_windows_1256'
-	] = 1495888);
+	] = 1497248);
 
 	var _lxb_encoding_single_index_windows_1257 = (Module[
 		'_lxb_encoding_single_index_windows_1257'
-	] = 1497424);
+	] = 1498784);
 
 	var _lxb_encoding_single_index_windows_1258 = (Module[
 		'_lxb_encoding_single_index_windows_1258'
-	] = 1498960);
+	] = 1500320);
 
 	var _lxb_encoding_single_index_windows_874 = (Module[
 		'_lxb_encoding_single_index_windows_874'
-	] = 1500496);
+	] = 1501856);
 
 	var _lxb_encoding_single_index_x_mac_cyrillic = (Module[
 		'_lxb_encoding_single_index_x_mac_cyrillic'
-	] = 1502032);
+	] = 1503392);
 
 	var _lxb_encoding_single_hash_ibm866 = (Module[
 		'_lxb_encoding_single_hash_ibm866'
-	] = 1503568);
+	] = 1504928);
 
 	var _lxb_encoding_single_hash_iso_8859_10 = (Module[
 		'_lxb_encoding_single_hash_iso_8859_10'
-	] = 1507712);
+	] = 1509072);
 
 	var _lxb_encoding_single_hash_iso_8859_13 = (Module[
 		'_lxb_encoding_single_hash_iso_8859_13'
-	] = 1511840);
+	] = 1513200);
 
 	var _lxb_encoding_single_hash_iso_8859_14 = (Module[
 		'_lxb_encoding_single_hash_iso_8859_14'
-	] = 1516e3);
+	] = 1517360);
 
 	var _lxb_encoding_single_hash_iso_8859_15 = (Module[
 		'_lxb_encoding_single_hash_iso_8859_15'
-	] = 1520896);
+	] = 1522256);
 
 	var _lxb_encoding_single_hash_iso_8859_16 = (Module[
 		'_lxb_encoding_single_hash_iso_8859_16'
-	] = 1525040);
+	] = 1526400);
 
 	var _lxb_encoding_single_hash_iso_8859_2 = (Module[
 		'_lxb_encoding_single_hash_iso_8859_2'
-	] = 1530016);
+	] = 1531376);
 
 	var _lxb_encoding_single_hash_iso_8859_3 = (Module[
 		'_lxb_encoding_single_hash_iso_8859_3'
-	] = 1534448);
+	] = 1535808);
 
 	var _lxb_encoding_single_hash_iso_8859_4 = (Module[
 		'_lxb_encoding_single_hash_iso_8859_4'
-	] = 1538576);
+	] = 1539936);
 
 	var _lxb_encoding_single_hash_iso_8859_5 = (Module[
 		'_lxb_encoding_single_hash_iso_8859_5'
-	] = 1542704);
+	] = 1544064);
 
 	var _lxb_encoding_single_hash_iso_8859_6 = (Module[
 		'_lxb_encoding_single_hash_iso_8859_6'
-	] = 1546832);
+	] = 1548192);
 
 	var _lxb_encoding_single_hash_iso_8859_7 = (Module[
 		'_lxb_encoding_single_hash_iso_8859_7'
-	] = 1550960);
+	] = 1552320);
 
 	var _lxb_encoding_single_hash_iso_8859_8 = (Module[
 		'_lxb_encoding_single_hash_iso_8859_8'
-	] = 1555104);
+	] = 1556464);
 
 	var _lxb_encoding_single_hash_koi8_r = (Module[
 		'_lxb_encoding_single_hash_koi8_r'
-	] = 1559280);
+	] = 1560640);
 
 	var _lxb_encoding_single_hash_koi8_u = (Module[
 		'_lxb_encoding_single_hash_koi8_u'
-	] = 1565136);
+	] = 1566496);
 
 	var _lxb_encoding_single_hash_macintosh = (Module[
 		'_lxb_encoding_single_hash_macintosh'
-	] = 1569712);
+	] = 1571072);
 
 	var _lxb_encoding_single_hash_windows_1250 = (Module[
 		'_lxb_encoding_single_hash_windows_1250'
-	] = 1573936);
+	] = 1575296);
 
 	var _lxb_encoding_single_hash_windows_1251 = (Module[
 		'_lxb_encoding_single_hash_windows_1251'
-	] = 1579136);
+	] = 1580496);
 
 	var _lxb_encoding_single_hash_windows_1252 = (Module[
 		'_lxb_encoding_single_hash_windows_1252'
-	] = 1583504);
+	] = 1584864);
 
 	var _lxb_encoding_single_hash_windows_1253 = (Module[
 		'_lxb_encoding_single_hash_windows_1253'
-	] = 1588e3);
+	] = 1589360);
 
 	var _lxb_encoding_single_hash_windows_1254 = (Module[
 		'_lxb_encoding_single_hash_windows_1254'
-	] = 1592272);
+	] = 1593632);
 
 	var _lxb_encoding_single_hash_windows_1255 = (Module[
 		'_lxb_encoding_single_hash_windows_1255'
-	] = 1596544);
+	] = 1597904);
 
 	var _lxb_encoding_single_hash_windows_1256 = (Module[
 		'_lxb_encoding_single_hash_windows_1256'
-	] = 1602160);
+	] = 1603520);
 
 	var _lxb_encoding_single_hash_windows_1257 = (Module[
 		'_lxb_encoding_single_hash_windows_1257'
-	] = 1606448);
+	] = 1607808);
 
 	var _lxb_encoding_single_hash_windows_1258 = (Module[
 		'_lxb_encoding_single_hash_windows_1258'
-	] = 1610720);
+	] = 1612080);
 
 	var _lxb_encoding_single_hash_windows_874 = (Module[
 		'_lxb_encoding_single_hash_windows_874'
-	] = 1615600);
+	] = 1616960);
 
 	var _lxb_encoding_single_hash_x_mac_cyrillic = (Module[
 		'_lxb_encoding_single_hash_x_mac_cyrillic'
-	] = 1619920);
+	] = 1621280);
 
-	var _lxb_html_tag_res_cats = (Module['_lxb_html_tag_res_cats'] = 17375200);
+	var _lxb_html_tag_res_cats = (Module['_lxb_html_tag_res_cats'] = 17376704);
 
 	var _lxb_html_tag_res_fixname_svg = (Module[
 		'_lxb_html_tag_res_fixname_svg'
-	] = 17381536);
+	] = 17383040);
 
 	var _lxb_html_tokenizer_eof = (Module['_lxb_html_tokenizer_eof'] =
-		17375192);
+		17376696);
 
-	var _mbstring_globals = (Module['_mbstring_globals'] = 18245984);
+	var _mbstring_globals = (Module['_mbstring_globals'] = 18247440);
 
-	var _mb_convert_kana_flags = (Module['_mb_convert_kana_flags'] = 17451712);
+	var _mb_convert_kana_flags = (Module['_mb_convert_kana_flags'] = 17453216);
 
-	var _mbstring_module_entry = (Module['_mbstring_module_entry'] = 17451512);
+	var _mbstring_module_entry = (Module['_mbstring_module_entry'] = 17453016);
 
 	var _php_mb_oniguruma_version = (Module['_php_mb_oniguruma_version'] =
-		18245728);
+		18247184);
 
-	var _mbfl_html_entity_list = (Module['_mbfl_html_entity_list'] = 17437856);
+	var _mbfl_html_entity_list = (Module['_mbfl_html_entity_list'] = 17439360);
 
-	var _vtbl_7bit_wchar = (Module['_vtbl_7bit_wchar'] = 17439996);
+	var _vtbl_7bit_wchar = (Module['_vtbl_7bit_wchar'] = 17441500);
 
-	var _vtbl_wchar_7bit = (Module['_vtbl_wchar_7bit'] = 17440024);
+	var _vtbl_wchar_7bit = (Module['_vtbl_wchar_7bit'] = 17441528);
 
-	var _mbfl_encoding_7bit = (Module['_mbfl_encoding_7bit'] = 17440052);
+	var _mbfl_encoding_7bit = (Module['_mbfl_encoding_7bit'] = 17441556);
 
-	var _mbfl_encoding_base64 = (Module['_mbfl_encoding_base64'] = 17437552);
+	var _mbfl_encoding_base64 = (Module['_mbfl_encoding_base64'] = 17439056);
 
-	var _vtbl_8bit_b64 = (Module['_vtbl_8bit_b64'] = 17437600);
+	var _vtbl_8bit_b64 = (Module['_vtbl_8bit_b64'] = 17439104);
 
-	var _vtbl_b64_8bit = (Module['_vtbl_b64_8bit'] = 17437628);
+	var _vtbl_b64_8bit = (Module['_vtbl_b64_8bit'] = 17439132);
 
-	var _jisx0208_ucs_table = (Module['_jisx0208_ucs_table'] = 2663568);
+	var _jisx0208_ucs_table = (Module['_jisx0208_ucs_table'] = 2664960);
 
-	var _jisx0212_ucs_table = (Module['_jisx0212_ucs_table'] = 2679200);
+	var _jisx0212_ucs_table = (Module['_jisx0212_ucs_table'] = 2680592);
 
-	var _ucs_a1_jis_table = (Module['_ucs_a1_jis_table'] = 2693632);
+	var _ucs_a1_jis_table = (Module['_ucs_a1_jis_table'] = 2695024);
 
-	var _ucs_a2_jis_table = (Module['_ucs_a2_jis_table'] = 2695888);
+	var _ucs_a2_jis_table = (Module['_ucs_a2_jis_table'] = 2697280);
 
-	var _ucs_i_jis_table = (Module['_ucs_i_jis_table'] = 2704608);
+	var _ucs_i_jis_table = (Module['_ucs_i_jis_table'] = 2706e3);
 
-	var _ucs_r_jis_table_min = (Module['_ucs_r_jis_table_min'] = 17441432);
+	var _ucs_r_jis_table_min = (Module['_ucs_r_jis_table_min'] = 17442936);
 
-	var _ucs_r_jis_table_max = (Module['_ucs_r_jis_table_max'] = 17441436);
+	var _ucs_r_jis_table_max = (Module['_ucs_r_jis_table_max'] = 17442940);
 
-	var _ucs_r_jis_table = (Module['_ucs_r_jis_table'] = 2746608);
+	var _ucs_r_jis_table = (Module['_ucs_r_jis_table'] = 2748e3);
 
-	var _cp932ext1_ucs_table = (Module['_cp932ext1_ucs_table'] = 2747072);
+	var _cp932ext1_ucs_table = (Module['_cp932ext1_ucs_table'] = 2748464);
 
-	var _cp932ext2_ucs_table = (Module['_cp932ext2_ucs_table'] = 2747616);
+	var _cp932ext2_ucs_table = (Module['_cp932ext2_ucs_table'] = 2749008);
 
-	var _cp932ext3_ucs_table = (Module['_cp932ext3_ucs_table'] = 2748384);
+	var _cp932ext3_ucs_table = (Module['_cp932ext3_ucs_table'] = 2749776);
 
-	var _uhc1_ucs_table = (Module['_uhc1_ucs_table'] = 2896336);
+	var _uhc1_ucs_table = (Module['_uhc1_ucs_table'] = 2897728);
 
-	var _uhc3_ucs_table = (Module['_uhc3_ucs_table'] = 2922944);
+	var _uhc3_ucs_table = (Module['_uhc3_ucs_table'] = 2924336);
 
-	var _ucs_a1_uhc_table = (Module['_ucs_a1_uhc_table'] = 2933296);
+	var _ucs_a1_uhc_table = (Module['_ucs_a1_uhc_table'] = 2934688);
 
-	var _ucs_a2_uhc_table = (Module['_ucs_a2_uhc_table'] = 2935520);
+	var _ucs_a2_uhc_table = (Module['_ucs_a2_uhc_table'] = 2936912);
 
-	var _ucs_a3_uhc_table = (Module['_ucs_a3_uhc_table'] = 2938832);
+	var _ucs_a3_uhc_table = (Module['_ucs_a3_uhc_table'] = 2940224);
 
-	var _ucs_i_uhc_table = (Module['_ucs_i_uhc_table'] = 2941344);
+	var _ucs_i_uhc_table = (Module['_ucs_i_uhc_table'] = 2942736);
 
-	var _ucs_s_uhc_table = (Module['_ucs_s_uhc_table'] = 2983664);
+	var _ucs_s_uhc_table = (Module['_ucs_s_uhc_table'] = 2985056);
 
-	var _ucs_r1_uhc_table = (Module['_ucs_r1_uhc_table'] = 3006528);
+	var _ucs_r1_uhc_table = (Module['_ucs_r1_uhc_table'] = 3007920);
 
-	var _ucs_r2_uhc_table = (Module['_ucs_r2_uhc_table'] = 3007584);
+	var _ucs_r2_uhc_table = (Module['_ucs_r2_uhc_table'] = 3008976);
 
 	var _cp932ext1_ucs_table_paired_sorted = (Module[
 		'_cp932ext1_ucs_table_paired_sorted'
-	] = 2747280);
+	] = 2748672);
 
 	var _cp932ext3_ucs_table_paired_sorted = (Module[
 		'_cp932ext3_ucs_table_paired_sorted'
-	] = 2749168);
+	] = 2750560);
 
-	var _cp936_ucs_table = (Module['_cp936_ucs_table'] = 2750720);
+	var _cp936_ucs_table = (Module['_cp936_ucs_table'] = 2752112);
 
-	var _ucs_a1_cp936_table = (Module['_ucs_a1_cp936_table'] = 2801984);
+	var _ucs_a1_cp936_table = (Module['_ucs_a1_cp936_table'] = 2803376);
 
-	var _ucs_a2_cp936_table = (Module['_ucs_a2_cp936_table'] = 2804208);
+	var _ucs_a2_cp936_table = (Module['_ucs_a2_cp936_table'] = 2805600);
 
-	var _ucs_a3_cp936_table = (Module['_ucs_a3_cp936_table'] = 2807424);
+	var _ucs_a3_cp936_table = (Module['_ucs_a3_cp936_table'] = 2808816);
 
-	var _ucs_i_cp936_table = (Module['_ucs_i_cp936_table'] = 2809408);
+	var _ucs_i_cp936_table = (Module['_ucs_i_cp936_table'] = 2810800);
 
-	var _ucs_hff_s_cp936_table = (Module['_ucs_hff_s_cp936_table'] = 2851624);
+	var _ucs_hff_s_cp936_table = (Module['_ucs_hff_s_cp936_table'] = 2853016);
 
-	var _cp936_pua_tbl1 = (Module['_cp936_pua_tbl1'] = 2798928);
+	var _cp936_pua_tbl1 = (Module['_cp936_pua_tbl1'] = 2800320);
 
-	var _cp936_pua_tbl2 = (Module['_cp936_pua_tbl2'] = 2801786);
+	var _cp936_pua_tbl2 = (Module['_cp936_pua_tbl2'] = 2803178);
 
-	var _ucs_ci_s_cp936_table = (Module['_ucs_ci_s_cp936_table'] = 2851408);
+	var _ucs_ci_s_cp936_table = (Module['_ucs_ci_s_cp936_table'] = 2852800);
 
-	var _ucs_cf_cp936_table = (Module['_ucs_cf_cp936_table'] = 2851472);
+	var _ucs_cf_cp936_table = (Module['_ucs_cf_cp936_table'] = 2852864);
 
-	var _ucs_sfv_cp936_table = (Module['_ucs_sfv_cp936_table'] = 2851552);
+	var _ucs_sfv_cp936_table = (Module['_ucs_sfv_cp936_table'] = 2852944);
 
-	var _cp936_pua_tbl3 = (Module['_cp936_pua_tbl3'] = 2801808);
+	var _cp936_pua_tbl3 = (Module['_cp936_pua_tbl3'] = 2803200);
 
-	var _gb18030_2022_pua_tbl1 = (Module['_gb18030_2022_pua_tbl1'] = 2851648);
+	var _gb18030_2022_pua_tbl1 = (Module['_gb18030_2022_pua_tbl1'] = 2853040);
 
-	var _ucs_i_gb2312_table = (Module['_ucs_i_gb2312_table'] = 2854512);
+	var _ucs_i_gb2312_table = (Module['_ucs_i_gb2312_table'] = 2855904);
 
-	var _mbfl_encoding_sjis_sb = (Module['_mbfl_encoding_sjis_sb'] = 17442984);
+	var _mbfl_encoding_sjis_sb = (Module['_mbfl_encoding_sjis_sb'] = 17444488);
 
 	var _mbfl_encoding_sjis_docomo = (Module['_mbfl_encoding_sjis_docomo'] =
-		17442728);
+		17444232);
 
 	var _mbfl_encoding_sjis_kddi = (Module['_mbfl_encoding_sjis_kddi'] =
-		17442856);
+		17444360);
 
 	var _jisx0208_ucs_table_size = (Module['_jisx0208_ucs_table_size'] =
-		2679184);
+		2680576);
 
 	var _jisx0212_ucs_table_size = (Module['_jisx0212_ucs_table_size'] =
-		2693624);
+		2695016);
 
-	var _ucs_a1_jis_table_min = (Module['_ucs_a1_jis_table_min'] = 2695872);
+	var _ucs_a1_jis_table_min = (Module['_ucs_a1_jis_table_min'] = 2697264);
 
-	var _ucs_a1_jis_table_max = (Module['_ucs_a1_jis_table_max'] = 2695876);
+	var _ucs_a1_jis_table_max = (Module['_ucs_a1_jis_table_max'] = 2697268);
 
-	var _ucs_a2_jis_table_min = (Module['_ucs_a2_jis_table_min'] = 2704592);
+	var _ucs_a2_jis_table_min = (Module['_ucs_a2_jis_table_min'] = 2705984);
 
-	var _ucs_a2_jis_table_max = (Module['_ucs_a2_jis_table_max'] = 2704596);
+	var _ucs_a2_jis_table_max = (Module['_ucs_a2_jis_table_max'] = 2705988);
 
-	var _ucs_i_jis_table_min = (Module['_ucs_i_jis_table_min'] = 2746592);
+	var _ucs_i_jis_table_min = (Module['_ucs_i_jis_table_min'] = 2747984);
 
-	var _ucs_i_jis_table_max = (Module['_ucs_i_jis_table_max'] = 2746596);
+	var _ucs_i_jis_table_max = (Module['_ucs_i_jis_table_max'] = 2747988);
 
 	var _cp932ext1_ucs_table_min = (Module['_cp932ext1_ucs_table_min'] =
-		2747260);
+		2748652);
 
 	var _cp932ext1_ucs_table_max = (Module['_cp932ext1_ucs_table_max'] =
-		2747264);
+		2748656);
 
 	var _cp932ext2_ucs_table_min = (Module['_cp932ext2_ucs_table_min'] =
-		2748368);
+		2749760);
 
 	var _cp932ext2_ucs_table_max = (Module['_cp932ext2_ucs_table_max'] =
-		2748372);
+		2749764);
 
 	var _cp932ext3_ucs_table_min = (Module['_cp932ext3_ucs_table_min'] =
-		2749160);
+		2750552);
 
 	var _cp932ext3_ucs_table_max = (Module['_cp932ext3_ucs_table_max'] =
-		2749164);
+		2750556);
 
-	var _cp936_ucs_table_size = (Module['_cp936_ucs_table_size'] = 2798912);
+	var _cp936_ucs_table_size = (Module['_cp936_ucs_table_size'] = 2800304);
 
-	var _ucs_a1_cp936_table_min = (Module['_ucs_a1_cp936_table_min'] = 2804196);
+	var _ucs_a1_cp936_table_min = (Module['_ucs_a1_cp936_table_min'] = 2805588);
 
-	var _ucs_a1_cp936_table_max = (Module['_ucs_a1_cp936_table_max'] = 2804200);
+	var _ucs_a1_cp936_table_max = (Module['_ucs_a1_cp936_table_max'] = 2805592);
 
-	var _ucs_a2_cp936_table_min = (Module['_ucs_a2_cp936_table_min'] = 2807416);
+	var _ucs_a2_cp936_table_min = (Module['_ucs_a2_cp936_table_min'] = 2808808);
 
-	var _ucs_a2_cp936_table_max = (Module['_ucs_a2_cp936_table_max'] = 2807420);
+	var _ucs_a2_cp936_table_max = (Module['_ucs_a2_cp936_table_max'] = 2808812);
 
-	var _ucs_a3_cp936_table_min = (Module['_ucs_a3_cp936_table_min'] = 2809388);
+	var _ucs_a3_cp936_table_min = (Module['_ucs_a3_cp936_table_min'] = 2810780);
 
-	var _ucs_a3_cp936_table_max = (Module['_ucs_a3_cp936_table_max'] = 2809392);
+	var _ucs_a3_cp936_table_max = (Module['_ucs_a3_cp936_table_max'] = 2810784);
 
-	var _ucs_i_cp936_table_min = (Module['_ucs_i_cp936_table_min'] = 2851392);
+	var _ucs_i_cp936_table_min = (Module['_ucs_i_cp936_table_min'] = 2852784);
 
-	var _ucs_i_cp936_table_max = (Module['_ucs_i_cp936_table_max'] = 2851396);
+	var _ucs_i_cp936_table_max = (Module['_ucs_i_cp936_table_max'] = 2852788);
 
-	var _ucs_ci_cp936_table_min = (Module['_ucs_ci_cp936_table_min'] = 2851400);
+	var _ucs_ci_cp936_table_min = (Module['_ucs_ci_cp936_table_min'] = 2852792);
 
-	var _ucs_ci_cp936_table_max = (Module['_ucs_ci_cp936_table_max'] = 2851404);
+	var _ucs_ci_cp936_table_max = (Module['_ucs_ci_cp936_table_max'] = 2852796);
 
-	var _ucs_cf_cp936_table_min = (Module['_ucs_cf_cp936_table_min'] = 2851536);
+	var _ucs_cf_cp936_table_min = (Module['_ucs_cf_cp936_table_min'] = 2852928);
 
-	var _ucs_cf_cp936_table_max = (Module['_ucs_cf_cp936_table_max'] = 2851540);
+	var _ucs_cf_cp936_table_max = (Module['_ucs_cf_cp936_table_max'] = 2852932);
 
 	var _ucs_sfv_cp936_table_min = (Module['_ucs_sfv_cp936_table_min'] =
-		2851616);
+		2853008);
 
 	var _ucs_sfv_cp936_table_max = (Module['_ucs_sfv_cp936_table_max'] =
-		2851620);
+		2853012);
 
 	var _ucs_hff_cp936_table_min = (Module['_ucs_hff_cp936_table_min'] =
-		2851636);
+		2853028);
 
 	var _ucs_hff_cp936_table_max = (Module['_ucs_hff_cp936_table_max'] =
-		2851640);
+		2853032);
 
-	var _ucs_i_gb2312_table_min = (Module['_ucs_i_gb2312_table_min'] = 2896320);
+	var _ucs_i_gb2312_table_min = (Module['_ucs_i_gb2312_table_min'] = 2897712);
 
-	var _ucs_i_gb2312_table_max = (Module['_ucs_i_gb2312_table_max'] = 2896324);
+	var _ucs_i_gb2312_table_max = (Module['_ucs_i_gb2312_table_max'] = 2897716);
 
-	var _uhc1_ucs_table_size = (Module['_uhc1_ucs_table_size'] = 2922936);
+	var _uhc1_ucs_table_size = (Module['_uhc1_ucs_table_size'] = 2924328);
 
-	var _uhc3_ucs_table_size = (Module['_uhc3_ucs_table_size'] = 2933284);
+	var _uhc3_ucs_table_size = (Module['_uhc3_ucs_table_size'] = 2934676);
 
-	var _ucs_a1_uhc_table_min = (Module['_ucs_a1_uhc_table_min'] = 2935508);
+	var _ucs_a1_uhc_table_min = (Module['_ucs_a1_uhc_table_min'] = 2936900);
 
-	var _ucs_a1_uhc_table_max = (Module['_ucs_a1_uhc_table_max'] = 2935512);
+	var _ucs_a1_uhc_table_max = (Module['_ucs_a1_uhc_table_max'] = 2936904);
 
-	var _ucs_a2_uhc_table_min = (Module['_ucs_a2_uhc_table_min'] = 2938812);
+	var _ucs_a2_uhc_table_min = (Module['_ucs_a2_uhc_table_min'] = 2940204);
 
-	var _ucs_a2_uhc_table_max = (Module['_ucs_a2_uhc_table_max'] = 2938816);
+	var _ucs_a2_uhc_table_max = (Module['_ucs_a2_uhc_table_max'] = 2940208);
 
-	var _ucs_a3_uhc_table_min = (Module['_ucs_a3_uhc_table_min'] = 2941324);
+	var _ucs_a3_uhc_table_min = (Module['_ucs_a3_uhc_table_min'] = 2942716);
 
-	var _ucs_a3_uhc_table_max = (Module['_ucs_a3_uhc_table_max'] = 2941328);
+	var _ucs_a3_uhc_table_max = (Module['_ucs_a3_uhc_table_max'] = 2942720);
 
-	var _ucs_i_uhc_table_min = (Module['_ucs_i_uhc_table_min'] = 2983644);
+	var _ucs_i_uhc_table_min = (Module['_ucs_i_uhc_table_min'] = 2985036);
 
-	var _ucs_i_uhc_table_max = (Module['_ucs_i_uhc_table_max'] = 2983648);
+	var _ucs_i_uhc_table_max = (Module['_ucs_i_uhc_table_max'] = 2985040);
 
-	var _ucs_s_uhc_table_min = (Module['_ucs_s_uhc_table_min'] = 3006520);
+	var _ucs_s_uhc_table_min = (Module['_ucs_s_uhc_table_min'] = 3007912);
 
-	var _ucs_s_uhc_table_max = (Module['_ucs_s_uhc_table_max'] = 3006524);
+	var _ucs_s_uhc_table_max = (Module['_ucs_s_uhc_table_max'] = 3007916);
 
-	var _ucs_r1_uhc_table_min = (Module['_ucs_r1_uhc_table_min'] = 3007576);
+	var _ucs_r1_uhc_table_min = (Module['_ucs_r1_uhc_table_min'] = 3008968);
 
-	var _ucs_r1_uhc_table_max = (Module['_ucs_r1_uhc_table_max'] = 3007580);
+	var _ucs_r1_uhc_table_max = (Module['_ucs_r1_uhc_table_max'] = 3008972);
 
-	var _ucs_r2_uhc_table_min = (Module['_ucs_r2_uhc_table_min'] = 3008048);
+	var _ucs_r2_uhc_table_min = (Module['_ucs_r2_uhc_table_min'] = 3009440);
 
-	var _ucs_r2_uhc_table_max = (Module['_ucs_r2_uhc_table_max'] = 3008052);
+	var _ucs_r2_uhc_table_max = (Module['_ucs_r2_uhc_table_max'] = 3009444);
 
-	var _mbfl_encoding_jis = (Module['_mbfl_encoding_jis'] = 17441496);
+	var _mbfl_encoding_jis = (Module['_mbfl_encoding_jis'] = 17443e3);
 
-	var _mbfl_encoding_2022jp = (Module['_mbfl_encoding_2022jp'] = 17441600);
+	var _mbfl_encoding_2022jp = (Module['_mbfl_encoding_2022jp'] = 17443104);
 
 	var _mbfl_encoding_2022jp_kddi = (Module['_mbfl_encoding_2022jp_kddi'] =
-		17441712);
+		17443216);
 
 	var _mbfl_encoding_2022jp_2004 = (Module['_mbfl_encoding_2022jp_2004'] =
-		17441816);
+		17443320);
 
-	var _mbfl_encoding_cp50220 = (Module['_mbfl_encoding_cp50220'] = 17441944);
+	var _mbfl_encoding_cp50220 = (Module['_mbfl_encoding_cp50220'] = 17443448);
 
-	var _mbfl_encoding_cp50221 = (Module['_mbfl_encoding_cp50221'] = 17442048);
+	var _mbfl_encoding_cp50221 = (Module['_mbfl_encoding_cp50221'] = 17443552);
 
-	var _mbfl_encoding_cp50222 = (Module['_mbfl_encoding_cp50222'] = 17442152);
+	var _mbfl_encoding_cp50222 = (Module['_mbfl_encoding_cp50222'] = 17443656);
 
 	var _mbfl_encoding_2022jpms = (Module['_mbfl_encoding_2022jpms'] =
-		17442264);
+		17443768);
 
-	var _mbfl_encoding_2022kr = (Module['_mbfl_encoding_2022kr'] = 17442368);
+	var _mbfl_encoding_2022kr = (Module['_mbfl_encoding_2022kr'] = 17443872);
 
-	var _mbfl_encoding_sjis = (Module['_mbfl_encoding_sjis'] = 17442484);
+	var _mbfl_encoding_sjis = (Module['_mbfl_encoding_sjis'] = 17443988);
 
 	var _mbfl_encoding_sjis_mac = (Module['_mbfl_encoding_sjis_mac'] =
-		17442600);
+		17444104);
 
 	var _mbfl_encoding_sjis2004 = (Module['_mbfl_encoding_sjis2004'] =
-		17443100);
+		17444604);
 
-	var _mbfl_encoding_cp932 = (Module['_mbfl_encoding_cp932'] = 17443224);
+	var _mbfl_encoding_cp932 = (Module['_mbfl_encoding_cp932'] = 17444728);
 
-	var _mbfl_encoding_sjiswin = (Module['_mbfl_encoding_sjiswin'] = 17443340);
+	var _mbfl_encoding_sjiswin = (Module['_mbfl_encoding_sjiswin'] = 17444844);
 
-	var _mbfl_encoding_euc_jp = (Module['_mbfl_encoding_euc_jp'] = 17443468);
+	var _mbfl_encoding_euc_jp = (Module['_mbfl_encoding_euc_jp'] = 17444972);
 
 	var _mbfl_encoding_eucjp2004 = (Module['_mbfl_encoding_eucjp2004'] =
-		17443580);
+		17445084);
 
 	var _mbfl_encoding_eucjp_win = (Module['_mbfl_encoding_eucjp_win'] =
-		17443696);
+		17445200);
 
-	var _mbfl_encoding_cp51932 = (Module['_mbfl_encoding_cp51932'] = 17443808);
+	var _mbfl_encoding_cp51932 = (Module['_mbfl_encoding_cp51932'] = 17445312);
 
-	var _mbfl_encoding_euc_cn = (Module['_mbfl_encoding_euc_cn'] = 17443936);
+	var _mbfl_encoding_euc_cn = (Module['_mbfl_encoding_euc_cn'] = 17445440);
 
-	var _mbfl_encoding_euc_tw = (Module['_mbfl_encoding_euc_tw'] = 17444056);
+	var _mbfl_encoding_euc_tw = (Module['_mbfl_encoding_euc_tw'] = 17445560);
 
-	var _mbfl_encoding_euc_kr = (Module['_mbfl_encoding_euc_kr'] = 17444184);
+	var _mbfl_encoding_euc_kr = (Module['_mbfl_encoding_euc_kr'] = 17445688);
 
-	var _mbfl_encoding_uhc = (Module['_mbfl_encoding_uhc'] = 17444296);
+	var _mbfl_encoding_uhc = (Module['_mbfl_encoding_uhc'] = 17445800);
 
-	var _mbfl_encoding_gb18030 = (Module['_mbfl_encoding_gb18030'] = 17444412);
+	var _mbfl_encoding_gb18030 = (Module['_mbfl_encoding_gb18030'] = 17445916);
 
-	var _mbfl_encoding_cp936 = (Module['_mbfl_encoding_cp936'] = 17444528);
+	var _mbfl_encoding_cp936 = (Module['_mbfl_encoding_cp936'] = 17446032);
 
 	var _mbfl_encoding_gb18030_2022 = (Module['_mbfl_encoding_gb18030_2022'] =
-		17444576);
+		17446080);
 
-	var _mbfl_encoding_big5 = (Module['_mbfl_encoding_big5'] = 17444696);
+	var _mbfl_encoding_big5 = (Module['_mbfl_encoding_big5'] = 17446200);
 
-	var _mbfl_encoding_cp950 = (Module['_mbfl_encoding_cp950'] = 17444800);
+	var _mbfl_encoding_cp950 = (Module['_mbfl_encoding_cp950'] = 17446304);
 
-	var _mbfl_encoding_hz = (Module['_mbfl_encoding_hz'] = 17444904);
+	var _mbfl_encoding_hz = (Module['_mbfl_encoding_hz'] = 17446408);
 
-	var _vtbl_html_wchar = (Module['_vtbl_html_wchar'] = 17439892);
+	var _vtbl_html_wchar = (Module['_vtbl_html_wchar'] = 17441396);
 
-	var _vtbl_wchar_html = (Module['_vtbl_wchar_html'] = 17439920);
+	var _vtbl_wchar_html = (Module['_vtbl_wchar_html'] = 17441424);
 
 	var _mbfl_encoding_html_ent = (Module['_mbfl_encoding_html_ent'] =
-		17439948);
+		17441452);
 
-	var _mbfl_encoding_qprint = (Module['_mbfl_encoding_qprint'] = 17437740);
+	var _mbfl_encoding_qprint = (Module['_mbfl_encoding_qprint'] = 17439244);
 
-	var _vtbl_8bit_qprint = (Module['_vtbl_8bit_qprint'] = 17437788);
+	var _vtbl_8bit_qprint = (Module['_vtbl_8bit_qprint'] = 17439292);
 
-	var _vtbl_qprint_8bit = (Module['_vtbl_qprint_8bit'] = 17437816);
+	var _vtbl_qprint_8bit = (Module['_vtbl_qprint_8bit'] = 17439320);
 
-	var _mbfl_encoding_ascii = (Module['_mbfl_encoding_ascii'] = 17445944);
+	var _mbfl_encoding_ascii = (Module['_mbfl_encoding_ascii'] = 17447448);
 
-	var _mbfl_encoding_8859_1 = (Module['_mbfl_encoding_8859_1'] = 17446060);
+	var _mbfl_encoding_8859_1 = (Module['_mbfl_encoding_8859_1'] = 17447564);
 
-	var _mbfl_encoding_8859_2 = (Module['_mbfl_encoding_8859_2'] = 17446176);
+	var _mbfl_encoding_8859_2 = (Module['_mbfl_encoding_8859_2'] = 17447680);
 
-	var _mbfl_encoding_8859_3 = (Module['_mbfl_encoding_8859_3'] = 17446292);
+	var _mbfl_encoding_8859_3 = (Module['_mbfl_encoding_8859_3'] = 17447796);
 
-	var _mbfl_encoding_8859_4 = (Module['_mbfl_encoding_8859_4'] = 17446408);
+	var _mbfl_encoding_8859_4 = (Module['_mbfl_encoding_8859_4'] = 17447912);
 
-	var _mbfl_encoding_8859_5 = (Module['_mbfl_encoding_8859_5'] = 17446524);
+	var _mbfl_encoding_8859_5 = (Module['_mbfl_encoding_8859_5'] = 17448028);
 
-	var _mbfl_encoding_8859_6 = (Module['_mbfl_encoding_8859_6'] = 17446640);
+	var _mbfl_encoding_8859_6 = (Module['_mbfl_encoding_8859_6'] = 17448144);
 
-	var _mbfl_encoding_8859_7 = (Module['_mbfl_encoding_8859_7'] = 17446756);
+	var _mbfl_encoding_8859_7 = (Module['_mbfl_encoding_8859_7'] = 17448260);
 
-	var _mbfl_encoding_8859_8 = (Module['_mbfl_encoding_8859_8'] = 17446872);
+	var _mbfl_encoding_8859_8 = (Module['_mbfl_encoding_8859_8'] = 17448376);
 
-	var _mbfl_encoding_8859_9 = (Module['_mbfl_encoding_8859_9'] = 17446988);
+	var _mbfl_encoding_8859_9 = (Module['_mbfl_encoding_8859_9'] = 17448492);
 
-	var _mbfl_encoding_8859_10 = (Module['_mbfl_encoding_8859_10'] = 17447104);
+	var _mbfl_encoding_8859_10 = (Module['_mbfl_encoding_8859_10'] = 17448608);
 
-	var _mbfl_encoding_8859_13 = (Module['_mbfl_encoding_8859_13'] = 17447216);
+	var _mbfl_encoding_8859_13 = (Module['_mbfl_encoding_8859_13'] = 17448720);
 
-	var _mbfl_encoding_8859_14 = (Module['_mbfl_encoding_8859_14'] = 17447332);
+	var _mbfl_encoding_8859_14 = (Module['_mbfl_encoding_8859_14'] = 17448836);
 
-	var _mbfl_encoding_8859_15 = (Module['_mbfl_encoding_8859_15'] = 17447444);
+	var _mbfl_encoding_8859_15 = (Module['_mbfl_encoding_8859_15'] = 17448948);
 
-	var _mbfl_encoding_8859_16 = (Module['_mbfl_encoding_8859_16'] = 17447556);
+	var _mbfl_encoding_8859_16 = (Module['_mbfl_encoding_8859_16'] = 17449060);
 
-	var _mbfl_encoding_cp1251 = (Module['_mbfl_encoding_cp1251'] = 17447688);
+	var _mbfl_encoding_cp1251 = (Module['_mbfl_encoding_cp1251'] = 17449192);
 
-	var _mbfl_encoding_cp1252 = (Module['_mbfl_encoding_cp1252'] = 17447800);
+	var _mbfl_encoding_cp1252 = (Module['_mbfl_encoding_cp1252'] = 17449304);
 
-	var _mbfl_encoding_cp1254 = (Module['_mbfl_encoding_cp1254'] = 17447928);
+	var _mbfl_encoding_cp1254 = (Module['_mbfl_encoding_cp1254'] = 17449432);
 
-	var _mbfl_encoding_cp866 = (Module['_mbfl_encoding_cp866'] = 17448056);
+	var _mbfl_encoding_cp866 = (Module['_mbfl_encoding_cp866'] = 17449560);
 
-	var _mbfl_encoding_cp850 = (Module['_mbfl_encoding_cp850'] = 17448184);
+	var _mbfl_encoding_cp850 = (Module['_mbfl_encoding_cp850'] = 17449688);
 
-	var _mbfl_encoding_koi8r = (Module['_mbfl_encoding_koi8r'] = 17448296);
+	var _mbfl_encoding_koi8r = (Module['_mbfl_encoding_koi8r'] = 17449800);
 
-	var _mbfl_encoding_koi8u = (Module['_mbfl_encoding_koi8u'] = 17448408);
+	var _mbfl_encoding_koi8u = (Module['_mbfl_encoding_koi8u'] = 17449912);
 
 	var _mbfl_encoding_armscii8 = (Module['_mbfl_encoding_armscii8'] =
-		17448536);
+		17450040);
 
-	var _vtbl_ucs2_wchar = (Module['_vtbl_ucs2_wchar'] = 17440464);
+	var _vtbl_ucs2_wchar = (Module['_vtbl_ucs2_wchar'] = 17441968);
 
-	var _vtbl_wchar_ucs2 = (Module['_vtbl_wchar_ucs2'] = 17440492);
+	var _vtbl_wchar_ucs2 = (Module['_vtbl_wchar_ucs2'] = 17441996);
 
-	var _mbfl_encoding_ucs2 = (Module['_mbfl_encoding_ucs2'] = 17440520);
+	var _mbfl_encoding_ucs2 = (Module['_mbfl_encoding_ucs2'] = 17442024);
 
-	var _vtbl_ucs2be_wchar = (Module['_vtbl_ucs2be_wchar'] = 17440576);
+	var _vtbl_ucs2be_wchar = (Module['_vtbl_ucs2be_wchar'] = 17442080);
 
-	var _vtbl_wchar_ucs2be = (Module['_vtbl_wchar_ucs2be'] = 17440604);
+	var _vtbl_wchar_ucs2be = (Module['_vtbl_wchar_ucs2be'] = 17442108);
 
-	var _mbfl_encoding_ucs2be = (Module['_mbfl_encoding_ucs2be'] = 17440632);
+	var _mbfl_encoding_ucs2be = (Module['_mbfl_encoding_ucs2be'] = 17442136);
 
-	var _vtbl_ucs2le_wchar = (Module['_vtbl_ucs2le_wchar'] = 17440688);
+	var _vtbl_ucs2le_wchar = (Module['_vtbl_ucs2le_wchar'] = 17442192);
 
-	var _vtbl_wchar_ucs2le = (Module['_vtbl_wchar_ucs2le'] = 17440716);
+	var _vtbl_wchar_ucs2le = (Module['_vtbl_wchar_ucs2le'] = 17442220);
 
-	var _mbfl_encoding_ucs2le = (Module['_mbfl_encoding_ucs2le'] = 17440744);
+	var _mbfl_encoding_ucs2le = (Module['_mbfl_encoding_ucs2le'] = 17442248);
 
-	var _vtbl_ucs4_wchar = (Module['_vtbl_ucs4_wchar'] = 17440112);
+	var _vtbl_ucs4_wchar = (Module['_vtbl_ucs4_wchar'] = 17441616);
 
-	var _vtbl_wchar_ucs4 = (Module['_vtbl_wchar_ucs4'] = 17440140);
+	var _vtbl_wchar_ucs4 = (Module['_vtbl_wchar_ucs4'] = 17441644);
 
-	var _mbfl_encoding_ucs4 = (Module['_mbfl_encoding_ucs4'] = 17440168);
+	var _mbfl_encoding_ucs4 = (Module['_mbfl_encoding_ucs4'] = 17441672);
 
-	var _vtbl_ucs4be_wchar = (Module['_vtbl_ucs4be_wchar'] = 17440224);
+	var _vtbl_ucs4be_wchar = (Module['_vtbl_ucs4be_wchar'] = 17441728);
 
-	var _vtbl_wchar_ucs4be = (Module['_vtbl_wchar_ucs4be'] = 17440252);
+	var _vtbl_wchar_ucs4be = (Module['_vtbl_wchar_ucs4be'] = 17441756);
 
-	var _mbfl_encoding_ucs4be = (Module['_mbfl_encoding_ucs4be'] = 17440280);
+	var _mbfl_encoding_ucs4be = (Module['_mbfl_encoding_ucs4be'] = 17441784);
 
-	var _vtbl_ucs4le_wchar = (Module['_vtbl_ucs4le_wchar'] = 17440336);
+	var _vtbl_ucs4le_wchar = (Module['_vtbl_ucs4le_wchar'] = 17441840);
 
-	var _vtbl_wchar_ucs4le = (Module['_vtbl_wchar_ucs4le'] = 17440364);
+	var _vtbl_wchar_ucs4le = (Module['_vtbl_wchar_ucs4le'] = 17441868);
 
-	var _mbfl_encoding_ucs4le = (Module['_mbfl_encoding_ucs4le'] = 17440392);
+	var _mbfl_encoding_ucs4le = (Module['_mbfl_encoding_ucs4le'] = 17441896);
 
-	var _vtbl_utf16_wchar = (Module['_vtbl_utf16_wchar'] = 17441120);
+	var _vtbl_utf16_wchar = (Module['_vtbl_utf16_wchar'] = 17442624);
 
-	var _vtbl_wchar_utf16 = (Module['_vtbl_wchar_utf16'] = 17441148);
+	var _vtbl_wchar_utf16 = (Module['_vtbl_wchar_utf16'] = 17442652);
 
-	var _mbfl_encoding_utf16 = (Module['_mbfl_encoding_utf16'] = 17441176);
+	var _mbfl_encoding_utf16 = (Module['_mbfl_encoding_utf16'] = 17442680);
 
-	var _vtbl_utf16be_wchar = (Module['_vtbl_utf16be_wchar'] = 17441224);
+	var _vtbl_utf16be_wchar = (Module['_vtbl_utf16be_wchar'] = 17442728);
 
-	var _vtbl_wchar_utf16be = (Module['_vtbl_wchar_utf16be'] = 17441252);
+	var _vtbl_wchar_utf16be = (Module['_vtbl_wchar_utf16be'] = 17442756);
 
-	var _mbfl_encoding_utf16be = (Module['_mbfl_encoding_utf16be'] = 17441280);
+	var _mbfl_encoding_utf16be = (Module['_mbfl_encoding_utf16be'] = 17442784);
 
-	var _vtbl_utf16le_wchar = (Module['_vtbl_utf16le_wchar'] = 17441328);
+	var _vtbl_utf16le_wchar = (Module['_vtbl_utf16le_wchar'] = 17442832);
 
-	var _vtbl_wchar_utf16le = (Module['_vtbl_wchar_utf16le'] = 17441356);
+	var _vtbl_wchar_utf16le = (Module['_vtbl_wchar_utf16le'] = 17442860);
 
-	var _mbfl_encoding_utf16le = (Module['_mbfl_encoding_utf16le'] = 17441384);
+	var _mbfl_encoding_utf16le = (Module['_mbfl_encoding_utf16le'] = 17442888);
 
-	var _vtbl_utf32_wchar = (Module['_vtbl_utf32_wchar'] = 17440800);
+	var _vtbl_utf32_wchar = (Module['_vtbl_utf32_wchar'] = 17442304);
 
-	var _vtbl_wchar_utf32 = (Module['_vtbl_wchar_utf32'] = 17440828);
+	var _vtbl_wchar_utf32 = (Module['_vtbl_wchar_utf32'] = 17442332);
 
-	var _mbfl_encoding_utf32 = (Module['_mbfl_encoding_utf32'] = 17440856);
+	var _mbfl_encoding_utf32 = (Module['_mbfl_encoding_utf32'] = 17442360);
 
-	var _vtbl_utf32be_wchar = (Module['_vtbl_utf32be_wchar'] = 17440904);
+	var _vtbl_utf32be_wchar = (Module['_vtbl_utf32be_wchar'] = 17442408);
 
-	var _vtbl_wchar_utf32be = (Module['_vtbl_wchar_utf32be'] = 17440932);
+	var _vtbl_wchar_utf32be = (Module['_vtbl_wchar_utf32be'] = 17442436);
 
-	var _mbfl_encoding_utf32be = (Module['_mbfl_encoding_utf32be'] = 17440960);
+	var _mbfl_encoding_utf32be = (Module['_mbfl_encoding_utf32be'] = 17442464);
 
-	var _vtbl_utf32le_wchar = (Module['_vtbl_utf32le_wchar'] = 17441008);
+	var _vtbl_utf32le_wchar = (Module['_vtbl_utf32le_wchar'] = 17442512);
 
-	var _vtbl_wchar_utf32le = (Module['_vtbl_wchar_utf32le'] = 17441036);
+	var _vtbl_wchar_utf32le = (Module['_vtbl_wchar_utf32le'] = 17442540);
 
-	var _mbfl_encoding_utf32le = (Module['_mbfl_encoding_utf32le'] = 17441064);
+	var _mbfl_encoding_utf32le = (Module['_mbfl_encoding_utf32le'] = 17442568);
 
-	var _vtbl_utf7_wchar = (Module['_vtbl_utf7_wchar'] = 17445620);
+	var _vtbl_utf7_wchar = (Module['_vtbl_utf7_wchar'] = 17447124);
 
-	var _vtbl_wchar_utf7 = (Module['_vtbl_wchar_utf7'] = 17445648);
+	var _vtbl_wchar_utf7 = (Module['_vtbl_wchar_utf7'] = 17447152);
 
-	var _mbfl_encoding_utf7 = (Module['_mbfl_encoding_utf7'] = 17445676);
+	var _mbfl_encoding_utf7 = (Module['_mbfl_encoding_utf7'] = 17447180);
 
-	var _vtbl_utf7imap_wchar = (Module['_vtbl_utf7imap_wchar'] = 17445732);
+	var _vtbl_utf7imap_wchar = (Module['_vtbl_utf7imap_wchar'] = 17447236);
 
-	var _vtbl_wchar_utf7imap = (Module['_vtbl_wchar_utf7imap'] = 17445760);
+	var _vtbl_wchar_utf7imap = (Module['_vtbl_wchar_utf7imap'] = 17447264);
 
 	var _mbfl_encoding_utf7imap = (Module['_mbfl_encoding_utf7imap'] =
-		17445788);
+		17447292);
 
-	var _mblen_table_utf8 = (Module['_mblen_table_utf8'] = 3328896);
+	var _mblen_table_utf8 = (Module['_mblen_table_utf8'] = 3330288);
 
-	var _vtbl_utf8_wchar = (Module['_vtbl_utf8_wchar'] = 17445052);
+	var _vtbl_utf8_wchar = (Module['_vtbl_utf8_wchar'] = 17446556);
 
-	var _vtbl_wchar_utf8 = (Module['_vtbl_wchar_utf8'] = 17445080);
+	var _vtbl_wchar_utf8 = (Module['_vtbl_wchar_utf8'] = 17446584);
 
-	var _mbfl_encoding_utf8 = (Module['_mbfl_encoding_utf8'] = 17445108);
+	var _mbfl_encoding_utf8 = (Module['_mbfl_encoding_utf8'] = 17446612);
 
 	var _vtbl_utf8_docomo_wchar = (Module['_vtbl_utf8_docomo_wchar'] =
-		17445168);
+		17446672);
 
 	var _vtbl_wchar_utf8_docomo = (Module['_vtbl_wchar_utf8_docomo'] =
-		17445196);
+		17446700);
 
 	var _mbfl_encoding_utf8_docomo = (Module['_mbfl_encoding_utf8_docomo'] =
-		17445224);
+		17446728);
 
 	var _vtbl_utf8_kddi_a_wchar = (Module['_vtbl_utf8_kddi_a_wchar'] =
-		17445272);
+		17446776);
 
 	var _vtbl_wchar_utf8_kddi_a = (Module['_vtbl_wchar_utf8_kddi_a'] =
-		17445300);
+		17446804);
 
 	var _mbfl_encoding_utf8_kddi_a = (Module['_mbfl_encoding_utf8_kddi_a'] =
-		17445328);
+		17446832);
 
 	var _vtbl_utf8_kddi_b_wchar = (Module['_vtbl_utf8_kddi_b_wchar'] =
-		17445392);
+		17446896);
 
 	var _vtbl_wchar_utf8_kddi_b = (Module['_vtbl_wchar_utf8_kddi_b'] =
-		17445420);
+		17446924);
 
 	var _mbfl_encoding_utf8_kddi_b = (Module['_mbfl_encoding_utf8_kddi_b'] =
-		17445448);
+		17446952);
 
-	var _vtbl_utf8_sb_wchar = (Module['_vtbl_utf8_sb_wchar'] = 17445508);
+	var _vtbl_utf8_sb_wchar = (Module['_vtbl_utf8_sb_wchar'] = 17447012);
 
-	var _vtbl_wchar_utf8_sb = (Module['_vtbl_wchar_utf8_sb'] = 17445536);
+	var _vtbl_wchar_utf8_sb = (Module['_vtbl_wchar_utf8_sb'] = 17447040);
 
-	var _mbfl_encoding_utf8_sb = (Module['_mbfl_encoding_utf8_sb'] = 17445564);
+	var _mbfl_encoding_utf8_sb = (Module['_mbfl_encoding_utf8_sb'] = 17447068);
 
 	var _mbfl_encoding_uuencode = (Module['_mbfl_encoding_uuencode'] =
-		17437656);
+		17439160);
 
-	var _vtbl_uuencode_8bit = (Module['_vtbl_uuencode_8bit'] = 17437704);
+	var _vtbl_uuencode_8bit = (Module['_vtbl_uuencode_8bit'] = 17439208);
 
-	var _vtbl_8bit_wchar = (Module['_vtbl_8bit_wchar'] = 17437400);
+	var _vtbl_8bit_wchar = (Module['_vtbl_8bit_wchar'] = 17438904);
 
-	var _vtbl_wchar_8bit = (Module['_vtbl_wchar_8bit'] = 17437428);
+	var _vtbl_wchar_8bit = (Module['_vtbl_wchar_8bit'] = 17438932);
 
-	var _mbfl_encoding_8bit = (Module['_mbfl_encoding_8bit'] = 17437456);
+	var _mbfl_encoding_8bit = (Module['_mbfl_encoding_8bit'] = 17438960);
 
-	var _mbfl_encoding_pass = (Module['_mbfl_encoding_pass'] = 17448920);
+	var _mbfl_encoding_pass = (Module['_mbfl_encoding_pass'] = 17450424);
 
-	var _vtbl_pass = (Module['_vtbl_pass'] = 17448968);
+	var _vtbl_pass = (Module['_vtbl_pass'] = 17450472);
 
-	var _mbfl_encoding_wchar = (Module['_mbfl_encoding_wchar'] = 17437504);
+	var _mbfl_encoding_wchar = (Module['_mbfl_encoding_wchar'] = 17439008);
 
-	var _mbfl_language_german = (Module['_mbfl_language_german'] = 17449424);
+	var _mbfl_language_german = (Module['_mbfl_language_german'] = 17450928);
 
-	var _mbfl_language_english = (Module['_mbfl_language_english'] = 17449388);
+	var _mbfl_language_english = (Module['_mbfl_language_english'] = 17450892);
 
 	var _mbfl_language_japanese = (Module['_mbfl_language_japanese'] =
-		17449276);
+		17450780);
 
-	var _mbfl_language_korean = (Module['_mbfl_language_korean'] = 17449304);
+	var _mbfl_language_korean = (Module['_mbfl_language_korean'] = 17450808);
 
-	var _mbfl_language_neutral = (Module['_mbfl_language_neutral'] = 17449564);
+	var _mbfl_language_neutral = (Module['_mbfl_language_neutral'] = 17451068);
 
-	var _mbfl_language_russian = (Module['_mbfl_language_russian'] = 17449452);
+	var _mbfl_language_russian = (Module['_mbfl_language_russian'] = 17450956);
 
-	var _mbfl_language_uni = (Module['_mbfl_language_uni'] = 17449248);
+	var _mbfl_language_uni = (Module['_mbfl_language_uni'] = 17450752);
 
 	var _mbfl_language_simplified_chinese = (Module[
 		'_mbfl_language_simplified_chinese'
-	] = 17449332);
+	] = 17450836);
 
 	var _mbfl_language_traditional_chinese = (Module[
 		'_mbfl_language_traditional_chinese'
-	] = 17449360);
+	] = 17450864);
 
 	var _mbfl_language_armenian = (Module['_mbfl_language_armenian'] =
-		17449508);
+		17451012);
 
-	var _mbfl_language_turkish = (Module['_mbfl_language_turkish'] = 17449536);
+	var _mbfl_language_turkish = (Module['_mbfl_language_turkish'] = 17451040);
 
 	var _mbfl_language_ukrainian = (Module['_mbfl_language_ukrainian'] =
-		17449480);
+		17450984);
 
 	var _mysqli_driver_property_entries = (Module[
 		'_mysqli_driver_property_entries'
-	] = 17542192);
+	] = 17543696);
 
 	var _mysqli_link_property_entries = (Module[
 		'_mysqli_link_property_entries'
-	] = 17542272);
+	] = 17543776);
 
 	var _mysqli_result_property_entries = (Module[
 		'_mysqli_result_property_entries'
-	] = 17542576);
+	] = 17544080);
 
 	var _mysqli_stmt_property_entries = (Module[
 		'_mysqli_stmt_property_entries'
-	] = 17542672);
+	] = 17544176);
 
 	var _php_mysqli_result_iterator_funcs = (Module[
 		'_php_mysqli_result_iterator_funcs'
-	] = 17542912);
+	] = 17544416);
 
 	var _mysqli_warning_property_entries = (Module[
 		'_mysqli_warning_property_entries'
-	] = 17542848);
+	] = 17544352);
 
 	var _mysqli_link_class_entry = (Module['_mysqli_link_class_entry'] =
-		18252648);
+		18254104);
 
 	var _mysqli_driver_class_entry = (Module['_mysqli_driver_class_entry'] =
-		18252756);
+		18254212);
 
 	var _mysqli_stmt_class_entry = (Module['_mysqli_stmt_class_entry'] =
-		18252864);
+		18254320);
 
 	var _mysqli_result_class_entry = (Module['_mysqli_result_class_entry'] =
-		18252972);
+		18254428);
 
 	var _mysqli_warning_class_entry = (Module['_mysqli_warning_class_entry'] =
-		18253080);
+		18254536);
 
 	var _mysqli_exception_class_entry = (Module[
 		'_mysqli_exception_class_entry'
-	] = 18253292);
+	] = 18254748);
 
-	var _mysqli_globals = (Module['_mysqli_globals'] = 18253576);
+	var _mysqli_globals = (Module['_mysqli_globals'] = 18255032);
 
-	var _mysqli_module_entry = (Module['_mysqli_module_entry'] = 17545956);
+	var _mysqli_module_entry = (Module['_mysqli_module_entry'] = 17547460);
 
 	var _zend_alloc_mmap_handlers = (Module['_zend_alloc_mmap_handlers'] =
-		17554e3);
+		17555504);
 
-	var _accel_blacklist = (Module['_accel_blacklist'] = 18258484);
+	var _accel_blacklist = (Module['_accel_blacklist'] = 18259940);
 
-	var _opcache_module_entry = (Module['_opcache_module_entry'] = 17564380);
+	var _opcache_module_entry = (Module['_opcache_module_entry'] = 17565884);
 
-	var _lock_file = (Module['_lock_file'] = 17554012);
+	var _lock_file = (Module['_lock_file'] = 17555516);
 
-	var _smm_shared_globals = (Module['_smm_shared_globals'] = 18257792);
+	var _smm_shared_globals = (Module['_smm_shared_globals'] = 18259248);
 
-	var _accel_globals = (Module['_accel_globals'] = 18258520);
+	var _accel_globals = (Module['_accel_globals'] = 18259976);
 
-	var _accel_shared_globals = (Module['_accel_shared_globals'] = 18258500);
+	var _accel_shared_globals = (Module['_accel_shared_globals'] = 18259956);
 
-	var _file_cache_only = (Module['_file_cache_only'] = 18258512);
+	var _file_cache_only = (Module['_file_cache_only'] = 18259968);
 
-	var _accel_startup_ok = (Module['_accel_startup_ok'] = 18258504);
+	var _accel_startup_ok = (Module['_accel_startup_ok'] = 18259960);
 
 	var _zps_api_failure_reason = (Module['_zps_api_failure_reason'] =
-		18258508);
+		18259964);
 
-	var _pdo_dbh_ce = (Module['_pdo_dbh_ce'] = 18259316);
+	var _pdo_dbh_ce = (Module['_pdo_dbh_ce'] = 18260780);
 
-	var _pdo_exception_ce = (Module['_pdo_exception_ce'] = 18259320);
+	var _pdo_exception_ce = (Module['_pdo_exception_ce'] = 18260784);
 
-	var _pdo_driver_hash = (Module['_pdo_driver_hash'] = 18259328);
+	var _pdo_driver_hash = (Module['_pdo_driver_hash'] = 18260792);
 
 	var _pdo_driver_specific_ce_hash = (Module['_pdo_driver_specific_ce_hash'] =
-		18259384);
+		18260848);
 
-	var _pdo_module_entry = (Module['_pdo_module_entry'] = 17571480);
+	var _pdo_module_entry = (Module['_pdo_module_entry'] = 17572984);
 
-	var _pdo_dbstmt_ce = (Module['_pdo_dbstmt_ce'] = 18259440);
+	var _pdo_dbstmt_ce = (Module['_pdo_dbstmt_ce'] = 18260904);
 
-	var _pdo_row_ce = (Module['_pdo_row_ce'] = 18259444);
+	var _pdo_row_ce = (Module['_pdo_row_ce'] = 18260908);
 
 	var _pdo_dbstmt_object_handlers = (Module['_pdo_dbstmt_object_handlers'] =
-		18259e3);
+		18260464);
 
 	var _pdo_row_object_handlers = (Module['_pdo_row_object_handlers'] =
-		18259104);
+		18260568);
 
-	var _pdo_mysql_globals = (Module['_pdo_mysql_globals'] = 18259448);
+	var _pdo_mysql_globals = (Module['_pdo_mysql_globals'] = 18260912);
 
 	var _pdo_mysql_module_entry = (Module['_pdo_mysql_module_entry'] =
-		17571756);
+		17573260);
 
-	var _pdo_mysql_driver = (Module['_pdo_mysql_driver'] = 17571664);
+	var _pdo_mysql_driver = (Module['_pdo_mysql_driver'] = 17573168);
 
-	var _mysql_stmt_methods = (Module['_mysql_stmt_methods'] = 17571616);
+	var _mysql_stmt_methods = (Module['_mysql_stmt_methods'] = 17573120);
 
 	var _pdo_sqlite_module_entry = (Module['_pdo_sqlite_module_entry'] =
-		17572540);
+		17574044);
 
-	var _pdo_sqlite_driver = (Module['_pdo_sqlite_driver'] = 17572104);
+	var _pdo_sqlite_driver = (Module['_pdo_sqlite_driver'] = 17573608);
 
-	var _sqlite_stmt_methods = (Module['_sqlite_stmt_methods'] = 17572056);
+	var _sqlite_stmt_methods = (Module['_sqlite_stmt_methods'] = 17573560);
 
-	var _phar_globals = (Module['_phar_globals'] = 18259568);
+	var _phar_globals = (Module['_phar_globals'] = 18261032);
 
-	var _cached_phars = (Module['_cached_phars'] = 18260008);
+	var _cached_phars = (Module['_cached_phars'] = 18261472);
 
-	var _cached_alias = (Module['_cached_alias'] = 18259952);
+	var _cached_alias = (Module['_cached_alias'] = 18261416);
 
 	var _phar_orig_compile_file = (Module['_phar_orig_compile_file'] =
-		18260064);
+		18261528);
 
-	var _phar_module_entry = (Module['_phar_module_entry'] = 17579120);
+	var _phar_module_entry = (Module['_phar_module_entry'] = 17580624);
 
 	var _php_stream_phar_wrapper = (Module['_php_stream_phar_wrapper'] =
-		17579072);
+		17580576);
 
 	var _post_message_to_js_functions = (Module[
 		'_post_message_to_js_functions'
-	] = 17579520);
+	] = 17581024);
 
 	var _post_message_to_js_module_entry = (Module[
 		'_post_message_to_js_module_entry'
-	] = 17579576);
+	] = 17581080);
 
 	var _php_random_algo_mt19937 = (Module['_php_random_algo_mt19937'] =
-		16512636);
+		16514172);
 
 	var _php_random_algo_pcgoneseq128xslrr64 = (Module[
 		'_php_random_algo_pcgoneseq128xslrr64'
-	] = 16512656);
+	] = 16514192);
 
 	var _php_random_algo_secure = (Module['_php_random_algo_secure'] =
-		16512696);
+		16514232);
 
-	var _php_random_algo_user = (Module['_php_random_algo_user'] = 16512716);
+	var _php_random_algo_user = (Module['_php_random_algo_user'] = 16514252);
 
 	var _php_random_algo_xoshiro256starstar = (Module[
 		'_php_random_algo_xoshiro256starstar'
-	] = 16512676);
+	] = 16514212);
 
 	var _random_ce_Random_BrokenRandomEngineError = (Module[
 		'_random_ce_Random_BrokenRandomEngineError'
-	] = 18151104);
+	] = 18152560);
 
-	var _random_globals = (Module['_random_globals'] = 18151108);
+	var _random_globals = (Module['_random_globals'] = 18152564);
 
 	var _random_ce_Random_Engine = (Module['_random_ce_Random_Engine'] =
-		18153644);
+		18155100);
 
 	var _random_ce_Random_CryptoSafeEngine = (Module[
 		'_random_ce_Random_CryptoSafeEngine'
-	] = 18153648);
+	] = 18155104);
 
 	var _random_ce_Random_RandomError = (Module[
 		'_random_ce_Random_RandomError'
-	] = 18153652);
+	] = 18155108);
 
 	var _random_ce_Random_RandomException = (Module[
 		'_random_ce_Random_RandomException'
-	] = 18153656);
+	] = 18155112);
 
 	var _random_ce_Random_Engine_Mt19937 = (Module[
 		'_random_ce_Random_Engine_Mt19937'
-	] = 18153660);
+	] = 18155116);
 
 	var _random_ce_Random_Engine_PcgOneseq128XslRr64 = (Module[
 		'_random_ce_Random_Engine_PcgOneseq128XslRr64'
-	] = 18153768);
+	] = 18155224);
 
 	var _random_ce_Random_Engine_Xoshiro256StarStar = (Module[
 		'_random_ce_Random_Engine_Xoshiro256StarStar'
-	] = 18153876);
+	] = 18155332);
 
 	var _random_ce_Random_Engine_Secure = (Module[
 		'_random_ce_Random_Engine_Secure'
-	] = 18153984);
+	] = 18155440);
 
 	var _random_ce_Random_Randomizer = (Module['_random_ce_Random_Randomizer'] =
-		18154092);
+		18155548);
 
 	var _random_ce_Random_IntervalBoundary = (Module[
 		'_random_ce_Random_IntervalBoundary'
-	] = 18154200);
+	] = 18155656);
 
-	var _random_module_entry = (Module['_random_module_entry'] = 16513016);
+	var _random_module_entry = (Module['_random_module_entry'] = 16514552);
 
-	var _reflection_class_ptr = (Module['_reflection_class_ptr'] = 18260200);
+	var _reflection_class_ptr = (Module['_reflection_class_ptr'] = 18261664);
 
-	var _reflection_enum_ptr = (Module['_reflection_enum_ptr'] = 18260196);
+	var _reflection_enum_ptr = (Module['_reflection_enum_ptr'] = 18261660);
 
 	var _reflection_exception_ptr = (Module['_reflection_exception_ptr'] =
-		18260204);
+		18261668);
 
 	var _reflection_attribute_ptr = (Module['_reflection_attribute_ptr'] =
-		18260404);
+		18261868);
 
 	var _reflection_parameter_ptr = (Module['_reflection_parameter_ptr'] =
-		18260360);
+		18261824);
 
 	var _reflection_extension_ptr = (Module['_reflection_extension_ptr'] =
-		18260396);
+		18261860);
 
 	var _reflection_function_ptr = (Module['_reflection_function_ptr'] =
-		18260352);
+		18261816);
 
-	var _reflection_method_ptr = (Module['_reflection_method_ptr'] = 18260380);
+	var _reflection_method_ptr = (Module['_reflection_method_ptr'] = 18261844);
 
 	var _reflection_union_type_ptr = (Module['_reflection_union_type_ptr'] =
-		18260372);
+		18261836);
 
 	var _reflection_intersection_type_ptr = (Module[
 		'_reflection_intersection_type_ptr'
-	] = 18260376);
+	] = 18261840);
 
 	var _reflection_named_type_ptr = (Module['_reflection_named_type_ptr'] =
-		18260368);
+		18261832);
 
 	var _reflection_property_ptr = (Module['_reflection_property_ptr'] =
-		18260388);
+		18261852);
 
 	var _reflection_class_constant_ptr = (Module[
 		'_reflection_class_constant_ptr'
-	] = 18260392);
+	] = 18261856);
 
 	var _reflection_property_hook_type_ptr = (Module[
 		'_reflection_property_hook_type_ptr'
-	] = 18260208);
+	] = 18261672);
 
 	var _reflection_reference_ptr = (Module['_reflection_reference_ptr'] =
-		18260212);
+		18261676);
 
-	var _reflection_globals = (Module['_reflection_globals'] = 18260216);
+	var _reflection_globals = (Module['_reflection_globals'] = 18261680);
 
 	var _reflection_enum_unit_case_ptr = (Module[
 		'_reflection_enum_unit_case_ptr'
-	] = 18260408);
+	] = 18261872);
 
 	var _reflection_enum_backed_case_ptr = (Module[
 		'_reflection_enum_backed_case_ptr'
-	] = 18260412);
+	] = 18261876);
 
-	var _reflection_ptr = (Module['_reflection_ptr'] = 18260340);
+	var _reflection_ptr = (Module['_reflection_ptr'] = 18261804);
 
-	var _reflector_ptr = (Module['_reflector_ptr'] = 18260344);
+	var _reflector_ptr = (Module['_reflector_ptr'] = 18261808);
 
 	var _reflection_function_abstract_ptr = (Module[
 		'_reflection_function_abstract_ptr'
-	] = 18260348);
+	] = 18261812);
 
 	var _reflection_generator_ptr = (Module['_reflection_generator_ptr'] =
-		18260356);
+		18261820);
 
-	var _reflection_type_ptr = (Module['_reflection_type_ptr'] = 18260364);
+	var _reflection_type_ptr = (Module['_reflection_type_ptr'] = 18261828);
 
-	var _reflection_object_ptr = (Module['_reflection_object_ptr'] = 18260384);
+	var _reflection_object_ptr = (Module['_reflection_object_ptr'] = 18261848);
 
 	var _reflection_zend_extension_ptr = (Module[
 		'_reflection_zend_extension_ptr'
-	] = 18260400);
+	] = 18261864);
 
-	var _reflection_fiber_ptr = (Module['_reflection_fiber_ptr'] = 18260416);
+	var _reflection_fiber_ptr = (Module['_reflection_fiber_ptr'] = 18261880);
 
 	var _reflection_constant_ptr = (Module['_reflection_constant_ptr'] =
-		18260420);
+		18261884);
 
 	var _reflection_module_entry = (Module['_reflection_module_entry'] =
-		17583808);
+		17585312);
 
-	var _ps_globals = (Module['_ps_globals'] = 18260432);
+	var _ps_globals = (Module['_ps_globals'] = 18261888);
 
 	var _php_session_iface_entry = (Module['_php_session_iface_entry'] =
-		18260816);
+		18262272);
 
 	var _php_session_id_iface_entry = (Module['_php_session_id_iface_entry'] =
-		18260820);
+		18262276);
 
 	var _php_session_update_timestamp_iface_entry = (Module[
 		'_php_session_update_timestamp_iface_entry'
-	] = 18260824);
+	] = 18262280);
 
 	var _php_session_class_entry = (Module['_php_session_class_entry'] =
-		18260828);
+		18262284);
 
-	var _session_module_entry = (Module['_session_module_entry'] = 17595488);
+	var _session_module_entry = (Module['_session_module_entry'] = 17596992);
 
-	var _ps_mod_files = (Module['_ps_mod_files'] = 17594772);
+	var _ps_mod_files = (Module['_ps_mod_files'] = 17596276);
 
-	var _ps_mod_user = (Module['_ps_mod_user'] = 17594732);
+	var _ps_mod_user = (Module['_ps_mod_user'] = 17596236);
 
-	var _ce_SimpleXMLElement = (Module['_ce_SimpleXMLElement'] = 18260840);
+	var _ce_SimpleXMLElement = (Module['_ce_SimpleXMLElement'] = 18262296);
 
-	var _ce_SimpleXMLIterator = (Module['_ce_SimpleXMLIterator'] = 18260948);
+	var _ce_SimpleXMLIterator = (Module['_ce_SimpleXMLIterator'] = 18262404);
 
 	var _simplexml_module_entry = (Module['_simplexml_module_entry'] =
-		17598944);
+		17600448);
 
-	var _defaultEncoding = (Module['_defaultEncoding'] = 17600512);
+	var _defaultEncoding = (Module['_defaultEncoding'] = 17602016);
 
-	var _numDefaultEncodings = (Module['_numDefaultEncodings'] = 17602880);
+	var _numDefaultEncodings = (Module['_numDefaultEncodings'] = 17604384);
 
-	var _php_soap_defEnc = (Module['_php_soap_defEnc'] = 18260960);
+	var _php_soap_defEnc = (Module['_php_soap_defEnc'] = 18262416);
 
-	var _php_soap_defEncIndex = (Module['_php_soap_defEncIndex'] = 18261016);
+	var _php_soap_defEncIndex = (Module['_php_soap_defEncIndex'] = 18262472);
 
-	var _php_soap_defEncNs = (Module['_php_soap_defEncNs'] = 18261072);
+	var _php_soap_defEncNs = (Module['_php_soap_defEncNs'] = 18262528);
 
-	var _soap_globals = (Module['_soap_globals'] = 18261128);
+	var _soap_globals = (Module['_soap_globals'] = 18262584);
 
-	var _soap_class_entry = (Module['_soap_class_entry'] = 18261276);
+	var _soap_class_entry = (Module['_soap_class_entry'] = 18262740);
 
-	var _soap_var_class_entry = (Module['_soap_var_class_entry'] = 18261280);
+	var _soap_var_class_entry = (Module['_soap_var_class_entry'] = 18262744);
 
-	var _soap_url_class_entry = (Module['_soap_url_class_entry'] = 18261404);
+	var _soap_url_class_entry = (Module['_soap_url_class_entry'] = 18262868);
 
-	var _soap_sdl_class_entry = (Module['_soap_sdl_class_entry'] = 18261512);
+	var _soap_sdl_class_entry = (Module['_soap_sdl_class_entry'] = 18262976);
 
-	var _soap_lang_en = (Module['_soap_lang_en'] = 18261272);
+	var _soap_lang_en = (Module['_soap_lang_en'] = 18262736);
 
-	var _soap_module_entry = (Module['_soap_module_entry'] = 17602980);
+	var _soap_module_entry = (Module['_soap_module_entry'] = 17604484);
 
-	var _spl_module_entry = (Module['_spl_module_entry'] = 17541600);
+	var _spl_module_entry = (Module['_spl_module_entry'] = 17543104);
 
-	var _spl_ce_ArrayIterator = (Module['_spl_ce_ArrayIterator'] = 18251268);
+	var _spl_ce_ArrayIterator = (Module['_spl_ce_ArrayIterator'] = 18252724);
 
-	var _spl_ce_ArrayObject = (Module['_spl_ce_ArrayObject'] = 18251272);
+	var _spl_ce_ArrayObject = (Module['_spl_ce_ArrayObject'] = 18252728);
 
 	var _spl_ce_RecursiveArrayIterator = (Module[
 		'_spl_ce_RecursiveArrayIterator'
-	] = 18251380);
+	] = 18252836);
 
-	var _spl_ce_SplFileObject = (Module['_spl_ce_SplFileObject'] = 18251672);
+	var _spl_ce_SplFileObject = (Module['_spl_ce_SplFileObject'] = 18253128);
 
-	var _spl_ce_SplFileInfo = (Module['_spl_ce_SplFileInfo'] = 18251676);
+	var _spl_ce_SplFileInfo = (Module['_spl_ce_SplFileInfo'] = 18253132);
 
 	var _spl_ce_DirectoryIterator = (Module['_spl_ce_DirectoryIterator'] =
-		18251784);
+		18253240);
 
 	var _spl_ce_RecursiveDirectoryIterator = (Module[
 		'_spl_ce_RecursiveDirectoryIterator'
-	] = 18251792);
+	] = 18253248);
 
 	var _spl_ce_FilesystemIterator = (Module['_spl_ce_FilesystemIterator'] =
-		18251788);
+		18253244);
 
-	var _spl_ce_GlobIterator = (Module['_spl_ce_GlobIterator'] = 18251900);
+	var _spl_ce_GlobIterator = (Module['_spl_ce_GlobIterator'] = 18253356);
 
 	var _spl_ce_SplTempFileObject = (Module['_spl_ce_SplTempFileObject'] =
-		18251904);
+		18253360);
 
 	var _spl_ce_SplDoublyLinkedList = (Module['_spl_ce_SplDoublyLinkedList'] =
-		18252132);
+		18253588);
 
-	var _spl_ce_SplQueue = (Module['_spl_ce_SplQueue'] = 18252240);
+	var _spl_ce_SplQueue = (Module['_spl_ce_SplQueue'] = 18253696);
 
-	var _spl_ce_SplStack = (Module['_spl_ce_SplStack'] = 18252244);
+	var _spl_ce_SplStack = (Module['_spl_ce_SplStack'] = 18253700);
 
-	var _spl_ce_LogicException = (Module['_spl_ce_LogicException'] = 18251216);
+	var _spl_ce_LogicException = (Module['_spl_ce_LogicException'] = 18252672);
 
 	var _spl_ce_BadFunctionCallException = (Module[
 		'_spl_ce_BadFunctionCallException'
-	] = 18251220);
+	] = 18252676);
 
 	var _spl_ce_BadMethodCallException = (Module[
 		'_spl_ce_BadMethodCallException'
-	] = 18251224);
+	] = 18252680);
 
 	var _spl_ce_DomainException = (Module['_spl_ce_DomainException'] =
-		18251228);
+		18252684);
 
 	var _spl_ce_InvalidArgumentException = (Module[
 		'_spl_ce_InvalidArgumentException'
-	] = 18251232);
+	] = 18252688);
 
 	var _spl_ce_LengthException = (Module['_spl_ce_LengthException'] =
-		18251236);
+		18252692);
 
 	var _spl_ce_OutOfRangeException = (Module['_spl_ce_OutOfRangeException'] =
-		18251240);
+		18252696);
 
 	var _spl_ce_RuntimeException = (Module['_spl_ce_RuntimeException'] =
-		18251244);
+		18252700);
 
 	var _spl_ce_OutOfBoundsException = (Module['_spl_ce_OutOfBoundsException'] =
-		18251248);
+		18252704);
 
 	var _spl_ce_OverflowException = (Module['_spl_ce_OverflowException'] =
-		18251252);
+		18252708);
 
-	var _spl_ce_RangeException = (Module['_spl_ce_RangeException'] = 18251256);
+	var _spl_ce_RangeException = (Module['_spl_ce_RangeException'] = 18252712);
 
 	var _spl_ce_UnderflowException = (Module['_spl_ce_UnderflowException'] =
-		18251260);
+		18252716);
 
 	var _spl_ce_UnexpectedValueException = (Module[
 		'_spl_ce_UnexpectedValueException'
-	] = 18251264);
+	] = 18252720);
 
-	var _spl_ce_SplFixedArray = (Module['_spl_ce_SplFixedArray'] = 18252248);
+	var _spl_ce_SplFixedArray = (Module['_spl_ce_SplFixedArray'] = 18253704);
 
-	var _spl_ce_SplHeap = (Module['_spl_ce_SplHeap'] = 18252356);
+	var _spl_ce_SplHeap = (Module['_spl_ce_SplHeap'] = 18253812);
 
 	var _spl_ce_SplPriorityQueue = (Module['_spl_ce_SplPriorityQueue'] =
-		18252360);
+		18253816);
 
-	var _spl_ce_SplMinHeap = (Module['_spl_ce_SplMinHeap'] = 18252468);
+	var _spl_ce_SplMinHeap = (Module['_spl_ce_SplMinHeap'] = 18253924);
 
-	var _spl_ce_SplMaxHeap = (Module['_spl_ce_SplMaxHeap'] = 18252472);
+	var _spl_ce_SplMaxHeap = (Module['_spl_ce_SplMaxHeap'] = 18253928);
 
 	var _spl_ce_RecursiveIteratorIterator = (Module[
 		'_spl_ce_RecursiveIteratorIterator'
-	] = 18251384);
+	] = 18252840);
 
 	var _spl_ce_RecursiveCachingIterator = (Module[
 		'_spl_ce_RecursiveCachingIterator'
-	] = 18251432);
+	] = 18252888);
 
 	var _spl_ce_RecursiveIterator = (Module['_spl_ce_RecursiveIterator'] =
-		18251404);
+		18252860);
 
 	var _spl_ce_RecursiveTreeIterator = (Module[
 		'_spl_ce_RecursiveTreeIterator'
-	] = 18251388);
+	] = 18252844);
 
-	var _spl_ce_FilterIterator = (Module['_spl_ce_FilterIterator'] = 18251392);
+	var _spl_ce_FilterIterator = (Module['_spl_ce_FilterIterator'] = 18252848);
 
 	var _spl_ce_CallbackFilterIterator = (Module[
 		'_spl_ce_CallbackFilterIterator'
-	] = 18251396);
+	] = 18252852);
 
 	var _spl_ce_RecursiveCallbackFilterIterator = (Module[
 		'_spl_ce_RecursiveCallbackFilterIterator'
-	] = 18251400);
+	] = 18252856);
 
 	var _spl_ce_RecursiveFilterIterator = (Module[
 		'_spl_ce_RecursiveFilterIterator'
-	] = 18251408);
+	] = 18252864);
 
-	var _spl_ce_ParentIterator = (Module['_spl_ce_ParentIterator'] = 18251412);
+	var _spl_ce_ParentIterator = (Module['_spl_ce_ParentIterator'] = 18252868);
 
-	var _spl_ce_RegexIterator = (Module['_spl_ce_RegexIterator'] = 18251416);
+	var _spl_ce_RegexIterator = (Module['_spl_ce_RegexIterator'] = 18252872);
 
 	var _spl_ce_RecursiveRegexIterator = (Module[
 		'_spl_ce_RecursiveRegexIterator'
-	] = 18251420);
+	] = 18252876);
 
-	var _spl_ce_LimitIterator = (Module['_spl_ce_LimitIterator'] = 18251424);
+	var _spl_ce_LimitIterator = (Module['_spl_ce_LimitIterator'] = 18252880);
 
 	var _spl_ce_SeekableIterator = (Module['_spl_ce_SeekableIterator'] =
-		18251664);
+		18253120);
 
 	var _spl_ce_CachingIterator = (Module['_spl_ce_CachingIterator'] =
-		18251428);
+		18252884);
 
 	var _spl_ce_IteratorIterator = (Module['_spl_ce_IteratorIterator'] =
-		18251436);
+		18252892);
 
 	var _spl_ce_NoRewindIterator = (Module['_spl_ce_NoRewindIterator'] =
-		18251440);
+		18252896);
 
 	var _spl_ce_InfiniteIterator = (Module['_spl_ce_InfiniteIterator'] =
-		18251444);
+		18252900);
 
-	var _spl_ce_AppendIterator = (Module['_spl_ce_AppendIterator'] = 18251448);
+	var _spl_ce_AppendIterator = (Module['_spl_ce_AppendIterator'] = 18252904);
 
-	var _spl_ce_OuterIterator = (Module['_spl_ce_OuterIterator'] = 18251452);
+	var _spl_ce_OuterIterator = (Module['_spl_ce_OuterIterator'] = 18252908);
 
-	var _spl_ce_EmptyIterator = (Module['_spl_ce_EmptyIterator'] = 18251668);
+	var _spl_ce_EmptyIterator = (Module['_spl_ce_EmptyIterator'] = 18253124);
 
 	var _spl_ce_SplObjectStorage = (Module['_spl_ce_SplObjectStorage'] =
-		18251908);
+		18253364);
 
-	var _spl_ce_SplObserver = (Module['_spl_ce_SplObserver'] = 18251912);
+	var _spl_ce_SplObserver = (Module['_spl_ce_SplObserver'] = 18253368);
 
-	var _spl_ce_SplSubject = (Module['_spl_ce_SplSubject'] = 18251916);
+	var _spl_ce_SplSubject = (Module['_spl_ce_SplSubject'] = 18253372);
 
 	var _spl_ce_MultipleIterator = (Module['_spl_ce_MultipleIterator'] =
-		18252128);
+		18253584);
 
-	var _array_globals = (Module['_array_globals'] = 18151096);
+	var _array_globals = (Module['_array_globals'] = 18152552);
 
-	var _assert_globals = (Module['_assert_globals'] = 18151064);
+	var _assert_globals = (Module['_assert_globals'] = 18152520);
 
-	var _assertion_error_ce = (Module['_assertion_error_ce'] = 18151088);
+	var _assertion_error_ce = (Module['_assertion_error_ce'] = 18152544);
 
-	var _basic_globals = (Module['_basic_globals'] = 18232888);
+	var _basic_globals = (Module['_basic_globals'] = 18234344);
 
 	var _basic_functions_module = (Module['_basic_functions_module'] =
-		17309756);
+		17311260);
 
-	var _browscap_globals = (Module['_browscap_globals'] = 18154204);
+	var _browscap_globals = (Module['_browscap_globals'] = 18155660);
 
-	var _dir_globals = (Module['_dir_globals'] = 18232352);
+	var _dir_globals = (Module['_dir_globals'] = 18233808);
 
-	var _pathsep_str = (Module['_pathsep_str'] = 18232358);
+	var _pathsep_str = (Module['_pathsep_str'] = 18233814);
 
-	var _dirsep_str = (Module['_dirsep_str'] = 18232356);
+	var _dirsep_str = (Module['_dirsep_str'] = 18233812);
 
-	var _file_globals = (Module['_file_globals'] = 18262864);
+	var _file_globals = (Module['_file_globals'] = 18264328);
 
 	var _php_stream_ftp_wrapper = (Module['_php_stream_ftp_wrapper'] =
-		17294628);
+		17296164);
 
 	var _php_stream_http_wrapper = (Module['_php_stream_http_wrapper'] =
-		17294572);
+		17296108);
 
-	var _php_sig_gif = (Module['_php_sig_gif'] = 1459712);
+	var _php_sig_gif = (Module['_php_sig_gif'] = 1461072);
 
-	var _php_sig_psd = (Module['_php_sig_psd'] = 1459715);
+	var _php_sig_psd = (Module['_php_sig_psd'] = 1461075);
 
-	var _php_sig_bmp = (Module['_php_sig_bmp'] = 1459719);
+	var _php_sig_bmp = (Module['_php_sig_bmp'] = 1461079);
 
-	var _php_sig_swf = (Module['_php_sig_swf'] = 1459721);
+	var _php_sig_swf = (Module['_php_sig_swf'] = 1461081);
 
-	var _php_sig_swc = (Module['_php_sig_swc'] = 1459724);
+	var _php_sig_swc = (Module['_php_sig_swc'] = 1461084);
 
-	var _php_sig_jpg = (Module['_php_sig_jpg'] = 1459727);
+	var _php_sig_jpg = (Module['_php_sig_jpg'] = 1461087);
 
-	var _php_sig_png = (Module['_php_sig_png'] = 1459730);
+	var _php_sig_png = (Module['_php_sig_png'] = 1461090);
 
-	var _php_sig_tif_ii = (Module['_php_sig_tif_ii'] = 1459738);
+	var _php_sig_tif_ii = (Module['_php_sig_tif_ii'] = 1461098);
 
-	var _php_sig_tif_mm = (Module['_php_sig_tif_mm'] = 1459742);
+	var _php_sig_tif_mm = (Module['_php_sig_tif_mm'] = 1461102);
 
-	var _php_sig_jpc = (Module['_php_sig_jpc'] = 1459746);
+	var _php_sig_jpc = (Module['_php_sig_jpc'] = 1461106);
 
-	var _php_sig_jp2 = (Module['_php_sig_jp2'] = 1459749);
+	var _php_sig_jp2 = (Module['_php_sig_jp2'] = 1461109);
 
-	var _php_sig_iff = (Module['_php_sig_iff'] = 1459761);
+	var _php_sig_iff = (Module['_php_sig_iff'] = 1461121);
 
-	var _php_sig_ico = (Module['_php_sig_ico'] = 1459765);
+	var _php_sig_ico = (Module['_php_sig_ico'] = 1461125);
 
-	var _php_sig_riff = (Module['_php_sig_riff'] = 1459769);
+	var _php_sig_riff = (Module['_php_sig_riff'] = 1461129);
 
-	var _php_sig_webp = (Module['_php_sig_webp'] = 1459773);
+	var _php_sig_webp = (Module['_php_sig_webp'] = 1461133);
 
-	var _php_sig_ftyp = (Module['_php_sig_ftyp'] = 1459777);
+	var _php_sig_ftyp = (Module['_php_sig_ftyp'] = 1461137);
 
-	var _php_sig_mif1 = (Module['_php_sig_mif1'] = 1459781);
+	var _php_sig_mif1 = (Module['_php_sig_mif1'] = 1461141);
 
-	var _php_sig_heic = (Module['_php_sig_heic'] = 1459785);
+	var _php_sig_heic = (Module['_php_sig_heic'] = 1461145);
 
-	var _php_sig_heix = (Module['_php_sig_heix'] = 1459789);
+	var _php_sig_heix = (Module['_php_sig_heix'] = 1461149);
 
 	var _php_tiff_bytes_per_format = (Module['_php_tiff_bytes_per_format'] =
-		1459808);
+		1461168);
 
 	var _php_ce_incomplete_class = (Module['_php_ce_incomplete_class'] =
-		18151060);
+		18152516);
 
-	var _rounding_mode_ce = (Module['_rounding_mode_ce'] = 18151092);
+	var _rounding_mode_ce = (Module['_rounding_mode_ce'] = 18152548);
 
 	var _php_password_algo_bcrypt = (Module['_php_password_algo_bcrypt'] =
-		16515188);
+		16516724);
 
 	var _php_stream_php_wrapper = (Module['_php_stream_php_wrapper'] =
-		16516024);
+		16517560);
 
 	var _tokenizer_module_entry = (Module['_tokenizer_module_entry'] =
-		17606276);
+		17607780);
 
 	var _php_uri_ce_rfc3986_uri = (Module['_php_uri_ce_rfc3986_uri'] =
-		18232628);
+		18234084);
 
 	var _php_uri_ce_whatwg_invalid_url_exception = (Module[
 		'_php_uri_ce_whatwg_invalid_url_exception'
-	] = 18232616);
+	] = 18234072);
 
 	var _php_uri_ce_whatwg_url_validation_error = (Module[
 		'_php_uri_ce_whatwg_url_validation_error'
-	] = 18232620);
+	] = 18234076);
 
 	var _php_uri_ce_whatwg_url_validation_error_type = (Module[
 		'_php_uri_ce_whatwg_url_validation_error_type'
-	] = 18232624);
+	] = 18234080);
 
-	var _php_uri_ce_whatwg_url = (Module['_php_uri_ce_whatwg_url'] = 18232636);
+	var _php_uri_ce_whatwg_url = (Module['_php_uri_ce_whatwg_url'] = 18234092);
 
 	var _php_uri_ce_comparison_mode = (Module['_php_uri_ce_comparison_mode'] =
-		18232632);
+		18234088);
 
-	var _php_uri_ce_error = (Module['_php_uri_ce_error'] = 18232644);
+	var _php_uri_ce_error = (Module['_php_uri_ce_error'] = 18234100);
 
-	var _php_uri_ce_exception = (Module['_php_uri_ce_exception'] = 18232640);
+	var _php_uri_ce_exception = (Module['_php_uri_ce_exception'] = 18234096);
 
 	var _php_uri_ce_invalid_uri_exception = (Module[
 		'_php_uri_ce_invalid_uri_exception'
-	] = 18232648);
+	] = 18234104);
 
-	var _uri_module_entry = (Module['_uri_module_entry'] = 17291644);
+	var _uri_module_entry = (Module['_uri_module_entry'] = 17293180);
 
 	var _php_uri_parser_rfc3986 = (Module['_php_uri_parser_rfc3986'] =
-		16516272);
+		16517808);
 
-	var _php_uri_parser_whatwg = (Module['_php_uri_parser_whatwg'] = 17291360);
+	var _php_uri_parser_whatwg = (Module['_php_uri_parser_whatwg'] = 17292896);
 
 	var _php_uri_parser_php_parse_url = (Module[
 		'_php_uri_parser_php_parse_url'
-	] = 17291560);
+	] = 17293096);
 
-	var _uriSafeToPointToA = (Module['_uriSafeToPointToA'] = 16516224);
+	var _uriSafeToPointToA = (Module['_uriSafeToPointToA'] = 16517760);
 
-	var _uriConstPwdA = (Module['_uriConstPwdA'] = 16516228);
+	var _uriConstPwdA = (Module['_uriConstPwdA'] = 16517764);
 
-	var _uriConstParentA = (Module['_uriConstParentA'] = 16516232);
+	var _uriConstParentA = (Module['_uriConstParentA'] = 16517768);
 
-	var _uriSafeToPointToW = (Module['_uriSafeToPointToW'] = 16516236);
+	var _uriSafeToPointToW = (Module['_uriSafeToPointToW'] = 16517772);
 
-	var _uriConstPwdW = (Module['_uriConstPwdW'] = 16516240);
+	var _uriConstPwdW = (Module['_uriConstPwdW'] = 16517776);
 
-	var _uriConstParentW = (Module['_uriConstParentW'] = 16516244);
+	var _uriConstParentW = (Module['_uriConstParentW'] = 16517780);
 
-	var _defaultMemoryManager = (Module['_defaultMemoryManager'] = 16516200);
+	var _defaultMemoryManager = (Module['_defaultMemoryManager'] = 16517736);
 
 	var _wasm_memory_storage_struct = (Module['_wasm_memory_storage_struct'] =
-		17606768);
+		17608272);
 
 	var _wasm_memory_storage_module_entry = (Module[
 		'_wasm_memory_storage_module_entry'
-	] = 17606788);
+	] = 17608292);
 
-	var _xml_globals = (Module['_xml_globals'] = 18261624);
+	var _xml_globals = (Module['_xml_globals'] = 18263088);
 
-	var _xml_module_entry = (Module['_xml_module_entry'] = 17608068);
+	var _xml_module_entry = (Module['_xml_module_entry'] = 17609572);
 
-	var _xmlreader_class_entry = (Module['_xmlreader_class_entry'] = 18261748);
+	var _xmlreader_class_entry = (Module['_xmlreader_class_entry'] = 18263212);
 
 	var _xmlreader_module_entry = (Module['_xmlreader_module_entry'] =
-		17608832);
+		17610336);
 
 	var _xmlwriter_module_entry = (Module['_xmlwriter_module_entry'] =
-		17611972);
+		17613476);
 
-	var _zip_module_entry = (Module['_zip_module_entry'] = 17616404);
+	var _zip_module_entry = (Module['_zip_module_entry'] = 17617908);
 
 	var _php_stream_zipio_seek_ops = (Module['_php_stream_zipio_seek_ops'] =
-		17615968);
+		17617472);
 
-	var _php_stream_zipio_ops = (Module['_php_stream_zipio_ops'] = 17616004);
+	var _php_stream_zipio_ops = (Module['_php_stream_zipio_ops'] = 17617508);
 
 	var _php_stream_zip_wrapper = (Module['_php_stream_zip_wrapper'] =
-		17616084);
+		17617588);
 
 	var _mysqlnd_debug_std_no_trace_funcs = (Module[
 		'_mysqlnd_debug_std_no_trace_funcs'
-	] = 17523424);
+	] = 17524928);
 
-	var _mysqlnd_allocator = (Module['_mysqlnd_allocator'] = 17523472);
+	var _mysqlnd_allocator = (Module['_mysqlnd_allocator'] = 17524976);
 
-	var _mysqlnd_charsets = (Module['_mysqlnd_charsets'] = 17514304);
+	var _mysqlnd_charsets = (Module['_mysqlnd_charsets'] = 17515808);
 
 	var _mysqlnd_mysqlnd_command_methods = (Module[
 		'_mysqlnd_mysqlnd_command_methods'
-	] = 17522456);
+	] = 17523960);
 
 	var _mysqlnd_mysqlnd_upsert_status_methods = (Module[
 		'_mysqlnd_mysqlnd_upsert_status_methods'
-	] = 17523528);
+	] = 17525032);
 
 	var _mysqlnd_mysqlnd_connection_state_methods = (Module[
 		'_mysqlnd_mysqlnd_connection_state_methods'
-	] = 17523544);
+	] = 17525048);
 
-	var _mysqlnd_global_stats = (Module['_mysqlnd_global_stats'] = 18251144);
+	var _mysqlnd_global_stats = (Module['_mysqlnd_global_stats'] = 18252600);
 
-	var _mysqlnd_server_gone = (Module['_mysqlnd_server_gone'] = 17523516);
+	var _mysqlnd_server_gone = (Module['_mysqlnd_server_gone'] = 17525020);
 
-	var _mysqlnd_out_of_sync = (Module['_mysqlnd_out_of_sync'] = 17523520);
+	var _mysqlnd_out_of_sync = (Module['_mysqlnd_out_of_sync'] = 17525024);
 
-	var _mysqlnd_out_of_memory = (Module['_mysqlnd_out_of_memory'] = 17523524);
+	var _mysqlnd_out_of_memory = (Module['_mysqlnd_out_of_memory'] = 17525028);
 
 	var _mysqlnd_mysqlnd_error_info_methods = (Module[
 		'_mysqlnd_mysqlnd_error_info_methods'
-	] = 17523536);
+	] = 17525040);
 
 	var _mysqlnd_mysqlnd_conn_data_methods = (Module[
 		'_mysqlnd_mysqlnd_conn_data_methods'
-	] = 17523552);
+	] = 17525056);
 
 	var _mysqlnd_mysqlnd_conn_methods = (Module[
 		'_mysqlnd_mysqlnd_conn_methods'
-	] = 17523808);
+	] = 17525312);
 
 	var _mysqlnd_mysqlnd_debug_methods = (Module[
 		'_mysqlnd_mysqlnd_debug_methods'
-	] = 17522840);
+	] = 17524344);
 
 	var _mysqlnd_mysqlnd_object_factory_methods = (Module[
 		'_mysqlnd_mysqlnd_object_factory_methods'
-	] = 17522968);
+	] = 17524472);
 
 	var _mysqlnd_plugin_area_getters = (Module['_mysqlnd_plugin_area_getters'] =
-		17522532);
+		17524036);
 
 	var _mysqlnd_plugin_methods_xetters = (Module[
 		'_mysqlnd_plugin_methods_xetters'
-	] = 17522568);
+	] = 17524072);
 
 	var _mysqlnd_mysqlnd_protocol_packet_frame_codec_methods = (Module[
 		'_mysqlnd_mysqlnd_protocol_packet_frame_codec_methods'
-	] = 17514188);
+	] = 17515692);
 
 	var _mysqlnd_ps_fetch_functions = (Module['_mysqlnd_ps_fetch_functions'] =
-		18247936);
+		18249392);
 
 	var _mysqlnd_mysqlnd_stmt_methods = (Module[
 		'_mysqlnd_mysqlnd_stmt_methods'
-	] = 17522672);
+	] = 17524176);
 
 	var _mysqlnd_not_bound_as_blob = (Module['_mysqlnd_not_bound_as_blob'] =
-		17522664);
+		17524168);
 
 	var _mysqlnd_stmt_not_prepared = (Module['_mysqlnd_stmt_not_prepared'] =
-		17522668);
+		17524172);
 
 	var _mysqlnd_mysqlnd_res_methods = (Module['_mysqlnd_mysqlnd_res_methods'] =
-		17514040);
+		17515544);
 
 	var _mysqlnd_mysqlnd_result_unbuffered_methods = (Module[
 		'_mysqlnd_mysqlnd_result_unbuffered_methods'
-	] = 17514144);
+	] = 17515648);
 
 	var _mysqlnd_mysqlnd_result_buffered_methods = (Module[
 		'_mysqlnd_mysqlnd_result_buffered_methods'
-	] = 17514164);
+	] = 17515668);
 
 	var _mysqlnd_stats_values_names = (Module['_mysqlnd_stats_values_names'] =
-		17512704);
+		17514208);
 
 	var _mysqlnd_mysqlnd_vio_methods = (Module['_mysqlnd_mysqlnd_vio_methods'] =
-		17514228);
+		17515732);
 
 	var _mysqlnd_command_to_text = (Module['_mysqlnd_command_to_text'] =
-		17523008);
+		17524512);
 
-	var _mysqlnd_empty_string = (Module['_mysqlnd_empty_string'] = 17522992);
+	var _mysqlnd_empty_string = (Module['_mysqlnd_empty_string'] = 17524496);
 
 	var _mysqlnd_read_header_name = (Module['_mysqlnd_read_header_name'] =
-		13859040);
+		13860448);
 
 	var _mysqlnd_read_body_name = (Module['_mysqlnd_read_body_name'] =
-		13859072);
+		13860480);
 
 	var _mysqlnd_mysqlnd_protocol_payload_decoder_factory_methods = (Module[
 		'_mysqlnd_mysqlnd_protocol_payload_decoder_factory_methods'
-	] = 17523140);
+	] = 17524644);
 
-	var _mysqlnd_globals = (Module['_mysqlnd_globals'] = 18251152);
+	var _mysqlnd_globals = (Module['_mysqlnd_globals'] = 18252608);
 
-	var _mysqlnd_module_entry = (Module['_mysqlnd_module_entry'] = 17523824);
+	var _mysqlnd_module_entry = (Module['_mysqlnd_module_entry'] = 17525328);
 
-	var _php_optidx = (Module['_php_optidx'] = 17294676);
+	var _php_optidx = (Module['_php_optidx'] = 17296212);
 
-	var _php_build_date = (Module['_php_build_date'] = 13871360);
+	var _php_build_date = (Module['_php_build_date'] = 13872768);
 
-	var _core_globals = (Module['_core_globals'] = 18262376);
+	var _core_globals = (Module['_core_globals'] = 18263840);
 
 	var _php_register_internal_extensions_func = (Module[
 		'_php_register_internal_extensions_func'
-	] = 17620800);
+	] = 17622304);
 
 	var _php_internal_encoding_changed = (Module[
 		'_php_internal_encoding_changed'
-	] = 18262856);
+	] = 18264320);
 
-	var _output_globals = (Module['_output_globals'] = 18233912);
+	var _output_globals = (Module['_output_globals'] = 18235368);
 
 	var _php_output_default_handler_name = (Module[
 		'_php_output_default_handler_name'
-	] = 2386976);
+	] = 2388368);
 
 	var _php_output_devnull_handler_name = (Module[
 		'_php_output_devnull_handler_name'
-	] = 2387008);
+	] = 2388400);
 
-	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 18150208);
+	var _php_ini_opened_path = (Module['_php_ini_opened_path'] = 18151664);
 
-	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 18150212);
+	var _php_ini_scanned_path = (Module['_php_ini_scanned_path'] = 18151668);
 
-	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 18150216);
+	var _php_ini_scanned_files = (Module['_php_ini_scanned_files'] = 18151672);
 
 	var _php_import_environment_variables = (Module[
 		'_php_import_environment_variables'
-	] = 16324496);
+	] = 16326032);
 
 	var _php_load_environment_variables = (Module[
 		'_php_load_environment_variables'
-	] = 16324500);
+	] = 16326036);
 
-	var _php_rfc1867_callback = (Module['_php_rfc1867_callback'] = 18145364);
+	var _php_rfc1867_callback = (Module['_php_rfc1867_callback'] = 18146820);
 
-	var _sapi_module = (Module['_sapi_module'] = 18145376);
+	var _sapi_module = (Module['_sapi_module'] = 18146832);
 
-	var _sapi_globals = (Module['_sapi_globals'] = 18145528);
+	var _sapi_globals = (Module['_sapi_globals'] = 18146984);
 
-	var _php_glob_stream_ops = (Module['_php_glob_stream_ops'] = 16516108);
+	var _php_glob_stream_ops = (Module['_php_glob_stream_ops'] = 16517644);
 
 	var _php_glob_stream_wrapper = (Module['_php_glob_stream_wrapper'] =
-		16516188);
+		16517724);
 
-	var _php_stream_memory_ops = (Module['_php_stream_memory_ops'] = 16327872);
+	var _php_stream_memory_ops = (Module['_php_stream_memory_ops'] = 16329408);
 
-	var _php_stream_temp_ops = (Module['_php_stream_temp_ops'] = 16327908);
+	var _php_stream_temp_ops = (Module['_php_stream_temp_ops'] = 16329444);
 
 	var _php_stream_rfc2397_ops = (Module['_php_stream_rfc2397_ops'] =
-		16327944);
+		16329480);
 
 	var _php_stream_rfc2397_wops = (Module['_php_stream_rfc2397_wops'] =
-		16327980);
+		16329516);
 
 	var _php_stream_rfc2397_wrapper = (Module['_php_stream_rfc2397_wrapper'] =
-		16328024);
+		16329560);
 
-	var _php_stream_stdio_ops = (Module['_php_stream_stdio_ops'] = 17624144);
+	var _php_stream_stdio_ops = (Module['_php_stream_stdio_ops'] = 17625684);
 
 	var _php_plain_files_wrapper = (Module['_php_plain_files_wrapper'] =
-		17624132);
+		17625672);
 
 	var _php_stream_userspace_ops = (Module['_php_stream_userspace_ops'] =
-		16515724);
+		16517260);
 
 	var _php_stream_userspace_dir_ops = (Module[
 		'_php_stream_userspace_dir_ops'
-	] = 16515760);
+	] = 16517296);
 
-	var _php_stream_socket_ops = (Module['_php_stream_socket_ops'] = 16515832);
+	var _php_stream_socket_ops = (Module['_php_stream_socket_ops'] = 16517368);
 
 	var _php_stream_generic_socket_ops = (Module[
 		'_php_stream_generic_socket_ops'
-	] = 16515796);
+	] = 16517332);
 
-	var _zend_func_info_rid = (Module['_zend_func_info_rid'] = 17555248);
+	var _zend_func_info_rid = (Module['_zend_func_info_rid'] = 17556752);
 
 	var _zend_optimizer_registered_passes = (Module[
 		'_zend_optimizer_registered_passes'
-	] = 18258352);
+	] = 18259808);
 
-	var _zend_dl_use_deepbind = (Module['_zend_dl_use_deepbind'] = 18265324);
+	var _zend_dl_use_deepbind = (Module['_zend_dl_use_deepbind'] = 18265728);
 
-	var _module_registry = (Module['_module_registry'] = 18265328);
+	var _module_registry = (Module['_module_registry'] = 18265736);
 
-	var _zend_ast_process = (Module['_zend_ast_process'] = 18145184);
+	var _zend_ast_process = (Module['_zend_ast_process'] = 18146640);
 
 	var _zend_ce_sensitive_parameter_value = (Module[
 		'_zend_ce_sensitive_parameter_value'
-	] = 18144152);
+	] = 18145608);
 
-	var _zend_ce_deprecated = (Module['_zend_ce_deprecated'] = 18144156);
+	var _zend_ce_deprecated = (Module['_zend_ce_deprecated'] = 18145612);
 
-	var _zend_ce_nodiscard = (Module['_zend_ce_nodiscard'] = 18144160);
+	var _zend_ce_nodiscard = (Module['_zend_ce_nodiscard'] = 18145616);
 
-	var _zend_ce_attribute = (Module['_zend_ce_attribute'] = 18144164);
+	var _zend_ce_attribute = (Module['_zend_ce_attribute'] = 18145620);
 
 	var _zend_ce_return_type_will_change_attribute = (Module[
 		'_zend_ce_return_type_will_change_attribute'
-	] = 18144224);
+	] = 18145680);
 
 	var _zend_ce_allow_dynamic_properties = (Module[
 		'_zend_ce_allow_dynamic_properties'
-	] = 18144228);
+	] = 18145684);
 
 	var _zend_ce_sensitive_parameter = (Module['_zend_ce_sensitive_parameter'] =
-		18144232);
+		18145688);
 
-	var _zend_ce_override = (Module['_zend_ce_override'] = 18144340);
+	var _zend_ce_override = (Module['_zend_ce_override'] = 18145796);
 
 	var _zend_ce_delayed_target_validation = (Module[
 		'_zend_ce_delayed_target_validation'
-	] = 18144344);
+	] = 18145800);
 
-	var _zend_ce_closure = (Module['_zend_ce_closure'] = 18263244);
+	var _zend_ce_closure = (Module['_zend_ce_closure'] = 18264716);
 
-	var _compiler_globals = (Module['_compiler_globals'] = 18266952);
+	var _compiler_globals = (Module['_compiler_globals'] = 18268424);
 
-	var _executor_globals = (Module['_executor_globals'] = 18267368);
+	var _executor_globals = (Module['_executor_globals'] = 18268840);
 
-	var _zend_compile_file = (Module['_zend_compile_file'] = 18268784);
+	var _zend_compile_file = (Module['_zend_compile_file'] = 18270272);
 
-	var _zend_compile_string = (Module['_zend_compile_string'] = 18268788);
+	var _zend_compile_string = (Module['_zend_compile_string'] = 18270276);
 
-	var _zend_ce_unit_enum = (Module['_zend_ce_unit_enum'] = 18145072);
+	var _zend_ce_unit_enum = (Module['_zend_ce_unit_enum'] = 18146528);
 
-	var _zend_ce_backed_enum = (Module['_zend_ce_backed_enum'] = 18145076);
+	var _zend_ce_backed_enum = (Module['_zend_ce_backed_enum'] = 18146532);
 
 	var _zend_enum_object_handlers = (Module['_zend_enum_object_handlers'] =
-		18145080);
+		18146536);
 
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 18263372);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 18264844);
 
-	var _zend_ce_error = (Module['_zend_ce_error'] = 18263496);
+	var _zend_ce_error = (Module['_zend_ce_error'] = 18264968);
 
-	var _zend_ce_parse_error = (Module['_zend_ce_parse_error'] = 18263360);
+	var _zend_ce_parse_error = (Module['_zend_ce_parse_error'] = 18264832);
 
-	var _zend_ce_compile_error = (Module['_zend_ce_compile_error'] = 18263364);
+	var _zend_ce_compile_error = (Module['_zend_ce_compile_error'] = 18264836);
 
 	var _zend_throw_exception_hook = (Module['_zend_throw_exception_hook'] =
-		18263368);
+		18264840);
 
-	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 18263376);
+	var _zend_ce_throwable = (Module['_zend_ce_throwable'] = 18264848);
 
-	var _zend_ce_type_error = (Module['_zend_ce_type_error'] = 18263380);
+	var _zend_ce_type_error = (Module['_zend_ce_type_error'] = 18264852);
 
 	var _zend_ce_argument_count_error = (Module[
 		'_zend_ce_argument_count_error'
-	] = 18263384);
+	] = 18264856);
 
 	var _zend_ce_error_exception = (Module['_zend_ce_error_exception'] =
-		18263492);
+		18264964);
 
-	var _zend_ce_value_error = (Module['_zend_ce_value_error'] = 18263500);
+	var _zend_ce_value_error = (Module['_zend_ce_value_error'] = 18264972);
 
 	var _zend_ce_arithmetic_error = (Module['_zend_ce_arithmetic_error'] =
-		18263504);
+		18264976);
 
 	var _zend_ce_division_by_zero_error = (Module[
 		'_zend_ce_division_by_zero_error'
-	] = 18263508);
+	] = 18264980);
 
 	var _zend_ce_unhandled_match_error = (Module[
 		'_zend_ce_unhandled_match_error'
-	] = 18263512);
+	] = 18264984);
 
 	var _zend_ce_request_parse_body_exception = (Module[
 		'_zend_ce_request_parse_body_exception'
-	] = 18263516);
+	] = 18264988);
 
-	var _zend_execute_ex = (Module['_zend_execute_ex'] = 18265312);
+	var _zend_execute_ex = (Module['_zend_execute_ex'] = 18268400);
 
-	var _zend_execute_internal = (Module['_zend_execute_internal'] = 18265316);
+	var _zend_execute_internal = (Module['_zend_execute_internal'] = 18268404);
 
-	var _zend_autoload = (Module['_zend_autoload'] = 18265320);
+	var _zend_autoload = (Module['_zend_autoload'] = 18268408);
 
-	var _zend_pass_function = (Module['_zend_pass_function'] = 17626224);
+	var _zend_pass_function = (Module['_zend_pass_function'] = 17629552);
 
 	var _zend_touch_vm_stack_data = (Module['_zend_touch_vm_stack_data'] =
-		18264256);
+		18267344);
 
-	var _zend_extensions = (Module['_zend_extensions'] = 18263212);
+	var _zend_extensions = (Module['_zend_extensions'] = 18264684);
 
-	var _zend_extension_flags = (Module['_zend_extension_flags'] = 18263200);
+	var _zend_extension_flags = (Module['_zend_extension_flags'] = 18264672);
 
 	var _zend_internal_function_extension_handles = (Module[
 		'_zend_internal_function_extension_handles'
-	] = 18263208);
+	] = 18264680);
 
 	var _zend_op_array_extension_handles = (Module[
 		'_zend_op_array_extension_handles'
-	] = 18263204);
+	] = 18264676);
 
-	var _zend_ce_fiber = (Module['_zend_ce_fiber'] = 18260080);
+	var _zend_ce_fiber = (Module['_zend_ce_fiber'] = 18261544);
 
-	var _zend_flf_count = (Module['_zend_flf_count'] = 18258168);
+	var _zend_flf_count = (Module['_zend_flf_count'] = 18259624);
 
-	var _zend_flf_capacity = (Module['_zend_flf_capacity'] = 18258172);
+	var _zend_flf_capacity = (Module['_zend_flf_capacity'] = 18259628);
 
-	var _zend_flf_handlers = (Module['_zend_flf_handlers'] = 18258176);
+	var _zend_flf_handlers = (Module['_zend_flf_handlers'] = 18259632);
 
-	var _zend_flf_functions = (Module['_zend_flf_functions'] = 18258180);
+	var _zend_flf_functions = (Module['_zend_flf_functions'] = 18259636);
 
-	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 18265712);
+	var _gc_collect_cycles = (Module['_gc_collect_cycles'] = 18266120);
 
 	var ___jit_debug_descriptor = (Module['___jit_debug_descriptor'] =
-		18137904);
+		18139456);
 
-	var _zend_ce_generator = (Module['_zend_ce_generator'] = 18258184);
+	var _zend_ce_generator = (Module['_zend_ce_generator'] = 18259640);
 
 	var _zend_ce_ClosedGeneratorException = (Module[
 		'_zend_ce_ClosedGeneratorException'
-	] = 18258188);
+	] = 18259644);
 
-	var _zend_empty_array = (Module['_zend_empty_array'] = 17641536);
+	var _zend_empty_array = (Module['_zend_empty_array'] = 17628672);
 
 	var _zend_inheritance_cache_add = (Module['_zend_inheritance_cache_add'] =
-		18263356);
+		18264828);
 
 	var _zend_inheritance_cache_get = (Module['_zend_inheritance_cache_get'] =
-		18263352);
+		18264824);
 
-	var _ini_scanner_globals = (Module['_ini_scanner_globals'] = 18150144);
+	var _ini_scanner_globals = (Module['_ini_scanner_globals'] = 18151600);
 
 	var _zend_ce_internal_iterator = (Module['_zend_ce_internal_iterator'] =
-		18144728);
+		18146184);
 
-	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 18144732);
+	var _zend_ce_traversable = (Module['_zend_ce_traversable'] = 18146188);
 
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 18144736);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 18146192);
 
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 18144740);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 18146196);
 
-	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 18144744);
+	var _zend_ce_serializable = (Module['_zend_ce_serializable'] = 18146200);
 
-	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 18144748);
+	var _zend_ce_arrayaccess = (Module['_zend_ce_arrayaccess'] = 18146204);
 
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 18144752);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 18146208);
 
-	var _zend_ce_stringable = (Module['_zend_ce_stringable'] = 18144756);
+	var _zend_ce_stringable = (Module['_zend_ce_stringable'] = 18146212);
 
 	var _language_scanner_globals = (Module['_language_scanner_globals'] =
-		18145188);
+		18146644);
 
-	var _le_index_ptr = (Module['_le_index_ptr'] = 18268848);
+	var _le_index_ptr = (Module['_le_index_ptr'] = 18270336);
 
 	var _zend_multibyte_encoding_utf32be = (Module[
 		'_zend_multibyte_encoding_utf32be'
-	] = 16327724);
+	] = 16329260);
 
 	var _zend_multibyte_encoding_utf32le = (Module[
 		'_zend_multibyte_encoding_utf32le'
-	] = 16327728);
+	] = 16329264);
 
 	var _zend_multibyte_encoding_utf16be = (Module[
 		'_zend_multibyte_encoding_utf16be'
-	] = 16327732);
+	] = 16329268);
 
 	var _zend_multibyte_encoding_utf16le = (Module[
 		'_zend_multibyte_encoding_utf16le'
-	] = 16327736);
+	] = 16329272);
 
 	var _zend_multibyte_encoding_utf8 = (Module[
 		'_zend_multibyte_encoding_utf8'
-	] = 16327740);
+	] = 16329276);
 
-	var _std_object_handlers = (Module['_std_object_handlers'] = 17624928);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 17626464);
 
 	var _zend_observer_fcall_internal_function_extension = (Module[
 		'_zend_observer_fcall_internal_function_extension'
-	] = 18145064);
+	] = 18146520);
 
 	var _zend_observer_fcall_op_array_extension = (Module[
 		'_zend_observer_fcall_op_array_extension'
-	] = 18145060);
+	] = 18146516);
 
 	var _zend_observer_function_declared_observed = (Module[
 		'_zend_observer_function_declared_observed'
-	] = 18145068);
+	] = 18146524);
 
 	var _zend_observer_class_linked_observed = (Module[
 		'_zend_observer_class_linked_observed'
-	] = 18145069);
+	] = 18146525);
 
 	var _zend_observer_errors_observed = (Module[
 		'_zend_observer_errors_observed'
-	] = 18145070);
+	] = 18146526);
 
-	var _zend_tolower_map = (Module['_zend_tolower_map'] = 13873328);
+	var _zend_tolower_map = (Module['_zend_tolower_map'] = 13874736);
 
-	var _zend_toupper_map = (Module['_zend_toupper_map'] = 13873584);
+	var _zend_toupper_map = (Module['_zend_toupper_map'] = 13874992);
 
-	var _zend_signal_globals = (Module['_zend_signal_globals'] = 18234120);
+	var _zend_signal_globals = (Module['_zend_signal_globals'] = 18235576);
 
-	var _zend_empty_string = (Module['_zend_empty_string'] = 18265716);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 18266124);
 
-	var _zend_known_strings = (Module['_zend_known_strings'] = 18265720);
+	var _zend_known_strings = (Module['_zend_known_strings'] = 18266128);
 
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		18265788);
+		18266196);
 
 	var _zend_new_interned_string = (Module['_zend_new_interned_string'] =
-		18265784);
+		18266192);
 
 	var _zend_string_init_existing_interned = (Module[
 		'_zend_string_init_existing_interned'
-	] = 18265792);
+	] = 18266200);
 
-	var _zend_one_char_string = (Module['_zend_one_char_string'] = 18265808);
+	var _zend_one_char_string = (Module['_zend_one_char_string'] = 18266208);
 
-	var _zend_system_id = (Module['_zend_system_id'] = 18263168);
+	var _zend_system_id = (Module['_zend_system_id'] = 18264640);
 
-	var _cwd_globals = (Module['_cwd_globals'] = 18146016);
+	var _cwd_globals = (Module['_cwd_globals'] = 18147472);
 
-	var _zend_ce_weakref = (Module['_zend_ce_weakref'] = 18265404);
+	var _zend_ce_weakref = (Module['_zend_ce_weakref'] = 18265812);
 
 	var _zend_printf_to_smart_string = (Module['_zend_printf_to_smart_string'] =
-		18266860);
+		18267260);
 
 	var _zend_printf_to_smart_str = (Module['_zend_printf_to_smart_str'] =
-		18266864);
+		18267264);
 
-	var _zend_write = (Module['_zend_write'] = 18266868);
+	var _zend_write = (Module['_zend_write'] = 18267268);
 
-	var _zend_random_bytes = (Module['_zend_random_bytes'] = 18266852);
+	var _zend_random_bytes = (Module['_zend_random_bytes'] = 18267252);
 
 	var _zend_random_bytes_insecure = (Module['_zend_random_bytes_insecure'] =
-		18266856);
+		18267256);
 
-	var _zend_error_cb = (Module['_zend_error_cb'] = 18266872);
+	var _zend_error_cb = (Module['_zend_error_cb'] = 18267272);
 
-	var _zend_printf = (Module['_zend_printf'] = 18266876);
+	var _zend_printf = (Module['_zend_printf'] = 18267276);
 
-	var _zend_fopen = (Module['_zend_fopen'] = 18266880);
+	var _zend_fopen = (Module['_zend_fopen'] = 18267280);
 
 	var _zend_stream_open_function = (Module['_zend_stream_open_function'] =
-		18266884);
+		18267284);
 
-	var _zend_ticks_function = (Module['_zend_ticks_function'] = 18266896);
+	var _zend_ticks_function = (Module['_zend_ticks_function'] = 18267296);
 
-	var _zend_on_timeout = (Module['_zend_on_timeout'] = 18266900);
+	var _zend_on_timeout = (Module['_zend_on_timeout'] = 18267300);
 
-	var _zend_getenv = (Module['_zend_getenv'] = 18266904);
+	var _zend_getenv = (Module['_zend_getenv'] = 18267304);
 
 	var _zend_interrupt_function = (Module['_zend_interrupt_function'] =
-		18266912);
+		18267312);
 
-	var _zend_resolve_path = (Module['_zend_resolve_path'] = 18266908);
+	var _zend_resolve_path = (Module['_zend_resolve_path'] = 18267308);
 
 	var _zend_map_ptr_static_size = (Module['_zend_map_ptr_static_size'] =
-		18266924);
+		18267324);
 
-	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 18266840);
+	var _zend_post_startup_cb = (Module['_zend_post_startup_cb'] = 18267240);
 
 	var _zend_map_ptr_static_last = (Module['_zend_map_ptr_static_last'] =
-		18266936);
+		18267336);
 
-	var _zend_uv = (Module['_zend_uv'] = 18266940);
+	var _zend_uv = (Module['_zend_uv'] = 18267340);
 
 	var _zend_standard_class_def = (Module['_zend_standard_class_def'] =
-		18266836);
+		18267236);
 
-	var _zend_post_shutdown_cb = (Module['_zend_post_shutdown_cb'] = 18266844);
+	var _zend_post_shutdown_cb = (Module['_zend_post_shutdown_cb'] = 18267244);
 
 	var _zend_accel_schedule_restart_hook = (Module[
 		'_zend_accel_schedule_restart_hook'
-	] = 18266848);
+	] = 18267248);
 
-	var _zend_dtrace_enabled = (Module['_zend_dtrace_enabled'] = 18266941);
+	var _zend_dtrace_enabled = (Module['_zend_dtrace_enabled'] = 18267341);
 
-	var _php_embed_module = (Module['_php_embed_module'] = 18137148);
+	var _php_embed_module = (Module['_php_embed_module'] = 18138700);
 
 	var ___memory_base = (Module['___memory_base'] = 0);
 
 	var ___table_base = (Module['___table_base'] = 1);
 
-	var _stderr = (Module['_stderr'] = 18136672);
+	var _stderr = (Module['_stderr'] = 18138224);
 
-	var _stdout = (Module['_stdout'] = 18136976);
+	var _stdout = (Module['_stdout'] = 18138528);
 
-	var _stdin = (Module['_stdin'] = 18136824);
+	var _stdin = (Module['_stdin'] = 18138376);
 
 	var __playground_zend_side_module_data_exports = (Module[
 		'__playground_zend_side_module_data_exports'
-	] = 17643248);
+	] = 17644800);
 
 	var __playground_zend_side_module_function_exports = (Module[
 		'__playground_zend_side_module_function_exports'
-	] = 17643344);
+	] = 17644896);
 
-	var _z_errmsg = (Module['_z_errmsg'] = 17644336);
+	var _z_errmsg = (Module['_z_errmsg'] = 17645888);
 
-	var _timezone = (Module['_timezone'] = 18604064);
+	var _timezone = (Module['_timezone'] = 18605552);
 
-	var _tzname = (Module['_tzname'] = 18604072);
+	var _tzname = (Module['_tzname'] = 18605560);
 
-	var ___heap_base = 19666336;
+	var ___heap_base = 19667824;
 
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		18617752);
+		18619240);
 
-	var __ZSt7nothrow = (Module['__ZSt7nothrow'] = 16322843);
+	var __ZSt7nothrow = (Module['__ZSt7nothrow'] = 16324379);
 
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
-	] = 18137496);
+	] = 18139048);
 
 	var __ZTVN10__cxxabiv117__class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv117__class_type_infoE'
-	] = 18137456);
+	] = 18139008);
 
 	var __ZTVN10__cxxabiv121__vmi_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
-	] = 18137548);
+	] = 18139100);
 
 	var __ZTISt20bad_array_new_length = (Module[
 		'__ZTISt20bad_array_new_length'
-	] = 18137668);
+	] = 18139220);
 
-	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 18137756);
+	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 18139308);
 
-	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 18137776);
+	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 18139328);
 
 	var wasmImports = {
 		/** @export */ __assert_fail: ___assert_fail,

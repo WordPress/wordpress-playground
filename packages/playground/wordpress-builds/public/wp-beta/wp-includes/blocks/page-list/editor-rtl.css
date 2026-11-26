@@ -1,10 +1,4 @@
 /**
- * Breakpoints & Media Queries
- */
-/**
- * Typography
- */
-/**
  * SCSS Variables.
  *
  * Please use variables from this sheet to ensure consistency across the UI.
@@ -49,50 +43,6 @@
  * React Native specific.
  * These variables do not appear to be used anywhere else.
  */
-/**
-*  Converts a hex value into the rgb equivalent.
-*
-* @param {string} hex - the hexadecimal value to convert
-* @return {string} comma separated rgb values
-*/
-/**
- * Long content fade mixin
- *
- * Creates a fading overlay to signify that the content is longer
- * than the space allows.
- */
-/**
- * Breakpoint mixins
- */
-/**
- * Focus styles.
- */
-/**
- * Standard focus rings for the WordPress Design System.
- *
- * Apply `outset-ring__focus` inside the relevant pseudo-class at the call site,
- * e.g. `&:focus { @include outset-ring__focus(); }`.
- */
-/**
- * Applies editor left position to the selector passed as argument
- */
-/**
- * Styles that are reused verbatim in a few places
- */
-/**
- * Allows users to opt-out of animations via OS-level preferences.
- */
-/**
- * Reset default styles for JavaScript UI based pages.
- * This is a WP-admin agnostic reset
- */
-/**
- * Reset the WP Admin page styles for Gutenberg-like pages.
- */
-/**
- * Creates a checkerboard pattern background to indicate transparency.
- * @param {String} $size - The size of the squares in the checkerboard pattern. Default is 12px.
- */
 .wp-block-navigation.items-justified-space-between .wp-block-page-list > div,
 .wp-block-navigation.items-justified-space-between .wp-block-page-list {
   display: contents;
@@ -108,18 +58,6 @@
 
 .wp-block-pages-list__item__link {
   pointer-events: none;
-}
-
-@media (min-width: 600px) {
-  .wp-block-page-list-modal {
-    max-width: 480px;
-  }
-}
-
-.wp-block-page-list-modal-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
 }
 
 .wp-block-page-list .open-on-click:focus-within > .wp-block-navigation__submenu-container {

@@ -170,7 +170,11 @@ async function buildPackageJson(
 
 	// Preserve optionalDependencies from the original package.json
 	if (originalOptionalDependencies) {
-		packageJson.optionalDependencies = originalOptionalDependencies;
+		packageJson.optionalDependencies = Object.fromEntries(
+			Object.entries(originalOptionalDependencies).filter(([name]) =>
+				sourceDeps?.has(`npm:${name}`)
+			)
+		);
 
 		// Remove optional dependencies from regular dependencies to avoid duplication
 		for (const optionalDep of Object.keys(originalOptionalDependencies)) {

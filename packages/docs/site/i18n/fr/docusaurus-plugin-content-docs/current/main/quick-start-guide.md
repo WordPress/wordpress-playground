@@ -25,7 +25,9 @@ Cette page vous guidera à travers chacun de ces éléments. Ah, et si vous pré
 
 <!-- ## Start a new WordPress site -->
 
-## Commencez un nouveau site WordPress
+<a id="commencez-un-nouveau-site-wordpress"></a>
+
+## Commencez un nouveau site WordPress {#start-a-new-wordpress-site}
 
 <!-- Every time you visit the [official demo on playground.wordpress.net](https://playground.wordpress.net/), you get a fresh WordPress site. -->
 
@@ -57,7 +59,9 @@ Tout ce que vous construisez reste dans votre navigateur et n’est **pas** envo
 
 <!-- ## Try a block, a theme, or a plugin -->
 
-## Essayer un bloc, un thème, ou une extension
+<a id="essayer-un-bloc-un-thème-ou-une-extension"></a>
+
+## Essayer un bloc, un thème, ou une extension {#try-a-block-a-theme-or-a-plugin}
 
 <!-- You can upload any plugin or theme you want in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/). -->
 
@@ -197,7 +201,9 @@ Vous pouvez spécifier des versions majeures comme `wp=6.2` ou `php=8.1` et atte
 
 <!-- ## Import a WXR file -->
 
-## Importer un fichier WXR
+<a id="importer-un-fichier-wxr"></a>
+
+## Importer un fichier WXR {#use-a-specific-wordpress-or-php-version}
 
 <!-- You can import a WordPress export file by uploading a WXR file in [/wp-admin/](https://playground.wordpress.net/?url=/wp-admin/import.php). -->
 

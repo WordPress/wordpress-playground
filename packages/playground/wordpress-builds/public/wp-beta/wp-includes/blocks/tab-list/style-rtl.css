@@ -2,7 +2,6 @@
   box-sizing: border-box;
   color: inherit;
   display: block;
-  width: -moz-max-content;
   width: max-content;
   text-decoration: none;
   cursor: pointer;
@@ -11,8 +10,7 @@
   position: relative;
   border: none;
   background: none;
-  -moz-appearance: none;
-       appearance: none;
+  appearance: none;
   -webkit-appearance: none;
   margin: 0;
   padding: var(--wp--preset--spacing--20, 0.5em) var(--wp--preset--spacing--30, 1em);

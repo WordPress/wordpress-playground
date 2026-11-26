@@ -46,6 +46,27 @@ deployments must retain every origin they still need.
 The previous `PLAYGROUND_CORS_PROXY_SUPPORTED_ORIGINS` string list is no longer
 supported.
 
+### Destination validation
+
+The proxy resolves IPv4 addresses and rejects the request if any returned
+address is private, reserved, or invalid. It pins the selected address for
+the target URL's effective port: the explicit port, or 80 for HTTP and 443
+for HTTPS. Custom ports remain supported. Empty DNS answers and port zero
+are rejected.
+
+cURL is restricted to IPv4 and connects directly to that pinned address.
+Environment HTTP/SOCKS proxy settings are ignored because a forward proxy
+could resolve the hostname independently and bypass destination validation.
+Deployments that require an outbound forward proxy must enforce destination
+validation there before adapting this behavior. IPv6-only targets are not
+supported.
+
+The URL's hostname remains the HTTP and TLS identity; cURL generates the
+`Host` header including a custom port. Redirects are relayed to the caller
+rather than followed by cURL, so a subsequent request goes through validation
+again. Maintain outbound network rules that also deny private, loopback,
+link-local, and metadata destinations as an independent layer of protection.
+
 ### Range requests
 
 The proxy forwards `Range` to the target and relays `206` and `416`
@@ -95,6 +116,15 @@ Request http://127.0.0.1:5263/proxy.php/https://w.org/?test=1 to get the respons
 - Run `dev.sh` to start a local server, then go to http://127.0.0.1:5263/proxy.php/https://w.org/ and confirm it worked.
 - Run `test.sh` to run the PHPUnit tests and the end-to-end tests in `tests/e2e`, confirm they all pass.
 - Run `test-watch.sh` to run PHPUnit tests in watch mode.
+
+Run the suite through Nx with `npm exec -- nx test playground-php-cors-proxy`.
+It requires PHP 8 or newer with curl and sockets, plus PHPUnit.
+
+The custom-port test gives PHP's validation lookup a fixed loopback answer for
+`proxy-target.test`, then uses the real handler to connect to the local
+upstream. The upstream must return 200 and receive the original hostname and
+port in its `Host` header. This verifies custom-port pinning; it does not count
+DNS queries or simulate an attacker changing DNS answers.
 
 ### Design decisions
 

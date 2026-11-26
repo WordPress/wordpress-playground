@@ -381,7 +381,7 @@ foreach ($posts as $post) {
 
 ### নতুন কন্টেন্ট ইম্পোর্ট করুন
 
-আসুন একটি WordPress এক্সপোর্ট (`WXR`) ফাইল ইম্পোর্ট করতে [`importWxr` স্টেপ](/blueprints/steps#ImportWXRStep) ব্যবহার করি যা WordPress থিম পরীক্ষা করতে সাহায্য করে। ফাইলটি [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) রিপোজিটরিতে উপলব্ধ, এবং আপনি এটির `raw.githubusercontent.com` ঠিকানার মাধ্যমে অ্যাক্সেস করতে পারেন: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml)।
+আসুন একটি WordPress এক্সপোর্ট (`WXR`) ফাইল ইম্পোর্ট করতে [`importWxr` স্টেপ](/blueprints/steps#ImportWxrStep) ব্যবহার করি যা WordPress থিম পরীক্ষা করতে সাহায্য করে। ফাইলটি [WordPress/theme-test-data](https://github.com/WordPress/theme-test-data) রিপোজিটরিতে উপলব্ধ, এবং আপনি এটির `raw.githubusercontent.com` ঠিকানার মাধ্যমে অ্যাক্সেস করতে পারেন: [https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml](https://raw.githubusercontent.com/WordPress/theme-test-data/master/themeunittestdata.wordpress.xml)।
 
 এখানে চূড়ান্ত ব্লুপ্রিন্টটি দেখতে এরকম:
 

@@ -42,7 +42,9 @@ import TOCInline from '@theme/TOCInline';
 
 <TOCInline toc={toc} />
 
-### URL 参照
+<a id="url-参照"></a>
+
+### URL 参照 {#urlreference}
 
 <!--
 ### URLReference
@@ -104,7 +106,9 @@ The Playground project provides a [GitHub Proxy](https://playground.wordpress.ne
 </div>
 -->
 
-### コアテーマリファレンス
+<a id="コアテーマリファレンス"></a>
+
+### コアテーマリファレンス {#corethemereference}
 
 <!--
 ### CoreThemeReference
@@ -137,7 +141,9 @@ To use the _CoreThemeReference_ resource, you need to provide the slug of the th
 }
 ```
 
-### コアプラグインリファレンス
+<a id="コアプラグインリファレンス"></a>
+
+### コアプラグインリファレンス {#corepluginreference}
 
 <!--
 ### CorePluginReference

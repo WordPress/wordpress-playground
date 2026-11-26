@@ -1,3 +1,4 @@
+import { getWordPressPopupUrl } from '../../../lib/wordpress-popup';
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
 import { external } from '@wordpress/icons';
 import { useEffect, useState } from 'react';
@@ -104,7 +105,7 @@ export function AdminerButton({
 		const playgroundUrl = await playground.absoluteUrl;
 		if (playgroundUrl) {
 			window.open(
-				`${playgroundUrl}/adminer/`,
+				getWordPressPopupUrl(`${playgroundUrl}/adminer/`),
 				'_blank',
 				'noopener,noreferrer'
 			);

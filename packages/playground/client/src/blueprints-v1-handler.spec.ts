@@ -10,6 +10,9 @@ const mocks = vi.hoisted(() => {
 			isReady: vi.fn(),
 			onDownloadProgress: vi.fn(),
 			prefetchUpdateChecks: vi.fn(),
+			shouldRunStartupBlueprint: vi.fn(),
+			finishSharedRuntimeInitialization: vi.fn(),
+			goTo: vi.fn(),
 		},
 		compileBlueprintV1: vi.fn(),
 		isBlueprintBundle: vi.fn(),
@@ -43,6 +46,10 @@ vi.mock('.', () => ({
 describe('BlueprintsV1Handler', () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mocks.playground.shouldRunStartupBlueprint.mockResolvedValue(true);
+		mocks.playground.finishSharedRuntimeInitialization.mockResolvedValue(
+			undefined
+		);
 		mocks.playground.boot.mockResolvedValue(undefined);
 		mocks.playground.isConnected.mockResolvedValue(undefined);
 		mocks.playground.isReady.mockResolvedValue(undefined);
@@ -70,6 +77,44 @@ describe('BlueprintsV1Handler', () => {
 	afterEach(() => {
 		vi.unstubAllGlobals();
 		vi.useRealTimers();
+	});
+
+	it('attaches to a shared runtime without repeating startup Blueprint steps', async () => {
+		mocks.playground.shouldRunStartupBlueprint.mockResolvedValue(false);
+		mocks.createBlueprintReflection.mockResolvedValue({
+			getDeclaration: () => ({ landingPage: '/existing/' }),
+		});
+		const handler = new BlueprintsV1Handler({
+			iframe: createIframe(),
+			remoteUrl: 'http://example.com/remote.html',
+			workerMode: 'shared',
+			scope: 'site',
+		});
+		expect(
+			await handler.bootPlayground(
+				createIframe(),
+				createProgressTracker()
+			)
+		).toBe(mocks.playground);
+		expect(mocks.runBlueprintV1Steps).not.toHaveBeenCalled();
+		expect(mocks.playground.goTo).toHaveBeenCalledWith('/existing/');
+	});
+
+	it('releases waiting shared connections when startup Blueprint execution fails', async () => {
+		const failure = new Error('Blueprint download failed');
+		mocks.runBlueprintV1Steps.mockRejectedValueOnce(failure);
+		const handler = new BlueprintsV1Handler({
+			iframe: createIframe(),
+			remoteUrl: 'http://example.com/remote.html',
+			workerMode: 'shared',
+			scope: 'site',
+		});
+		await expect(
+			handler.bootPlayground(createIframe(), createProgressTracker())
+		).rejects.toBe(failure);
+		expect(
+			mocks.playground.finishSharedRuntimeInitialization
+		).toHaveBeenCalledTimes(1);
 	});
 
 	it('does not prefetch WordPress updates for PHP-only blueprints', async () => {

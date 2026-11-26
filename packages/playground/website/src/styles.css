@@ -322,10 +322,6 @@ h4 {
 	transform: translateY(2px); /* Button is pressed down a bit */
 }
 
-.typography p {
-	margin: 10px 0;
-}
-
 /* WKWebView / in-app browser notice */
 
 #wkwebview-notice {

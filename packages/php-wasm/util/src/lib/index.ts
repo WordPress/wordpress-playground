@@ -9,6 +9,7 @@ export {
 	normalizePath,
 	isParentOf,
 	resolvePathUnder,
+	joinPathUnderRoot,
 	ensureAbsolutePath,
 	toPosixPath,
 } from './paths';

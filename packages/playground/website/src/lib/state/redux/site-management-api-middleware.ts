@@ -29,7 +29,6 @@ import {
 	preserveSite,
 	setTemporarySiteSpec,
 	setStoredSiteSpec,
-	deriveSiteNameFromSlug,
 	getSitePublicPersistence,
 	isAutosavedSite,
 	isStoredSite,
@@ -330,8 +329,8 @@ export function createSitesAPI(
 		 * Autosave keeps the current browser URL unchanged unless the caller
 		 * asks to route to the new stored site. Concurrent requests for one site
 		 * share the filesystem copy and metadata update. Routing runs when any caller
-		 * requests it. Pruning is serialized across the store and protects the slugs
-		 * requested by every concurrent autosave.
+		 * requests it and the site is still active. Pruning is serialized across the
+		 * store and protects the slugs requested by every concurrent autosave.
 		 *
 		 * @param siteSlug Optional slug. Uses the active site when omitted.
 		 * @param options Optional URL update and pruning behavior.
@@ -430,12 +429,21 @@ export function createSitesAPI(
 					}
 
 					let urlWasUpdated = false;
-					if (requests.urlUpdateRequested) {
+					if (
+						requests.urlUpdateRequested &&
+						selectActiveSite(getState())?.slug ===
+							siteToAutosave.slug
+					) {
 						redirectTo(PlaygroundRoute.site(updatedSite));
 						urlWasUpdated = true;
 					}
 					await runStoreWidePruning();
-					if (requests.urlUpdateRequested && !urlWasUpdated) {
+					if (
+						requests.urlUpdateRequested &&
+						!urlWasUpdated &&
+						selectActiveSite(getState())?.slug ===
+							siteToAutosave.slug
+					) {
 						// The URL request arrived while pruning was pending.
 						redirectTo(PlaygroundRoute.site(updatedSite));
 					}
@@ -805,17 +813,23 @@ export function createSitesAPI(
 		/**
 		 * Creates a new temporary site and boots it.
 		 *
-		 * @param requestedSiteSlug Optional slug hint. When omitted, the
-		 *   Blueprint title becomes the site name if available; otherwise a
-		 *   random name is generated.
+		 * @param requestedSiteSlug Optional slug hint. Names are generated separately.
+		 *   When omitted, a Blueprint title replaces the random name if available.
 		 * @param settings Optional site settings.
+		 * @param options Set updateUrl to false when a clone must boot without routing.
 		 * @returns The new site's slug.
 		 */
 		async createNewTemporarySite(
 			requestedSiteSlug?: string,
-			settings?: SiteSettings
+			settings?: SiteSettings,
+			options: { updateUrl?: boolean } = {}
 		): Promise<string> {
-			return await createTemporarySite(requestedSiteSlug, settings);
+			return await createTemporarySite(
+				requestedSiteSlug,
+				settings,
+				undefined,
+				options
+			);
 		},
 
 		/**
@@ -825,9 +839,8 @@ export function createSitesAPI(
 		 * autosave. First boot creates the WordPress files from the setup URL,
 		 * then stores that initialized filesystem in OPFS for later boots.
 		 *
-		 * @param requestedSiteSlug Optional slug hint. When omitted, the
-		 *   Blueprint title becomes the site name if available; otherwise a
-		 *   random name is generated.
+		 * @param requestedSiteSlug Optional slug hint. Names are generated separately.
+		 *   When omitted, a Blueprint title replaces the random name if available.
 		 * @param settings Optional site settings.
 		 * @param options Optional persistence, routing, and pruning behavior.
 		 * @returns The new site's slug.
@@ -941,14 +954,14 @@ export function createSitesAPI(
 		},
 	};
 
+	/** Boot a temporary site, optionally keeping the current browser URL during setup. */
 	async function createTemporarySite(
 		requestedSiteSlug?: string,
 		settings?: SiteSettings,
-		initialize?: (playground: PlaygroundClient) => Promise<void>
+		initialize?: (playground: PlaygroundClient) => Promise<void>,
+		options: { updateUrl?: boolean } = {}
 	): Promise<string> {
-		const siteName = requestedSiteSlug
-			? deriveSiteNameFromSlug(requestedSiteSlug)
-			: randomSiteName();
+		const siteName = randomSiteName();
 		const url = getSetupUrlForNewSite(settings, {
 			baseUrl: new URL(window.location.href),
 		});
@@ -959,7 +972,9 @@ export function createSitesAPI(
 				replaceExisting: Boolean(initialize),
 			})
 		);
-		await activateNewSite(newSiteInfo.slug, initialize);
+		await activateNewSite(newSiteInfo.slug, initialize, {
+			updateUrl: options.updateUrl,
+		});
 		return newSiteInfo.slug;
 	}
 
@@ -979,9 +994,7 @@ export function createSitesAPI(
 				'Cannot create a saved Playground because browser storage is not available.'
 			);
 		}
-		const siteName = requestedSiteSlug
-			? deriveSiteNameFromSlug(requestedSiteSlug)
-			: randomSiteName();
+		const siteName = randomSiteName();
 		const url = getSetupUrlForNewSite(settings, {
 			baseUrl: new URL(window.location.href),
 			onlySetupParams: true,

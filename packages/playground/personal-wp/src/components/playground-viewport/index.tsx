@@ -1,3 +1,4 @@
+import { wordPressSiteUrl } from '@wp-playground/remote/config';
 import {
 	memo,
 	useCallback,
@@ -7,7 +8,7 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import type { KeyboardEvent, RefObject } from 'react';
+import type { KeyboardEvent, ReactNode, RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
 	type GitDirectoryReference,
@@ -35,14 +36,7 @@ import {
 	updateSiteMetadata,
 } from '../../lib/state/redux/slice-sites';
 import { extractGitDirectorySource } from '../../lib/state/redux/git-directory-sources';
-import {
-	getMainTabUnavailableMessage,
-	markMainTabReady,
-	refreshMainTabStatus,
-	requestRemoteBlueprintInstall,
-	setInstallBlueprintRequestCallback,
-	setUserBlueprintInstallCallback,
-} from '../../lib/state/redux/tab-coordinator';
+import { setUserBlueprintInstallCallback } from '../../lib/state/redux/runtime-actions';
 import classNames from 'classnames';
 import { SiteErrorModal } from '../site-error-modal';
 import {
@@ -63,7 +57,6 @@ import {
 	getBlueprintInstallPreview,
 	getBlueprintInstallSource,
 	getTrustedBlueprintInstallSource,
-	prepareBlueprintForRemoteInstall,
 	resolveBlueprintForInstallExecution,
 	shouldSkipBlueprintInstallConfirmation,
 } from './blueprint-install';
@@ -1058,17 +1051,15 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
+	const [dismissedExistingSitePrompt, setDismissedExistingSitePrompt] =
+		useState<string | null>(null);
 	const firstTemporarySiteCreated = useAppSelector(
 		(state) => state.sites.firstTemporarySiteCreated
 	);
 	const clientInfo = useAppSelector(getActiveClientInfo);
 	const url = clientInfo?.url;
 	const playground = clientInfo?.client;
-	const isDependentMode = clientInfo?.isDependentMode ?? false;
-	const mainTabStatus =
-		clientInfo?.mainTabStatus ??
-		(isDependentMode ? 'missing' : 'connected');
-	const hasLocalRuntimeClient = !isDependentMode && !!playground;
+	const hasLocalRuntimeClient = !!playground;
 	const isReturningUser =
 		site?.metadata.storage === 'opfs' && !firstTemporarySiteCreated;
 	const forceWelcome = new URLSearchParams(window.location.search).has(
@@ -1083,9 +1074,11 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const { performBackup } = useBackup();
 	// performBackup() is a no-op until WordPress has booted and a client can
 	// serve the request, so only ask the user to click once that is the case.
-	const canBackupNow =
-		!isBooting &&
-		(isDependentMode ? mainTabStatus === 'connected' : !!playground);
+	const canBackupNow = !isBooting && !!playground;
+	const showExistingSitePrompt =
+		firstTemporarySiteCreated &&
+		dismissedExistingSitePrompt !== siteSlug &&
+		canBackupNow;
 	const hasActiveSiteError = activeSiteError && activeSiteSlug === siteSlug;
 	// A relay request can arrive while the site is still coming up, and it has
 	// to read the state as of that moment rather than as of the render that
@@ -1405,109 +1398,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		playground,
 	]);
 
-	const applyBlueprintInMainTab = useCallback(
-		async (
-			blueprintUrl: string,
-			options: ApplyBlueprintInMainTabOptions = {}
-		): Promise<InstallBlueprintResult> => {
-			clearInstallBannerResetTimeout();
-			try {
-				setBlueprintInstallStatus('Installing app\u2026');
-				const install = await prepareBlueprintForRemoteInstall(
-					blueprintUrl,
-					corsProxyUrl
-				);
-				const result = await requestRemoteBlueprintInstall(
-					siteSlug,
-					install.blueprintUrl,
-					{
-						usageStatsRequestSource:
-							options.usageStatsRequestSource,
-					}
-				);
-				if (result.status === 'error') {
-					setBlueprintInstallStatus('Installation failed');
-					scheduleInstallBannerReset();
-				} else {
-					if (install.landingPage) {
-						if (!playground) {
-							setBlueprintInstallStatus('Installation failed');
-							scheduleInstallBannerReset();
-							return {
-								status: 'error',
-								error: 'The app was installed, but this tab could not open it.',
-							};
-						}
-						setBlueprintInstallStatus('Opening app\u2026');
-						await playground.goTo(install.landingPage);
-					}
-					setBlueprintInstallStatus('App installed');
-					scheduleInstallBannerReset();
-				}
-				return result;
-			} catch (e) {
-				setBlueprintInstallStatus('Installation failed');
-				scheduleInstallBannerReset();
-				return {
-					status: 'error',
-					error: getErrorMessage(e),
-				};
-			}
-		},
-		[
-			clearInstallBannerResetTimeout,
-			playground,
-			scheduleInstallBannerReset,
-			setBlueprintInstallStatus,
-			siteSlug,
-		]
-	);
-
-	const installBlueprintFromUserAction = useCallback(
-		async (blueprintUrl: string): Promise<InstallBlueprintResult> => {
-			if (hasLocalRuntimeClient) {
-				return applyBlueprint(blueprintUrl);
-			}
-			if (!isDependentMode) {
-				return {
-					status: 'error',
-					error: 'Playground is not ready.',
-				};
-			}
-
-			const status = await refreshMainTabStatus();
-			if (status !== 'connected') {
-				return {
-					status: 'error',
-					error: getMainTabUnavailableMessage(status),
-				};
-			}
-			return applyBlueprintInMainTab(blueprintUrl);
-		},
-		[
-			applyBlueprint,
-			applyBlueprintInMainTab,
-			hasLocalRuntimeClient,
-			isDependentMode,
-		]
-	);
-
-	useEffect(() => {
-		if (!hasLocalRuntimeClient) {
-			return;
-		}
-		setInstallBlueprintRequestCallback((blueprintUrl, options) =>
-			applyBlueprint(blueprintUrl, {
-				allowNavigation: false,
-				usageStatsTrigger: 'dependent-tab-request',
-				usageStatsRequestSource: options?.usageStatsRequestSource,
-			})
-		);
-		void markMainTabReady();
-		return () => {
-			setInstallBlueprintRequestCallback(null);
-		};
-	}, [applyBlueprint, hasLocalRuntimeClient]);
+	const installBlueprintFromUserAction = applyBlueprint;
 
 	useEffect(() => {
 		setUserBlueprintInstallCallback(installBlueprintFromUserAction);
@@ -1548,11 +1439,8 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		};
 	}, [
 		applyBlueprint,
-		applyBlueprintInMainTab,
 		canBackupNow,
 		hasLocalRuntimeClient,
-		isDependentMode,
-		mainTabStatus,
 		performBackup,
 		requestBlueprintInstallConfirmation,
 		siteSlug,
@@ -1564,29 +1452,14 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		message: InstallBlueprintMessageData
 	) {
 		const { blueprintUrl, requestId } = message;
-		let installLocally = hasLocalRuntimeClient;
-		if (!installLocally) {
-			if (!isDependentMode) {
-				postInstallBlueprintResult(event, {
-					blueprintUrl,
-					requestId,
-					status: 'error',
-					error: 'Playground is not ready.',
-				});
-				return;
-			}
-
-			const status = await refreshMainTabStatus();
-			if (status !== 'connected') {
-				postInstallBlueprintResult(event, {
-					blueprintUrl,
-					requestId,
-					status: 'error',
-					error: getMainTabUnavailableMessage(status),
-				});
-				return;
-			}
-			installLocally = false;
+		if (!hasLocalRuntimeClient) {
+			postInstallBlueprintResult(event, {
+				blueprintUrl,
+				requestId,
+				status: 'error',
+				error: 'Playground is not ready.',
+			});
+			return;
 		}
 
 		const skipConfirmation = shouldSkipConfirmationForInstallMessage(
@@ -1621,21 +1494,16 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 		postInstallBlueprintResult(event, {
 			blueprintUrl,
 			requestId,
-			...(installLocally
-				? await applyBlueprint(blueprintUrl, {
-						usageStatsRequestSource,
-					})
-				: await applyBlueprintInMainTab(blueprintUrl, {
-						usageStatsRequestSource,
-					})),
+			...(await applyBlueprint(blueprintUrl, {
+				usageStatsRequestSource,
+			})),
 		});
 	}
 
 	/**
 	 * Zip the current site for a `backup-site` relay message and report back.
 	 *
-	 * Runs the same backup as the Site Tools button, so a dependent tab
-	 * forwards to the active tab and the download appears there.
+	 * Runs the same backup as the Site Tools button in the requesting tab.
 	 */
 	async function backupSiteFromRelay(
 		event: MessageEvent,
@@ -1649,9 +1517,7 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 			postBackupSiteResult(event, {
 				requestId,
 				status: 'error',
-				error: isDependentMode
-					? getMainTabUnavailableMessage(mainTabStatus)
-					: 'Playground is not ready.',
+				error: 'Playground is not ready.',
 			});
 			return;
 		}
@@ -1735,10 +1601,6 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 					onStart={() => setIsBooting(false)}
 				/>
 			) : null}
-			<MainTabRecoveryNotice
-				isDependentMode={isDependentMode}
-				mainTabStatus={mainTabStatus}
-			/>
 			<div
 				className={classNames(css.sidebarLatch, {
 					[css.sidebarLatchHidden]: siteManagerIsOpen,
@@ -1762,15 +1624,53 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				>
 					{playgroundLogo({ width: 24, height: 24 })}
 				</Button>
-				{autoBackupDue && canBackupNow && (
+				{showExistingSitePrompt ? (
+					<ExistingSitePrompt
+						onDismiss={() =>
+							setDismissedExistingSitePrompt(siteSlug)
+						}
+						onOpenSiteTools={() =>
+							dispatch(setSiteManagerOpen(true))
+						}
+					/>
+				) : autoBackupDue && canBackupNow ? (
 					<AutoBackupPrompt
-						playground={isDependentMode ? null : playground}
+						playground={playground}
 						onDownload={performBackup}
 						onDismiss={() => dispatch(setAutoBackupDue(false))}
 					/>
-				)}
+				) : null}
 			</div>
 		</div>
+	);
+}
+
+function ExistingSitePrompt({
+	onDismiss,
+	onOpenSiteTools,
+}: {
+	onDismiss: () => void;
+	onOpenSiteTools: () => void;
+}) {
+	return (
+		<SitePrompt
+			onDismiss={onDismiss}
+			dismissLabel="Dismiss existing site reminder"
+		>
+			<strong>Already use My WordPress?</strong>{' '}
+			<a className={css.sitePromptLink} href="/connect">
+				Connect to your existing site
+			</a>{' '}
+			in another browser, or import a backup in{' '}
+			<button
+				type="button"
+				className={css.sitePromptLink}
+				onClick={onOpenSiteTools}
+			>
+				Site Tools
+			</button>
+			.
+		</SitePrompt>
 	);
 }
 
@@ -1801,23 +1701,40 @@ function AutoBackupPrompt({
 	}, [playground]);
 
 	return (
-		<div className={css.autoBackupPrompt} role="status" aria-live="polite">
-			<p className={css.autoBackupPromptText}>
-				<strong>Welcome back!</strong> It is time for a backup.{' '}
-				<button
-					type="button"
-					className={css.autoBackupPromptLink}
-					onClick={onDownload}
-				>
-					Click here to download it
-				</button>
-				{sizeEstimate !== null && ` (~${formatBytes(sizeEstimate, 0)})`}
-				{'.'}
-			</p>
+		<SitePrompt
+			onDismiss={onDismiss}
+			dismissLabel="Dismiss backup reminder"
+		>
+			<strong>Welcome back!</strong> It is time for a backup.{' '}
 			<button
 				type="button"
-				className={css.autoBackupPromptDismiss}
-				aria-label="Dismiss backup reminder"
+				className={css.sitePromptLink}
+				onClick={onDownload}
+			>
+				Click here to download it
+			</button>
+			{sizeEstimate !== null && ` (~${formatBytes(sizeEstimate, 0)})`}
+			{'.'}
+		</SitePrompt>
+	);
+}
+
+function SitePrompt({
+	children,
+	onDismiss,
+	dismissLabel,
+}: {
+	children: ReactNode;
+	onDismiss: () => void;
+	dismissLabel: string;
+}) {
+	return (
+		<div className={css.sitePrompt} role="status" aria-live="polite">
+			<p className={css.sitePromptText}>{children}</p>
+			<button
+				type="button"
+				className={css.sitePromptDismiss}
+				aria-label={dismissLabel}
 				onClick={onDismiss}
 			>
 				×
@@ -2204,59 +2121,6 @@ function BlueprintInstallDialog({
 	);
 }
 
-function MainTabRecoveryNotice({
-	isDependentMode,
-	mainTabStatus,
-}: {
-	isDependentMode: boolean;
-	mainTabStatus: 'connected' | 'booting' | 'missing';
-}) {
-	if (!isDependentMode || mainTabStatus === 'connected') {
-		return null;
-	}
-
-	const isMissing = mainTabStatus === 'missing';
-
-	return (
-		<div className={css.mainTabNotice} role="status" aria-live="polite">
-			<div className={css.mainTabNoticeText}>
-				<strong>
-					{isMissing
-						? 'The active WordPress tab was disconnected.'
-						: 'The active WordPress tab is reconnecting.'}
-				</strong>
-				<span>
-					{isMissing
-						? ' This page is preserved, but WordPress cannot handle new requests until a tab reconnects.'
-						: ' This page is preserved while WordPress starts again.'}
-				</span>
-			</div>
-			{isMissing && (
-				<div className={css.mainTabNoticeActions}>
-					<button
-						type="button"
-						onClick={() => window.location.reload()}
-					>
-						Reload this tab
-					</button>
-					<button
-						type="button"
-						onClick={() =>
-							window.open(
-								window.location.href,
-								'_blank',
-								'noopener,noreferrer'
-							)
-						}
-					>
-						Open new tab
-					</button>
-				</div>
-			)}
-		</div>
-	);
-}
-
 type RelayMessageData = {
 	type: 'relay';
 	relayType?: unknown;
@@ -2297,10 +2161,6 @@ type BlueprintInstallPreviewState =
 type ApplyBlueprintOptions = {
 	allowNavigation?: boolean;
 	usageStatsTrigger?: Exclude<BlueprintInstallUsageStatsTrigger, 'url'>;
-	usageStatsRequestSource?: BlueprintInstallUsageStatsRequestSource;
-};
-
-type ApplyBlueprintInMainTabOptions = {
 	usageStatsRequestSource?: BlueprintInstallUsageStatsRequestSource;
 };
 
@@ -2576,6 +2436,7 @@ export const JustViewport = function JustViewport({
 		<>
 			<iframe
 				key={siteSlug}
+				allow={`loopback-network 'self' ${wordPressSiteUrl}`}
 				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
 				className={classNames('playground-viewport', css.fullSize, {
 					[css.viewportLoading]: isLoading,

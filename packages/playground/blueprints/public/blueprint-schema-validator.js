@@ -58,7 +58,7 @@ const schema11 = {
 								{ type: 'string', const: 'latest' },
 							],
 							description:
-								'The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.',
+								'The preferred PHP version to use. If not specified, the recommended PHP version for WordPress will be used. Use `latest` for the latest supported version.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.',
 						},
 						wp: {
 							anyOf: [
@@ -522,7 +522,7 @@ const schema11 = {
 							type: 'string',
 							enum: ['rewrite-wp-config', 'define-before-run'],
 							description:
-								"The method of defining the constants in wp-config.php. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php.",
+								"How Playground defines the constants.\n\n- `define-before-run` (default) uses PHP's `auto_prepend_file` setting to define   constants with string, number, or boolean values before the requested script   runs. These values take precedence over later definitions in `wp-config.php`.   This method skips `null`, arrays, and objects. Use it to keep `wp-config.php`   intact, for example when working with a mounted project.\n\n- `rewrite-wp-config` adds or updates the corresponding `define()` calls in   `wp-config.php`. Use it to replace an existing definition in that file or to   keep the constants in a `wp-config.php` you plan to use outside Playground.",
 						},
 						virtualize: {
 							type: 'boolean',
@@ -1259,7 +1259,8 @@ const schema11 = {
 						step: { type: 'string', const: 'setSiteLanguage' },
 						language: {
 							type: 'string',
-							description: "The language to set, e.g. 'en_US'",
+							description:
+								"The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available translation using navigator.languages, in preference order, with regional language fallbacks. Falls back to 'en_US' if no match or browser is unavailable.",
 						},
 					},
 					required: ['language', 'step'],
@@ -1586,7 +1587,7 @@ const schema12 = {
 						{ type: 'string', const: 'latest' },
 					],
 					description:
-						'The preferred PHP version to use. If not specified, the latest supported version will be used.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.',
+						'The preferred PHP version to use. If not specified, the recommended PHP version for WordPress will be used. Use `latest` for the latest supported version.\n\nNote: PHP 7.2 and 7.3 are deprecated and will be automatically upgraded to 7.4.',
 				},
 				wp: {
 					anyOf: [
@@ -4655,7 +4656,7 @@ const schema33 = {
 					type: 'string',
 					enum: ['rewrite-wp-config', 'define-before-run'],
 					description:
-						"The method of defining the constants in wp-config.php. Possible values are:\n\n- rewrite-wp-config: Default. Rewrites the wp-config.php file to                      explicitly call define() with the requested                      name and value. This method alters the file                      on the disk, but it doesn't conflict with                      existing define() calls in wp-config.php.\n\n- define-before-run: Defines the constant before running the requested                      script. It doesn't alter any files on the disk, but                      constants defined this way may conflict with existing                      define() calls in wp-config.php.",
+						"How Playground defines the constants.\n\n- `define-before-run` (default) uses PHP's `auto_prepend_file` setting to define   constants with string, number, or boolean values before the requested script   runs. These values take precedence over later definitions in `wp-config.php`.   This method skips `null`, arrays, and objects. Use it to keep `wp-config.php`   intact, for example when working with a mounted project.\n\n- `rewrite-wp-config` adds or updates the corresponding `define()` calls in   `wp-config.php`. Use it to replace an existing definition in that file or to   keep the constants in a `wp-config.php` you plan to use outside Playground.",
 				},
 				virtualize: {
 					type: 'boolean',
@@ -5366,7 +5367,8 @@ const schema33 = {
 				step: { type: 'string', const: 'setSiteLanguage' },
 				language: {
 					type: 'string',
-					description: "The language to set, e.g. 'en_US'",
+					description:
+						"The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available translation using navigator.languages, in preference order, with regional language fallbacks. Falls back to 'en_US' if no match or browser is unavailable.",
 				},
 			},
 			required: ['language', 'step'],

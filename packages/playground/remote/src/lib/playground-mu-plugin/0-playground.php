@@ -168,6 +168,86 @@ add_action('admin_print_scripts', function () {
 });
 
 /**
+ * Let older editors reuse previews after the sandbox server redirects them to the app.
+ *
+ * Core before 7.1 reads the preview document without checking its origin. A reused
+ * app-origin tab throws before the editor can save. Provide only the window members
+ * these preview buttons use, discarding the interstitial when the tab is cross-origin.
+ * Navigation still uses Core's original URL and the server's general redirect fallback.
+ */
+function playground_legacy_preview_windows() {
+	if (!defined('PLAYGROUND_PARENT_ORIGIN') ||
+		version_compare($GLOBALS['wp_version'], '7.1-alpha', '>=')) {
+		return;
+	}
+	if (!is_admin()) {
+		if (is_preview() && get_the_ID()) {
+			?>
+			<script>
+				// Core resets the preview's name; direct tabs must keep the site's suffix.
+				// In a wrapper, only its top-level window participates in named-tab reuse.
+				if (window === window.top) {
+					window.name = <?php echo json_encode('wp-preview-' . get_the_ID() . '-' . home_url()); ?>;
+				}
+			</script>
+			<?php
+		}
+		return;
+	}
+	?>
+	<script>
+		(function () {
+			const open = window.open;
+			const siteUrl = <?php echo json_encode(home_url()); ?>;
+			document.addEventListener('DOMContentLoaded', () => {
+				const preview = document.getElementById('post-preview');
+				if (preview && preview.target.startsWith('wp-preview-')) {
+					// Classic Core copies this target to form#post before submitting it.
+					preview.target = previewTarget(preview.target);
+				}
+			});
+			window.open = function (url, target, features) {
+				if (typeof target !== 'string' || !target.startsWith('wp-preview-')) {
+					return open.apply(window, arguments);
+				}
+				// Post IDs repeat across running sites, which can share named windows.
+				const popup = open.call(window, url, previewTarget(target), features);
+				if (!popup || url) {
+					return popup;
+				}
+				return {
+					get closed() {
+						return popup.closed;
+					},
+					focus() {
+						popup.focus();
+					},
+					get document() {
+						try {
+							return popup.document;
+						} catch {
+							return document.implementation.createHTMLDocument('');
+						}
+					},
+					set location(url) {
+						popup.location.href = url;
+					},
+				};
+			};
+
+			function previewTarget(target) {
+				const suffix = '-' + siteUrl;
+				return target.endsWith(suffix) ? target : target + suffix;
+			}
+		})();
+	</script>
+	<?php
+}
+add_action('admin_head', 'playground_legacy_preview_windows');
+// Run after Core's wp_post_preview_js, which assigns its unscoped window name.
+add_action('wp_head', 'playground_legacy_preview_windows', 2);
+
+/**
  * Adds target="_blank" to external links when clicked to open them in a new tab.
  * This prevents users from loading non-Playground pages inside the Playground iframe.
  */
@@ -231,12 +311,18 @@ add_action('wp_head', 'playground_add_target_blank_to_external_links');
 add_action('admin_head', 'playground_add_target_blank_to_external_links');
 
 /**
- * Reports the current URL to the parent frame.
+ * Report the WordPress URL so the app can update its address bar without reading this frame.
  *
- * When Document-Isolation-Policy is enabled, the parent frame can't access
- * the iframe's location.href due to cross-origin restrictions. This script
- * posts a message to the parent frame with the current URL so the address
- * bar can be updated.
+ * A different origin or Document-Isolation-Policy can block the parent's location read.
+ * Use messages for same-origin pages too, so both cases follow the same path:
+ *
+ * 1. Send the startup URL from wp_head/admin_head.
+ * 2. Reply to playground-request-url from the expected parent with the live location.
+ *    Use its reply port when supplied; otherwise send another playground-url-change.
+ *
+ * The parent requests the URL when it subscribes, in case it missed the startup report,
+ * and polls for History API changes. For example, pushState() can change the path to
+ * /wp-admin/edit.php without firing iframe load or changing iframe.src.
  *
  * @see https://github.com/WordPress/wordpress-playground/issues/2954
  */
@@ -244,19 +330,74 @@ function playground_report_url_to_parent() {
 	?>
 	<script>
 		if (window.parent !== window) {
-			window.parent.postMessage(
-				JSON.stringify({
-					type: 'playground-url-change',
-					url: window.location.href
-				}),
-				'*'
-			);
+			const parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
+			reportPlaygroundUrl();
+			window.addEventListener('message', function (event) {
+				if (
+					event.source === window.parent &&
+					event.origin === parentOrigin &&
+					event.data?.type === 'playground-request-url'
+				) {
+					if (event.ports[0]) {
+						event.ports[0].postMessage(window.location.href);
+						event.ports[0].close();
+					} else {
+						reportPlaygroundUrl();
+					}
+				}
+			});
+
+			/** Publish the current URL, including replies to a late-subscribing parent. */
+			function reportPlaygroundUrl() {
+				window.parent.postMessage(
+					JSON.stringify({ type: 'playground-url-change', url: window.location.href }),
+					parentOrigin
+				);
+			}
 		}
 	</script>
 	<?php
 }
 add_action('wp_head', 'playground_report_url_to_parent');
 add_action('admin_head', 'playground_report_url_to_parent');
+
+/**
+ * Relay pointer presses so a click in WordPress can close the app's open menus.
+ *
+ * Events do not bubble across iframe documents. Send playground-pointer-relay-ready to
+ * the parent and wait for playground-enable-pointer-relay from that window and origin.
+ * Only then send presses and set data-playground-pointer-relay on this document.
+ *
+ * remote.html turns each message into a pointer event on its #wp element. The app sees
+ * that event and skips the original press in marked documents, avoiding duplicate calls.
+ * A nested editor frame may also run this hook, but its WordPress parent does not reply
+ * or forward clicks. It stays unmarked, keeping native outside-click handling when the
+ * app can read it. The marker covers this document only, not any nested documents.
+ */
+function playground_report_pointer_to_parent() {
+	?>
+	<script>
+		if (window.parent !== window) {
+			const parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
+			window.addEventListener('message', function enablePointerRelay(event) {
+				if (
+					event.source !== window.parent ||
+					event.origin !== parentOrigin ||
+					event.data?.type !== 'playground-enable-pointer-relay'
+				) return;
+				window.removeEventListener('message', enablePointerRelay);
+				document.addEventListener('pointerdown', function () {
+					window.parent.postMessage({ type: 'playground-pointerdown' }, parentOrigin);
+				}, true);
+				document.documentElement.setAttribute('data-playground-pointer-relay', '');
+			});
+			window.parent.postMessage({ type: 'playground-pointer-relay-ready' }, parentOrigin);
+		}
+	</script>
+	<?php
+}
+add_action('wp_head', 'playground_report_pointer_to_parent');
+add_action('admin_head', 'playground_report_pointer_to_parent');
 
 /**
  * Captures this document when the trusted Playground parent requests a site
@@ -282,13 +423,14 @@ function playground_enable_site_thumbnail_capture() {
 				return;
 			}
 			window.__playgroundSiteThumbnailCaptureEnabled = true;
+			var parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
 
 			window.addEventListener('message', async function (event) {
 				// The origin protects the trust boundary. Checking source as well
 				// prevents another same-origin frame from requesting code execution.
 				if (
 					event.source !== window.parent ||
-					event.origin !== window.location.origin ||
+					event.origin !== parentOrigin ||
 					event.data?.type !== 'playground-capture-site-thumbnail'
 				) {
 					return;
@@ -303,16 +445,22 @@ function playground_enable_site_thumbnail_capture() {
 						throw new Error('Missing site thumbnail module URL.');
 					}
 					// Dynamic import executes inside the WordPress document. Accept only
-					// the same-origin renderer asset marked by the trusted parent.
+					// the renderer asset with its marker: from the trusted parent's origin,
+					// or from a static release directory, which this host serves too and
+					// WordPress cannot change.
 					const moduleUrl = new URL(request.moduleUrl);
+					const releaseRenderer =
+						/^\/releases\/[A-Za-z0-9._-]+\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/;
 					const isRendererModule =
-						moduleUrl.pathname ===
-							'/src/lib/capture-site-thumbnail.ts' ||
-						/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(
-							moduleUrl.pathname
-						);
+						moduleUrl.origin === event.origin
+							? moduleUrl.pathname ===
+									'/src/lib/capture-site-thumbnail.ts' ||
+								/^\/capture-site-thumbnail-[A-Za-z0-9_-]+\.js$/.test(
+									moduleUrl.pathname
+								)
+							: moduleUrl.origin === window.location.origin &&
+								releaseRenderer.test(moduleUrl.pathname);
 					if (
-						moduleUrl.origin !== event.origin ||
 						!isRendererModule ||
 						moduleUrl.searchParams.get(
 							'playground-site-thumbnail-module'
@@ -390,9 +538,13 @@ function playground_enable_webmcp_bridge() {
 			var LIST_TOOLS = 'playground-webmcp-list-tools';
 			var CALL_TOOL = 'playground-webmcp-call-tool';
 			var CALL_RESULT = 'playground-webmcp-call-result';
+			var CANCEL_TOOL = 'playground-webmcp-cancel-tool';
+			var DOCUMENT_HIDDEN = 'playground-webmcp-document-hidden';
+			var documentId = crypto.randomUUID();
+			var pendingCalls = new Map();
 
-			// The remote frame is same-origin with this document.
-			var parentOrigin = window.location.origin;
+			// The runtime supplies its origin when rendered WordPress is cross-origin.
+			var parentOrigin = <?php echo json_encode(defined('PLAYGROUND_PARENT_ORIGIN') ? PLAYGROUND_PARENT_ORIGIN : null); ?> || window.location.origin;
 			var tools = new Map();
 			var announceScheduled = false;
 
@@ -422,7 +574,7 @@ function playground_enable_webmcp_bridge() {
 						});
 					});
 					window.parent.postMessage(
-						{ type: TOOLS_CHANGED, tools: described },
+						{ type: TOOLS_CHANGED, documentId: documentId, tools: described },
 						parentOrigin
 					);
 				});
@@ -526,7 +678,7 @@ function playground_enable_webmcp_bridge() {
 			};
 
 			function respond(callId, result, error) {
-				var message = { type: CALL_RESULT, callId: callId };
+				var message = { type: CALL_RESULT, documentId: documentId, callId: callId };
 				if (error) {
 					message.error = error;
 				} else {
@@ -556,6 +708,21 @@ function playground_enable_webmcp_bridge() {
 					announce();
 					return;
 				}
+				if (
+					event.data.documentId &&
+					event.data.documentId !== documentId
+				) {
+					// A call queued for the previous document must never run here.
+					return;
+				}
+				if (event.data.type === CANCEL_TOOL) {
+					var pending = pendingCalls.get(event.data.callId);
+					if (pending) {
+						pending.abort();
+						pendingCalls.delete(event.data.callId);
+					}
+					return;
+				}
 				if (event.data.type !== CALL_TOOL) {
 					return;
 				}
@@ -569,18 +736,26 @@ function playground_enable_webmcp_bridge() {
 					);
 					return;
 				}
+				var controller = new AbortController();
+				pendingCalls.set(callId, controller);
 				Promise.resolve()
 					.then(function () {
+						controller.signal.throwIfAborted();
 						return tool.execute(
 							event.data.arguments || {},
-							toolClient
+							{
+								signal: controller.signal,
+								requestUserInteraction: toolClient.requestUserInteraction
+							}
 						);
 					})
 					.then(
 						function (result) {
+							pendingCalls.delete(callId);
 							respond(callId, result, null);
 						},
 						function (error) {
+							pendingCalls.delete(callId);
 							respond(
 								callId,
 								null,
@@ -591,6 +766,15 @@ function playground_enable_webmcp_bridge() {
 						}
 					);
 			});
+
+			window.addEventListener('pagehide', function () {
+				window.parent.postMessage(
+					{ type: DOCUMENT_HIDDEN, documentId: documentId },
+					parentOrigin
+				);
+			});
+			// A document restored from the back-forward cache owns the same registry.
+			window.addEventListener('pageshow', announce);
 
 			// Announce right away so the parent replaces the previous
 			// document's tools on every navigation, even when this page

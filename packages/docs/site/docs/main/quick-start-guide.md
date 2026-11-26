@@ -62,7 +62,7 @@ This is called [Query API](/developers/apis/query-api/) and you can learn more a
 ## Store a Playground in browser storage
 
 Click the **Autosaved** or **Unsaved** status in the Dock to open **Store
-permanently**, then choose **Save in browser storage**.
+permanently**, choose **Save in browser storage**, and click **Save**.
 
 ![The Store permanently pane with browser storage selected](/img/dock/store-permanently-browser.webp)
 
@@ -135,6 +135,6 @@ This is different from restoring a Playground ZIP. A WXR file imports WordPress 
 
 ## Build apps with WordPress Playground
 
-WordPress Playground is programmable, which means you can [build WordPress apps](/developers/build-your-first-app), set up plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
+WordPress Playground is programmable, which means you can [build WordPress apps](https://developer.wordpress.org/playground/developers/build-an-app/), set up plugin demos, and even use it as a zero-setup [local development environment](/developers/local-development/).
 
-To learn more about developing with WordPress Playground, check out the [development quick start](/developers/build-your-first-app) section.
+To learn more about developing with WordPress Playground, check out the [development quick start](https://developer.wordpress.org/playground/developers/build-an-app/) section.

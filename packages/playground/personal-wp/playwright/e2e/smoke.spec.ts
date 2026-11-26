@@ -34,3 +34,41 @@ test('should display the seamless viewport and Site Tools latch', async ({
 		website.page.getByRole('button', { name: /Open Site Tools/ })
 	).toBeVisible();
 });
+
+// Contract: the nested frame receives its policy before its first WordPress request.
+// A late parent callback can leave startup fetches blocked even if the final DOM
+// looks correct. The shared client sets src independently of Personal WP's listener.
+test('delegates loopback before WordPress startup on a custom host', async ({
+	website,
+}) => {
+	await website.page.addInitScript(() => {
+		const descriptor = Object.getOwnPropertyDescriptor(
+			HTMLIFrameElement.prototype,
+			'src'
+		)!;
+		Object.defineProperty(HTMLIFrameElement.prototype, 'src', {
+			...descriptor,
+			set(value: string) {
+				if (
+					this.id === 'wp' &&
+					!(window as any).initialWordPressPolicy
+				) {
+					(window as any).initialWordPressPolicy = {
+						allow: this.allow,
+						url: value,
+					};
+				}
+				descriptor.set!.call(this, value);
+			},
+		});
+	});
+	await website.goto('./');
+	const initial = await website.page
+		.frameLocator('.playground-viewport:visible')
+		.locator('#wp')
+		.evaluate(() => (window as any).initialWordPressPolicy);
+	expect(initial).toBeTruthy();
+	expect(initial.allow).toBe(
+		`loopback-network ${new URL(initial.url).origin}`
+	);
+});

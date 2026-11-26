@@ -6,6 +6,18 @@ import {
 } from '../lib/utils';
 
 describe('cloneRequest', () => {
+	it('keeps cancellation when rewriting a request URL for the proxy', async () => {
+		const controller = new AbortController();
+		const request = new Request('https://example.com', {
+			signal: controller.signal,
+		});
+		const cloned = await cloneRequest(request, {
+			url: 'https://proxy.example/?https://example.com',
+		});
+		expect(cloned.signal.aborted).toBe(false);
+		controller.abort();
+		expect(cloned.signal.aborted).toBe(true);
+	});
 	it('should clone request headers', async () => {
 		const request = new Request('http://localhost', {
 			headers: {

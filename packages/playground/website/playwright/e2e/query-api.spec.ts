@@ -1,5 +1,5 @@
 /* eslint-disable comment-length/limit-multi-line-comments */
-import { test, expect } from '../playground-fixtures';
+import { test, expect, serveBuiltWpCli } from '../playground-fixtures';
 import type { BrowserContext, Page } from '@playwright/test';
 import type { Blueprint } from '@wp-playground/blueprints';
 import { resolve } from 'node:path';
@@ -14,6 +14,43 @@ import * as MinifiedWordPressVersions from '../../../wordpress-builds/src/wordpr
 const LatestSupportedWordPressVersion = Object.keys(
 	(MinifiedWordPressVersions as any).default ?? MinifiedWordPressVersions
 ).filter((x) => !['trunk', 'beta'].includes(x))[0];
+
+const fileBrowserTestPath =
+	'wp-content/plugins/filebrowser-query-test/index.php';
+const fileBrowserTestAbsoluteDir =
+	'/wordpress/wp-content/plugins/filebrowser-query-test';
+const fileBrowserTestAbsolutePath =
+	'/wordpress/wp-content/plugins/filebrowser-query-test/index.php';
+const fileBrowserTestContent = `<?php
+echo 'filebrowser query api';
+echo 'before requested line';
+echo 'filebrowser active line';
+echo 'after requested line';
+`;
+
+function getFileBrowserBlueprintHash(data = fileBrowserTestContent) {
+	return encodeURIComponent(
+		JSON.stringify({
+			steps: [
+				{
+					step: 'mkdir',
+					path: fileBrowserTestAbsoluteDir,
+				},
+				{
+					step: 'writeFile',
+					path: fileBrowserTestAbsolutePath,
+					data,
+				},
+			],
+		})
+	);
+}
+
+function getFileBrowserQueryUrl(value: string, blueprintHash?: string) {
+	const query = new URLSearchParams();
+	query.set('filebrowser', value);
+	return `./?${query.toString()}${blueprintHash ? `#${blueprintHash}` : ''}`;
+}
 
 test('should load PHP 8.3 by default', async ({ website, wordpress }) => {
 	// Navigate to the website
@@ -67,42 +104,6 @@ test.describe('option `php-extension`', () => {
 		expect(probe.loaded).toBe(true);
 		expect(probe.has_formatter).toBe(true);
 		expect(probe.formatted).toContain('1970');
-	});
-
-	test('should load a real extension manifest URL', async ({ website }) => {
-		await gotoPHPOnlyPlayground(website.page, {
-			'php-extension': sqliteParserManifestUrl,
-		});
-		await waitForPlaygroundClient(website.page);
-
-		const probe = await website.page.evaluate(async () => {
-			const playground = (window as any).playground;
-			const response = await playground.run({
-				code: `<?php
-				$lexer = new WP_MySQL_Native_Lexer(
-					'SELECT option_name FROM wp_options WHERE option_id = 1',
-					'8.0.0',
-					0
-				);
-				$tokens = 0;
-				while ($lexer->next_token()) {
-					++$tokens;
-				}
-				echo json_encode([
-					'loaded' => extension_loaded('wp_mysql_parser'),
-					'classes' => class_exists('WP_MySQL_Native_Lexer', false)
-						&& class_exists('WP_MySQL_Native_Parser', false),
-					'tokens' => $tokens,
-				]);`,
-			});
-			return JSON.parse(response.text);
-		});
-
-		expect(probe).toEqual({
-			loaded: true,
-			classes: true,
-			tokens: 9,
-		});
 	});
 
 	test('should reject unsupported manifest URL schemes', async ({
@@ -209,6 +210,166 @@ test('should enable networking when requested', async ({
 	await expect(wordpress.locator('body')).toContainText('Install Now');
 });
 
+test('should open the Files pane when requested', async ({ website }) => {
+	await website.goto('./?filebrowser');
+
+	await expect(
+		website.page.getByRole('dialog', { name: 'Files pane', exact: true })
+	).toBeVisible();
+	await expect(website.page.locator('.cm-editor')).toHaveCount(0);
+});
+
+test('should open a file from the filebrowser query parameter', async ({
+	website,
+}) => {
+	await website.goto(
+		getFileBrowserQueryUrl(
+			fileBrowserTestPath,
+			getFileBrowserBlueprintHash()
+		)
+	);
+
+	await expect(
+		website.page.locator('[aria-label="Files pane"] .cm-editor')
+	).toBeVisible();
+	await expect(
+		website.page.locator('[aria-label="Files pane"] .cm-content')
+	).toContainText('filebrowser query api');
+	await expect(
+		website.page.locator(`[title="${fileBrowserTestAbsolutePath}"]`)
+	).toBeVisible();
+	await expect(
+		website.page
+			.locator(`button[data-path="${fileBrowserTestAbsolutePath}"]`)
+			.first()
+	).toHaveClass(/_selected_/);
+});
+
+for (const viewport of [
+	{ width: 1280, height: 800 },
+	{ width: 390, height: 844 },
+]) {
+	for (const [name, separator] of [
+		['LF', '\n'],
+		['CRLF', '\r\n'],
+		['CR', '\r'],
+	]) {
+		test(`should activate the requested filebrowser line with ${name} at ${viewport.width}px`, async ({
+			website,
+		}) => {
+			await website.page.setViewportSize(viewport);
+			await website.goto(
+				getFileBrowserQueryUrl(
+					`${fileBrowserTestPath}:4`,
+					getFileBrowserBlueprintHash(
+						fileBrowserTestContent.replaceAll('\n', separator)
+					)
+				)
+			);
+			await expect(
+				website.page.getByRole('dialog', {
+					name: 'Files pane',
+					exact: true,
+				})
+			).toBeVisible();
+			await expect
+				.poll(async () => getCodeMirrorSelection(website.page))
+				.toEqual({
+					text: "echo 'filebrowser active line';",
+					offset: 0,
+				});
+		});
+	}
+}
+
+test('should show a notice for an invalid filebrowser path', async ({
+	website,
+}) => {
+	await website.goto(getFileBrowserQueryUrl('../wp-config.php'));
+	await expect(
+		website.page
+			.getByRole('dialog', { name: 'Files pane', exact: true })
+			.getByText('The requested file path is invalid.', {
+				exact: false,
+			})
+	).toBeVisible();
+	await expect(website.page.locator('.cm-editor')).toHaveCount(0);
+});
+
+test('should show a notice for an out-of-range filebrowser line', async ({
+	website,
+}) => {
+	await website.goto(
+		getFileBrowserQueryUrl(
+			`${fileBrowserTestPath}:999`,
+			getFileBrowserBlueprintHash()
+		)
+	);
+	await expect(
+		website.page
+			.getByRole('dialog', { name: 'Files pane', exact: true })
+			.getByText('Line 999 is outside this file.', {
+				exact: false,
+			})
+	).toBeVisible();
+	await expect(
+		website.page.locator('[aria-label="Files pane"] .cm-content')
+	).toContainText('filebrowser query api');
+});
+
+test('should show a notice for a missing filebrowser target', async ({
+	website,
+	wordpress,
+}) => {
+	await website.goto(
+		getFileBrowserQueryUrl(
+			'wp-content/plugins/filebrowser-query-test/missing.php'
+		)
+	);
+
+	await expect(
+		website.page.getByRole('dialog', { name: 'Files pane', exact: true })
+	).toBeVisible();
+	await expect(
+		website.page
+			.locator('.components-notice__content')
+			.filter({ hasText: /Could not open .*missing\.php/ })
+	).toBeVisible();
+	await expect(wordpress.locator('body')).not.toBeEmpty();
+});
+
+async function getCodeMirrorSelection(page: Page) {
+	return page
+		.locator('[aria-label="Files pane"] .cm-content')
+		.evaluate((content) => {
+			const selection = content.ownerDocument.getSelection();
+			if (
+				!selection?.anchorNode ||
+				!content.contains(selection.anchorNode)
+			) {
+				return null;
+			}
+
+			let current: Node | null = selection.anchorNode;
+			while (current && current !== content) {
+				if (
+					current instanceof HTMLElement &&
+					current.classList.contains('cm-line')
+				) {
+					const range = content.ownerDocument.createRange();
+					range.selectNodeContents(current);
+					range.setEnd(selection.anchorNode, selection.anchorOffset);
+					return {
+						text: current.textContent ?? '',
+						offset: range.toString().length,
+					};
+				}
+				current = current.parentNode;
+			}
+			return null;
+		});
+}
+
 /**
  * @see https://github.com/WordPress/wordpress-playground/pull/819
  * @TODO: Turn this into a unit test once WordPress modules are available
@@ -271,9 +432,11 @@ test('should hide the simulated browser in seamless mode', async ({
 });
 
 test('should enable a multisite when requested', async ({
+	context,
 	website,
 	wordpress,
 }) => {
+	await serveBuiltWpCli(context);
 	await website.goto('./?storage=temp&multisite=yes&url=/wp-admin/');
 	await expect(wordpress.locator('#wp-admin-bar-my-sites')).toContainText(
 		'My Sites'
@@ -465,10 +628,6 @@ test('should retain encoded control characters in the URL', async ({
 });
 
 const intlManifestUrl = 'https://extensions.test/intl/manifest.json';
-const sqliteParserManifestUrl =
-	'https://wordpress.github.io/sqlite-database-integration/' +
-	'wp_mysql_parser-wasm-extension/' +
-	'b31fc53ea599d1a2211b75f4a3486b39e63ce01f/manifest.json';
 const invalidManifestUrl = 'https://extensions.test/invalid/manifest.json';
 const noArtifactManifestUrl =
 	'https://extensions.test/no-artifact/manifest.json';

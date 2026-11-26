@@ -46,6 +46,10 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
     }
 
     $host = $parsedUrl['host'];
+    $port = $parsedUrl['port'] ?? ($parsedUrl['scheme'] === 'https' ? 443 : 80);
+    if ($port < 1 || $port > 65535) {
+        throw new CorsProxyException("Invalid port");
+    }
 
     if (
         ( isset( $_SERVER['HTTP_HOST'] ) &&
@@ -56,13 +60,17 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
         throw new CorsProxyException("URL cannot target the CORS proxy host.");
     }
 
-    // Ensure the hostname does not resolve to a private IP
+    // Resolve IPv4 only. The connection must use this same address family
+    // and the validated IP, never a second DNS lookup (including AAAA).
     $resolved_ips = $resolve_function($host);
-    if ($resolved_ips === false) {
+    if (empty($resolved_ips)) {
         throw new CorsProxyException("Hostname could not be resolved");
     }
 
     foreach ($resolved_ips as $ip) {
+        if (!filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            throw new CorsProxyException("Invalid IPv4 address");
+        }
         if (is_private_ip($ip)) {
             throw new CorsProxyException("Private IPs are forbidden");
         }
@@ -70,8 +78,25 @@ function url_validate_and_resolve($url, $resolve_function='gethostbynamel') {
 
     return [
         'host' => $host,
-        'ip' => $resolved_ips[0]
+        'ip' => $resolved_ips[0],
+        'port' => $port,
     ];
+}
+
+/**
+ * Bind the connection to the validated destination. Keep the URL's hostname
+ * for HTTP Host and TLS verification, but never resolve it again in cURL.
+ */
+function set_curl_destination($ch, $resolved) {
+    if (!curl_setopt_array($ch, [
+        CURLOPT_RESOLVE => ["{$resolved['host']}:{$resolved['port']}:{$resolved['ip']}"],
+        CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4,
+        // An environment-configured HTTP/SOCKS proxy could resolve the
+        // target itself, bypassing our validated address entirely.
+        CURLOPT_PROXY => '',
+    ])) {
+        throw new CorsProxyException("Could not pin the target address");
+    }
 }
 
 if (!function_exists('is_private_ip')) {
@@ -425,8 +450,13 @@ function rewrite_relative_redirect(
     $redirect_location,
     $proxy_absolute_url
 ) {
-    $target_hostname = parse_url($request_url, PHP_URL_HOST);
+    $target_scheme = parse_url($request_url, PHP_URL_SCHEME) ?: 'https';
     if (!parse_url($redirect_location, PHP_URL_HOST)) {
+        $target_authority = parse_url($request_url, PHP_URL_HOST);
+        $target_port = parse_url($request_url, PHP_URL_PORT);
+        if ($target_port !== null) {
+            $target_authority .= ':' . $target_port;
+        }
         $redirect_path = parse_url($redirect_location, PHP_URL_PATH);
         if ($redirect_path && $redirect_path[0] !== '/') {
             $request_path = parse_url($request_url, PHP_URL_PATH);
@@ -434,12 +464,9 @@ function rewrite_relative_redirect(
             $redirect_location = $request_path_parent . '/' . $redirect_path;
         }
 
-        $redirect_location = $target_hostname . $redirect_location;
-    }
-
-    if (!parse_url($redirect_location, PHP_URL_SCHEME)) {
-        $target_scheme = parse_url($request_url, PHP_URL_SCHEME) ?: 'https';
-        $redirect_location = "$target_scheme://$redirect_location";
+        $redirect_location = "$target_scheme://$target_authority$redirect_location";
+    } else if (!parse_url($redirect_location, PHP_URL_SCHEME)) {
+        $redirect_location = "$target_scheme:$redirect_location";
     }
 
     $last_char = $proxy_absolute_url[strlen($proxy_absolute_url) - 1];

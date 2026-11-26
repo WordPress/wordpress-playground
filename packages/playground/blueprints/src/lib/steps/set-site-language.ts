@@ -16,7 +16,11 @@ import { phpVar, Semaphore } from '@php-wasm/util';
  */
 export interface SetSiteLanguageStep {
 	step: 'setSiteLanguage';
-	/** The language to set, e.g. 'en_US' */
+	/**
+	 * The WordPress locale to set, e.g. 'en_US'. Use 'browser' to select an available
+	 * translation using navigator.languages, in preference order, with regional
+	 * language fallbacks. Falls back to 'en_US' if no match or browser is unavailable.
+	 */
 	language: string;
 }
 
@@ -61,14 +65,6 @@ export const setSiteLanguage: StepHandler<SetSiteLanguageStep> = async (
 
 	const docroot = await playground.documentRoot;
 
-	await playground.defineConstant('WPLANG', language);
-	await playground.run({
-		code: `<?php
-		require_once ${phpVar(docroot)} . '/wp-load.php';
-		update_option('WPLANG', ${phpVar(language)});
-		`,
-	});
-
 	const wpVersion = (
 		await playground.run({
 			code: `<?php
@@ -78,9 +74,32 @@ export const setSiteLanguage: StepHandler<SetSiteLanguageStep> = async (
 		})
 	).text;
 
+	const browserTranslation =
+		language === 'browser'
+			? await getBrowserTranslation(wpVersion)
+			: undefined;
+	if (language === 'browser') {
+		language = browserTranslation?.language ?? 'en_US';
+	}
+
+	await playground.defineConstant('WPLANG', language);
+	await playground.run({
+		code: `<?php
+		require_once ${phpVar(docroot)} . '/wp-load.php';
+		update_option('WPLANG', ${phpVar(language)});
+		`,
+	});
+
+	// US English is bundled with WordPress and has no translation package.
+	if (language === 'en_US') {
+		return;
+	}
+
 	const translations = [
 		{
-			url: await getWordPressTranslationUrl(wpVersion, language),
+			url:
+				browserTranslation?.package ??
+				(await getWordPressTranslationUrl(wpVersion, language)),
 			type: 'core',
 		},
 	];
@@ -209,3 +228,53 @@ export const setSiteLanguage: StepHandler<SetSiteLanguageStep> = async (
 	);
 	await Promise.all(translationsQueue);
 };
+
+/** Resolve browser preferences against translations available for this WordPress version. */
+async function getBrowserTranslation(
+	wpVersion: string
+): Promise<{ language: string; package?: string } | undefined> {
+	// Node.js also exposes navigator, but its locale is not a browser preference.
+	if (
+		typeof navigator === 'undefined' ||
+		!(typeof window !== 'undefined' || 'WorkerGlobalScope' in globalThis)
+	) {
+		return;
+	}
+
+	const preferences = navigator.languages?.length
+		? navigator.languages
+		: [navigator.language];
+	const response = await fetch(
+		`https://api.wordpress.org/translations/core/1.0/?version=${wpVersion}`
+	);
+	const { translations } = (await response.json()) as {
+		translations: { language: string; package: string }[];
+	};
+	const available = [
+		{ language: 'en_US', package: undefined },
+		...translations,
+	];
+	for (const preference of preferences) {
+		let tag = preference.toLowerCase();
+		while (tag) {
+			const exact = available.find(
+				({ language }) =>
+					language.replaceAll('_', '-').toLowerCase() === tag
+			);
+			const match =
+				exact ??
+				available.find(({ language }) =>
+					language
+						.replaceAll('_', '-')
+						.toLowerCase()
+						.startsWith(tag + '-')
+				);
+			if (match) {
+				return match;
+			}
+			const separator = tag.lastIndexOf('-');
+			tag = separator === -1 ? '' : tag.slice(0, separator);
+		}
+	}
+	return undefined;
+}
