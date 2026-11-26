@@ -24,7 +24,7 @@ Each step is an object that contains a `step` property that specifies the type o
 
 The following step-related topics are addressed on dedicated pages included in this section:
 
-- [Resources References](/blueprints/steps/resources) allow you use external files in Blueprints.
+- [Resources References](/blueprints/steps/resources) allow you to use external files in Blueprints.
 
 - Some steps have a shorthand version. Check the [Shorthands](/blueprints/steps/shorthands) section for more information about them.
 
