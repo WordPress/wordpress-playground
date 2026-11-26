@@ -86,7 +86,7 @@ MCP यानी Model Context Protocol आपके AI सहायक को �
 
 <!-- MCP is less useful when the job is mostly local automation, such as running the same Blueprint repeatedly, mounting a plugin from your filesystem, or testing a version matrix. Use the Playground CLI for those workflows or [write tests using `runCLI`](/guides/e2e-testing-with-playwright#first-test-file). -->
 
-जब काम ज़्यादातर लोकल ऑटोमेशन का हो, जैसे एक ही Blueprint को बार-बार चलाना, अपने फ़ाइल सिस्टम से प्लगइन माउंट करना या संस्करणों के मैट्रिक्स पर परीक्षण करना, तब MCP उतना काम का नहीं है। ऐसे वर्कफ़्लो के लिए Playground CLI का उपयोग करें या [`runCLI` से परीक्षण लिखें](/guides/e2e-testing-with-playwright#first-test-file)।
+जब काम ज़्यादातर लोकल ऑटोमेशन का हो, जैसे एक ही ब्लूप्रिंट को बार-बार चलाना, अपने फ़ाइल सिस्टम से प्लगइन माउंट करना या संस्करणों के मैट्रिक्स पर परीक्षण करना, तब MCP उतना काम का नहीं है। ऐसे वर्कफ़्लो के लिए Playground CLI का उपयोग करें या [`runCLI` से परीक्षण लिखें](/guides/e2e-testing-with-playwright#first-test-file)।
 
 <!-- ## Before you start -->
 
