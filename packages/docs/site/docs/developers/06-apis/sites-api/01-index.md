@@ -53,6 +53,8 @@ Temporary Playgrounds do not report `persistence` because there is no stored lif
 
 Creates a new temporary site and switches to it. Resolves with the new site's slug once it has booted.
 
+Only one temporary site exists at a time, so creating a new one discards the current temporary site. Call [`autosaveTemporarySite()`](#autosavetemporarysiteslug-options) first if you need to keep it. If you omit `slug` and the current temporary site was set up with the same settings, this method switches to that site and returns its slug instead of creating a new one. Any changes made in that site are kept.
+
 ```typescript
 createNewTemporarySite(
 	slug?: string,
@@ -241,7 +243,7 @@ WordPress version, language, and multisite are installation settings. Create a f
 
 ### `delete(slug)`
 
-Deletes a stored site and its persisted data. Throws if the site does not exist or is temporary.
+Deletes a stored site and its persisted data. Throws if the site does not exist or is temporary. For a `local-fs` site, this removes the site from Playground but does not delete the files in the local directory.
 
 ```typescript
 delete(siteSlug: string): Promise<void>;
