@@ -25,7 +25,7 @@ npx @wp-playground/cli@latest php \
   -c /wordpress/wp-content/themes/THEME_NAME/phpunit.xml.dist
 ```
 
-The `--auto-mount` flag detects whether the current directory is a plugin, theme, or WordPress installation and mounts it at the correct path under `/wordpress/wp-content/`. The `--` separates CLI flags from arguments passed to the PHP interpreter, and you can pass any arguments supported by your PHPUnit configuration.
+The `--auto-mount` flag detects whether the current directory is a plugin, theme, `wp-content` directory, or WordPress installation and mounts it at the matching path under `/wordpress/`. The `--` separates CLI flags from arguments passed to the PHP interpreter, and you can pass any arguments supported by your PHPUnit configuration.
 
 For a plugin, the path would use `plugins/` instead:
 
