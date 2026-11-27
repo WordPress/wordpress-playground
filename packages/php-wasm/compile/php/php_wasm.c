@@ -1619,6 +1619,35 @@ static void wasm_sapi_register_server_variables(zval *track_vars_array TSRMLS_DC
 	}
 }
 
+/*
+ * Function: reserve_stdio_wrappers
+ * ----------------------------
+ *   Opens php://stdin, php://stdout and php://stderr once per process and
+ *   releases them without closing the underlying descriptors, as the native
+ *   CLI SAPI does in cli_register_file_handles(). Later opens then get a
+ *   dup() of the descriptor, so fclose() in userland can't close fd 0-2.
+ */
+static void reserve_stdio_wrappers()
+{
+	static int reserved = 0;
+	if (reserved || strcmp(sapi_module.name, "cli") != 0)
+	{
+		return;
+	}
+	reserved = 1;
+
+	const char *paths[] = {"php://stdin", "php://stdout", "php://stderr"};
+	const char *modes[] = {"rb", "wb", "wb"};
+	for (int i = 0; i < 3; i++)
+	{
+		php_stream *stream = php_stream_open_wrapper_ex((char *)paths[i], (char *)modes[i], 0, NULL, NULL);
+		if (stream)
+		{
+			php_stream_free(stream, PHP_STREAM_FREE_CLOSE | PHP_STREAM_FREE_PRESERVE_HANDLE);
+		}
+	}
+}
+
 /**
  * Function: wasm_sapi_request_init
  * ----------------------------
@@ -1664,6 +1693,8 @@ int wasm_sapi_request_init()
 		wasm_sapi_module_shutdown();
 		return FAILURE;
 	}
+
+	reserve_stdio_wrappers();
 
 #if (PHP_MAJOR_VERSION == 7 && PHP_MINOR_VERSION >= 4) || PHP_MAJOR_VERSION >= 8
 	if (wasm_server_context->skip_shebang == 1)
