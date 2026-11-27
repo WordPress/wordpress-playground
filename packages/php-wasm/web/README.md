@@ -56,8 +56,8 @@ const php = new PHP(
 );
 ```
 
-`@php-wasm/web` ships the `intl` extension. Browser builds can also load
-external JSPI `.so` artifacts from a manifest:
+`@php-wasm/web` ships the `intl` and `xdebug` extensions. Browser builds can
+also load external JSPI `.so` artifacts from a manifest:
 
 ```js
 const php = new PHP(
@@ -78,7 +78,32 @@ In browser runtimes, pass an HTTP(S) URL or a `URL` object. Relative artifact
 files in the manifest are resolved against the manifest URL.
 
 External extensions are only supported when JSPI is available. Asyncify support
-is limited to the bundled `intl` extension shipped with this package.
+is limited to the bundled `intl` and `xdebug` extensions shipped with this
+package.
+
+### Debugging with Xdebug
+
+The `xdebug` extension starts a debugging session on every request and connects
+to a DBGp client on port `9003`. A browser has no TCP sockets, so PHP opens that
+connection with the `WebSocket` class returned by
+`emscriptenOptions.websocket.decorator`. Return a class that forwards the DBGp
+messages to your debugger:
+
+```js
+const php = new PHP(
+	await loadWebRuntime('8.4', {
+		extensions: ['xdebug'],
+		emscriptenOptions: {
+			websocket: {
+				decorator: () => DBGpWebSocket,
+			},
+		},
+	})
+);
+```
+
+Without a decorator, the connection fails and PHP runs the request without a
+debugging session.
 
 ## Usage with bundlers
 

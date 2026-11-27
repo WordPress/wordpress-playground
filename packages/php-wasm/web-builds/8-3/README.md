@@ -6,6 +6,7 @@ This package contains:
 
 - JSPI and Asyncify variants of PHP 8.3 compiled to WebAssembly
 - intl extension for PHP 8.3
+- xdebug extension for PHP 8.3
 
 ## Installation
 

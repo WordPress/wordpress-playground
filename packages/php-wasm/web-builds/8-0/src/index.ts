@@ -22,4 +22,16 @@ export async function getIntlExtensionPath(): Promise<string> {
 	}
 }
 
+export async function getXdebugExtensionPath(): Promise<string> {
+	if (await jspi()) {
+		// @ts-ignore
+		return (await import('../jspi/extensions/xdebug/xdebug.so?url'))
+			.default;
+	} else {
+		// @ts-ignore
+		return (await import('../asyncify/extensions/xdebug/xdebug.so?url'))
+			.default;
+	}
+}
+
 export { jspi };
