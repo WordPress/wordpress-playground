@@ -6,10 +6,10 @@ description: WordPress Playground brings WebAssembly-powered PHP to Node.js for 
 
 # Using WordPress Playground in Node.js
 
-As a WebAssembly project, you can also use WordPress Playground in Node.js.
+WordPress Playground is built on WebAssembly, so you can also use it in Node.js.
 
 If you need direct control over the underlying WebAssembly PHP runtime, take a
-look at the [@php-wasm/node package](https://npmjs.org/@php-wasm/node). It
+look at the [@php-wasm/node package](https://www.npmjs.com/package/@php-wasm/node). It
 provides the Node.js loader and runtime integrations used by WordPress
 Playground tools. The compiled binaries are published in version-specific
 packages such as `@php-wasm/node-8-4`.
@@ -26,8 +26,8 @@ Consult the [complete list](/api/node) of Classes, Functions, Interfaces, and Ty
 Together, `@php-wasm/node` and a version-specific package provide the compiled
 PHP runtime and JavaScript API optimized for Node.js. PHP starts with an
 in-memory filesystem; use the Node.js filesystem helpers to mount host paths.
-The runtime can access the network if you plug in a custom WebSocket-to-TCP
-proxy.
+`loadNodeRuntime()` also enables outbound networking through a built-in
+WebSocket-to-TCP proxy.
 
 ### Basic usage
 
@@ -35,12 +35,17 @@ proxy.
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-const php = new PHP(await loadNodeRuntime('8.3'));
+const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 1 } }));
 const output = await php.runStream({
 	code: '<?php phpinfo(); ?>',
 });
 console.log(await output.stdoutText);
+php.exit();
 ```
+
+Pass a `processId` in `emscriptenOptions`. PHP.wasm uses it for file locking, so
+give each PHP instance in the same Node.js process a different ID. Call
+`php.exit()` when you are done, so the Node.js process can exit.
 
 ### Load one PHP version directly
 
@@ -67,9 +72,12 @@ import { loadNodeRuntime } from '@php-wasm/node';
 
 const php = new PHP(
 	await loadNodeRuntime('8.4', {
+		emscriptenOptions: { processId: 1 },
 		extensions: ['intl', 'redis', 'memcached', { name: 'xdebug', options: { ideKey: 'PLAYGROUND' } }],
 	})
 );
+// Run your PHP code, then shut PHP down
+php.exit();
 ```
 
 The same array can load external JSPI `.so` artifacts from a manifest:
@@ -77,6 +85,7 @@ The same array can load external JSPI `.so` artifacts from a manifest:
 ```javascript
 const php = new PHP(
 	await loadNodeRuntime('8.4', {
+		emscriptenOptions: { processId: 1 },
 		extensions: [
 			{
 				source: {
@@ -87,6 +96,8 @@ const php = new PHP(
 		],
 	})
 );
+// Run your PHP code, then shut PHP down
+php.exit();
 ```
 
 External extensions require JSPI. Asyncify support is limited to the bundled
@@ -97,7 +108,7 @@ for manifest format, browser usage, sidecar files, and compatibility notes.
 
 ## Use cases
 
-Run PHP inside Node.js without a native PHP install. Allow developer to produce the following solutions:
+Run PHP inside Node.js without a native PHP install. Developers can use it for:
 
 - CI/CD jobs and developer tooling.
 - Support education and WordPress workflows: Power interactive tutorials, sandboxes, and coding challenges.
@@ -106,7 +117,7 @@ Run PHP inside Node.js without a native PHP install. Allow developer to produce 
 
 ## Practical demos
 
-We will list some examples using the PHP-WASM package.
+The following examples use PHP.wasm in Node.js.
 
 ### Demo 1: File system operations
 
@@ -116,7 +127,7 @@ Execute PHP scripts that interact with the file system:
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-const php = new PHP(await loadNodeRuntime('8.3'));
+const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 1 } }));
 
 // Create directory structure
 php.mkdir('/app/data');
@@ -152,6 +163,7 @@ foreach (scandir('/app') as $file) {
 
 const result = await php.runStream({ scriptPath: '/app/index.php' });
 console.log(await result.stdoutText);
+php.exit();
 ```
 
 ### Demo 2: SQLite database operations
@@ -162,7 +174,7 @@ Use PHP's SQLite extension for data storage:
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-const php = new PHP(await loadNodeRuntime('8.3'));
+const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 1 } }));
 
 // Create directory for database
 php.mkdir('/data');
@@ -209,20 +221,21 @@ $db->close();
 
 console.log(await result.stdoutText);
 
-// Database file persists in the virtual file system
+// The database file stays in the in-memory file system for the life of this PHP instance
 const dbExists = await php.fileExists('/data/app.db');
-console.log('\nDatabase persisted:', dbExists);
+console.log('\nDatabase file exists:', dbExists);
+php.exit();
 ```
 
 ### Demo 3: Processing uploaded files (ZIP archives)
 
-Process ZIP files using PHP's Libzip extension:
+Process ZIP files using PHP's Zip extension (`ZipArchive`):
 
 ```javascript
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-const php = new PHP(await loadNodeRuntime('8.3'));
+const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 1 } }));
 
 // Create sample files
 php.mkdir('/uploads');
@@ -273,6 +286,7 @@ foreach ($files as $file) {
 });
 
 console.log(await result.stdoutText);
+php.exit();
 ```
 
 ### Demo 4: HTTP request/response pattern
@@ -283,7 +297,7 @@ Simulate web server behavior with request handlers:
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-const php = new PHP(await loadNodeRuntime('8.3'));
+const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 1 } }));
 
 // Set up a simple API endpoint
 await php.mkdir('/www/api');
@@ -329,25 +343,22 @@ switch ($method) {
 // Make GET request
 const getResponse = await php.runStream({
 	scriptPath: '/www/api/users.php',
-	env: {
-		REQUEST_METHOD: 'GET',
-		SERVER_NAME: 'localhost',
-		SERVER_PORT: '80',
-	},
+	method: 'GET',
 });
 console.log('GET Response:', await getResponse.stdoutText);
 
 // Make POST request
 const postResponse = await php.runStream({
 	scriptPath: '/www/api/users.php',
-	env: {
-		REQUEST_METHOD: 'POST',
-		SERVER_NAME: 'localhost',
-		SERVER_PORT: '80',
-	},
-	body: JSON.stringify({ name: 'Alice Wonder' }),
+	method: 'POST',
+	headers: { 'Content-Type': 'application/json' },
+	body: new TextEncoder().encode(JSON.stringify({ name: 'Alice Wonder' })),
 });
-console.log('\\nPOST Response:', await postResponse.stdoutText);
+console.log('\nPOST Response:', await postResponse.stdoutText);
+
+// Let the request finish before shutting PHP down
+await postResponse.finished;
+php.exit();
 ```
 
 ### Demo 5: Template rendering engine
@@ -358,7 +369,7 @@ Use PHP as a templating engine for dynamic content:
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-const php = new PHP(await loadNodeRuntime('8.3'));
+const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 1 } }));
 
 // Create templates directory
 php.mkdir('/templates');
@@ -423,6 +434,7 @@ const result = await php.runStream({
 
 console.log(await result.stdoutText);
 // Now you have rendered HTML that can be sent via email or saved
+php.exit();
 ```
 
 ### Demo 6: Real-time code execution and streaming
@@ -433,7 +445,7 @@ Process PHP output as it's generated:
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-const php = new PHP(await loadNodeRuntime('8.3'));
+const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 1 } }));
 
 await php.writeFile(
 	'/stream-demo.php',
@@ -457,13 +469,15 @@ const streamedResponse = await php.runStream({
 	scriptPath: '/stream-demo.php',
 });
 
-streamedResponse.stdout.pipeTo(
+// stdout is a stream of bytes, so decode it to text
+await streamedResponse.stdout.pipeThrough(new TextDecoderStream()).pipeTo(
 	new WritableStream({
 		write(chunk) {
-			console.log(chunk);
+			process.stdout.write(chunk);
 		},
 	})
 );
+php.exit();
 ```
 
 ## Integration patterns
@@ -474,25 +488,26 @@ Integrate PHP processing into an Express.js application:
 
 ```TypeScript
 import express from 'express';
-import { PHP } from '@php-wasm/universal';
+import path from 'node:path';
+import { PHP, type HTTPMethod } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
 const app = express();
-const php = new PHP(await loadNodeRuntime('8.3'));
+const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 1 } }));
+
+// Add a PHP script to serve
+php.mkdir('/www');
+php.writeFile('/www/index.php', '<?php echo "Hello, " . htmlspecialchars($_GET["name"] ?? "guest", ENT_QUOTES, "UTF-8");');
 
 // PHP execution middleware
 app.use('/php', async (req, res, next) => {
 	try {
-		const phpScript = req.query.script || 'index.php';
+		// Use only the file name, so the query cannot point outside /www
+		const phpScript = path.posix.basename(String(req.query.script || 'index.php'));
 		const result = await php.runStream({
 			scriptPath: `/www/${phpScript}`,
-			env: {
-				REQUEST_METHOD: req.method,
-				QUERY_STRING: new URLSearchParams(
-					req.query as Record<string, string>
-				).toString(),
-				REQUEST_URI: req.url,
-			},
+			method: req.method as HTTPMethod,
+			relativeUri: req.url,
 		});
 
 		res.send(await result.stdoutText);
@@ -511,7 +526,7 @@ app.listen(3000, () => {
 Create automated tests for PHP code:
 
 ```TypeScript
-import { describe, it, expect, beforeAll } from '@jest/globals';
+import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
@@ -519,11 +534,15 @@ describe('PHP Functions', () => {
 	let php: PHP;
 
 	beforeAll(async () => {
-		php = new PHP(await loadNodeRuntime('8.3'));
+		php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 1 } }));
+	});
+
+	afterAll(() => {
+		php.exit();
 	});
 
 	it('should calculate sum correctly', async () => {
-		const result = await php.run({
+		const result = await php.runStream({
 			code: `<?php
         function sum($a, $b) {
           return $a + $b;
@@ -532,12 +551,13 @@ describe('PHP Functions', () => {
       ?>`,
 		});
 
-		expect(result.text).toBe('8');
+		expect(await result.stdoutText).toBe('8');
+		expect(await result.exitCode).toBe(0);
 	});
 
 	it('should handle JSON operations', async () => {
 		const input = { name: 'Test', value: 42 };
-		const result = await php.run({
+		const result = await php.runStream({
 			code: `<?php
         $input = json_decode('${JSON.stringify(input)}', true);
         $output = [
@@ -548,8 +568,9 @@ describe('PHP Functions', () => {
       ?>`,
 		});
 
-		const output = JSON.parse(result.text);
+		const output = JSON.parse(await result.stdoutText);
 		expect(output.doubled).toBe(84);
+		expect(await result.exitCode).toBe(0);
 	});
 });
 ```
@@ -564,7 +585,7 @@ import { loadNodeRuntime } from '@php-wasm/node';
 import fs from 'fs/promises';
 
 async function generateDocumentation() {
-	const php = new PHP(await loadNodeRuntime('8.3'));
+	const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 1 } }));
 
 	// Create output directory
 	php.mkdir('/output');
@@ -590,6 +611,7 @@ echo "Documentation generated successfully!\\n";
 	await fs.writeFile('./docs/summary.md', summaryContent);
 
 	console.log('Documentation saved to ./docs/summary.md');
+	php.exit();
 }
 
 generateDocumentation().catch(console.error);
@@ -603,7 +625,7 @@ generateDocumentation().catch(console.error);
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-const php = new PHP(await loadNodeRuntime('8.3'));
+const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 1 } }));
 
 const result = await php.runStream({
 	code: '<?php echo getenv("CUSTOM_VAR"); ?>',
@@ -613,6 +635,7 @@ const result = await php.runStream({
 });
 
 console.log(await result.stdoutText);
+php.exit();
 ```
 
 ### Error handling
@@ -621,7 +644,7 @@ console.log(await result.stdoutText);
 import { PHP } from '@php-wasm/universal';
 import { loadNodeRuntime } from '@php-wasm/node';
 
-const php = new PHP(await loadNodeRuntime('8.3'));
+const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processId: 1 } }));
 
 try {
 	const result = await php.runStream({
@@ -637,9 +660,11 @@ try {
 	if (stderr) {
 		console.error('PHP produced errors:', stderr);
 	}
-} catch (error: any) {
+} catch (error) {
 	console.error('JavaScript Error:', error.message);
 }
+
+php.exit();
 ```
 
 ## Performance considerations
