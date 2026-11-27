@@ -4,6 +4,7 @@ import { download, link } from '@wordpress/icons';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { GitHubIcon } from '../../../github/github';
 import { useGitHubExportSession } from '../../../github/github-export-session';
+import { downloadPlaygroundAsZip } from '../../../lib/download-playground-as-zip';
 import { getSetupUrlFromSite } from '../../../lib/state/playground-identity';
 import { setShareExportOpen } from '../../../lib/state/redux/slice-ui';
 import {
@@ -14,7 +15,6 @@ import {
 import { usePlaygroundClient } from '../../../lib/use-playground-client';
 import { PlaygroundBootNotice } from '../../pane-loading';
 import { Spinner } from '../../spinner';
-import { downloadPlaygroundAsZip } from '../../toolbar-buttons/download-as-zip';
 import css from './style.module.css';
 
 type CopyStatus = 'idle' | 'copied' | 'failed';

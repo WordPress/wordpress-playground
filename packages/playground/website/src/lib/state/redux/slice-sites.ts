@@ -107,21 +107,6 @@ const sitesSlice = createSlice({
 		updateSite: sitesAdapter.updateOne,
 		removeSite: sitesAdapter.removeOne,
 
-		// Custom reducer for updating nested properties
-		updateSiteMetadata: (
-			state,
-			action: PayloadAction<{
-				slug: string;
-				metadata: Partial<SiteMetadata>;
-			}>
-		) => {
-			const { slug, metadata } = action.payload;
-			const site = state.entities[slug];
-			if (site) {
-				site.metadata = { ...site.metadata, ...metadata };
-			}
-		},
-
 		setSites: sitesAdapter.setAll,
 		setOPFSSitesLoadingState: (
 			state,
@@ -152,11 +137,6 @@ export const OPFSSitesLoaded = (sites: SiteInfo[]) => {
 		dispatch(setOPFSSitesLoadingState('loaded'));
 	};
 };
-
-// New selector for loading state
-export const getSitesLoadingState = (state: {
-	sites: ReturnType<typeof sitesSlice.reducer>;
-}) => state.sites.opfsSitesLoadingState;
 
 /**
  * Updates site metadata in redux and, for stored sites, in OPFS.
@@ -955,16 +935,6 @@ export const {
 export const selectSortedSites = createSelector(
 	[selectAllSites],
 	(sites: SiteInfo[]) => getSitesSortedByRecency(sites)
-);
-
-/**
- * Returns storage-backed Playgrounds, including autosaves, in recency order.
- * Temporary Playgrounds remain outside this list because they are only
- * available for the current session.
- */
-export const selectSortedStoredSites = createSelector(
-	[selectSortedSites],
-	(sites: SiteInfo[]) => sites.filter(isStoredSite)
 );
 
 export const selectTemporarySite = createSelector(

@@ -1,3 +1,4 @@
+import { wordPressSiteUrl } from '@wp-playground/remote/config';
 import {
 	memo,
 	useCallback,
@@ -7,7 +8,7 @@ import {
 	useRef,
 	useState,
 } from 'react';
-import type { KeyboardEvent, RefObject } from 'react';
+import type { KeyboardEvent, ReactNode, RefObject } from 'react';
 import {
 	type BlueprintV1Declaration,
 	type GitDirectoryReference,
@@ -1050,6 +1051,8 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	const siteManagerIsOpen = useAppSelector(
 		(state) => state.ui.siteManagerIsOpen
 	);
+	const [dismissedExistingSitePrompt, setDismissedExistingSitePrompt] =
+		useState<string | null>(null);
 	const firstTemporarySiteCreated = useAppSelector(
 		(state) => state.sites.firstTemporarySiteCreated
 	);
@@ -1072,6 +1075,10 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 	// performBackup() is a no-op until WordPress has booted and a client can
 	// serve the request, so only ask the user to click once that is the case.
 	const canBackupNow = !isBooting && !!playground;
+	const showExistingSitePrompt =
+		firstTemporarySiteCreated &&
+		dismissedExistingSitePrompt !== siteSlug &&
+		canBackupNow;
 	const hasActiveSiteError = activeSiteError && activeSiteSlug === siteSlug;
 	// A relay request can arrive while the site is still coming up, and it has
 	// to read the state as of that moment rather than as of the render that
@@ -1617,15 +1624,53 @@ function SeamlessViewport({ siteSlug }: { siteSlug: string }) {
 				>
 					{playgroundLogo({ width: 24, height: 24 })}
 				</Button>
-				{autoBackupDue && canBackupNow && (
+				{showExistingSitePrompt ? (
+					<ExistingSitePrompt
+						onDismiss={() =>
+							setDismissedExistingSitePrompt(siteSlug)
+						}
+						onOpenSiteTools={() =>
+							dispatch(setSiteManagerOpen(true))
+						}
+					/>
+				) : autoBackupDue && canBackupNow ? (
 					<AutoBackupPrompt
 						playground={playground}
 						onDownload={performBackup}
 						onDismiss={() => dispatch(setAutoBackupDue(false))}
 					/>
-				)}
+				) : null}
 			</div>
 		</div>
+	);
+}
+
+function ExistingSitePrompt({
+	onDismiss,
+	onOpenSiteTools,
+}: {
+	onDismiss: () => void;
+	onOpenSiteTools: () => void;
+}) {
+	return (
+		<SitePrompt
+			onDismiss={onDismiss}
+			dismissLabel="Dismiss existing site reminder"
+		>
+			<strong>Already use My WordPress?</strong>{' '}
+			<a className={css.sitePromptLink} href="/connect">
+				Connect to your existing site
+			</a>{' '}
+			in another browser, or import a backup in{' '}
+			<button
+				type="button"
+				className={css.sitePromptLink}
+				onClick={onOpenSiteTools}
+			>
+				Site Tools
+			</button>
+			.
+		</SitePrompt>
 	);
 }
 
@@ -1656,23 +1701,40 @@ function AutoBackupPrompt({
 	}, [playground]);
 
 	return (
-		<div className={css.autoBackupPrompt} role="status" aria-live="polite">
-			<p className={css.autoBackupPromptText}>
-				<strong>Welcome back!</strong> It is time for a backup.{' '}
-				<button
-					type="button"
-					className={css.autoBackupPromptLink}
-					onClick={onDownload}
-				>
-					Click here to download it
-				</button>
-				{sizeEstimate !== null && ` (~${formatBytes(sizeEstimate, 0)})`}
-				{'.'}
-			</p>
+		<SitePrompt
+			onDismiss={onDismiss}
+			dismissLabel="Dismiss backup reminder"
+		>
+			<strong>Welcome back!</strong> It is time for a backup.{' '}
 			<button
 				type="button"
-				className={css.autoBackupPromptDismiss}
-				aria-label="Dismiss backup reminder"
+				className={css.sitePromptLink}
+				onClick={onDownload}
+			>
+				Click here to download it
+			</button>
+			{sizeEstimate !== null && ` (~${formatBytes(sizeEstimate, 0)})`}
+			{'.'}
+		</SitePrompt>
+	);
+}
+
+function SitePrompt({
+	children,
+	onDismiss,
+	dismissLabel,
+}: {
+	children: ReactNode;
+	onDismiss: () => void;
+	dismissLabel: string;
+}) {
+	return (
+		<div className={css.sitePrompt} role="status" aria-live="polite">
+			<p className={css.sitePromptText}>{children}</p>
+			<button
+				type="button"
+				className={css.sitePromptDismiss}
+				aria-label={dismissLabel}
 				onClick={onDismiss}
 			>
 				×
@@ -2374,6 +2436,7 @@ export const JustViewport = function JustViewport({
 		<>
 			<iframe
 				key={siteSlug}
+				allow={`loopback-network 'self' ${wordPressSiteUrl}`}
 				title="WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)"
 				className={classNames('playground-viewport', css.fullSize, {
 					[css.viewportLoading]: isLoading,

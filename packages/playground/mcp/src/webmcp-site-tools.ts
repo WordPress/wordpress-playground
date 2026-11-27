@@ -14,10 +14,7 @@
  *           → WordPress document                  (the plugin's execute())
  */
 
-import type {
-	PlaygroundClient,
-	WebMCPToolDescriptor,
-} from '@wp-playground/remote';
+import type { WebMCPToolDescriptor } from '@wp-playground/remote';
 import { logger } from '@php-wasm/logger';
 import {
 	toolDefinitions,
@@ -31,6 +28,18 @@ export interface WebMCPSiteToolProxy {
 	stop(): void;
 }
 
+interface WebMCPSiteToolClient {
+	onWebMCPToolsChanged(
+		listener: (tools: WebMCPToolDescriptor[]) => void
+	): Promise<() => void>;
+	callWebMCPTool(
+		name: string,
+		args: Record<string, unknown>,
+		callId?: string
+	): Promise<unknown>;
+	cancelWebMCPTool(callId: string): Promise<void>;
+}
+
 /**
  * Starts mirroring `client`'s in-site WebMCP tools onto this page.
  *
@@ -39,7 +48,7 @@ export interface WebMCPSiteToolProxy {
  * unregisters everything it registered.
  */
 export function startWebMCPSiteToolProxy(
-	client: PlaygroundClient
+	client: WebMCPSiteToolClient
 ): WebMCPSiteToolProxy {
 	const maybeModelContext = getModelContext();
 	if (!maybeModelContext) {
@@ -53,6 +62,7 @@ export function startWebMCPSiteToolProxy(
 	let registration: AbortController | null = null;
 	let stopped = false;
 	let registeredDescriptors = '';
+	let unsubscribe: (() => void) | null = null;
 
 	async function register(tools: WebMCPToolDescriptor[]) {
 		if (stopped) {
@@ -99,6 +109,13 @@ export function startWebMCPSiteToolProxy(
 		.onWebMCPToolsChanged((tools: WebMCPToolDescriptor[]) => {
 			void register(tools);
 		})
+		.then((remove) => {
+			if (stopped) {
+				remove();
+			} else {
+				unsubscribe = remove;
+			}
+		})
 		.catch((error) => {
 			logger.warn("Failed to observe the site's WebMCP tools:", error);
 		});
@@ -106,6 +123,8 @@ export function startWebMCPSiteToolProxy(
 	return {
 		stop() {
 			stopped = true;
+			unsubscribe?.();
+			unsubscribe = null;
 			registration?.abort();
 			registration = null;
 			registeredDescriptors = '';
@@ -126,7 +145,7 @@ function reservedToolNames(): Set<string> {
 }
 
 function proxyTool(
-	client: PlaygroundClient,
+	client: WebMCPSiteToolClient,
 	tool: WebMCPToolDescriptor
 ): ModelContextTool {
 	return {

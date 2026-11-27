@@ -36,7 +36,9 @@ You can go ahead and try it out. The Playground will automatically install the t
 <iframe src="https://playground.wordpress.net/?theme=pendant"></iframe>
 ```
 
-## 利用可能なオプション
+<a id="利用可能なオプション"></a>
+
+## 利用可能なオプション {#available-options}
 
 <!--
 ## Available options

@@ -9,13 +9,25 @@
  */
 import { test, expect } from '@playwright/test';
 import type { Frame, Page } from '@playwright/test';
+import { getURLScope, setURLScope } from '@php-wasm/scopes';
 import { createServer } from 'node:http';
+import { readFile, writeFile } from 'node:fs/promises';
+import { joinPaths } from '@php-wasm/util';
 // eslint-disable-next-line @nx/enforce-module-boundaries
 import { isWordPressBridgePath } from '../../../remote/src/lib/wordpress-bridge-path';
 import {
 	appOrigin as root,
 	wordPressOrigin as wpOrigin,
 } from '../../bin/wordpress-frame/origins.mjs';
+
+/** Match the WordPress bridge at its static release path or a versioned alias. */
+function isWordPressBridgeFrame(url: string) {
+	const { pathname } = new URL(url);
+	return (
+		isWordPressBridgePath(pathname) ||
+		/^\/releases\/[^/]+\/wordpress-bridge\.html$/.test(pathname)
+	);
+}
 
 // These checks create saved sites and inspect shared download counters.
 test.describe.configure({ mode: 'default' });
@@ -151,50 +163,74 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		}
 	});
 
-	test('cached app HTML uses the sandbox in a referrer-free embed', async ({
+	// Keep the real /api.html URL: a made-up cache URL takes the asset-cache path
+	// and violates the entry's path check. This exercises network-first fallback
+	// and the public SDK handshake in an external, referrer-free iframe. Make the
+	// PHP fallback return 503 so we test a real HTTP failure, without routing mocks
+	// that may not apply to a service worker's own fetch().
+	test('a cached API entry still connects in a referrer-free embed when HTTP fails', async ({
 		page,
 	}) => {
 		const url = new URL('/', external);
-		url.searchParams.set('target', root + '/?wp=6.9&php=8.3&storage=temp');
+		url.searchParams.set('target', root + '/remote.html');
+		url.searchParams.set('no-referrer', '1');
+		url.searchParams.set('sdk', 'web');
 		await page.goto(url.href);
-		const app = await (await page
-			.locator('#embed')
-			.elementHandle())!.contentFrame();
-		await ready(app!);
-		const api = new URL('/api.html', root);
-		expect(await probeFramedAPI(page, api.href, 10000)).toBe(true);
+		await page.waitForFunction(() => (window as any).clientReady);
+		const app = page
+			.frames()
+			.find((frame) => frame.url().startsWith(root + '/remote.html'))!;
+		await page.evaluate(async (appOrigin) => {
+			const { startPlaygroundAPI } = await import(
+				appOrigin + '/client/index.js'
+			);
+			(window as any).connectCachedAPI = async () => {
+				document.querySelector('#cached-api')?.remove();
+				const iframe = document.createElement('iframe');
+				iframe.id = 'cached-api';
+				iframe.referrerPolicy = 'no-referrer';
+				document.body.append(iframe);
+				const client = await startPlaygroundAPI({
+					iframe,
+					apiUrl: appOrigin + '/api.html',
+				});
+				await client.isReady();
+			};
+			await (window as any).connectCachedAPI();
+		}, root);
 		await expect
 			.poll(() =>
-				app!.evaluate(async () => {
-					return Boolean(
+				app.evaluate(async () =>
+					Boolean(
 						await caches.match(
 							new URL('/api.html', window.location.origin).href,
-							{ ignoreSearch: true }
+							{
+								ignoreSearch: true,
+							}
 						)
-					);
-				})
+					)
+				)
 			)
 			.toBe(true);
-		// Use a cache-only URL so this checks replayed HTML without relying on the
-		// browser's offline emulation to permit service-worker navigations.
-		api.pathname = '/cached-api.html';
-		expect((await page.request.get(api.href)).status()).toBe(404);
-		await app!.evaluate(async (cachedUrl) => {
-			for (const name of await caches.keys()) {
-				const cache = await caches.open(name);
-				const response = await cache.match(
-					new URL('/api.html', window.location.origin).href,
-					{ ignoreSearch: true }
-				);
-				if (response) {
-					await cache.put(cachedUrl, response);
-					return;
-				}
-			}
-			throw new Error('The real API document was not cached');
-		}, api.href);
-		// The cached API document must work with the same unchanged no-referrer URL.
-		expect(await probeFramedAPI(page, api.href, 10000)).toBe(true);
+
+		const webRoot = joinPaths(
+			__dirname,
+			'../../../../../dist/packages/playground/website-preview'
+		);
+		const entryFile = joinPaths(webRoot, 'custom-redirects.php');
+		const entryPHP = await readFile(entryFile);
+		try {
+			await writeFile(entryFile, '<?php http_response_code(503);');
+			// APIRequestContext bypasses service workers and confirms HTTP really fails.
+			expect((await page.request.get(root + '/api.html')).status()).toBe(
+				503
+			);
+			await test.step('connect the API again using cached HTML', async () => {
+				await page.evaluate(() => (window as any).connectCachedAPI());
+			});
+		} finally {
+			await writeFile(entryFile, entryPHP);
+		}
 	});
 
 	test('WordPress cannot read existing parent documents, OPFS or API connections', async ({
@@ -263,12 +299,10 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 			)
 		).toBe(404);
 
-		const helper = remote
+		const bridge = remote
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
-		await helper.evaluate(async (appOrigin) => {
+			.find((frame) => isWordPressBridgeFrame(frame.url()))!;
+		await bridge.evaluate(async (appOrigin) => {
 			const scope = new URL(window.location.href).searchParams.get(
 				'scope'
 			);
@@ -293,31 +327,29 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		).toBe(false);
 	});
 
-	test('a WordPress cache entry cannot replace another Playground request helper', async ({
+	test("a WordPress cache entry cannot replace another site's WordPress bridge", async ({
 		page,
 		context,
 	}) => {
 		await page.goto('/?wp=6.9&php=8.3&storage=temp');
-		await poisonHelperCache(await ready(page));
+		await poisonBridgeCache(await ready(page));
 
 		const other = await context.newPage();
 		await other.goto(root + '/?wp=6.9&php=8.3&storage=temp');
 		const wp = await ready(other);
-		const helper = wp
+		const bridge = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
+			.find((frame) => isWordPressBridgeFrame(frame.url()))!;
 		expect(
-			await helper.evaluate(() =>
-				Boolean((window as any).cachedHelperExecuted)
+			await bridge.evaluate(() =>
+				Boolean((window as any).cachedBridgeExecuted)
 			)
 		).toBe(false);
 		await other.close();
 	});
 
-	test('offline startup ignores poisoned WordPress helper cache entries', async ({
+	test('offline startup ignores poisoned WordPress bridge cache entries', async ({
 		page,
 		context,
 		browserName,
@@ -330,20 +362,18 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		await ready(page);
 		// Cache documents first fetched before the app service worker took control.
 		await page.reload();
-		await poisonHelperCache(await ready(page));
+		await poisonBridgeCache(await ready(page));
 
 		await context.setOffline(true);
 		await page.reload();
 		const wp = await ready(page);
-		const helper = wp
+		const bridge = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
+			.find((frame) => isWordPressBridgeFrame(frame.url()))!;
 		expect(
-			await helper.evaluate(() =>
-				Boolean((window as any).cachedHelperExecuted)
+			await bridge.evaluate(() =>
+				Boolean((window as any).cachedBridgeExecuted)
 			)
 		).toBe(false);
 		await page.evaluate(() =>
@@ -606,6 +636,132 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		expect(new URL(response.url()).origin).toBe(wpOrigin);
 	});
 
+	// Native new-tab navigation must reach the same PHP runtime without exposing app storage.
+	// A top-level navigation may miss Safari's partitioned worker; the app worker
+	// must also allow its scoped alias through to the trusted wrapper.
+	test('scoped navigation falls back to the app wrapper', async ({
+		page,
+		browser,
+		browserName,
+	}) => {
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		const wp = await ready(page);
+		const destination = setURLScope(
+			new URL('/wp-admin/themes.php', wpOrigin),
+			getURLScope(new URL(await wp.evaluate(() => window.location.href)))
+		);
+		destination.search = '?preview_nonce=a%2Bb';
+		destination.hash = '#preview';
+		// Force the server path independently of whether this browser can select
+		// the existing sandbox registration for a top-level navigation.
+		const response = await page.request.get(destination.href, {
+			headers: { 'Sec-Fetch-Dest': 'document' },
+			maxRedirects: 0,
+		});
+		expect(response.status()).toBe(302);
+		const alias = new URL(response.headers().location);
+		alias.hash = destination.hash;
+		expect(alias.origin).toBe(root);
+		const tab = await page.context().newPage();
+		await tab.goto(alias.href);
+		const content = tab.frameLocator('#wp');
+		await expect(
+			content.getByRole('heading', { name: /^Themes\b/ })
+		).toBeVisible();
+		expect(
+			await content.locator('body').evaluate(() => window.location.href)
+		).toBe(destination.href);
+		expect(
+			await content.locator('body').evaluate(() => {
+				try {
+					void window.parent.document;
+					return 'accessible';
+				} catch (error) {
+					return (error as DOMException).name;
+				}
+			})
+		).toBe('SecurityError');
+		await tab.reload();
+		await expect(
+			content.getByRole('heading', { name: /^Themes\b/ })
+		).toBeVisible();
+		// The controlled app worker must reject POST, rather than fetching a GET
+		// wrapper that silently drops the submitted form body. Server-only probes
+		// cannot catch this independent service-worker routing path.
+		const postTarget = new URL(alias);
+		postTarget.hash = '';
+		const posted = tab.waitForResponse(
+			(response) =>
+				response.url() === postTarget.href &&
+				response.request().method() === 'POST'
+		);
+		await tab.evaluate((action) => {
+			const form = document.createElement('form');
+			form.method = 'POST';
+			form.action = action;
+			const input = document.createElement('input');
+			input.name = 'preview_content';
+			input.value = 'This submission must not become a GET preview';
+			form.append(input);
+			document.body.append(form);
+			form.submit();
+		}, postTarget.href);
+		const rejected = await posted;
+		expect(rejected.fromServiceWorker()).toBe(true);
+		expect(rejected.status()).toBe(404);
+		await tab.close();
+		await wp.evaluate((href) => {
+			const link = document.createElement('a');
+			link.href = href;
+			link.textContent = 'Open themes in another tab';
+			link.id = 'native-navigation-probe';
+			document.body.prepend(link);
+		}, destination.href);
+		const opened = page.context().waitForEvent('page');
+		await wp
+			.locator('#native-navigation-probe')
+			.click({ button: 'middle' });
+		const nativeTab = await opened;
+		if (browserName === 'webkit') {
+			// This must be a real browser navigation, not the API-request probe above.
+			const expected = new URL(destination);
+			const app = new URL(root);
+			expected.protocol = app.protocol;
+			expected.host = app.host;
+			await expect(nativeTab).toHaveURL(expected.href);
+		}
+		await expect
+			.poll(async () => {
+				for (const frame of nativeTab.frames()) {
+					if (
+						frame.url() === destination.href &&
+						(await frame
+							.getByRole('heading', {
+								name: /^Themes\b/,
+							})
+							.isVisible())
+					) {
+						return true;
+					}
+				}
+				return false;
+			})
+			.toBe(true);
+		await nativeTab.close();
+		// Classic previews submit POST forms, which can open directly only when the
+		// browser can select the sandbox worker without the app-origin wrapper.
+		if (browserName !== 'webkit') {
+			await classicPreviewReuse(page);
+		}
+		const freshContext = await browser.newContext();
+		const missing = await freshContext.newPage();
+		await missing.goto(root + '/scope:unavailable/wp-admin/');
+		await expect(missing.frameLocator('#wp').locator('body')).toContainText(
+			'could not connect to the Playground site'
+		);
+		await freshContext.close();
+	});
+
 	test('WordPress popups use the running site without app storage access', async ({
 		page,
 	}) => {
@@ -796,6 +952,201 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		expect(title).toBe('Cross-origin editor');
 	});
 
+	// Contract: editor previews show saved drafts and autosaves from their own running site.
+	// Core saves asynchronously and reuses named tabs; either path can lose the sandbox's
+	// service-worker partition, show stale content, or reuse another site's post ID.
+	// WordPress 6.3 keeps its preview window object across clicks; later versions reopen
+	// the window by name.
+	for (const version of ['6.3', '6.9', 'beta']) {
+		test(`editor previews preserve drafts and reused tabs on WordPress ${version}`, async ({
+			page,
+			browserName,
+		}) => {
+			await page.goto(`/?wp=${version}&php=8.3&storage=temp`);
+			const editor = await openPostEditor(page, '/wp-admin/post-new.php');
+			await editPreviewPost(
+				editor,
+				'Draft preview',
+				'First draft content'
+			);
+			const opened = page.context().waitForEvent('page');
+			await previewPost(editor);
+			const popup = await opened;
+			const preview = await previewContent(popup);
+			await expect(preview.locator('body')).toContainText(
+				'First draft content'
+			);
+			expect(new URL(popup.url()).origin).toBe(
+				browserName === 'webkit' ? root : wpOrigin
+			);
+			expect(
+				await preview
+					.locator('body')
+					.evaluate(() => window.location.origin)
+			).toBe(wpOrigin);
+			expect(
+				await preview.locator('body').evaluate(() => {
+					try {
+						void window.parent.document;
+						return 'accessible';
+					} catch (error) {
+						return (error as DOMException).name;
+					}
+				})
+			).toBe(browserName === 'webkit' ? 'SecurityError' : 'accessible');
+
+			await editPreviewPost(
+				editor,
+				'Updated draft preview',
+				'Updated draft content'
+			);
+			await previewPost(editor);
+			await expect(preview.locator('body')).toContainText(
+				'Updated draft content'
+			);
+			await expect(preview.locator('body')).not.toContainText(
+				'First draft content'
+			);
+			expect(page.context().pages()).toHaveLength(2);
+			expect(
+				await editor.evaluate(() =>
+					(window as any).wp.data
+						.select('core/editor')
+						.getCurrentPostAttribute('status')
+				)
+			).toBe('draft');
+
+			// Even an unchanged destination must reload after another Preview click.
+			const reloaded = popup.waitForEvent('framenavigated', {
+				predicate: (frame) =>
+					frame.url().startsWith(wpOrigin + '/scope:'),
+			});
+			await previewPost(editor);
+			await reloaded;
+			await expect(preview.locator('body')).toContainText(
+				'Updated draft content'
+			);
+			expect(page.context().pages()).toHaveLength(2);
+			await popup.close();
+			const reopened = page.context().waitForEvent('page');
+			await previewPost(editor);
+			const reopenedPreview = await reopened;
+			await expect(
+				(await previewContent(reopenedPreview)).locator('body')
+			).toContainText('Updated draft content');
+			await reopenedPreview.close();
+
+			// Published posts use a separate autosave and nonce-bearing preview URL.
+			const published = await openPostEditor(
+				page,
+				'/wp-admin/post.php?post=1&action=edit'
+			);
+			await editPreviewPost(
+				published,
+				'Unpublished revision',
+				'Autosaved preview content'
+			);
+			const revisionOpened = page.context().waitForEvent('page');
+			await previewPost(published);
+			const revision = await revisionOpened;
+			const revisionContent = await previewContent(revision);
+			await expect(revisionContent.locator('body')).toContainText(
+				'Autosaved preview content'
+			);
+			const destination = new URL(
+				await revisionContent
+					.locator('body')
+					.evaluate(() => window.location.href)
+			);
+			expect(destination.searchParams.get('preview')).toBe('true');
+			expect(destination.searchParams.get('preview_id')).toBe('1');
+			expect(destination.searchParams.get('preview_nonce')).toBeTruthy();
+			const original = await page.evaluate(async () => {
+				const response = await (window as any).playgroundSites
+					.getClient()
+					.run({
+						code: "<?php require '/wordpress/wp-load.php'; echo get_post(1)->post_content;",
+					});
+				return response.text;
+			});
+			expect(original).not.toContain('Autosaved preview content');
+			await revision.close();
+		});
+	}
+
+	test('editor previews keep two running sites separate', async ({
+		page,
+	}) => {
+		await page.goto('/?wp=6.9&php=8.3&storage=temp');
+		const firstEditor = await openPostEditor(
+			page,
+			'/wp-admin/post.php?post=1&action=edit'
+		);
+		await editPreviewPost(firstEditor, 'First site', 'First site preview');
+		const firstOpened = page.context().waitForEvent('page');
+		await previewPost(firstEditor);
+		const firstPreview = await firstOpened;
+		const firstContent = await previewContent(firstPreview);
+		await expect(firstContent.locator('body')).toContainText(
+			'First site preview'
+		);
+
+		// Related tabs can find one another's named windows. Both sites preview post 1.
+		const secondOpened = page.waitForEvent('popup');
+		await page.evaluate(
+			(url) => window.open(url),
+			root + '/?wp=6.9&php=8.3&storage=temp'
+		);
+		const second = await secondOpened;
+		const secondEditor = await openPostEditor(
+			second,
+			'/wp-admin/post.php?post=1&action=edit'
+		);
+		await editPreviewPost(
+			secondEditor,
+			'Second site',
+			'Second site preview'
+		);
+		const secondPreviewOpened = second.context().waitForEvent('page');
+		await previewPost(secondEditor);
+		const secondPreview = await secondPreviewOpened;
+		const secondContent = await previewContent(secondPreview);
+		await expect(secondContent.locator('body')).toContainText(
+			'Second site preview'
+		);
+		await expect(firstContent.locator('body')).toContainText(
+			'First site preview'
+		);
+		const firstUrl = new URL(
+			await firstContent
+				.locator('body')
+				.evaluate(() => window.location.href)
+		);
+		const secondUrl = new URL(
+			await secondContent
+				.locator('body')
+				.evaluate(() => window.location.href)
+		);
+		expect(firstUrl.pathname).not.toBe(secondUrl.pathname);
+
+		await editPreviewPost(
+			firstEditor,
+			'First site updated',
+			'First site updated preview'
+		);
+		await previewPost(firstEditor);
+		await expect(firstContent.locator('body')).toContainText(
+			'First site updated preview'
+		);
+		await expect(secondContent.locator('body')).toContainText(
+			'Second site preview'
+		);
+		expect(page.context().pages()).toHaveLength(4);
+		await secondPreview.close();
+		await firstPreview.close();
+		await second.close();
+	});
+
 	test('local-directory saving keeps the actual handle on the root origin', async ({
 		page,
 		browserName,
@@ -958,39 +1309,150 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 		await popup.close();
 	});
 
+	// Core copies the preview link's target to a POST form. The preview page sets
+	// its own window name independently; a mismatch opens a new tab on every click.
+	async function classicPreviewReuse(page: Page) {
+		await page.evaluate(async () => {
+			const client = (window as any).playgroundSites.getClient();
+			await client.writeFile(
+				'/internal/shared/mu-plugins/classic-editor.php',
+				"<?php add_filter('use_block_editor_for_post', '__return_false');"
+			);
+			await client.goTo('/wp-admin/post-new.php');
+		});
+		const editor = await ready(page);
+		await editor.locator('#content-html').click();
+		await editor.locator('#title').fill('Classic preview');
+		await editor.locator('#content').fill('First classic preview');
+		const opened = page.context().waitForEvent('page');
+		await editor.locator('#post-preview').click();
+		const preview = await opened;
+		await expect(preview.locator('body')).toContainText(
+			'First classic preview'
+		);
+		expect(await preview.evaluate(() => window.name)).toBe(
+			await editor.locator('#post-preview').getAttribute('target')
+		);
+		await editor.locator('#content').fill('Updated classic preview');
+		await editor.locator('#post-preview').click();
+		await expect(preview.locator('body')).toContainText(
+			'Updated classic preview'
+		);
+		expect(page.context().pages()).toHaveLength(2);
+		// Scripts can also reuse Core's already-suffixed target without adding it twice.
+		await editor.evaluate(() => {
+			const link = document.querySelector(
+				'#post-preview'
+			) as HTMLAnchorElement;
+			window.open('', link.target);
+		});
+		expect(page.context().pages()).toHaveLength(2);
+		await preview.close();
+	}
+
+	/** Locate WordPress in the direct tab or Safari's app-origin wrapper. */
+	async function previewContent(page: Page) {
+		await page.waitForURL(
+			(url) => url.origin === root || url.origin === wpOrigin
+		);
+		return new URL(page.url()).origin === root
+			? page.frameLocator('#wp')
+			: page;
+	}
+
+	async function openPostEditor(page: Page, path: string): Promise<Frame> {
+		await ready(page);
+		await page.evaluate(
+			(path) => (window as any).playgroundSites.getClient().goTo(path),
+			path
+		);
+		const editor = await ready(page);
+		await editor.waitForFunction(() =>
+			Boolean(
+				(window as any).wp?.data
+					?.select('core/editor')
+					?.getCurrentPostId()
+			)
+		);
+		// The guide may render after this point. A preference hides it either way.
+		await editor.evaluate(() =>
+			(window as any).wp.data
+				.dispatch('core/preferences')
+				.set('core/edit-post', 'welcomeGuide', false)
+		);
+		await expect(
+			editor.getByRole('dialog', { name: /^Welcome to the/ })
+		).toBeHidden();
+		await expect(viewMenu(editor)).toBeVisible();
+		return editor;
+	}
+
+	async function editPreviewPost(
+		editor: Frame,
+		title: string,
+		content: string
+	) {
+		await editor.evaluate(
+			({ title, content }) => {
+				const { blocks, data } = (window as any).wp;
+				const store = data.dispatch('core/editor');
+				store.editPost({ title });
+				// WordPress 6.3 saves the editor's blocks over an edited content string.
+				store.resetEditorBlocks(
+					blocks.parse(
+						`<!-- wp:paragraph --><p>${content}</p><!-- /wp:paragraph -->`
+					)
+				);
+			},
+			{ title, content }
+		);
+	}
+
+	async function previewPost(editor: Frame) {
+		const preview = editor.getByRole('menuitem', { name: /^Preview/ });
+		// WordPress 6.3 leaves this menu open after a preview; later versions close it.
+		if (!(await preview.isVisible())) {
+			await viewMenu(editor).click();
+		}
+		await preview.click();
+	}
+
+	/** WordPress 6.5 renamed the editor's Preview menu to View. */
+	function viewMenu(editor: Frame) {
+		return editor.getByRole('button', { name: /^(View|Preview)$/ });
+	}
+
 	/**
-	 * Model a WordPress plugin replacing cached helper HTML with its own script.
+	 * Model a WordPress plugin replacing cached bridge HTML with its own script.
 	 *
-	 * Prepend a visible execution marker to the real helper, keeping its normal
-	 * request connection working. A broken helper or boot timeout must not pass
+	 * Prepend a visible execution marker to the real bridge, keeping its normal
+	 * request connection working. A broken bridge or boot timeout must not pass
 	 * as protection against the injected script. Replace matching entries in every
 	 * existing cache, including older releases, and create an attacker-named cache:
 	 * user code on the WordPress origin can write all of them, not just its own.
 	 */
-	async function poisonHelperCache(wp: Frame) {
-		const helper = wp
+	async function poisonBridgeCache(wp: Frame) {
+		const bridge = wp
 			.parentFrame()!
 			.childFrames()
-			.find((frame) =>
-				isWordPressBridgePath(new URL(frame.url()).pathname)
-			)!;
-		const helperPath = new URL(helper.url()).pathname;
-		await wp.evaluate(async (helperPath) => {
-			const url = new URL(helperPath, window.location.origin).href;
+			.find((frame) => isWordPressBridgeFrame(frame.url()))!;
+		const bridgePath = new URL(bridge.url()).pathname;
+		await wp.evaluate(async (bridgePath) => {
+			const url = new URL(bridgePath, window.location.origin).href;
 			const response = await fetch(url, {
 				referrerPolicy: 'no-referrer',
 			});
 			if (!response.ok)
-				throw new Error('The real request helper did not load');
-			// Keep the real helper working so a timeout cannot mask execution of the injected script.
+				throw new Error('The real WordPress bridge did not load');
+			// Keep the real bridge working so a timeout cannot mask execution of the injected script.
 			const html =
-				'<script>window.cachedHelperExecuted = true;</script>' +
+				'<script>window.cachedBridgeExecuted = true;</script>' +
 				(await response.text());
 			const names = new Set(['attacker-cache', ...(await caches.keys())]);
 			for (const name of names) {
 				const cache = await caches.open(name);
 				const keys = (await cache.keys()).filter(
-					(key) => new URL(key.url).pathname === helperPath
+					(key) => new URL(key.url).pathname === bridgePath
 				);
 				for (const key of [url, ...keys]) {
 					await cache.put(
@@ -1001,76 +1463,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 					);
 				}
 			}
-		}, helperPath);
-	}
-
-	/**
-	 * Check that an embedded app API can complete its normal isReady() handshake.
-	 *
-	 * Create the iframe below the supplied page or frame with no referrer and no
-	 * extra origin parameter, as existing integrations may do. Retry the legacy
-	 * APPLY message while the document boots; only this iframe's reply for the
-	 * generated request ID counts as success. Remove the iframe and timers on
-	 * success or timeout. A timeout returns false; it does not explain why boot
-	 * failed, so these embed-compatibility checks require a successful handshake.
-	 */
-	async function probeFramedAPI(
-		parent: Page | Frame,
-		apiUrl: string,
-		timeoutMs: number
-	) {
-		return await parent.evaluate(
-			async ({ apiUrl, timeoutMs, origin }) => {
-				const iframe = document.createElement('iframe');
-				iframe.hidden = true;
-				iframe.referrerPolicy = 'no-referrer';
-				iframe.src = apiUrl;
-				const id = crypto.randomUUID();
-				return await new Promise<boolean>((resolve) => {
-					const interval = setInterval(
-						() =>
-							iframe.contentWindow?.postMessage(
-								{
-									id,
-									type: 'APPLY',
-									path: ['isReady'],
-									argumentList: [],
-								},
-								origin
-							),
-						100
-					);
-					const timeout = setTimeout(() => finish(false), timeoutMs);
-					window.addEventListener('message', onMessage);
-					document.body.append(iframe);
-
-					/**
-					 * Match the reply to this iframe, app origin, and request ID.
-					 * Other Playground frames also send API messages during boot;
-					 * accepting one of those would hide a broken embedded API.
-					 */
-					function onMessage(event: MessageEvent) {
-						if (
-							event.source === iframe.contentWindow &&
-							event.origin === origin &&
-							event.data?.id === id &&
-							event.data.type === 'RAW'
-						)
-							finish(true);
-					}
-
-					/** Stop probing and remove the listener and temporary iframe on either outcome. */
-					function finish(connected: boolean) {
-						clearInterval(interval);
-						clearTimeout(timeout);
-						window.removeEventListener('message', onMessage);
-						iframe.remove();
-						resolve(connected);
-					}
-				});
-			},
-			{ apiUrl, timeoutMs, origin: root }
-		);
+		}, bridgePath);
 	}
 
 	/**
@@ -1080,7 +1473,7 @@ test.describe('WordPress origin boundary', { tag: '@storage' }, () => {
 	 * WordPress origin with a /scope:... path. A browser error page can also deny
 	 * parent access; treating that as a loaded site would make security checks pass
 	 * when the real HTTP connection was broken. Read the frame from the visible
-	 * viewport element so hidden request helpers are not mistaken for WordPress.
+	 * viewport element so hidden WordPress bridges are not mistaken for WordPress.
 	 */
 	async function ready(page: Page | Frame): Promise<Frame> {
 		await page.waitForFunction(() =>

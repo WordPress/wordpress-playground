@@ -625,6 +625,28 @@ var wp;
     return /^\s*\d+\s*$/.test(id2);
   }
 
+  // packages/core-data/build-module/utils/is-safe-entity-key.mjs
+  var UNSAFE_CHARACTERS = /[?#&\\\x00-\x1f\x7f]/;
+  function isSafeEntityKey(key) {
+    if (key === null || key === void 0 || typeof key === "number") {
+      return true;
+    }
+    if (typeof key !== "string") {
+      return false;
+    }
+    if (/%2f/i.test(key)) {
+      return false;
+    }
+    const decoded = key.replace(
+      /%([0-7][0-9a-f])/gi,
+      (match2, hex) => String.fromCharCode(parseInt(hex, 16))
+    );
+    if (UNSAFE_CHARACTERS.test(decoded)) {
+      return false;
+    }
+    return decoded.split("/").every((segment) => segment !== "." && segment !== "..");
+  }
+
   // packages/core-data/build-module/utils/user-permissions.mjs
   var ALLOWED_RESOURCE_ACTIONS = [
     "create",
@@ -18425,6 +18447,9 @@ ${err.toString()}`);
       let hasError = false;
       const { baseURL } = entityConfig;
       try {
+        if (!isSafeEntityKey(recordId)) {
+          throw new Error("Invalid entity record key.");
+        }
         let path = `${baseURL}/${recordId}`;
         if (query) {
           path = (0, import_url3.addQueryArgs)(path, query);
@@ -18624,6 +18649,9 @@ ${err.toString()}`);
       let hasError = false;
       const { baseURL } = entityConfig;
       try {
+        if (!isSafeEntityKey(recordId)) {
+          throw new Error("Invalid entity record key.");
+        }
         const path = `${baseURL}${recordId ? "/" + recordId : ""}`;
         const persistedRecord = !isNewRecord ? select6.getRawEntityRecord(kind, name, recordId) : {};
         const syncManager2 = getEntitySyncManager();
@@ -18953,6 +18981,9 @@ ${err.toString()}`);
         recordId
       });
       try {
+        if (!isSafeEntityKey(recordId)) {
+          throw new Error("Invalid entity record key.");
+        }
         const path = `${entityConfig.baseURL}/${recordId}/edit`;
         const newRecord = await __unstableFetch({
           path,
@@ -19401,6 +19432,10 @@ ${err.toString()}`);
     }, 0);
     return covered / searchTokens.length * 10;
   }
+  function isExactTitle(title, searchTokens) {
+    const titleTokens = tokenize2(title || "");
+    return titleTokens.length > 0 && titleTokens.join(" ") === searchTokens.join(" ");
+  }
   function sortResults({
     results,
     search,
@@ -19412,7 +19447,8 @@ ${err.toString()}`);
       found: countWordsFound(result.title, searchTokens),
       ...getTitleMatch(result.title, search),
       type: getTypeRank(result, preferTypes),
-      score: getCoverage(result.title, searchTokens)
+      score: getCoverage(result.title, searchTokens),
+      exact: isExactTitle(result.title, searchTokens)
     }));
     scored.sort(
       (a, b) => (
@@ -19420,7 +19456,9 @@ ${err.toString()}`);
         // If the search is "black cat" then "Black is my favorite color" should rank lower than "Cats that are black"
         b.found - a.found || // Then whether it holds them together, as one string: i.e. "Black cats are great" vs "Cats that are black"
         Number(b.contains) - Number(a.contains) || // Matches are equal so far, so enforce banding by type
-        b.type - a.type || // Within a band, rank matches that start with the search string higher than mid-string matches:
+        b.type - a.type || // Within a band, a title that is exactly the search comes first, whatever its punctuation:
+        // the search "coffee beans" ranks "“Coffee Beans”" above "Coffee Beans, Lightly Roasted"
+        Number(b.exact) - Number(a.exact) || // Then, rank matches that start with the search string higher than mid-string matches:
         // i.e the search "cat" ranks the title "caterpillar" higher than "concatenate"
         Number(b.begins) - Number(a.begins) || // Rank by how much of the matched word the search contains: the search
         // "cat" ranks the title "Cats" above the title "Caterpillar" since cat is 75% of "Cats"
@@ -19528,6 +19566,9 @@ ${err.toString()}`);
       (config) => config.name === name && config.kind === kind
     );
     if (!entityConfig) {
+      return;
+    }
+    if (!isSafeEntityKey(key)) {
       return;
     }
     const lock2 = await dispatch4.__unstableAcquireStoreLock(
@@ -19840,6 +19881,9 @@ ${err.toString()}`);
       if (!resource.kind || !resource.name) {
         throw new Error("The entity resource object is not valid.");
       }
+      if (!isSafeEntityKey(resource.id)) {
+        return;
+      }
       const configs = await resolveSelect3.getEntitiesConfig(
         resource.kind
       );
@@ -19851,6 +19895,9 @@ ${err.toString()}`);
       }
       resourcePath = entityConfig.baseURL + (resource.id ? "/" + resource.id : "");
     } else {
+      if (!isSafeEntityKey(resource) || !isSafeEntityKey(id2)) {
+        return;
+      }
       resourcePath = `/wp/v2/${resource}` + (id2 ? "/" + id2 : "");
     }
     let response;
@@ -19877,6 +19924,9 @@ ${err.toString()}`);
     await resolveSelect3.canUser("update", { kind, name, id: recordId });
   };
   var getAutosaves2 = (postType, postId) => async ({ dispatch: dispatch4, resolveSelect: resolveSelect3 }) => {
+    if (!isSafeEntityKey(postId)) {
+      return;
+    }
     const {
       rest_base: restBase,
       rest_namespace: restNamespace = "wp/v2",
@@ -20050,7 +20100,7 @@ ${err.toString()}`);
     const entityConfig = configs.find(
       (config) => config.name === name && config.kind === kind
     );
-    if (!entityConfig) {
+    if (!entityConfig || !isSafeEntityKey(recordKey)) {
       return;
     }
     const rawQuery = { ...query };
@@ -20132,7 +20182,7 @@ ${err.toString()}`);
     const entityConfig = configs.find(
       (config) => config.name === name && config.kind === kind
     );
-    if (!entityConfig) {
+    if (!entityConfig || !isSafeEntityKey(recordKey) || !isSafeEntityKey(revisionKey)) {
       return;
     }
     if (query !== void 0 && query._fields) {

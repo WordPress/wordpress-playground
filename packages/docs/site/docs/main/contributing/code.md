@@ -30,10 +30,8 @@ Be sure to review the following resources before you begin:
 [Fork the Playground repository](https://github.com/WordPress/wordpress-playground/fork) and clone it to your local machine. To do that, copy and paste these commands into your terminal:
 
 ```bash
-git clone -b trunk --single-branch --depth 1 --recurse-submodules
-
 # replace `YOUR-GITHUB-USERNAME` with your GitHub username:
-git@github.com:YOUR-GITHUB-USERNAME/wordpress-playground.git
+git clone -b trunk --single-branch --depth 1 --recurse-submodules git@github.com:YOUR-GITHUB-USERNAME/wordpress-playground.git
 cd wordpress-playground
 npm install
 ```
@@ -62,14 +60,13 @@ If it's around 65,536 or lower, increase it by running:
 
 ```bash
 sudo sysctl fs.inotify.max_user_watches=131070
-sudo sysctl -p
 ```
 
 Then try `npm run dev` again. This is a common issue on Debian, Ubuntu, and other Linux distributions.
 
 </div>
 
-When your'e ready, commit the changes and submit a Pull Request.
+When you're ready, commit the changes and submit a Pull Request.
 
 <div class="callout callout-info">
 

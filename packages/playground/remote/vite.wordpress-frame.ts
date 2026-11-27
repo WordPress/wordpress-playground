@@ -7,10 +7,10 @@ import { isWordPressBridgePath } from './src/lib/wordpress-bridge-path';
  *
  * The app on :5400 proxies its runtime-module requests to this server on :4400,
  * preserving Host: 127.0.0.1:5400. Let those requests reach Vite. A browser request
- * to :4400 uses a different Host and may load only the HTTP helper and worker
+ * to :4400 uses a different Host and may load only the WordPress bridge and worker
  * loaders, never remote.html, api.html, or arbitrary source modules.
  *
- * Generate the helper with an app-origin source-module URL. Unlike a production
+ * Generate the bridge with an app-origin source-module URL. Unlike a production
  * build, Vite has not extracted the source HTML's inline script; serving it
  * unchanged would make the bridge identify :4400 as its app parent. Its service
  * worker also starts through an app-origin module import, keeping one module graph.
@@ -46,7 +46,20 @@ export function wordPressFrameDevPlugin(
 				}
 				if (!localDevelopmentHostnames.has(host.hostname))
 					return next();
-				if (host.port === app.port) return next();
+				if (host.port === app.port) {
+					if (req.url?.startsWith('/scope:')) {
+						if (
+							req.method !== 'GET' ||
+							req.headers['sec-fetch-dest'] !== 'document'
+						) {
+							res.statusCode = 404;
+							res.end('Not found');
+							return;
+						}
+						req.url = '/wordpress-popup.html';
+					}
+					return next();
+				}
 
 				res.setHeader('X-Content-Type-Options', 'nosniff');
 				res.setHeader('Cache-Control', 'no-store');
@@ -55,11 +68,23 @@ export function wordPressFrameDevPlugin(
 				const target = new URL(app);
 				target.hostname = host.hostname;
 				if (host.port === wordpress.port) {
+					if (
+						url.pathname.startsWith('/scope:') &&
+						req.method === 'GET' &&
+						req.headers['sec-fetch-dest'] === 'document'
+					) {
+						target.pathname = url.pathname;
+						target.search = url.search;
+						res.statusCode = 302;
+						res.setHeader('Location', target.href);
+						res.end();
+						return;
+					}
 					if (isWordPressBridgePath(url.pathname)) {
 						target.pathname = '/src/lib/wordpress-bridge.ts';
 						res.setHeader('Content-Type', 'text/html');
 						res.end(
-							`<!doctype html><title>WordPress request transport</title><script type="module" src=${JSON.stringify(target.href)}></script>`
+							`<!doctype html><title>WordPress bridge</title><script type="module" src=${JSON.stringify(target.href)}></script>`
 						);
 						return;
 					}
@@ -89,7 +114,12 @@ export function wordPressFrameDevPlugin(
 				}
 				// Only the browser service worker can synthesize scoped WordPress pages.
 				res.statusCode = 404;
-				res.end('Not found');
+				res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+				res.end(
+					url.pathname.startsWith('/scope:')
+						? 'This browser could not connect to the Playground site. Open it in Playground and try again.'
+						: 'Not found'
+				);
 			});
 		},
 	};

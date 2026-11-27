@@ -1,8 +1,8 @@
-const dependencyFilename = new URL('./8_5_12/php_8_5.wasm', import.meta.url)
+const dependencyFilename = new URL('./8_5_13/php_8_5.wasm', import.meta.url)
 	.href;
 export { dependencyFilename };
-export const dependenciesTotalSize = 21057834;
-const phpVersionString = '8.5.12';
+export const dependenciesTotalSize = 21065994;
+const phpVersionString = '8.5.13';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	var Module = typeof PHPLoader != 'undefined' ? PHPLoader : {};
@@ -7188,13 +7188,11 @@ export function init(RuntimeName, PHPLoader) {
 		envLength
 	) {
 		if (!command) {
-			___errno_location(ERRNO_CODES.EINVAL);
-			return -1;
+			return -ERRNO_CODES.EINVAL;
 		}
 		const cmdstr = UTF8ToString(command);
 		if (!cmdstr.length) {
-			___errno_location(ERRNO_CODES.EINVAL);
-			return -1;
+			return -ERRNO_CODES.EINVAL;
 		}
 		let argsArray = [];
 		if (argsLength) {
@@ -7249,13 +7247,11 @@ export function init(RuntimeName, PHPLoader) {
 				}
 			} catch (e) {
 				if (e.code === 'SPAWN_UNSUPPORTED') {
-					___errno_location(ERRNO_CODES.ENOSYS);
-					return -1;
+					return -ERRNO_CODES.ENOSYS;
 				}
 				if (typeof FS == 'undefined' || !(e.name === 'ErrnoError'))
 					throw e;
-				___errno_location(e.code);
-				return -1;
+				return -e.errno;
 			}
 			const ProcInfo = { pid: cp.pid, exited: false };
 			PHPWASM.processTable[ProcInfo.pid] = ProcInfo;
@@ -7266,7 +7262,12 @@ export function init(RuntimeName, PHPLoader) {
 				stderrChildFd = std[2]?.child,
 				stderrParentFd = std[2]?.parent;
 			const detachPipeDataListeners = [];
-			cp.on('exit', function (code) {
+			let childPipesClosed = false;
+			const closeChildPipes = function () {
+				if (childPipesClosed) {
+					return;
+				}
+				childPipesClosed = true;
 				for (const detach of detachPipeDataListeners) {
 					detach();
 				}
@@ -7275,6 +7276,9 @@ export function init(RuntimeName, PHPLoader) {
 						FS.close(FS.streams[fd]);
 					}
 				}
+			};
+			cp.on('exit', function (code) {
+				closeChildPipes();
 				ProcInfo.exitCode = code;
 				ProcInfo.exited = true;
 			});
@@ -7354,6 +7358,10 @@ export function init(RuntimeName, PHPLoader) {
 				});
 			} catch (e) {
 				console.error(e);
+				closeChildPipes();
+				if (!ProcInfo.pid) {
+					return -(ERRNO_CODES[e.code] ?? ERRNO_CODES.ECHILD);
+				}
 				return ProcInfo.pid;
 			}
 			if (stdinChildFd) {
@@ -8216,10 +8224,7 @@ export function init(RuntimeName, PHPLoader) {
 			return ERRNO_CODES.EWOULDBLOCK;
 		}
 		return returnCallback(async (wakeUp) => {
-			var retries = 0;
 			var interval = 50;
-			var timeout = 5e3;
-			var maxRetries = timeout / interval;
 			while (true) {
 				var returnCode;
 				var stream;
@@ -8243,7 +8248,6 @@ export function init(RuntimeName, PHPLoader) {
 					return wakeUp(0);
 				}
 				if (
-					++retries > maxRetries ||
 					!stream ||
 					FS.isClosed(stream) ||
 					returnCode !== ERRNO_CODES.EWOULDBLOCK ||
@@ -9251,40 +9255,40 @@ export function init(RuntimeName, PHPLoader) {
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
 	}
-	var _compiler_globals = (Module['_compiler_globals'] = 17465416);
-	var _executor_globals = (Module['_executor_globals'] = 17465832);
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 17461852);
-	var _zend_empty_array = (Module['_zend_empty_array'] = 16964736);
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 17348224);
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 17348228);
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 17348240);
-	var _std_object_handlers = (Module['_std_object_handlers'] = 16962528);
-	var _zend_empty_string = (Module['_zend_empty_string'] = 17463124);
-	var _zend_known_strings = (Module['_zend_known_strings'] = 17463128);
+	var _compiler_globals = (Module['_compiler_globals'] = 17466088);
+	var _executor_globals = (Module['_executor_globals'] = 17466504);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 17462524);
+	var _zend_empty_array = (Module['_zend_empty_array'] = 16965504);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 17348896);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 17348900);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 17348912);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 16963296);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 17463796);
+	var _zend_known_strings = (Module['_zend_known_strings'] = 17463800);
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		17463196);
+		17463868);
 	var ___memory_base = (Module['___memory_base'] = 0);
 	var ___table_base = (Module['___table_base'] = 1);
-	var _stdout = (Module['_stdout'] = 17341120);
-	var _timezone = (Module['_timezone'] = 17796600);
-	var _tzname = (Module['_tzname'] = 17796608);
-	var ___heap_base = 18858304;
+	var _stdout = (Module['_stdout'] = 17341888);
+	var _timezone = (Module['_timezone'] = 17797272);
+	var _tzname = (Module['_tzname'] = 17797280);
+	var ___heap_base = 18858976;
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		17809716);
+		17810388);
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
-	] = 17341368);
+	] = 17342136);
 	var __ZTVN10__cxxabiv117__class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv117__class_type_infoE'
-	] = 17341328);
+	] = 17342096);
 	var __ZTVN10__cxxabiv121__vmi_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
-	] = 17341420);
+	] = 17342188);
 	var __ZTISt20bad_array_new_length = (Module[
 		'__ZTISt20bad_array_new_length'
-	] = 17341492);
-	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 17341536);
-	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 17341556);
+	] = 17342260);
+	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 17342304);
+	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 17342324);
 	var wasmImports = {
 		__assert_fail: ___assert_fail,
 		__asyncify_data: ___asyncify_data,

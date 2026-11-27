@@ -63,6 +63,7 @@ async function registerSiteTool() {
 			listener: (tools: WebMCPToolDescriptor[]) => void
 		) => {
 			listener([{ name: 'site_tool', description: 'A site tool.' }]);
+			return () => {};
 		},
 		callWebMCPTool: call,
 		cancelWebMCPTool: cancel,
@@ -71,3 +72,32 @@ async function registerSiteTool() {
 	await Promise.resolve();
 	return { tool, call, cancel, finish: (value: unknown) => finish(value) };
 }
+
+// Contract: stopping a proxy removes its observer, even if subscription is still
+// pending. Remote subscription completion races independently with client replacement.
+describe('site tool subscription cleanup', () => {
+	it.each([false, true])(
+		'unsubscribes when stopped before completion: %s',
+		async (stopEarly) => {
+			vi.stubGlobal('document', {
+				modelContext: { registerTool: vi.fn() },
+			});
+			let complete!: (remove: () => void) => void;
+			const remove = vi.fn();
+			const proxy = startWebMCPSiteToolProxy({
+				onWebMCPToolsChanged: () =>
+					new Promise((resolve) => {
+						complete = resolve;
+					}),
+				callWebMCPTool: vi.fn(),
+				cancelWebMCPTool: vi.fn(),
+			});
+			if (stopEarly) proxy.stop();
+			complete(remove);
+			await Promise.resolve();
+			if (!stopEarly) proxy.stop();
+			proxy.stop();
+			expect(remove).toHaveBeenCalledTimes(1);
+		}
+	);
+});

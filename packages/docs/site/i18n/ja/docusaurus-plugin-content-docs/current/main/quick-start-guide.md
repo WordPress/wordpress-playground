@@ -28,7 +28,9 @@ This page will guide you through each of these. Oh, and if you're a visual learn
 
 <iframe width="752" height="423.2" title="Getting started with WordPress Playground" src="https://video.wordpress.com/v/3UBIXJ9S?autoPlay=false&amp;height=1080&amp;width=1920&amp;fill=true" class="editor-media-modal-detail__preview is-video" allowFullScreen></iframe>
 
-## 新しい WordPress サイトを始める
+<a id="新しい-wordpress-サイトを始める"></a>
+
+## 新しい WordPress サイトを始める {#start-a-new-wordpress-site}
 
 <!--
 ## Start a new WordPress site
@@ -76,7 +78,9 @@ Everything you build stays in your browser and is **not** sent anywhere. Once yo
 </div>
  -->
 
-## ブロック、テーマ、プラグインを試す
+<a id="ブロックテーマプラグインを試す"></a>
+
+## ブロック、テーマ、プラグインを試す {#try-a-block-a-theme-or-a-plugin}
 
 <!--
 ## Try a block, a theme, or a plugin
@@ -277,7 +281,9 @@ You can specify major versions like `wp=6.2` or `php=8.1` and expect the most re
 </div>
  -->
 
-## WXR ファイルをインポートする
+<a id="wxr-ファイルをインポートする"></a>
+
+## WXR ファイルをインポートする {#use-a-specific-wordpress-or-php-version}
 
 <!--
 ## Import a WXR file

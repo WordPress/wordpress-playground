@@ -4,6 +4,180 @@ All notable changes to this project are documented in this file by a CI job
 that runs on every NPM release. The file follows the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 format.
 
+## [v3.1.66] (2026-11-23) 
+
+### Blueprints
+
+- \[Docs\] Correct the Blueprint constant default and document CLI workarounds\. ([#4626](https://github.com/WordPress/wordpress-playground/pull/4626))
+
+### Tools
+
+- \[Docs\] Show the Xdebug bridge loopback endpoints and correct async startup\. ([#4627](https://github.com/WordPress/wordpress-playground/pull/4627))
+
+### Documentation
+
+- \[Docs\] Clarify self\-hosting setup and update Portuguese\, Spanish\, and French translations\. ([#4573](https://github.com/WordPress/wordpress-playground/pull/4573))
+- \[Docs\] Fix the clone and file watcher commands in the code contributions guide\. ([#4704](https://github.com/WordPress/wordpress-playground/pull/4704))
+- \[Docs\] Fix the npm steps for adding a new package\. ([#4699](https://github.com/WordPress/wordpress-playground/pull/4699))
+- \[WordPress builds\] Restore Docker export ownership before validation\. ([#4624](https://github.com/WordPress/wordpress-playground/pull/4624))
+- \[docs\] Add an Xdebug tracing and profiling guide\. ([#4281](https://github.com/WordPress/wordpress-playground/pull/4281))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/javascript\-api\/01\-index\.md\. ([#4589](https://github.com/WordPress/wordpress-playground/pull/4589))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/javascript\-api\/03\-playground\-api\-client\.md\. ([#4617](https://github.com/WordPress/wordpress-playground/pull/4617))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/javascript\-api\/04\-blueprint\-json\-in\-api\-client\.md\. ([#4618](https://github.com/WordPress/wordpress-playground/pull/4618))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/javascript\-api\/05\-blueprint\-functions\-in\-api\-client\.md\. ([#4619](https://github.com/WordPress/wordpress-playground/pull/4619))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/javascript\-api\/06\-mount\-data\.md\. ([#4633](https://github.com/WordPress/wordpress-playground/pull/4633))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/javascript\-api\/07\-php\-extensions\.md\. ([#4636](https://github.com/WordPress/wordpress-playground/pull/4636))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/javascript\-api\/08\-build\-php\-extensions\.md\. ([#4639](https://github.com/WordPress/wordpress-playground/pull/4639))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/javascript\-api\/09\-php\-extension\-dependencies\.md\. ([#4641](https://github.com/WordPress/wordpress-playground/pull/4641))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/query\-api\/01\-index\.md\. ([#4585](https://github.com/WordPress/wordpress-playground/pull/4585))
+- \[i18n\] Add Bengali translation for developers\/07\-xdebug\/03\-trace\-and\-profile\.md\. ([#4659](https://github.com/WordPress/wordpress-playground/pull/4659))
+- \[i18n\] Add Hindi to the documentation locales\. ([#4682](https://github.com/WordPress/wordpress-playground/pull/4682))
+- \[i18n\] Add pt\-BR translation for GitHub web interface contributing guide\. ([#4681](https://github.com/WordPress/wordpress-playground/pull/4681))
+- \[i18n\] Add pt\-BR translation for PHP code snippets guide\. ([#4680](https://github.com/WordPress/wordpress-playground/pull/4680))
+- \[i18n\] Add pt\-BR translation for PHP frameworks guide\. ([#4679](https://github.com/WordPress/wordpress-playground/pull/4679))
+- \[i18n\] Add pt\-BR translation for PHPUnit testing guide\. ([#4587](https://github.com/WordPress/wordpress-playground/pull/4587))
+- \[i18n\] Add pt\-BR translation for the Xdebug trace and profile guide\. ([#4694](https://github.com/WordPress/wordpress-playground/pull/4694))
+- \[i18n\] Add pt\-BR translation for the build PHP extensions guide\. ([#4695](https://github.com/WordPress/wordpress-playground/pull/4695))
+- \[i18n\] Translate playground\-for\-everyone guide into Gujarati\. ([#4684](https://github.com/WordPress/wordpress-playground/pull/4684))
+- \[i18n\] Translate the About page into Hindi\. ([#4678](https://github.com/WordPress/wordpress-playground/pull/4678))
+- \[i18n\] Translate the Blueprint functions guide to pt\-BR\. ([#4668](https://github.com/WordPress/wordpress-playground/pull/4668))
+- \[i18n\] Translate the Build page into Hindi\. ([#4688](https://github.com/WordPress/wordpress-playground/pull/4688))
+- \[i18n\] Translate the Code contributions page into Hindi\. ([#4702](https://github.com/WordPress/wordpress-playground/pull/4702))
+- \[i18n\] Translate the Coding principles page into Hindi\. ([#4696](https://github.com/WordPress/wordpress-playground/pull/4696))
+- \[i18n\] Translate the Contributing page into Hindi\. ([#4669](https://github.com/WordPress/wordpress-playground/pull/4669))
+- \[i18n\] Translate the Contributor Badge page into Hindi\. ([#4667](https://github.com/WordPress/wordpress-playground/pull/4667))
+- \[i18n\] Translate the Contributor Day guide into Hindi\. ([#4671](https://github.com/WordPress/wordpress-playground/pull/4671))
+- \[i18n\] Translate the Contributor Day table lead guide into Hindi\. ([#4670](https://github.com/WordPress/wordpress-playground/pull/4670))
+- \[i18n\] Translate the GitHub web interface guide into Hindi\. ([#4676](https://github.com/WordPress/wordpress-playground/pull/4676))
+- \[i18n\] Translate the Guides index page into Hindi\. ([#4701](https://github.com/WordPress/wordpress-playground/pull/4701))
+- \[i18n\] Translate the Importing content with Blueprints guide into Hindi\. ([#4708](https://github.com/WordPress/wordpress-playground/pull/4708))
+- \[i18n\] Translate the JSON Blueprint client guide to pt\-BR\. ([#4644](https://github.com/WordPress/wordpress-playground/pull/4644))
+- \[i18n\] Translate the Launch page into Hindi\. ([#4677](https://github.com/WordPress/wordpress-playground/pull/4677))
+- \[i18n\] Translate the Quick Start Guide into Hindi\. ([#4663](https://github.com/WordPress/wordpress-playground/pull/4663))
+- \[i18n\] Translate the Releasing packages page into Hindi\. ([#4697](https://github.com/WordPress/wordpress-playground/pull/4697))
+- \[i18n\] Translate the Test page into Hindi\. ([#4683](https://github.com/WordPress/wordpress-playground/pull/4683))
+- \[i18n\] Translate the Troubleshooting page into Hindi\. ([#4706](https://github.com/WordPress/wordpress-playground/pull/4706))
+- \[i18n\] Translate the Web Instance page into Hindi\. ([#4705](https://github.com/WordPress/wordpress-playground/pull/4705))
+- \[i18n\] Translate the WordPress Playground for Everyone guide into Hindi\. ([#4703](https://github.com/WordPress/wordpress-playground/pull/4703))
+
+### PHP WebAssembly
+
+- \[CLI\] Keep snapshot return tests below the Windows timeout\. ([#4303](https://github.com/WordPress/wordpress-playground/pull/4303))
+
+### Website
+
+- Delete the broken PHP Blueprints demo\. ([#4604](https://github.com/WordPress/wordpress-playground/pull/4604))
+- Serve WP Cloud static files directly from release folders\. ([#4613](https://github.com/WordPress/wordpress-playground/pull/4613))
+- \[CLI\] Write boot constants only once per Playground server\. ([#4675](https://github.com/WordPress/wordpress-playground/pull/4675))
+- \[Tests\] Print browser context for legacy WordPress boot failures\. ([#4647](https://github.com/WordPress/wordpress-playground/pull/4647))
+
+### Various
+
+- \[Blueprints\] Await defineConstant in the login step\. ([#4621](https://github.com/WordPress/wordpress-playground/pull/4621))
+- \[Remote Access\] Preserve responses when session cleanup fails\. ([#4646](https://github.com/WordPress/wordpress-playground/pull/4646))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @brandonpayton @DevNeto07 @ekamran @fellyph @gugamorato-svg @irisfield @mayankmajeji @mho22 @mialichidev23 @rahultank-spaceo @shamiulbishal
+
+
+## [v3.1.65] (2026-11-16) 
+
+### Tools
+
+- \[ xdebug \] Bind the Xdebug bridge listeners to loopback\. ([#4486](https://github.com/WordPress/wordpress-playground/pull/4486))
+
+### Documentation
+
+- \[i18n\] Add Bengali translation for developers\/03\-build\-an\-app\/01\-index\.md\. ([#4572](https://github.com/WordPress/wordpress-playground/pull/4572))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/01\-index\.md\. ([#4584](https://github.com/WordPress/wordpress-playground/pull/4584))
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/javascript\-api\/02\-index\-html\-vs\-remote\-html\.md\. ([#4590](https://github.com/WordPress/wordpress-playground/pull/4590))
+- \[i18n\] Add Bengali translation for developers\/07\-xdebug\/02\-getting\-started\.md\. ([#4581](https://github.com/WordPress/wordpress-playground/pull/4581))
+
+### Website
+
+- Delegate loopback permissions for Personal WP\. ([#4599](https://github.com/WordPress/wordpress-playground/pull/4599))
+- Renew WebMCP origin trial tokens\. ([#4598](https://github.com/WordPress/wordpress-playground/pull/4598))
+- Route direct WordPress navigations through the app origin\. ([#4593](https://github.com/WordPress/wordpress-playground/pull/4593))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@akirk @bgrgicak @dhrupo @mho22 @shamiulbishal
+
+
+## [v3.1.64] (2026-11-10) 
+
+### Enhancements
+
+- \[MCP\] Allow callers to unregister WebMCP tools\. ([#4575](https://github.com/WordPress/wordpress-playground/pull/4575))
+
+### Documentation
+
+- \[i18n\] Add Bengali translation for developers\/06\-apis\/sites\-api\/01\-index\.md\. ([#4586](https://github.com/WordPress/wordpress-playground/pull/4586))
+- \[i18n\] Add Bengali translation for developers\/07\-xdebug\/01\-introduction\.md\. ([#4578](https://github.com/WordPress/wordpress-playground/pull/4578))
+- \[i18n\] Add Bengali translation for developers\/23\-architecture\/08\-browser\-concepts\.md\. ([#4582](https://github.com/WordPress/wordpress-playground/pull/4582))
+- \[i18n\] Add Bengali translation for developers\/23\-architecture\/10\-browser\-iframe\-rendering\.md\. ([#4583](https://github.com/WordPress/wordpress-playground/pull/4583))
+- \[i18n\] Add Bengali translation for developers\/24\-limitations\/01\-index\.md\. ([#4579](https://github.com/WordPress/wordpress-playground/pull/4579))
+- \[i18n\] Add Bengali translation for local\-development\/wp\-playground\-cli\.md\. ([#4571](https://github.com/WordPress/wordpress-playground/pull/4571))
+
+### Website
+
+- Add URL query support for the site file browser\. ([#3600](https://github.com/WordPress/wordpress-playground/pull/3600))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@bgrgicak @dhrupo @fellyph @shamiulbishal
+
+
+## [v3.1.63] (2026-11-09) 
+
+### Blueprints
+
+- Default v1 Blueprints to PHP 8\.3\. ([#4548](https://github.com/WordPress/wordpress-playground/pull/4548))
+- Support browser language selection\. ([#4505](https://github.com/WordPress/wordpress-playground/pull/4505))
+
+### Documentation
+
+- \[Docs\] Build the self\-hosted Playground website from source\. ([#4568](https://github.com/WordPress/wordpress-playground/pull/4568))
+- \[Docs\] Clarify JavaScript client setup and fix quick\-start links\. ([#4539](https://github.com/WordPress/wordpress-playground/pull/4539))
+- \[Docs\] Fix programmatic Playground CLI examples across translations\. ([#4547](https://github.com/WordPress/wordpress-playground/pull/4547))
+- \[i18n\] Add Bengali translation for developers\/23\-architecture\/01\-index\.md\. ([#4561](https://github.com/WordPress/wordpress-playground/pull/4561))
+- \[i18n\] Add Bengali translation for developers\/intro\-devs\.md\. ([#4551](https://github.com/WordPress/wordpress-playground/pull/4551))
+- \[i18n\] Add Bengali translation for local\-development\/intro\.md\. ([#4556](https://github.com/WordPress/wordpress-playground/pull/4556))
+- \[i18n\] Add Bengali translation for local\-development\/php\-wasm\-node\.md\. ([#4570](https://github.com/WordPress/wordpress-playground/pull/4570))
+- \[i18n\] Add Bengali translation for local\-development\/vscode\-extension\.md\. ([#4554](https://github.com/WordPress/wordpress-playground/pull/4554))
+- \[i18n\] Add Bengali translation for local\-development\/wp\-now\.md\. ([#4555](https://github.com/WordPress/wordpress-playground/pull/4555))
+- \[i18n\] Add Bengali translation for main\/guides\/phpunit\-testing\.md\. ([#4558](https://github.com/WordPress/wordpress-playground/pull/4558))
+- \[i18n\] Refresh PR preview guides for v4\. ([#4560](https://github.com/WordPress/wordpress-playground/pull/4560))
+- \[i18n\] Translate Programmatic Usage of Playground CLI into Gujarati\. ([#4546](https://github.com/WordPress/wordpress-playground/pull/4546))
+
+### PHP WebAssembly
+
+- Do not forward PHP\'s User\-Agent header to fetch\(\)\. ([#4307](https://github.com/WordPress/wordpress-playground/pull/4307))
+- \[ php\-wasm \] Reject browser clients in the outbound networking proxy\. ([#4492](https://github.com/WordPress/wordpress-playground/pull/4492))
+- \[ php\-wasm \] Remove 5s polling timeout from \`js\_fd\_read\` to fix blocking reads on slow pipes\. ([#3511](https://github.com/WordPress/wordpress-playground/pull/3511))
+
+### Website
+
+- Add Dock Query API options for all initial states\. ([#4563](https://github.com/WordPress/wordpress-playground/pull/4563))
+- Open the Reprint clone form from a site link\. ([#4552](https://github.com/WordPress/wordpress-playground/pull/4552))
+- Show Reprint connection details below Copy migration key\. ([#4553](https://github.com/WordPress/wordpress-playground/pull/4553))
+- Support WebMCP tools in Personal WP remote access\. ([#4550](https://github.com/WordPress/wordpress-playground/pull/4550))
+- Use the recommended PHP version in wordpress\.html\. ([#4549](https://github.com/WordPress/wordpress-playground/pull/4549))
+
+### Contributors
+
+The following contributors merged PRs in this release:
+
+@adamziel @akirk @Chand8547 @draganescu @fellyph @mho22 @shamiulbishal
+
+
 ## [v3.1.62] (2026-11-02) 
 
 ### Tools

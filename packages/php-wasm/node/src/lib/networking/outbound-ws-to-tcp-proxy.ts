@@ -134,6 +134,19 @@ export function initOutboundWebsocketProxyServer(
 
 // Handle new WebSocket client
 async function onWsConnect(client: any, request: http.IncomingMessage) {
+	// CAUTION: Do not accept connections that send an Origin header.
+	// Only the PHP runtime's own Node `ws` client may use this proxy. It sends
+	// no Origin header, while browsers always send one. A web page connected
+	// here would get raw TCP access to any host the Node process can reach,
+	// including services that only listen on localhost. Binding to 127.0.0.1
+	// doesn't stop this because browsers can connect to loopback. Allowing an
+	// Origin, even a trusted one, gives that access to every page served from it.
+	// To prevent this, let's close any connection that has an Origin header
+	// before it can open a TCP connection.
+	if (request.headers.origin) {
+		client.close(1008, 'Origin not allowed');
+		return;
+	}
 	const clientAddr = client?._socket?.remoteAddress || client.url;
 	const clientLog = function (...args: any[]) {
 		log(' ' + clientAddr + ': ', ...args);
@@ -194,7 +207,9 @@ async function onWsConnect(client: any, request: http.IncomingMessage) {
 				}
 			} else {
 				clientLog('Unknown command type: ' + commandType);
-				process.exit();
+				client.close(3000);
+				target.end();
+				return;
 			}
 		}
 	}
