@@ -1,0 +1,54 @@
+{
+	"name": "playground-personal-wp-mcp",
+	"$schema": "../../../node_modules/nx/schemas/project-schema.json",
+	"sourceRoot": "packages/playground/personal-wp-mcp/src",
+	"projectType": "library",
+	"tags": [],
+	"targets": {
+		"build": {
+			"executor": "@wp-playground/nx-extensions:package-json",
+			"options": {
+				"tsConfig": "packages/playground/personal-wp-mcp/tsconfig.lib.json",
+				"outputPath": "dist/packages/playground/personal-wp-mcp",
+				"buildTarget": "playground-personal-wp-mcp:build:bundle:production"
+			}
+		},
+		"build:bundle": {
+			"executor": "@nx/vite:build",
+			"outputs": ["{options.outputPath}"],
+			"options": {
+				"outputPath": "dist/packages/playground/personal-wp-mcp"
+			},
+			"defaultConfiguration": "production",
+			"configurations": {
+				"development": {
+					"mode": "development"
+				},
+				"production": {
+					"mode": "production"
+				}
+			}
+		},
+		"test:unit": {
+			"executor": "@nx/vite:test",
+			"outputs": [
+				"{workspaceRoot}/coverage/packages/playground/personal-wp-mcp"
+			],
+			"options": {
+				"passWithNoTests": true,
+				"reportsDirectory": "../../../coverage/packages/playground/personal-wp-mcp"
+			}
+		},
+		"lint": {
+			"executor": "@nx/eslint:lint",
+			"outputs": ["{options.outputFile}"],
+			"options": {
+				"useFlatConfig": false,
+				"lintFilePatterns": [
+					"packages/playground/personal-wp-mcp/**/*.ts"
+				],
+				"maxWarnings": 0
+			}
+		}
+	}
+}
