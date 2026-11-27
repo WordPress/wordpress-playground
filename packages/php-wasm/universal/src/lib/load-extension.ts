@@ -539,9 +539,9 @@ export function installPHPExtensionFilesSync(
 		};
 	}
 	mkdirIfMissing(fs, ext.extensionDir);
-	fs.writeFile(ext.soPath, ext.soBytes);
+	writeFileIfChanged(fs, ext.soPath, ext.soBytes);
 	if (ext.iniPath && ext.iniContent !== undefined) {
-		fs.writeFile(ext.iniPath, ext.iniContent);
+		writeFileIfChanged(fs, ext.iniPath, ext.iniContent);
 	}
 	if (ext.extraFiles) {
 		const { directories = [], files } = ext.extraFiles;
@@ -550,10 +550,36 @@ export function installPHPExtensionFilesSync(
 		}
 		for (const [path, content] of Object.entries(files)) {
 			mkdirIfMissing(fs, dirname(path));
-			fs.writeFile(path, content);
+			writeFileIfChanged(fs, path, content);
 		}
 	}
 	return ext;
+}
+
+/**
+ * Writes a file unless it is already installed.
+ *
+ * `writeFile` truncates and then writes. On a directory shared between
+ * runtimes (the CLI's `/internal`), a runtime that loads while another one is
+ * rewriting the same file can read it empty or half written. Text files are
+ * compared by content. Binary files are compared by size so that loading a
+ * runtime does not read megabytes of `.so` and ICU data back.
+ */
+function writeFileIfChanged(
+	fs: Emscripten.RootFS,
+	path: string,
+	content: Uint8Array | string
+): void {
+	if (FSHelpers.fileExists(fs, path)) {
+		const unchanged =
+			typeof content === 'string'
+				? fs.readFile(path, { encoding: 'utf8' }) === content
+				: fs.stat(path).size === content.byteLength;
+		if (unchanged) {
+			return;
+		}
+	}
+	fs.writeFile(path, content);
 }
 
 function createPHPExtensionIniFile(options: {
