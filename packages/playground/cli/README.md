@@ -152,6 +152,14 @@ The `start` command supports these common optional arguments. Run `npx @wp-playg
 - `--no-auto-mount`: Disable automatic project detection.
 - `--codespaces-public-port`: In GitHub Codespaces, make the forwarded port public so anyone with the URL can open the site without signing in to GitHub. Ports stay private by default. Turns off the default auto-login unless you also pass `--login`.
 
+The `php` command supports the shared runtime and mount options plus:
+
+- `--cwd=<vfs-path>`: Set the PHP process working directory to a virtual filesystem path.
+
+When `--cwd` is omitted, a single auto-mounted directory becomes the working directory
+automatically. With manual mounts or multiple auto-mounts, PHP keeps its default
+working directory unless you provide `--cwd`.
+
 The `server` command supports these common optional arguments. Run `npx @wp-playground/cli@latest server --help` for the full list:
 
 - `--port=<port>`: The port number for the server to listen on. Defaults to 9400.

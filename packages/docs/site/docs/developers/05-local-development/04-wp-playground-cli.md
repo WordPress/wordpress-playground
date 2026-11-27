@@ -281,6 +281,7 @@ to your unique WordPress setup. With the Playground CLI, you can use the followi
 - **`server`**: (Advanced) Starts a local WordPress server with full manual control over configuration.
 - **`run-blueprint`**: Executes a Blueprint file without starting a web server.
 - **`build-snapshot`**: Builds a ZIP snapshot of a WordPress site based on a Blueprint.
+- **`php`**: Runs a PHP script.
 
 The `start` command supports these common optional arguments. Run
 `npx @wp-playground/cli@latest start --help` for the full list:
@@ -295,6 +296,14 @@ The `start` command supports these common optional arguments. Run
 - `--reset`: Delete the stored site and start fresh. Defaults to false.
 - `--no-auto-mount`: Disable automatic project detection.
 - `--codespaces-public-port`: In GitHub Codespaces, make the forwarded port public so anyone with the URL can open the site without signing in to GitHub. Ports stay private by default. Turns off the default auto-login unless you also pass `--login`.
+
+The `php` command supports the shared runtime and mount options plus:
+
+- `--cwd=<vfs-path>`: Set the PHP process working directory to a virtual filesystem path.
+
+When `--cwd` is omitted, a single auto-mounted directory becomes the working directory
+automatically. With manual mounts or multiple auto-mounts, PHP keeps its default
+working directory unless you provide `--cwd`.
 
 The `server` command supports these common optional arguments. Run `npx @wp-playground/cli@latest server --help` for the full list:
 
