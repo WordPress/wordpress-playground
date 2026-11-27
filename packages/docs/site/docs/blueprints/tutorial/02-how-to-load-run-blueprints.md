@@ -11,7 +11,7 @@ description: Learn the various methods for loading and running Blueprints, inclu
 The easiest way to run a Blueprint from the website is through the Dock:
 
 - Open **New → Blueprint gallery** to choose an example.
-- Open **New → Blueprint URL** to run a public Blueprint JSON or ZIP bundle URL.
+- Open **New → From a URL** to run a public Blueprint JSON or ZIP bundle URL.
 - Open **New → Write a Blueprint** to write a Blueprint in the browser.
 - Open **Blueprint** to inspect or edit the current Playground's Blueprint.
 
@@ -60,3 +60,5 @@ Note that the Blueprint must be publicly accessible and served with [the correct
 ```
 Access-Control-Allow-Origin: *
 ```
+
+When the Playground URL includes the `mcp-port` parameter, Playground rejects Blueprints passed as a URL fragment or through the `blueprint-url` parameter. This prevents prompt injection while the MCP server is active. Remove `mcp-port` from the URL to load a Blueprint this way.

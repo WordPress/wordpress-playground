@@ -18,13 +18,13 @@ description: ब्लूप्रिंट लोड करने और चल
 
 <!--
 - Open **New → Blueprint gallery** to choose an example.
-- Open **New → Blueprint URL** to run a public Blueprint JSON or ZIP bundle URL.
+- Open **New → From a URL** to run a public Blueprint JSON or ZIP bundle URL.
 - Open **New → Write a Blueprint** to write a Blueprint in the browser.
 - Open **Blueprint** to inspect or edit the current Playground's Blueprint.
 -->
 
 - कोई उदाहरण चुनने के लिए **New → Blueprint gallery** खोलें।
-- किसी सार्वजनिक ब्लूप्रिंट JSON या ZIP बंडल का URL चलाने के लिए **New → Blueprint URL** खोलें।
+- किसी सार्वजनिक ब्लूप्रिंट JSON या ZIP बंडल का URL चलाने के लिए **New → From a URL** खोलें।
 - ब्राउज़र में ब्लूप्रिंट लिखने के लिए **New → Write a Blueprint** खोलें।
 - मौजूदा Playground का ब्लूप्रिंट देखने या बदलने के लिए **Blueprint** खोलें।
 
@@ -105,3 +105,7 @@ Playground [Base64 में एन्कोड किए गए ब्लूप
 ```
 Access-Control-Allow-Origin: *
 ```
+
+<!-- When the Playground URL includes the `mcp-port` parameter, Playground rejects Blueprints passed as a URL fragment or through the `blueprint-url` parameter. This prevents prompt injection while the MCP server is active. Remove `mcp-port` from the URL to load a Blueprint this way. -->
+
+जब Playground URL में `mcp-port` पैरामीटर होता है, तो Playground URL फ़्रैगमेंट के रूप में या `blueprint-url` पैरामीटर से दिए गए ब्लूप्रिंट स्वीकार नहीं करता। इससे MCP सर्वर चालू रहते समय प्रॉम्प्ट इंजेक्शन से बचाव होता है। इस तरह ब्लूप्रिंट लोड करने के लिए URL से `mcp-port` हटा दें।
