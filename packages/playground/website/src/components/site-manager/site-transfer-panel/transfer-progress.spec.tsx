@@ -40,7 +40,22 @@ it('advances by bytes within one large file and exposes the same value to assist
 		expect(
 			container.querySelector('progress')?.getAttribute('aria-label')
 		).toBe('Downloading site files');
-		expect(container.textContent).toContain('0 / 1 files');
+		expect(container.textContent).toContain('0 / 1 file');
+		expect(container.textContent).not.toContain('0 / 1 files');
+		await act(async () =>
+			root.render(
+				<TransferProgressView
+					progress={{
+						message: 'Downloading site files',
+						bytesDone: 3072,
+						bytesTotal: 4096,
+						filesDone: 2,
+						filesTotal: 5,
+					}}
+				/>
+			)
+		);
+		expect(container.textContent).toContain('2 / 5 files');
 	} finally {
 		await act(async () => root.unmount());
 		vi.unstubAllGlobals();

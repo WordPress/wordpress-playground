@@ -9,6 +9,7 @@ import gutenbergLogoUrl from './gutenberg-logo.svg';
 import { logger } from '@php-wasm/logger';
 import ModalButtons from '../../components/modal/modal-buttons';
 import { InlineProgress } from '../../components/pane-loading';
+import { getActiveLanguageTag } from '../../lib/i18n';
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import type { ResolvedRef } from './resolve-pr-input';
 import {
@@ -927,7 +928,7 @@ function formatPullRequestOpenedAt(
 	const yesterday = new Date(today);
 	yesterday.setDate(today.getDate() - 1);
 	const time = date
-		.toLocaleTimeString(undefined, {
+		.toLocaleTimeString(getActiveLanguageTag(), {
 			hour: 'numeric',
 			hour12: true,
 			minute: '2-digit',

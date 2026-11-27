@@ -175,10 +175,14 @@ function writeLocalePo(locale, messages, potCreationDate) {
 		messages,
 		getMsgstr(message) {
 			const existing = getExistingTranslation(existingPo, message);
-			if (hasTranslations(existing)) {
-				return existing;
+			if (hasTranslations(existing?.msgstr)) {
+				return existing.msgstr;
 			}
 			return getEmptyMsgstr(message, locale);
+		},
+		getEntryComments(message) {
+			const existing = getExistingTranslation(existingPo, message);
+			return getComments(message, existing?.comments);
 		},
 	});
 	writeIfChanged(poFile, compilePo(po));
@@ -197,7 +201,11 @@ function writeLocaleJson(locale, po) {
 
 	for (const [context, translations] of Object.entries(po.translations)) {
 		for (const translation of Object.values(translations)) {
-			if (!translation.msgid || !hasTranslations(translation.msgstr)) {
+			if (
+				!translation.msgid ||
+				isFuzzy(translation) ||
+				!hasTranslations(translation.msgstr)
+			) {
 				continue;
 			}
 			const key = context
@@ -221,7 +229,12 @@ function writeLocaleJson(locale, po) {
 	console.log(`Generated ${relative(jsonFile)}`);
 }
 
-function createPoFile({ headers, messages, getMsgstr = () => [''] }) {
+function createPoFile({
+	headers,
+	messages,
+	getMsgstr = () => [''],
+	getEntryComments = getComments,
+}) {
 	const translations = {
 		'': {
 			'': {
@@ -239,7 +252,7 @@ function createPoFile({ headers, messages, getMsgstr = () => [''] }) {
 			msgid: message.msgid,
 			msgid_plural: message.msgidPlural,
 			msgstr: getMsgstr(message),
-			comments: getComments(message),
+			comments: getEntryComments(message),
 		};
 	}
 
@@ -392,7 +405,7 @@ function getExistingTranslation(existingPo, message) {
 		return null;
 	}
 	const translations = existingPo.translations[message.msgctxt || ''];
-	return translations?.[message.msgid]?.msgstr;
+	return translations?.[message.msgid] || null;
 }
 
 function getEmptyMsgstr(message, locale) {
@@ -409,8 +422,19 @@ function hasTranslations(msgstr) {
 	return Array.isArray(msgstr) && msgstr.some((value) => value);
 }
 
-function getComments(message) {
+function isFuzzy(translation) {
+	const flag = translation.comments?.flag;
+	if (!flag) {
+		return false;
+	}
+	return flag.split(/[,\n]/).some((entry) => entry.trim() === 'fuzzy');
+}
+
+function getComments(message, existingComments) {
 	const comments = {};
+	if (existingComments?.translator) {
+		comments.translator = existingComments.translator;
+	}
 	if (message.references?.size) {
 		comments.reference = [...message.references].sort().join('\n');
 	} else if (message.reference) {
@@ -420,6 +444,9 @@ function getComments(message) {
 		comments.extracted = [...message.extractedComments].join('\n');
 	} else if (message.extracted) {
 		comments.extracted = message.extracted;
+	}
+	if (existingComments?.flag) {
+		comments.flag = existingComments.flag;
 	}
 	return comments;
 }

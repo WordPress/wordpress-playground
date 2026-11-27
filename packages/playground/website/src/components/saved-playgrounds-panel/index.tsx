@@ -39,6 +39,7 @@ import {
 	Suspense,
 } from 'react';
 import { usePlaygroundClient } from '../../lib/use-playground-client';
+import { getActiveLanguageTag } from '../../lib/i18n';
 import { useLocalFsAvailability } from '../../lib/hooks/use-local-fs-availability';
 import { useInlineRename } from '../../lib/hooks/use-inline-rename';
 import { transitionClonePane } from '../dock/transition-clone-pane';
@@ -1164,9 +1165,11 @@ export function SavedPlaygroundsPanel({
 				86_400_000
 		);
 		// Today/yesterday read more naturally as a time of day; older
-		// Playgrounds keep the calendar date. Both follow the browser locale.
+		// Playgrounds keep the calendar date. Both follow the active website
+		// locale.
+		const locale = getActiveLanguageTag();
 		if (dayDiff === 0 || dayDiff === 1) {
-			const time = created.toLocaleTimeString(undefined, {
+			const time = created.toLocaleTimeString(locale, {
 				hour: 'numeric',
 				minute: '2-digit',
 			});
@@ -1182,7 +1185,7 @@ export function SavedPlaygroundsPanel({
 						time
 					);
 		}
-		return created.toLocaleDateString(undefined, {
+		return created.toLocaleDateString(locale, {
 			year: 'numeric',
 			month: 'short',
 			day: 'numeric',

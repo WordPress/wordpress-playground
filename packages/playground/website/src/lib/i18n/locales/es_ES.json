@@ -9,7 +9,7 @@
 				"lang": "es_ES",
 				"plural-forms": "nplurals=2; plural=(n != 1);"
 			},
-			"%1$s / %2$s files": ["%1$s / %2$s archivos"],
+			"%1$s / %2$s file": ["%1$s / %2$s archivo", "%1$s / %2$s archivos"],
 			"%1$s and %2$s": ["%1$s y %2$s"],
 			"%1$s on line %2$d, character %3$d": [
 				"%1$s en la línea %2$d, carácter %3$d"

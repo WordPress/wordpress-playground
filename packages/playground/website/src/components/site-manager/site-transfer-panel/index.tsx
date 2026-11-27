@@ -20,6 +20,7 @@ import { createInterpolateElement } from '@wordpress/element';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { Icon, check, moreVertical } from '@wordpress/icons';
 import { formatBytes } from '@php-wasm/util';
+import { getActiveLanguageTag } from '../../../lib/i18n';
 import { usePrevious } from '../../../lib/hooks/use-previous';
 import {
 	generateReprintKeyPair,
@@ -1499,7 +1500,9 @@ export function SiteTransferPanel({
 													summary.files,
 													'playground-website'
 												),
-												summary.files.toLocaleString()
+												summary.files.toLocaleString(
+													getActiveLanguageTag()
+												)
 											)
 										: '',
 									summary.bytes
