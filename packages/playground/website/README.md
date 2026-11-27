@@ -104,6 +104,7 @@ Open **New → Preview a PR**, then enter one of these reserved PR numbers:
 | `900000006` | Missing                 | No workflow runs   | Reports that the build has not started |
 | `900000007` | Missing                 | Expired artifact   | Reports that the artifact expired      |
 | `900000008` | Artifact pending        | Missing            | Shows the retry countdown              |
+| `900000009` | Missing                 | Fork deleted       | Reports that the fork no longer exists |
 
 Only verification requests for these numbers are mocked. Other PR numbers and
 all artifact downloads continue through the normal plugin proxy.

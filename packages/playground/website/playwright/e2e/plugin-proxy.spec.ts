@@ -118,6 +118,193 @@ test('uses a default header only when the matching upstream header is filtered',
 	expect(await allowedResponse.text()).toBe('body');
 });
 
+/**
+ * Stable contract: A pull request or branch preview serves an artifact only from
+ * a run that built code from the pull request's head repository, or from the
+ * queried repository in branch mode.
+ *
+ * Plausible regression: The lookup trusts every run GitHub returns for the
+ * branch name. That list includes fork pull requests on a branch with the same
+ * name, and a fork can upload an artifact under any name, so its build would be
+ * served under another pull request's preview link.
+ *
+ * Independent code path: The PHP fixture runs the production lookup against a
+ * fake GitHub API in which every run carries the requested artifact, and
+ * reports which runs' artifact lists were read. Repository 1 is the queried
+ * repository; 2 and 3 are forks.
+ */
+test('skips newer runs from another repository for a same-repository pull request', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({ mode: 'pr', prHead: '1', runs: '2,1' })
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		artifactListRequests: [1],
+	});
+});
+
+test("serves a fork pull request from its own fork's runs only", async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({ mode: 'pr', prHead: '2', runs: '3,1,2' })
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		artifactListRequests: [2],
+	});
+});
+
+test('reports no runs when only other repositories ran on the branch', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({ mode: 'pr', prHead: '1', runs: '2,3,null' })
+	);
+
+	expect(response.status()).toBe(400);
+	expect(await response.json()).toEqual({
+		error: 'no_ci_runs',
+		artifactListRequests: [],
+	});
+});
+
+test('reads further pages when other repositories fill the first one', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({
+			mode: 'pr',
+			prHead: '1',
+			runs: [...Array(100).fill('2'), '1'].join(','),
+		})
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		artifactListRequests: [100],
+	});
+});
+
+test('reads the next page when no matching run on this page has an artifact', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({
+			mode: 'pr',
+			prHead: '1',
+			runs: [
+				...Array(99).fill('2'),
+				'1:pull_request:no-artifacts',
+				'1',
+			].join(','),
+		})
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		artifactListRequests: [99, 100],
+	});
+});
+
+test('stops reading runs after three pages', async ({ request }) => {
+	const response = await request.get(
+		urlForRunLookup({
+			mode: 'pr',
+			prHead: '1',
+			runs: [...Array(300).fill('2'), '1'].join(','),
+		})
+	);
+
+	expect(response.status()).toBe(400);
+	expect(await response.json()).toEqual({
+		error: 'no_ci_runs',
+		artifactListRequests: [],
+	});
+});
+
+test('serves nothing for a pull request whose fork was deleted', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({ mode: 'pr', prHead: 'null', runs: 'null,1' })
+	);
+
+	expect(response.status()).toBe(400);
+	expect(await response.json()).toEqual({
+		error: 'pr_head_repository_deleted',
+		artifactListRequests: [],
+	});
+});
+
+test("serves a branch preview from the queried repository's runs only", async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({ mode: 'branch', runs: '2,1' })
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		artifactListRequests: [1],
+	});
+});
+
+test('serves no branch preview when only forks or deleted forks ran', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({ mode: 'branch', runs: '2,null' })
+	);
+
+	expect(response.status()).toBe(400);
+	expect(await response.json()).toEqual({
+		error: 'no_ci_runs',
+		artifactListRequests: [],
+	});
+});
+
+test('skips pull_request_target runs for a branch preview', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({ mode: 'branch', runs: '1:pull_request_target,1' })
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		artifactListRequests: [1],
+	});
+});
+
+test('skips pull_request_target runs for a same-repository pull request', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({
+			mode: 'pr',
+			prHead: '1',
+			runs: '1:pull_request_target,1',
+		})
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		artifactListRequests: [1],
+	});
+});
+
 test('follows absolute and relative redirects within the allowlist', async ({
 	request,
 }) => {
@@ -242,6 +429,24 @@ function urlForDefaultResponseHeaders({
 	const url = new URL('/__test-default-response-headers', pluginProxyUrl);
 	if (allowContentType) {
 		url.searchParams.set('allow-content-type', '1');
+	}
+	return url.href;
+}
+
+function urlForRunLookup({
+	mode,
+	runs,
+	prHead,
+}: {
+	mode: 'pr' | 'branch';
+	runs: string;
+	prHead?: string;
+}) {
+	const url = new URL('/__test-run-lookup', pluginProxyUrl);
+	url.searchParams.set('mode', mode);
+	url.searchParams.set('runs', runs);
+	if (prHead !== undefined) {
+		url.searchParams.set('pr-head', prHead);
 	}
 	return url.href;
 }

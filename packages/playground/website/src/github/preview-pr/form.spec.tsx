@@ -164,6 +164,26 @@ describe('PreviewPRForm', () => {
 		expect(container.textContent).not.toContain('Couldn’t find PR');
 	});
 
+	it('stops at a PR whose fork was deleted instead of retrying', async () => {
+		vi.useFakeTimers();
+		const fetchMock = vi.fn((input: RequestInfo | URL) => {
+			const url = String(input);
+			const error = url.includes('repo=gutenberg')
+				? 'pr_head_repository_deleted'
+				: 'invalid_pr_number';
+			return Promise.resolve(verificationError(error));
+		});
+		vi.stubGlobal('fetch', fetchMock);
+
+		await renderAndSubmit('79908');
+		await act(async () => {
+			vi.advanceTimersByTime(60000);
+		});
+
+		expect(container.textContent).toContain('Source repository deleted');
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+	});
+
 	async function renderAndSubmit(value: string) {
 		act(() => {
 			root.render(<PreviewPRForm inline onClose={() => {}} />);
