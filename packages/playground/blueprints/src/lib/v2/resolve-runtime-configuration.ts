@@ -489,8 +489,13 @@ async function getAvailableV2WordPressVersions(
 				parseComparableWordPressVersion(version)?.suffix !== undefined
 		)
 	) {
-		const betaRelease = await resolveWordPressRelease('beta');
-		versions.push(betaRelease.version);
+		try {
+			const betaRelease = await resolveWordPressRelease('beta');
+			versions.push(betaRelease.version);
+		} catch {
+			// No beta or RC is currently offered. A stable release may still
+			// satisfy the constraints.
+		}
 	}
 
 	return Array.from(new Set(versions))

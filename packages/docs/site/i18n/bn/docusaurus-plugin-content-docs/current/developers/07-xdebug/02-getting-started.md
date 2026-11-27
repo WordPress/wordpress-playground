@@ -1,0 +1,308 @@
+---
+title: Xdebug দিয়ে শুরু করা
+slug: /developers/xdebug/xdebug-getting-started
+description: ডিবাগ শুরু করার আগে Xdebug চালু করে ওয়ার্ডপ্রেস প্লেগ্রাউন্ড চালাতে হবে। এই গাইডে তার বেসিক ধাপগুলো দেখানো হয়েছে।
+---
+
+<!--
+# Getting Started with Xdebug
+-->
+
+# Xdebug দিয়ে শুরু করা
+
+<!--
+This guide shows you how to enable Xdebug in WordPress Playground and start debugging your code.
+-->
+
+ওয়ার্ডপ্রেস প্লেগ্রাউন্ডে কীভাবে Xdebug চালু করবেন আর কোড ডিবাগ করা শুরু করবেন, এই গাইডে তা-ই দেখানো হয়েছে।
+
+<!--
+## PHP WASM CLI vs Playground CLI
+-->
+
+## PHP WASM CLI বনাম Playground CLI
+
+<!--
+First, Xdebug is present in two different CLIs:
+
+- **`@php-wasm/cli`**: Run standalone PHP scripts. Use this when debugging PHP code without needing a WordPress environment.
+- **`@wp-playground/cli`**: Run a full WordPress installation. Useful for debugging WordPress plugins, themes, or core functionality.
+-->
+
+প্রথমেই জেনে নিন, Xdebug দুটি আলাদা CLI-তে আছে:
+
+- **`@php-wasm/cli`**: আলাদাভাবে শুধু PHP স্ক্রিপ্ট চালায়। ওয়ার্ডপ্রেস এনভায়রনমেন্ট ছাড়াই PHP কোড ডিবাগ করতে চাইলে এটি ব্যবহার করুন।
+- **`@wp-playground/cli`**: পুরো একটি ওয়ার্ডপ্রেস ইনস্টলেশন চালায়। ওয়ার্ডপ্রেস প্লাগইন, থিম বা কোরের কোনো ফিচার ডিবাগ করতে এটি কাজে লাগে।
+
+<!--
+For this guide, we'll use `@wp-playground/cli`. If you're not familiar with the tool, we recommend reading the [`@wp-playground/cli` guide](/developers/local-development/wp-playground-cli), but the same process can also be applied to debugging PHP applications with `@php-wasm/cli`.
+-->
+
+এই গাইডে আমরা `@wp-playground/cli` ব্যবহার করব। টুলটির সাথে পরিচিত না থাকলে [`@wp-playground/cli` গাইডটি](/developers/local-development/wp-playground-cli) আগে পড়ে নিলে ভালো হয়। তবে `@php-wasm/cli` দিয়ে PHP অ্যাপ্লিকেশন ডিবাগ করতেও একই ধাপগুলো কাজ করে।
+
+<!--
+## Quick start with `npx`
+-->
+
+## `npx` দিয়ে দ্রুত শুরু
+
+<!--
+The fastest way to get started is using npx, which doesn't require installation:
+-->
+
+শুরু করার সবচেয়ে দ্রুত উপায় হলো npx ব্যবহার করা, এর জন্য কিছু ইনস্টল করতে হয় না:
+
+```bash
+npx @wp-playground/cli@latest server --xdebug
+```
+
+<!--
+The CLI prints the WordPress URL after starting the server with Xdebug enabled. You can now connect a debugger.
+-->
+
+Xdebug চালু রেখে সার্ভার চালু করার পর CLI ওয়ার্ডপ্রেসের URL দেখাবে। এবার একটি ডিবাগার সংযুক্ত করতে পারেন।
+
+<!--
+Before starting another example, stop the previous Playground server with `Ctrl+C` and disconnect its debugger.
+-->
+
+আরেকটি উদাহরণ শুরু করার আগে `Ctrl+C` চেপে আগের Playground সার্ভারটি বন্ধ করুন এবং তার ডিবাগারের সংযোগ বিচ্ছিন্ন করুন।
+
+<!--
+## Create the sample plugin
+-->
+
+## নমুনা প্লাগইন তৈরি করুন
+
+<!--
+Create a directory named `test-xdebug` and save the following code as `test-xdebug.php` inside it. Both walkthroughs use this plugin.
+-->
+
+`test-xdebug` নামে একটি ফোল্ডার তৈরি করুন এবং নিচের কোডটি সেই ফোল্ডারে `test-xdebug.php` নামে সংরক্ষণ করুন। ডিবাগিংয়ের দুই উদাহরণেই এই প্লাগইনটি ব্যবহার করা হবে।
+
+```PHP
+<?php
+/**
+ * Plugin Name: Simple Admin Message
+ * Description: Displays a simple message in the WordPress admin
+ * Version: 1.0
+ * Author: Playground Team
+ */
+
+// Prevent direct access
+if (!defined('ABSPATH')) {
+    exit;
+}
+
+// Display admin notice
+function sam_display_admin_message() {
+    $message = 'Hello! This is a simple admin message.';
+    ?>
+    <div class="notice notice-info is-dismissible">
+        <p><?php _e($message, 'simple-admin-message'); ?></p>
+    </div>
+    <?php
+}
+add_action('admin_notices', 'sam_display_admin_message');
+```
+
+<!--
+## Starting with IDE integration
+-->
+
+## IDE ইন্টিগ্রেশন দিয়ে শুরু
+
+<!--
+To debug the sample plugin with VS Code, use the `--experimental-unsafe-ide-integration=vscode` flag. For PhpStorm, open `test-xdebug` as a PhpStorm project first and make sure it contains an `.idea/` directory. In the command below, replace the VS Code flag with `--experimental-unsafe-ide-integration=phpstorm`.
+-->
+
+নমুনা প্লাগইনটি VS Code-এ ডিবাগ করতে `--experimental-unsafe-ide-integration=vscode` ফ্ল্যাগটি ব্যবহার করুন। PhpStorm ব্যবহার করলে প্রথমে `test-xdebug` ফোল্ডারটি PhpStorm প্রজেক্ট হিসেবে খুলুন এবং এর ভেতরে `.idea/` ফোল্ডারটি আছে কি না দেখুন। নিচের কমান্ডে VS Code-এর ফ্ল্যাগটির জায়গায় `--experimental-unsafe-ide-integration=phpstorm` ব্যবহার করুন।
+
+<!--
+<div class="callout callout-info">
+
+This flag is marked as `unsafe` because it edits the IDE config files to set Xdebug path mappings and web server details. **CAUTION:** If there are bugs, this feature may cause your IDE configuration files to break. Please consider backing up your IDE configs before using this feature.
+
+</div>
+-->
+
+<div class="callout callout-info">
+
+এই ফ্ল্যাগটিকে `unsafe` বলা হয়েছে, কারণ এটি Xdebug-এর পাথ ম্যাপিং এবং ওয়েব সার্ভারের তথ্য সেট করতে IDE-এর কনফিগ ফাইল এডিট করে। **সতর্কতা:** কোনো বাগ থাকলে এই ফিচারের কারণে আপনার IDE-এর কনফিগারেশন ফাইল নষ্ট হয়ে যেতে পারে। তাই এটি ব্যবহারের আগে IDE কনফিগের একটি ব্যাকআপ রেখে দিন।
+
+</div>
+
+<!--
+To debug in VS Code, you'll need the following prerequisites:
+
+1. Install a PHP debugger extension that supports Xdebug, such as [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug).
+2. Have a `.vscode/` folder.
+3. Enable breakpoints in your IDE. Some IDEs come with this feature disabled, so be aware of this detail.
+-->
+
+VS Code-এ ডিবাগ করার আগে এগুলো রেডি রাখুন:
+
+1. Xdebug সমর্থন করে এমন একটি PHP ডিবাগার এক্সটেনশন ইনস্টল করুন, যেমন [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug)।
+2. একটি `.vscode/` ফোল্ডার।
+3. IDE-তে ব্রেকপয়েন্ট চালু করা। কিছু IDE-তে এটি ডিফল্টভাবে বন্ধ থাকে, তাই খেয়াল রাখুন।
+
+<!--
+Run the following command from the plugin directory.
+-->
+
+প্লাগইনের ফোল্ডার থেকে নিচের কমান্ডটি চালান।
+
+```bash
+npx @wp-playground/cli@latest server --xdebug --experimental-unsafe-ide-integration=vscode --auto-mount
+```
+
+<!--
+If you don't have a `.vscode/launch.json` file, the terminal will create a file similar to this:
+-->
+
+`.vscode/launch.json` ফাইল না থাকলে টার্মিনাল নিচের মতো একটি ফাইল বানিয়ে দেবে:
+
+```JSON
+{
+    "configurations": [
+        {
+            "name": "WP Playground CLI - Listen for Xdebug",
+            "type": "php",
+            "request": "launch",
+            "port": 9003,
+            "pathMappings": {
+                "/": "${workspaceFolder}/.playground-xdebug-root",
+                "/wordpress/wp-content/plugins/test-xdebug": "${workspaceFolder}/"
+            }
+        }
+    ]
+}
+```
+
+<!--
+Start the **WP Playground CLI - Listen for Xdebug** configuration in your IDE and set a breakpoint inside `sam_display_admin_message()`. Append `/wp-admin/plugins.php` to the WordPress URL printed by the CLI and open the resulting URL in your browser to hit the breakpoint. If WordPress asks you to sign in, use `admin` as the username and `password` as the password.
+-->
+
+IDE-তে **WP Playground CLI - Listen for Xdebug** কনফিগারেশনটি চালু করুন এবং `sam_display_admin_message()` ফাংশনের ভেতরে একটি ব্রেকপয়েন্ট বসান। ব্রেকপয়েন্টে থামতে CLI-তে দেখানো ওয়ার্ডপ্রেস URL-এর শেষে `/wp-admin/plugins.php` যোগ করে সেই ঠিকানাটি ব্রাউজারে খুলুন। WordPress লগইন করতে বললে ব্যবহারকারীর নাম হিসেবে `admin` এবং পাসওয়ার্ড হিসেবে `password` দিন।
+
+<!--
+![Xdebug in action on VS Code](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
+-->
+
+![VS Code-এ Xdebug চলছে](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/xdebug-in-action-on-vscode.webp)
+
+<!--
+### PhpStorm troubleshooting
+-->
+
+### PhpStorm-এ সমস্যা হলে
+
+<!--
+If PhpStorm pauses on the first line of unmapped files or scripts outside your project, you can disable these optional settings under **Settings > PHP > Debug > Xdebug**:
+
+- **Force break at first line when no path mapping specified**.
+- **Force break at first line when a script is outside the project**.
+-->
+
+PhpStorm যদি ম্যাপ না করা ফাইল বা আপনার প্রজেক্টের বাইরের স্ক্রিপ্টের প্রথম লাইনে থেমে যায়, তাহলে **Settings > PHP > Debug > Xdebug**-এ গিয়ে এই অপশনাল সেটিংসগুলো বন্ধ করে দিতে পারেন:
+
+- **Force break at first line when no path mapping specified**।
+- **Force break at first line when a script is outside the project**।
+
+<!--
+If requests that do not hit a breakpoint produce unwanted notifications, disable **Notify if debug session was finished without being paused** under **Settings > PHP > Debug > Settings** (called **Advanced settings** in the current JetBrains documentation). When this setting is disabled and no breakpoint is hit, PhpStorm runs the script without pausing or establishing a debugging session.
+-->
+
+যেসব রিকোয়েস্ট কোনো ব্রেকপয়েন্টে থামে না, সেগুলোর জন্যও অদরকারি নোটিফিকেশন এলে **Settings > PHP > Debug > Settings**-এ গিয়ে (এখনকার JetBrains ডকুমেন্টেশনে এর নাম **Advanced settings**) **Notify if debug session was finished without being paused** বন্ধ করে দিন। এটি বন্ধ থাকলে আর কোনো ব্রেকপয়েন্টে না থামলে PhpStorm না থেমে, ডিবাগিং সেশন না খুলেই স্ক্রিপ্টটি চালিয়ে দেয়।
+
+<!--
+These options suppress unwanted pauses or notifications. They do not fix path mappings or configure breakpoints: you still need correct path mappings and enabled breakpoints in the code you want to debug.
+-->
+
+এই অপশনগুলো শুধু অদরকারি থেমে যাওয়া আর নোটিফিকেশন বন্ধ করে। এগুলো পাথ ম্যাপিং ঠিক করে না, ব্রেকপয়েন্টও সেট করে না। যে কোড ডিবাগ করবেন, তার জন্য ঠিকঠাক পাথ ম্যাপিং আর চালু করা ব্রেকপয়েন্ট লাগবেই।
+
+<!--
+For more details, see [JetBrains' debug settings reference](https://www.jetbrains.com/help/phpstorm/debug.html) and the [PhpStorm examples](https://github.com/WordPress/wordpress-playground/blob/trunk/examples/xdebug/ide/README.md#phpstorm).
+-->
+
+আরও বিস্তারিত জানতে [JetBrains-এর ডিবাগ সেটিংসের রেফারেন্স](https://www.jetbrains.com/help/phpstorm/debug.html) এবং [PhpStorm-এর উদাহরণগুলো](https://github.com/WordPress/wordpress-playground/blob/trunk/examples/xdebug/ide/README.md#phpstorm) দেখুন।
+
+<!--
+## Early Access: DevTools debugger
+-->
+
+## আর্লি অ্যাক্সেস: DevTools ডিবাগার
+
+<!--
+Playground CLI ships an **unstable, highly exploratory** workflow that enables debugging PHP programs using Chrome DevTools.
+-->
+
+Playground CLI-তে একটি **আনস্টেবল, পুরোপুরি এক্সপেরিমেন্টাল** ওয়ার্কফ্লো আছে, যা দিয়ে Chrome DevTools ব্যবহার করে PHP প্রোগ্রাম ডিবাগ করা যায়।
+
+<!--
+To try it, use the `--experimental-devtools` flag:
+-->
+
+চালিয়ে দেখতে চাইলে `--experimental-devtools` ফ্ল্যাগটি দিন:
+
+```bash
+npx @wp-playground/cli@latest server --xdebug --experimental-devtools
+```
+
+<!--
+Open the URL printed by the bridge in Chrome on the same computer. DevTools connects to the Chrome DevTools Protocol (CDP) listener at `127.0.0.1:9229`.
+-->
+
+ব্রিজ যে URL দেখায়, সেটি একই কম্পিউটারে Chrome-এ খুলুন। DevTools তখন `127.0.0.1:9229` ঠিকানায় Chrome DevTools Protocol (CDP) লিসেনারের সাথে যুক্ত হবে।
+
+```text
+Starting XDebug Bridge...
+Connect Chrome DevTools to CDP at:
+devtools://devtools/bundled/inspector.html?ws=127.0.0.1:9229
+```
+
+<!--
+Once DevTools connects, the bridge starts listening for Xdebug (DBGp) connections at `127.0.0.1:9003`. Both listeners use IPv4 loopback by default.
+-->
+
+DevTools যুক্ত হলে ব্রিজ `127.0.0.1:9003` ঠিকানায় Xdebug (DBGp) কানেকশনের জন্য অপেক্ষা করে। ডিফল্টভাবে দুটি লিসেনারই IPv4 লুপব্যাক ঠিকানা ব্যবহার করে।
+
+```text
+Chrome connected! Initializing Xdebug receiver...
+XDebug receiver running on 127.0.0.1:9003
+Running a PHP script with Xdebug enabled...
+```
+
+<!--
+![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
+-->
+
+![Xdebug-এর সাথে যুক্ত Chrome Devtools](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-xdebug-on-devtools.webp)
+
+<!--
+If you ran the previous command, close its DevTools window and stop the server with `Ctrl+C`. Run the following command from the `test-xdebug` directory.
+-->
+
+আগের কমান্ডটি চালিয়ে থাকলে তার DevTools উইন্ডোটি বন্ধ করুন এবং `Ctrl+C` চেপে সার্ভারটি বন্ধ করুন। `test-xdebug` ফোল্ডার থেকে নিচের কমান্ডটি চালান।
+
+```bash
+npx @wp-playground/cli@latest server --xdebug --experimental-devtools --auto-mount
+```
+
+<!--
+The Playground CLI automatically mounts and activates the plugin. Open the DevTools URL from the terminal and set a breakpoint inside `sam_display_admin_message()`. Append `/wp-admin/plugins.php` to the WordPress URL printed by the CLI and open the resulting URL in your browser to hit the breakpoint. If WordPress asks you to sign in, use `admin` as the username and `password` as the password.
+-->
+
+Playground CLI নিজে থেকেই প্লাগইনটি মাউন্ট ও সক্রিয় করে। টার্মিনালে দেখানো DevTools URL খুলুন এবং `sam_display_admin_message()` ফাংশনের ভেতরে একটি ব্রেকপয়েন্ট বসান। ব্রেকপয়েন্টে থামতে CLI-তে দেখানো ওয়ার্ডপ্রেস URL-এর শেষে `/wp-admin/plugins.php` যোগ করে সেই ঠিকানাটি ব্রাউজারে খুলুন। WordPress লগইন করতে বললে ব্যবহারকারীর নাম হিসেবে `admin` এবং পাসওয়ার্ড হিসেবে `password` দিন।
+
+<!--
+![Chrome Devtools integrated with Xdebug](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
+-->
+
+![Xdebug-এর সাথে যুক্ত Chrome Devtools](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/xdebug/playground-cli-running-xdebug-on-devtools.webp)
+
+<!--
+This feature is in experimental mode. Until it's finished, we'll need your feedback. Please connect with us in the [#playground Slack channel](https://wordpress.slack.com/archives/C04EWKGDJ0K) and share your thoughts.
+-->
+
+এই ফিচারটি এখনো এক্সপেরিমেন্টাল। কাজ শেষ না হওয়া পর্যন্ত আপনার ফিডব্যাক আমাদের খুব দরকার। [#playground Slack চ্যানেলে](https://wordpress.slack.com/archives/C04EWKGDJ0K) এসে আপনার মতামত জানান।

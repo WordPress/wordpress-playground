@@ -34,14 +34,20 @@ split through the existing loopback Vite ports: app on 5400, WordPress on 4400. 
 [website development guide](../../README.md#development).
 This work is separate from PR #4357.
 
-The normal WP Cloud deployment builds with
-`VITE_WORDPRESS_SITE_URL=https://wpsandbox.wordpress.net` and
-`PLAYGROUND_APP_ORIGIN=https://playground.wordpress.net`. The latter produces a
-small `wordpress-sandbox/` document root whose loaders import shared app bundles.
-The built preview and upgrade-test server serve the same directory layout,
-generated with their respective app addresses.
-Host checks live in `custom-redirects-lib.php`; the single `apply-update.sh`
-script installs the private build and its public entry. See the [deployment guide](../../../website-deployment/wordpress-frame/README.md).
+`build:wordpress-frame` builds one static release (base `/releases/<id>/`) and
+installs it with the production `apply-update.sh` in loopback-only mode, once for
+the preview web root and once for the upgrade tests on port 7999. Node 24 and PHP
+are required. The preview serves existing files directly on both hostnames, as
+Nginx does, and sends missing paths to a local PHP server running the installed
+`custom-redirects.php`. The normal WP Cloud deployment also sets
+`PLAYGROUND_APP_ORIGIN` and `VITE_WORDPRESS_SITE_URL`, which add each page's
+origin check. App pages also stop away from their web-root URL, including at their
+own `/releases/<id>/` path. Previews apply the same checks to each installed copy
+for its configured origins while deriving module origins at runtime. The upload is
+assembled by `bin/assemble-website.mjs`, the same code the production
+`build:wasm-wordpress-net` target runs, so the installer and browser checks cover
+every page that production publishes. See the
+[deployment guide](../../../website-deployment/wordpress-frame/README.md).
 
 ## Boundaries
 
@@ -49,29 +55,30 @@ script installs the private build and its public entry. See the [deployment guid
   The top-level app can use its normal native folder picker. The save controls
   check the PHP iframe's origin, not the rendered WordPress URL. No popup or
   cross-origin filesystem protocol is added.
-- The WordPress origin registers a service worker through a small helper page.
-  Each app build puts its buildVersion in the helper URL. A browser worker installed
-  during a previous visit lets URLs naming other builds reach the server, rather
-  than return HTML naming its own release's script, which may no longer be served.
-  The deployed helper registers the deployed WordPress worker and waits for it
-  to activate before reporting ready.
-  Requests travel through that helper to the assigned PHP worker. Responses keep
-  the existing streamed-body transport.
-- The WordPress service worker generates the helper HTML and thumbnail-worker
-  loader itself. It never loads platform code from WordPress-origin CacheStorage,
-  which every WordPress page can modify. The initial helper document comes from
-  the server; both paths load the same app-origin script bundle. Shared asset URLs
-  and HTTP-cache reuse are unchanged, including during a warm offline startup.
-- The helper can request HTTP responses for its assigned URL scope and read the
+- The **WordPress bridge** (`wordpress-bridge.html`) is a hidden iframe on the
+  WordPress origin. It registers the WordPress service worker and waits for it to
+  activate before reporting ready. HTTP requests travel through the bridge to the
+  assigned PHP worker; responses keep the existing streamed-body transport.
+- Production apps load `/releases/<id>/wordpress-bridge.html` for their own release.
+  Development and portable builds use `/wordpress-bridge-<buildVersion>.html`.
+  The WordPress worker generates trusted HTML for its own release path, its matching
+  build-version alias, and the unversioned compatibility alias. URLs naming other
+  releases or builds reach HTTP, so an installed worker cannot substitute a bridge
+  that names its own script. WordPress-origin CacheStorage is never used for this
+  platform code because every WordPress page can modify it. Release files are served
+  on both hosts, so the bridge, thumbnail renderer, and static WordPress files load
+  from the WordPress host without CORS.
+- The bridge can request HTTP responses for its assigned URL scope and read the
   public static-asset directory name. It cannot invoke arbitrary PHP client
   methods, mount a directory, or choose a different runtime.
 - Window-backed client APIs accept messages only from their connected window.
   A child WordPress frame cannot use an existing parent API connection. The root
   HTTP server never serves scoped WordPress responses.
-- Public scripts, PHP WASM, and WordPress downloads use identical root-origin
-  URLs. The WordPress service worker imports its public code from that origin.
+- Public scripts, PHP WASM, and WordPress downloads use release URLs, which both
+  hosts serve. The app and WordPress hosts each register the root `/sw.js` loader,
+  which imports that release's worker; it chooses its role by origin.
   The root keeps its existing on-demand asset cache, shared by every PHP worker.
-  Eager offline prefetch is disabled. Root-origin scoped requests return 404
+  Eager offline prefetch is disabled. Root-origin scoped subresource requests return 404
   for sandbox sites. Each runtime explicitly rejects its app-origin HTTP route,
   so WordPress cannot use that alias to run with app storage access. Tabs share
   one app service worker and platform asset cache.
@@ -88,6 +95,33 @@ For example, an external page can keep this iframe unchanged:
 
 No referrer-based framing allowlist is installed. Requiring every external frame
 to identify its origin would break existing embeds that hide their referrer.
+
+### Released interactive code block
+
+`playwright/wordpress-frame/interactive-code-block.spec.ts` runs the real
+WordPress.org `interactive-code-block` plugin (the `wordpress-playground-block`
+package in `WordPress/playground-tools`) in a separate Node-hosted WordPress server
+on an ephemeral port. It publishes a post containing the block, activates its preview,
+edits and runs PHP, checks the downloaded ZIP, and opens the full-page view. The
+embedding page, app iframe, and rendered WordPress have distinct origins, and no SDK
+or RPC methods are mocked. It exercises the SDK's cross-origin loading from
+`/client/index.js`, which the installed PHP handler serves with CORS headers.
+
+`playwright/wordpress-frame/interactive-code-block-release.json` pins the plugin
+version, download URL, and SHA-256. The verified ZIP is cached in
+`node_modules/.cache/playground-e2e/`. To update the fixture, change the version,
+URL, and checksum together. The installed plugin's JavaScript keeps its compiled
+logic; only literal `https://playground.wordpress.net` origins are replaced with the
+app origin under test, including SDK imports and the full-page URL. The test rejects
+accidental requests to the production hosts.
+
+Run it against an installed preview build:
+
+```sh
+npx nx run playground-website:build:wordpress-frame
+npx playwright test --config=packages/playground/website/playwright/playwright.wordpress-frame.config.ts \
+  --project=chromium interactive-code-block.spec.ts
+```
 
 ## Limits
 
@@ -135,8 +169,8 @@ npx nx run playground-website:e2e:wordpress-frame --args='wordpress-frame.spec.t
 ```
 
 The browser checks cover direct parent OPFS access, rejected child PHP API calls,
-restricted helper methods, saved-site switching without replacing the SPA,
-shared PHP/WordPress downloads, cache-poisoning attempts against the helper and
+restricted bridge methods, saved-site switching without replacing the SPA,
+shared PHP/WordPress downloads, cache-poisoning attempts against the bridge and
 thumbnail-worker loader, warm offline startup, editor saves, the same-origin
 directory-handle path, current-URL reporting, two-way app/WordPress messages,
 outside-click dismissal, and cross-origin OAuth popups. The folder test
@@ -188,3 +222,16 @@ To run the same full suite locally, build the normal CI fixtures first, then the
 prototype. Set `PLAYWRIGHT_TEST_GROUP` to `regular`, `storage`, or `reprint-import`
 and run this configuration. The import lane also needs its source-site server.
 For a single existing test, pass its filename to `e2e:wordpress-frame`.
+
+Top-level GET navigations to scoped sandbox URLs that reach the HTTP server redirect
+to the same path and query on the app origin. The app serves the trusted popup wrapper
+there, which loads the original sandbox URL in its iframe. This preserves Safari’s
+service-worker partition for Cmd-click, middle-click, and editor previews. Iframe
+requests never redirect, so a missing runtime cannot create nested wrappers. The
+existing hash-based `wordpress-popup.html` URL remains available for tool popups.
+
+Editors before WordPress 7.1 receive a narrow `wp-preview-*` window adapter from
+the mu-plugin. It lets Core write its loading message after a reused tab has moved
+to the app origin, and scopes preview window names to the running site. Core keeps
+its own save/autosave logic and sandbox destination URLs. Other windows and newer
+Core versions retain their native window behavior.

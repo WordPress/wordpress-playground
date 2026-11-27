@@ -639,6 +639,75 @@ describe.each(blueprintVersions)(
 			}
 		});
 
+		// Regression test: the host filesystem may resolve a request path
+		// to a file the request handler does not recognize. Windows treats
+		// backslashes as separators and ignores trailing dots, trailing
+		// spaces, and the `::$DATA` stream suffix. macOS and Windows ignore
+		// letter case. None of these may return PHP source or a file from
+		// outside the mounted directory.
+		test('should not disclose PHP source or files outside a mounted directory', async () => {
+			const hostTmpDir = await mkdtemp(
+				path.join(tmpdir(), 'playground-test-mount-')
+			);
+			const hostPluginDir = path.join(hostTmpDir, 'foo');
+			mkdirSync(hostPluginDir);
+			writeFileSync(
+				path.join(hostPluginDir, 'bar.php'),
+				`<?php echo 'bar' . ' was executed';`
+			);
+			writeFileSync(
+				path.join(hostTmpDir, 'baz.txt'),
+				'outside the mount'
+			);
+			const pluginUrl = '/wp-content/plugins/foo';
+
+			try {
+				await using cliServer = await runCLI({
+					...suiteCliArgs,
+					command: 'server',
+					mount: [
+						{
+							hostPath: hostPluginDir,
+							vfsPath: `/wordpress${pluginUrl}`,
+						},
+					],
+				});
+
+				const executed = await fetch(
+					new URL(`${pluginUrl}/bar.php`, cliServer.serverUrl)
+				);
+				expect(await executed.text()).toBe('bar was executed');
+
+				for (const requestPath of [
+					`${pluginUrl}/bar.php/`,
+					`${pluginUrl}/bar.php%2f`,
+					`${pluginUrl}/bar.php%252f`,
+					`${pluginUrl}/BAR.PHP`,
+					`${pluginUrl}/bar.php.`,
+					`${pluginUrl}/bar.php%20`,
+					`${pluginUrl}/bar.php%20%3f`,
+					`${pluginUrl}/bar.php%20.`,
+					`${pluginUrl}/bar.php::$DATA`,
+					`${pluginUrl}/..%2fbaz.txt`,
+					`${pluginUrl}/..%252fbaz.txt`,
+					`${pluginUrl}/..%5cbaz.txt`,
+					`${pluginUrl}/..%255cbaz.txt`,
+					`${pluginUrl}/bar.php%5c..%5c..%5cbaz.txt`,
+				]) {
+					const response = await fetch(
+						new URL(requestPath, cliServer.serverUrl)
+					);
+					const text = await response.text();
+					expect(text, requestPath).not.toContain('<?php');
+					expect(text, requestPath).not.toContain(
+						'outside the mount'
+					);
+				}
+			} finally {
+				rmSync(hostTmpDir, { recursive: true, force: true });
+			}
+		}, 60_000);
+
 		// TODO: Test resolving absolute symlinks within a mounted dir with and without follow-symlinks
 
 		describe('auto-mount', () => {
@@ -1476,6 +1545,57 @@ describe('start command', () => {
 		}
 	}, 180000);
 
+	test('turns off default auto-login when making the Codespaces port public', async () => {
+		vi.stubEnv('CODESPACE_NAME', 'test-codespace');
+		const tmpDir = await mkdtemp(
+			path.join(tmpdir(), 'playground-test-codespaces-public-')
+		);
+		const pluginDir = path.join(tmpDir, 'sample-plugin');
+		mkdirSync(pluginDir, { recursive: true });
+		writeFileSync(
+			path.join(pluginDir, 'sample-plugin.php'),
+			`<?php\n/*\nPlugin Name: Sample Plugin\n*/\n`
+		);
+		// `start` stores the site under a hash of the working directory.
+		const sitePath = path.join(
+			os.homedir(),
+			'.wordpress-playground/sites',
+			createHash('sha256').update(tmpDir).digest('hex')
+		);
+		const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(tmpDir);
+
+		try {
+			await using cliResult = (await parseOptionsAndRunCLI([
+				'start',
+				`--path=${pluginDir}`,
+				'--skip-browser',
+				'--quiet',
+				'--codespaces-public-port',
+			])) as CLIServerResult;
+			const { serverUrl } = cliResult[internalsKeyForTesting].cliServer;
+
+			const getWpAdmin = () =>
+				new Promise<http.IncomingMessage>((resolve, reject) => {
+					// http.get() exposes redirect responses; fetch() follows them.
+					http.get(new URL('/wp-admin/', serverUrl), (res) => {
+						res.resume();
+						resolve(res);
+					}).on('error', reject);
+				});
+			// The first request only clears a stale auto-login cookie.
+			await getWpAdmin();
+			const res = await getWpAdmin();
+
+			expect(res.statusCode).toBe(302);
+			expect(res.headers['location']).toContain('/wp-login.php');
+		} finally {
+			vi.unstubAllEnvs();
+			cwdSpy.mockRestore();
+			rmSync(tmpDir, { recursive: true, force: true });
+			rmSync(sitePath, { recursive: true, force: true });
+		}
+	}, 180000);
+
 	test('does not expose v2 --mode on the start command', async () => {
 		const tmpDir = await mkdtemp(
 			path.join(tmpdir(), 'playground-test-start-existing-wp-')
@@ -1783,35 +1903,39 @@ describe('other run-cli behaviors', () => {
 			expect(response.status).toBe(500);
 		});
 
-		test('disposes spawned workers when boot fails on the non-debug path', async () => {
-			// Regression: a boot failure now rejects instead of calling
-			// process.exit(), so the non-debug catch must still run
-			// disposeCLI() to terminate spawned workers — otherwise they keep
-			// a library caller's event loop alive. An invalid Blueprint step
-			// fails boot after the worker has spawned.
-			const terminateSpy = vi.spyOn(Worker.prototype, 'terminate');
-			try {
-				await expect(
-					runCLI({
-						command: 'server',
-						wordpressInstallMode: 'do-not-attempt-installing',
-						skipSqliteSetup: true,
-						verbosity: 'normal',
-						workers: 1,
-						blueprint: {
-							steps: [
-								{
-									step: 'thisStepDoesNotExistForTesting',
-								} as any,
-							],
-						},
-					} as RunCLIArgs & { command: 'server' })
-				).rejects.toThrow();
-				expect(terminateSpy).toHaveBeenCalled();
-			} finally {
-				terminateSpy.mockRestore();
-			}
-		}, 60_000 /* full boot before the failing step; allow Windows headroom */);
+		test(
+			'disposes spawned workers when boot fails on the non-debug path',
+			async () => {
+				// Regression: a boot failure now rejects instead of calling
+				// process.exit(), so the non-debug catch must still run
+				// disposeCLI() to terminate spawned workers — otherwise they keep
+				// a library caller's event loop alive. An invalid Blueprint step
+				// fails boot after the worker has spawned.
+				const terminateSpy = vi.spyOn(Worker.prototype, 'terminate');
+				try {
+					await expect(
+						runCLI({
+							command: 'server',
+							wordpressInstallMode: 'do-not-attempt-installing',
+							skipSqliteSetup: true,
+							verbosity: 'normal',
+							workers: 1,
+							blueprint: {
+								steps: [
+									{
+										step: 'thisStepDoesNotExistForTesting',
+									} as any,
+								],
+							},
+						} as RunCLIArgs & { command: 'server' })
+					).rejects.toThrow();
+					expect(terminateSpy).toHaveBeenCalled();
+				} finally {
+					terminateSpy.mockRestore();
+				}
+			},
+			60_000 /* full boot before the failing step; allow Windows headroom */
+		);
 	});
 
 	describe('streaming responses', () => {
@@ -2280,6 +2404,20 @@ describe('other run-cli behaviors', () => {
 	});
 
 	describe('return types', () => {
+		// These tests need a real ZIP, but not a full WordPress install. A tiny
+		// local site keeps the Windows run well below the default test timeout.
+		const snapshotBlueprint: RunCLIArgs['blueprint'] = {
+			steps: [
+				{
+					step: 'runPHP',
+					code: `<?php
+						mkdir('/wordpress', 0777, true);
+						file_put_contents('/wordpress/index.php', '');
+					`,
+				},
+			],
+		};
+
 		test('runCLI returns void for run-blueprint command', async () => {
 			const result = await runCLI({
 				command: 'run-blueprint',
@@ -2298,15 +2436,18 @@ describe('other run-cli behaviors', () => {
 			try {
 				const result = await runCLI({
 					command: 'build-snapshot',
-					blueprint: undefined,
+					wordpressInstallMode: 'do-not-attempt-installing',
+					skipSqliteSetup: true,
+					blueprint: snapshotBlueprint,
 					outfile,
+					workers: 1,
 				});
 				expect(result).toBeUndefined();
 				expect(existsSync(outfile)).toBe(true);
 			} finally {
 				rmSync(tmpDir, { recursive: true });
 			}
-		}, 60_000 /* allow extra time to avoid testing timeouts on Windows */);
+		});
 
 		test('runCLI returns RunCLIServer for server command', async () => {
 			await using result = await runCLI({
@@ -2367,10 +2508,18 @@ describe('other run-cli behaviors', () => {
 				path.join(tmpdir(), 'playground-snapshot-test-')
 			);
 			const outfile = path.join(tmpDir, 'snapshot.zip');
+			const blueprintPath = path.join(tmpDir, 'blueprint.json');
 			try {
+				await writeFile(
+					blueprintPath,
+					JSON.stringify(snapshotBlueprint)
+				);
 				const result = await parseOptionsAndRunCLI([
 					'build-snapshot',
 					`--outfile=${outfile}`,
+					`--blueprint=${blueprintPath}`,
+					'--wordpress-install-mode=do-not-attempt-installing',
+					'--skip-sqlite-setup',
 					'--verbosity=quiet',
 				]);
 				expect('exitCode' in result).toBe(true);
@@ -2378,7 +2527,7 @@ describe('other run-cli behaviors', () => {
 			} finally {
 				rmSync(tmpDir, { recursive: true });
 			}
-		}, 60_000 /* allow extra time to avoid testing timeouts on Windows */);
+		});
 
 		test('parseOptionsAndRunCLI returns CLIExitResult for php command', async () => {
 			const stdoutSpy = vi

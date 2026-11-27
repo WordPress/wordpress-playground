@@ -136,7 +136,9 @@ Once you click on save, an instance will be stored with a generated name to be r
 ### Additional actions menu
 -->
 
-### অতিরিক্ত অ্যাকশন মেনু
+<a id="অতিরিক্ত-অ্যাকশন-মেনু"></a>
+
+### অতিরিক্ত অ্যাকশন মেনু {#playground-options-menu}
 
 <!--
 ![Additional actions Menu](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/about/playground-manager-additional-actions.webp)

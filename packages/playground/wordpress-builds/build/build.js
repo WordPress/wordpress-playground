@@ -217,7 +217,10 @@ if (!isRemoteModule) {
 			'wordpress-playground',
 			'sh',
 			'-c',
-			`cp -r /root/output/wp-${versionInfo.slug} /output/`,
+			`cp -r /root/output/wp-${versionInfo.slug} /output/ && ` +
+				getRestoreOutputOwnershipCommand(
+					`/output/wp-${versionInfo.slug}`
+				),
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
@@ -235,7 +238,10 @@ if (!isRemoteModule) {
 			'wordpress-playground',
 			'sh',
 			'-c',
-			`cp /root/output/*.zip /output/`,
+			`cp /root/output/wp-${versionInfo.slug}.zip /output/ && ` +
+				getRestoreOutputOwnershipCommand(
+					`/output/wp-${versionInfo.slug}.zip`
+				),
 		],
 		{ cwd: sourceDir, stdio: 'inherit' }
 	);
@@ -278,6 +284,17 @@ if (isRemoteModule) {
 		'node',
 		['build-tar-zst.mjs', `--version=${versionInfo.slug}`, '--delete-zip'],
 		{ cwd: sourceDir, stdio: 'inherit' }
+	);
+}
+
+/**
+ * Repair only the exported path, using the mount owner's container-visible IDs.
+ * Rootless Docker already writes as that owner (UID 0), so it needs no repair.
+ */
+function getRestoreOutputOwnershipCommand(exportedPath) {
+	return (
+		'if [ "$(stat -c %u /output)" != 0 ]; then ' +
+		`chown -R --reference=/output "${exportedPath}"; fi`
 	);
 }
 

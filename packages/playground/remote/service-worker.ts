@@ -19,11 +19,12 @@
  *
  * ## Separate app and WordPress origins
  *
- * The same worker bundle can run on two origins. Its module URL identifies the
- * app origin; self.location.origin identifies the registration serving requests.
+ * The same worker bundle runs on both origins, which serve the same release
+ * files. The configured app origin (or, outside WP Cloud, the module URL) identifies
+ * the app; self.location.origin identifies the registration serving requests.
  * In a split-origin deployment, only the WordPress registration serves virtual
- * /scope:... pages. The app registration rejects those app-origin URLs so user
- * HTML cannot execute with the app's storage access.
+ * /scope:... pages. Scoped app navigations serve a trusted iframe wrapper; other
+ * scoped app requests are rejected so user HTML cannot access app storage.
  *
  * PHP stays in an app-origin worker. The WordPress service worker sends HTTP
  * requests to a hidden iframe on its own origin, which forwards them to its
@@ -58,9 +59,9 @@
  * ### CacheStorage in the service worker
  *
  * In the split-origin setup, the WordPress origin never uses CacheStorage for
- * platform assets: every WordPress page can replace those entries. Its helper
- * HTML and thumbnail-worker loader are generated below from trusted worker code.
- * Their scripts use shared app-origin URLs and the browser HTTP cache. The app
+ * platform assets: every WordPress page can replace those entries. Its bridge
+ * HTML is generated below from trusted worker code. Release
+ * files come from the server and the browser HTTP cache. The app
  * keeps its own origin-protected CacheStorage for PHP and WordPress downloads.
  *
  * Playground primarily relies on the **Cache first** strategy. This means assets are:
@@ -120,14 +121,23 @@
 
 declare const self: ServiceWorkerGlobalScope;
 
-import { playgroundOrigin, wordPressSiteUrl } from './src/lib/config';
+import {
+	runtimeStaticAssetsDirectory,
+	wordPressStaticAssetOrigin,
+} from './src/lib/wordpress-static-assets';
+import {
+	playgroundOrigin,
+	wordPressSiteUrl,
+	releaseBase,
+	usesMultiReleaseDirectoryLayout,
+} from './src/lib/config';
 // @ts-ignore -- Provided by Vite.
 import { buildVersion } from 'virtual:remote-config';
 import {
 	getWordPressBridgePath,
 	isWordPressBridgePath,
 } from './src/lib/wordpress-bridge-path';
-// @ts-ignore -- Vite bundles the helper for both its network and worker-generated HTML.
+// @ts-ignore -- Vite bundles the bridge for both its network and worker-generated HTML.
 import wordpressBridgeScriptUrl from './src/lib/wordpress-bridge.ts?worker&url';
 
 import {
@@ -144,6 +154,7 @@ import {
 	broadcastMessageExpectReply,
 } from '@php-wasm/web-service-worker';
 import { wordPressRewriteRules } from '@wp-playground/wordpress';
+import { joinPaths } from '@php-wasm/util';
 import { reportServiceWorkerMetrics } from '@php-wasm/logger';
 
 import {
@@ -280,30 +291,61 @@ self.addEventListener('fetch', (event) => {
 	// must not intercept sandbox URLs, and the PHP connection rejects their
 	// app-origin aliases so WordPress cannot run with app storage access.
 	if (isURLScoped(url) && url.origin !== self.location.origin) return;
+	if (
+		isURLScoped(url) &&
+		self.location.origin === playgroundOrigin &&
+		wordPressSiteUrl !== playgroundOrigin
+	) {
+		// App aliases serve only the trusted iframe wrapper, never WordPress HTML.
+		return event.respondWith(
+			event.request.method === 'GET' &&
+				event.request.mode === 'navigate' &&
+				event.request.destination === 'document'
+				? networkFirstFetch(
+						new Request(
+							new URL('/wordpress-popup.html', playgroundOrigin)
+						)
+					)
+				: Promise.resolve(new Response('Not found', { status: 404 }))
+		);
+	}
 
+	// A static release's app names the bridge in its own release directory.
+	const isOwnReleaseBridge =
+		usesMultiReleaseDirectoryLayout &&
+		url.pathname === joinPaths(releaseBase, 'wordpress-bridge.html');
 	if (
 		self.location.origin !== playgroundOrigin &&
 		url.origin === self.location.origin &&
-		isWordPressBridgePath(url.pathname)
+		(isWordPressBridgePath(url.pathname) || isOwnReleaseBridge)
 	) {
-		// Release A's worker may still be active after release B is deployed.
-		// If it answers B's helper URL, its HTML will still name A's script,
-		// which the server may have removed. Generate HTML only for this worker's
-		// buildVersion and the unversioned /wordpress-bridge.html compatibility URL.
-		// Helper URLs naming any other build must reach the server, which serves
-		// the deployed release's helper HTML and script URLs.
+		// PRE_RELEASE_BRIDGE_URL_COMPAT: builds without release directories use root
+		// bridge aliases. Development and portable builds still use them too; see
+		// the deployment removal checklist.
+		// An installed worker can belong to a different release than the app.
+		// Generate HTML only for our release path, our buildVersion alias, and the
+		// unversioned compatibility alias. Otherwise our HTML would substitute our
+		// script for the app's requested version. Other release paths fall through
+		// to HTTP below; let other build-version aliases reach HTTP here too.
 		if (
+			!isOwnReleaseBridge &&
 			url.pathname !== '/wordpress-bridge.html' &&
 			url.pathname !== getWordPressBridgePath(buildVersion)
 		)
 			return;
 		// WordPress can replace any CacheStorage entry on this origin. Generate
-		// the helper from trusted worker code, including when starting offline.
-		// Its script uses the shared app URL, never WordPress-writable cached bytes.
-		const scriptUrl = new URL(wordpressBridgeScriptUrl, playgroundOrigin);
+		// the bridge from trusted worker code, including when starting offline.
+		// Its script comes from the server, never WordPress-writable cached bytes.
+		// Static releases serve it on this host too, so no CORS is needed.
+		const scriptUrl = new URL(
+			wordpressBridgeScriptUrl,
+			usesMultiReleaseDirectoryLayout
+				? self.location.origin
+				: playgroundOrigin
+		);
 		return event.respondWith(
 			new Response(
-				`<!doctype html><title>WordPress request transport</title><script type="module" src=${JSON.stringify(scriptUrl.href)}></script>`,
+				`<!doctype html><title>WordPress bridge</title><script type="module" src=${JSON.stringify(scriptUrl.href)}></script>`,
 				{
 					headers: {
 						'Content-Type': 'text/html',
@@ -317,6 +359,37 @@ self.addEventListener('fetch', (event) => {
 	// Don't handle requests to the service worker script itself.
 	if (url.pathname.startsWith(self.location.pathname)) {
 		return;
+	}
+
+	// Let HTTP own other releases' app downloads. Replacing this worker while
+	// its response is streaming aborts that download in WebKit. Downloads outside
+	// the worker survive the update; this release keeps its normal offline cache.
+	const isAppAssetFromAnotherRelease =
+		(url.pathname.startsWith('/releases/') &&
+			!url.pathname.startsWith(releaseBase)) ||
+		// PRE_RELEASE_ASSETS_COMPAT: rollback can restore the root-only asset layout.
+		// Managed builds put their own app assets under releaseBase instead.
+		(usesMultiReleaseDirectoryLayout &&
+			url.pathname.startsWith('/assets/'));
+	if (
+		self.location.origin === playgroundOrigin &&
+		url.origin === playgroundOrigin &&
+		isAppAssetFromAnotherRelease
+	) {
+		return;
+	}
+
+	// Release files are public platform code shared by both hosts, even when a
+	// WordPress page requests them. Do not redirect them into its scope.
+	if (
+		self.location.origin !== playgroundOrigin &&
+		url.origin === self.location.origin &&
+		url.pathname.startsWith('/releases/')
+	) {
+		// Explicitly forward the request so Firefox keeps workers controlled.
+		// An unhandled worker script can lose its controller, sending its scoped
+		// resource fetches to the server instead of the running WordPress site.
+		return event.respondWith(fetch(event.request));
 	}
 
 	// Vite's /@fs/ modules remain app assets when a scoped WordPress document
@@ -411,7 +484,11 @@ self.addEventListener('fetch', (event) => {
 		// ignore
 	}
 
-	if (referrerUrl && isURLScoped(referrerUrl)) {
+	if (
+		referrerUrl &&
+		referrerUrl.origin === wordPressSiteUrl &&
+		isURLScoped(referrerUrl)
+	) {
 		if (url.origin !== referrerUrl.origin) {
 			// Cross-origin requests can be handled by the service worker when they
 			// are initiated from a page in the service worker's scope.
@@ -471,12 +548,10 @@ self.addEventListener('fetch', (event) => {
 	 *
 	 * ## The problem with deployments
 	 *
-	 * App deployments remove all the static assets associated with the
-	 * previous app version. Meanwhile, cached entry documents still hold
-	 * references to those assets.
-	 *
-	 * If we just loaded a cached entry document, the client would crash
-	 * with seemingly random errors.
+	 * Cached entry documents reference their own build's assets. Managed releases
+	 * retain those files for 30 days after becoming inactive; older root-only
+	 * deployments replaced them immediately. Replaying an old entry online can
+	 * therefore reference expired files or keep running code we have since fixed.
 	 *
 	 * Instead, we fetch the most recent version of each entry document from
 	 * the network.
@@ -528,13 +603,13 @@ self.addEventListener('fetch', (event) => {
  *
  * Only a 404 marked x-backfill-from: remote-host permits a public asset fetch.
  * For a minified build's omitted CSS file, remove /scope:site-a/, apply WordPress
- * rewrites, and fetch from that version's static directory on the shared app
- * origin. Do not turn arbitrary PHP 404s into network requests. Use the browser
- * HTTP cache for these public files, not WordPress-writable CacheStorage.
+ * rewrites, and fetch from the runtime's release-qualified static directory on
+ * this origin. Legacy unprefixed aliases use the app origin. Do not turn arbitrary
+ * PHP 404s into network requests. Use the browser HTTP cache for these public files,
+ * not WordPress-writable CacheStorage.
  *
- * A navigation or same-origin fetch cannot accept the CORS response returned by
- * that cross-origin asset fetch. Wrap its body and headers in a new Response for
- * the original request without reading the whole body into memory.
+ * Wrap asset bodies and headers in a new Response without buffering. This also
+ * permits a navigation or same-origin fetch to consume a legacy cross-origin asset.
  */
 async function handleScopedRequest(event: FetchEvent, scope: string) {
 	const fullUrl = new URL(event.request.url);
@@ -593,7 +668,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 		}
 
 		// If we get a 404 for a static file, try to fetch it from
-		// the from the static assets directory at the remote server.
+		// the runtime’s static assets directory.
 		const requestedUrl = new URL(event.request.url);
 		const resolvedUrl = removeURLScope(requestedUrl);
 		resolvedUrl.pathname = applyRewriteRules(
@@ -605,19 +680,29 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 			!resolvedUrl.pathname.startsWith('/@fs') &&
 			!resolvedUrl.pathname.startsWith('/assets')
 		) {
-			resolvedUrl.pathname = `/${staticAssetsDirectory}${resolvedUrl.pathname}`;
+			resolvedUrl.pathname = joinPaths(
+				'/',
+				staticAssetsDirectory,
+				resolvedUrl.pathname
+			);
 		}
-		const assetUrl =
-			self.location.origin !== playgroundOrigin
-				? new URL(
-						resolvedUrl.pathname + resolvedUrl.search,
-						playgroundOrigin
-					)
-				: resolvedUrl;
+		// Release-qualified directories belong to the runtime's retained release.
+		// PRE_RELEASE_ASSETS_COMPAT: older tabs omit a release directory and still
+		// fetch /wp-<version> from the app host. Portable builds use that layout too.
+		const assetOrigin = wordPressStaticAssetOrigin(
+			staticAssetsDirectory,
+			self.location.origin,
+			playgroundOrigin
+		);
+		const crossOrigin = assetOrigin !== self.location.origin;
+		const assetUrl = new URL(
+			resolvedUrl.pathname + resolvedUrl.search,
+			assetOrigin
+		);
 		const request = await cloneRequest(event.request, {
 			url: assetUrl,
-			// Navigation clones default to same-origin, but these assets live on the app origin.
-			...(self.location.origin !== playgroundOrigin && { mode: 'cors' }),
+			// Unprefixed app-host assets require CORS when this is the WordPress worker.
+			...(crossOrigin && { mode: 'cors' }),
 			// Omit credentials to avoid causing cache aborts due to presence of
 			// cookies
 			credentials: 'omit',
@@ -649,7 +734,7 @@ async function handleScopedRequest(event: FetchEvent, scope: string) {
 			throw e;
 		});
 		if (
-			self.location.origin !== playgroundOrigin &&
+			crossOrigin &&
 			(event.request.mode === 'navigate' ||
 				event.request.mode === 'same-origin')
 		) {
@@ -847,6 +932,7 @@ function emptyHtml(crossOriginIsolated: boolean) {
 
 type WPModuleDetails = {
 	staticAssetsDirectory?: string;
+	releaseBase?: string;
 };
 
 const scopeToWpModule: Record<string, WPModuleDetails> = {};
@@ -871,7 +957,10 @@ async function getScopedWpDetails(
 				),
 			});
 		}
-		return result;
+		return {
+			...result,
+			staticAssetsDirectory: runtimeStaticAssetsDirectory(result),
+		};
 	}
 	if (!scopeToWpModule[scope]) {
 		const requestId = await broadcastMessageExpectReply(
@@ -880,7 +969,11 @@ async function getScopedWpDetails(
 			},
 			scope
 		);
-		scopeToWpModule[scope] = await awaitReply(self, requestId);
+		const result: WPModuleDetails = await awaitReply(self, requestId);
+		scopeToWpModule[scope] = {
+			...result,
+			staticAssetsDirectory: runtimeStaticAssetsDirectory(result),
+		};
 	}
 	return scopeToWpModule[scope];
 }
