@@ -28,7 +28,9 @@ if ($test_route === '/__test-run-lookup') {
 	// `runs` lists the head repository ID of each run, newest first; `null`
 	// stands for a deleted head repository. An entry may add the run's event
 	// after a colon, as in `1:pull_request_target`; the default is
-	// `pull_request`. Every run belongs to repository 1.
+	// `pull_request`. A third field of `no-artifacts` gives the run an
+	// empty artifact list, as for a build still in progress, as in
+	// `1:pull_request:no-artifacts`. Every run belongs to repository 1.
 	$parse_id = function ($value) {
 		return $value === 'null' ? null : (int) $value;
 	};
@@ -36,10 +38,11 @@ if ($test_route === '/__test-run-lookup') {
 	$runs = [];
 	if (($_GET['runs'] ?? '') !== '') {
 		foreach (explode(',', $_GET['runs']) as $entry) {
-			$parts = explode(':', $entry, 2);
+			$parts = explode(':', $entry, 3);
 			$runs[] = [
 				'head_repository_id' => $parse_id($parts[0]),
 				'event' => $parts[1] ?? 'pull_request',
+				'has_artifacts' => ($parts[2] ?? '') !== 'no-artifacts',
 			];
 		}
 	}
@@ -94,10 +97,15 @@ if ($test_route === '/__test-run-lookup') {
 							'head_repository' => $run['head_repository_id'] === null
 								? null
 								: ['id' => $run['head_repository_id']],
-							'artifacts_url' => "https://api.github.com/test-artifacts/$index",
+							'artifacts_url' => $run['has_artifacts']
+								? "https://api.github.com/test-artifacts/$index"
+								: "https://api.github.com/test-artifacts/$index/none",
 						];
 					}
 					$body = ['workflow_runs' => $runs];
+				} else if (preg_match('#^/test-artifacts/(\d+)/none$#', $path, $matches)) {
+					$this->artifactListRequests[] = (int) $matches[1];
+					$body = ['artifacts' => []];
 				} else if (preg_match('#^/test-artifacts/(\d+)$#', $path, $matches)) {
 					// Every run has an artifact with the requested name, as a
 					// fork that copies the name would.

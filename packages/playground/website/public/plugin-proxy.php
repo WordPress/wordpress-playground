@@ -137,10 +137,11 @@ class PluginDownloader
 		}
 
 		// Runs from other repositories can fill whole pages on a busy branch
-		// name, so keep reading until a run from the expected repository
-		// shows up. The page cap bounds the API calls one request can make.
-		$artifactsUrls = [];
-		for ($page = 1; $page <= self::MAX_RUN_PAGES && !$artifactsUrls; $page++) {
+		// name, so keep reading until a matching run has a usable artifact.
+		// The page cap bounds the API calls one request can make.
+		$found_matching_run = false;
+		$found_stale_artifact = false;
+		for ($page = 1; $page <= self::MAX_RUN_PAGES; $page++) {
 			$ciRuns = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/workflows/$workflow_id/runs?branch=$branchName&per_page=" . self::RUNS_PER_PAGE . "&page=$page")['body'];
 			if (!$ciRuns || !$ciRuns->workflow_runs) {
 				break;
@@ -149,104 +150,92 @@ class PluginDownloader
 				if (!$this->isRunFromRepository($run, $head_repository_id)) {
 					continue;
 				}
-				$artifactsUrls[] = $run->artifacts_url;
+				$found_matching_run = true;
+
+				$zip_download_api_endpoint = $zip_url = null;
+
+				$artifacts = $this->gitHubRequest($run->artifacts_url)['body'];
+				if (!$artifacts) {
+					continue;
+				}
+
+				foreach ($artifacts->artifacts as $artifact) {
+					// Support prefix matching if artifact name ends with '-'
+					// This is used for branches where artifact names include commit hashes
+					$is_match = (substr($artifact_name, -1) === '-')
+						? (strpos($artifact->name, $artifact_name) === 0)
+						: ($artifact_name === $artifact->name);
+
+					if ($is_match) {
+						if ($artifact->size_in_bytes < 3000) {
+							throw new ApiException('artifact_invalid');
+						}
+						if ($artifact->expired) {
+							throw new ApiException('artifact_expired');
+						}
+						$zip_download_api_endpoint = $artifact->archive_download_url;
+						break;
+					}
+				}
+				if (!$zip_download_api_endpoint) {
+					if ($artifacts->artifacts) {
+						$found_stale_artifact = true;
+					}
+					continue;
+				}
+
+				/*
+				 * Short-circuit with HTTP 200 OK when we only want to
+				 * verify whether the CI artifact seems to exist but we
+				 * don't want to download it yet.
+				 */
+				if (array_key_exists('verify_only', $_GET)) {
+					header('HTTP/1.1 200 OK');
+					return;
+				}
+
+				$allowed_headers = array(
+					'content-length',
+					'content-disposition',
+					'x-frame-options',
+					'last-modified',
+					'etag',
+					'date',
+					'age',
+					'vary',
+					'cache-control'
+				);
+				$artifact_res = $this->gitHubRequest($zip_download_api_endpoint, false, false);
+				ob_end_flush();
+				flush();
+
+				// The API endpoint returns the actual artifact URL as a 302 Location header.
+				foreach ($artifact_res['headers'] as $header_line) {
+					$header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
+					$header_value = trim(substr($header_line, 1 + strpos($header_line, ':')));
+					if ($header_name === 'location') {
+						streamHttpResponse($header_value, 'GET', [], NULL, $allowed_headers, [
+							'Content-Type: application/zip',
+						]);
+						die();
+					}
+				}
+
+				throw new ApiException('artifact_redirect_not_present');
 			}
 			if (count($ciRuns->workflow_runs) < self::RUNS_PER_PAGE) {
 				break;
 			}
 		}
-		if (!$artifactsUrls) {
+		if (!$found_matching_run) {
 			// Runs from other repositories say nothing about this branch's
 			// build, so this is the same as the branch having no runs.
 			throw new ApiException('no_ci_runs');
 		}
-
-		$found_stale_artifact = false;
-
-		foreach ($artifactsUrls as $artifactsUrl) {
-			$zip_download_api_endpoint = $zip_url = null;
-
-			$artifacts = $this->gitHubRequest($artifactsUrl)['body'];
-			if (!$artifacts) {
-				continue;
-			}
-
-			foreach ($artifacts->artifacts as $artifact) {
-				// Support prefix matching if artifact name ends with '-'
-				// This is used for branches where artifact names include commit hashes
-				$is_match = (substr($artifact_name, -1) === '-')
-					? (strpos($artifact->name, $artifact_name) === 0)
-					: ($artifact_name === $artifact->name);
-
-				if ($is_match) {
-					if ($artifact->size_in_bytes < 3000) {
-						throw new ApiException('artifact_invalid');
-					}
-					if ($artifact->expired) {
-						throw new ApiException('artifact_expired');
-					}
-					$zip_download_api_endpoint = $artifact->archive_download_url;
-					break;
-				}
-			}
-			if (!$zip_download_api_endpoint) {
-				if ($artifacts->artifacts) {
-					$found_stale_artifact = true;
-				}
-				continue;
-			}
-
-			/*
-			 * Short-circuit with HTTP 200 OK when we only want to
-			 * verify whether the CI artifact seems to exist but we
-			 * don't want to download it yet.
-			 */
-			if (array_key_exists('verify_only', $_GET)) {
-				header('HTTP/1.1 200 OK');
-				return;
-			}
-
-			$allowed_headers = array(
-				'content-length',
-				'content-disposition',
-				'x-frame-options',
-				'last-modified',
-				'etag',
-				'date',
-				'age',
-				'vary',
-				'cache-control'
-			);
-			$artifact_res = $this->gitHubRequest($zip_download_api_endpoint, false, false);
-			ob_end_flush();
-			flush();
-
-			// The API endpoint returns the actual artifact URL as a 302 Location header.
-			foreach ($artifact_res['headers'] as $header_line) {
-				$header_name = strtolower(substr($header_line, 0, strpos($header_line, ':')));
-				$header_value = trim(substr($header_line, 1 + strpos($header_line, ':')));
-				if ($header_name === 'location') {
-					streamHttpResponse($header_value, 'GET', [], NULL, $allowed_headers, [
-						'Content-Type: application/zip',
-					]);
-					die();
-				}
-			}
-
-			throw new ApiException('artifact_redirect_not_present');
-		}
 		if ($found_stale_artifact) {
 			throw new ApiException('artifact_invalid');
 		}
-		if (!$artifacts) {
-			throw new ApiException('artifact_not_available');
-		}
-		if (!$zip_download_api_endpoint) {
-			throw new ApiException('artifact_not_available');
-		}
-		if (!$zip_url) {
-			throw new ApiException('artifact_not_available');
-		}
+		throw new ApiException('artifact_not_available');
 	}
 
 	/**

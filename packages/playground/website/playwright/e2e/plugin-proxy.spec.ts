@@ -193,6 +193,28 @@ test('reads further pages when other repositories fill the first one', async ({
 	});
 });
 
+test('reads the next page when no matching run on this page has an artifact', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({
+			mode: 'pr',
+			prHead: '1',
+			runs: [
+				...Array(99).fill('2'),
+				'1:pull_request:no-artifacts',
+				'1',
+			].join(','),
+		})
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		artifactListRequests: [99, 100],
+	});
+});
+
 test('stops reading runs after three pages', async ({ request }) => {
 	const response = await request.get(
 		urlForRunLookup({
