@@ -59,7 +59,7 @@ import {
 	getDockOperationToastStyle,
 	getDockPaneStyle,
 } from './dock-positioning';
-import { DOCK_TOOLS, getDockTool } from './tool-registry';
+import { DOCK_TOOLS, getDockTool, getOverlaySection } from './tool-registry';
 import { useDeveloperTools } from './use-developer-tools';
 import css from './style.module.css';
 
@@ -406,17 +406,14 @@ export function Dock({
 		return () => setRecentAutosaveNudgeAnchor(null);
 	}, [isCollapsed, cornerSide, setRecentAutosaveNudgeAnchor]);
 
-	// The overlay query parameter only describes New and Playgrounds. Remove it
-	// when that requested pane closes or another Dock destination replaces it.
+	// Keep the deep link only while its requested pane is open.
 	useEffect(() => {
-		if (
-			dockPaneIsOpen &&
-			(section === 'new' || section === 'playgrounds')
-		) {
-			return;
-		}
 		const url = new URL(window.location.href);
-		if (!url.searchParams.has('overlay')) {
+		const overlay = url.searchParams.get('overlay');
+		if (
+			overlay === null ||
+			(dockPaneIsOpen && section === getOverlaySection(overlay))
+		) {
 			return;
 		}
 		url.searchParams.delete('overlay');
