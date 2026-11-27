@@ -183,6 +183,8 @@
 
 				if (error === 'invalid_pr_number') {
 					errorDiv.innerText = `The PR ${prNumber} does not exist.`;
+				} else if (error === 'pr_head_repository_deleted') {
+					errorDiv.innerText = `The PR ${prNumber} couldn't be previewed because the fork it was opened from no longer exists.`;
 				} else if (
 					error === 'artifact_not_found' ||
 					error === 'artifact_not_available'

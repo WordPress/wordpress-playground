@@ -269,9 +269,10 @@ class PluginDownloader
 		try {
 			// A pull request whose fork was deleted has no head repository,
 			// so none of its runs can be told apart from another fork's.
+			// No later build can fix that, unlike a missing artifact.
 			$head_repository_id = $prDetails->head->repo->id ?? null;
 			if ($head_repository_id === null) {
-				throw new ApiException('artifact_not_found');
+				throw new ApiException('pr_head_repository_deleted');
 			}
 			$this->streamArtifactFromBranch(
 				$organization,

@@ -83,6 +83,7 @@ type PrPreviewMockResult =
 	| 'no_ci_runs'
 	| 'artifact_not_found'
 	| 'artifact_expired'
+	| 'pr_head_repository_deleted'
 	| 'unavailable';
 
 const prPreviewMockMetadata = {
@@ -138,6 +139,10 @@ const prPreviewMockScenarios: Record<
 	'900000008': {
 		'wordpress-develop': 'artifact_not_found',
 		gutenberg: 'invalid_pr_number',
+	},
+	'900000009': {
+		'wordpress-develop': 'invalid_pr_number',
+		gutenberg: 'pr_head_repository_deleted',
 	},
 };
 

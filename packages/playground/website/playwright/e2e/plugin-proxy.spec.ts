@@ -184,7 +184,7 @@ test('serves nothing for a pull request whose fork was deleted', async ({
 
 	expect(response.status()).toBe(400);
 	expect(await response.json()).toEqual({
-		error: 'artifact_not_found',
+		error: 'pr_head_repository_deleted',
 		artifactListRequests: [],
 	});
 });

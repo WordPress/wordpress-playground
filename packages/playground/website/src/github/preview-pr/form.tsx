@@ -306,6 +306,12 @@ export default function PreviewPRForm({
 							: 'Check the pull request number or URL and try again.',
 						status: 'error',
 					});
+				} else if (error === 'pr_head_repository_deleted') {
+					setFeedback({
+						title: 'Source repository deleted',
+						message: `The fork that PR ${ref} was opened from no longer exists, so its preview build can’t be found.`,
+						status: 'error',
+					});
 				} else if (error === 'no_ci_runs') {
 					setFeedback({
 						title: 'Preview build not started',
@@ -801,6 +807,7 @@ function isRepositoryMatch(verification: PrVerification): boolean {
 /** Proxy errors that identify a PR even though its preview cannot be opened. */
 const repositoryMatchErrors = new Set([
 	'no_ci_runs',
+	'pr_head_repository_deleted',
 	'artifact_not_found',
 	'artifact_not_available',
 	'artifact_invalid',
