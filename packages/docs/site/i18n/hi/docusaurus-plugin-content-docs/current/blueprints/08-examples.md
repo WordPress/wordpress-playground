@@ -13,9 +13,9 @@ import BlueprintExample from '@site/src/components/Blueprints/BlueprintExample.m
 
 <div class="callout callout-tip">
 
-<!-- Check the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups. -->
+<!-- Check the [Blueprints Gallery](https://wordpress.github.io/blueprints/) to explore real-world code examples of using WordPress Playground to launch a WordPress site with a variety of setups. -->
 
-असल दुनिया के कोड उदाहरण देखने के लिए [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) देखें, जिनमें WordPress Playground से अलग अलग सेटअप वाली WordPress साइट शुरू की जाती है।
+असल दुनिया के कोड उदाहरण देखने के लिए [Blueprints Gallery](https://wordpress.github.io/blueprints/) देखें, जिनमें WordPress Playground से अलग अलग सेटअप वाली WordPress साइट शुरू की जाती है।
 
 </div>
 
@@ -143,7 +143,7 @@ browser and Blueprint viewer.
 यह ऐप Symfony के attribute रूट, autowired सर्विस, Twig और HttpClient दिखाता है। इसका लैंडिंग पेज यह भी बताता है कि Playground का फ़ाइल ब्राउज़र और ब्लूप्रिंट व्यूअर कहाँ खोलें।
 
 <BlueprintExample
-	title="Blueprint URL"
+	title="ब्लूप्रिंट URL का उदाहरण"
 	blueprintUrl="https://raw.githubusercontent.com/WordPress/blueprints/trunk/blueprints/symfony-package-radar/blueprint.json"
 />
 
