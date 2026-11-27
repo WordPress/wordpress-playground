@@ -7,7 +7,14 @@
 	"targets": {
 		"build": {
 			"executor": "nx:noop",
-			"dependsOn": ["build:README"]
+			"dependsOn": ["build:README", "build:LICENSE"]
+		},
+		"build:LICENSE": {
+			"executor": "nx:run-commands",
+			"options": {
+				"commands": ["cp LICENSE dist/packages/playground/cli/LICENSE"]
+			},
+			"dependsOn": ["build:package-json"]
 		},
 		"build:README": {
 			"executor": "nx:run-commands",
