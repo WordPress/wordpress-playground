@@ -4,6 +4,7 @@ import {
 	createObjectPoolProxy,
 	type Pooled,
 	type PHPRequest,
+	type PHPRunOptions,
 	type PathAlias,
 	type RemoteAPI,
 	type AllPHPVersion,
@@ -882,6 +883,11 @@ export interface RunCLIArgs {
 	memcached?: boolean;
 	xdebug?: boolean | XdebugOptions;
 	phpExtension?: string[];
+	/**
+	 * Environment bindings applied to programmatic PHP requests. These stay in
+	 * the request context and are cleared at shutdown.
+	 */
+	phpEnv?: Record<string, string>;
 	experimentalUnsafeIdeIntegration?: string[];
 	experimentalDevtools?: boolean;
 	workers?: number | 'auto';
@@ -1765,7 +1771,10 @@ export async function runCLI(
 				}
 
 				return {
-					playground: playgroundPool,
+					playground: withPhpEnvForProgrammaticRuns(
+						playgroundPool,
+						args.phpEnv
+					),
 					server,
 					serverUrl,
 					[Symbol.asyncDispose]: disposeCLI,
@@ -1847,7 +1856,6 @@ export async function runCLI(
 					},
 				};
 			}
-
 			// TODO: Explore switching to a worker thread method to adopt an entire HTTP connection
 			// It might be more efficient to let the worker respond directly
 			const response = await playgroundPool.requestStreamed(request);
@@ -1874,6 +1882,46 @@ export async function runCLI(
 		openInBrowser(server.serverUrl);
 	}
 	return server;
+}
+
+function withPhpEnv(
+	request: PHPRunOptions,
+	phpEnv?: Record<string, string>
+): PHPRunOptions {
+	if (!phpEnv || Object.keys(phpEnv).length === 0) {
+		return request;
+	}
+
+	return {
+		...request,
+		env: {
+			...phpEnv,
+			...request.env,
+		},
+	};
+}
+
+function withPhpEnvForProgrammaticRuns(
+	playground: Pooled<PlaygroundCliWorker>,
+	phpEnv?: Record<string, string>
+): Pooled<PlaygroundCliWorker> {
+	if (!phpEnv || Object.keys(phpEnv).length === 0) {
+		return playground;
+	}
+
+	return new Proxy(playground, {
+		get(target, property, receiver) {
+			const value = Reflect.get(target, property, receiver);
+			if (
+				property !== 'run' ||
+				typeof value !== 'function'
+			) {
+				return value;
+			}
+
+			return (request: PHPRunOptions) => value(withPhpEnv(request, phpEnv));
+		},
+	});
 }
 
 /**
