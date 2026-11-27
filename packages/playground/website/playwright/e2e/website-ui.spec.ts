@@ -3718,17 +3718,11 @@ async function isNetworkTransportEnabled(page: Page) {
 		return Promise.race([
 			client
 				.run({
-					code: `<?php
-					require '/wordpress/wp-load.php';
-					echo defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS ? 'on' : 'off';`,
+					// The PHP auto-prepend script defines this constant, so the
+					// probe does not need wp-load.php.
+					code: `<?php echo defined('USE_FETCH_FOR_REQUESTS') && USE_FETCH_FOR_REQUESTS ? 'on' : 'off';`,
 				})
-				.then(({ text }: { text: string }) => {
-					return text === 'on'
-						? true
-						: text === 'off'
-							? false
-							: undefined;
-				})
+				.then(({ text }: { text: string }) => text === 'on')
 				.catch(() => undefined),
 			// A disposed worker may never answer an RPC sent just before a reboot.
 			new Promise<undefined>((resolve) =>
