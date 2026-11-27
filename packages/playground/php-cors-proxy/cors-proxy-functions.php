@@ -327,6 +327,103 @@ class IpUtils
 }
 
 /**
+ * Filters client headers after reading the Authorization opt-in.
+ */
+function filter_request_headers($headers) {
+    return filter_headers_by_name(
+        $headers,
+        array_merge([
+            'Cookie',
+            'Cookie2',
+            'Host',
+            // cURL generates framing for the outgoing stream or rebuilt multipart body.
+            'Content-Length',
+            'X-Cors-Proxy-Allowed-Request-Headers',
+            'X-Cors-Proxy-Content-Type',
+            'X-Cors-Proxy-Range',
+            'X-Kandelo-Proxy-Session',
+            // WP Cloud identity/classification inputs used by the deployment's rate limiter.
+            'X-Forwarded-For',
+            'X-IP-Proxy-Type',
+        ], hop_by_hop_header_names(), connection_header_names(kv_headers_to_curl_format($headers))),
+        ['Authorization']
+    );
+}
+
+/**
+ * Filters a complete upstream header block, preserving repeated end-to-end headers.
+ * Proxy-owned headers are never controlled or nominated by the upstream.
+ *
+ * @param string[] $headers       Upstream header lines, without the status line.
+ * @param string[] $proxy_headers Headers already queued by the proxy or deployment.
+ * @return string[]
+ */
+function filter_response_headers($headers, $proxy_headers = []) {
+    $disallowed = array_merge([
+        'set-cookie',
+        'set-cookie2',
+        'authorization',
+        'www-authenticate',
+        'cache-control',
+        'strict-transport-security',
+        'upgrade-insecure-requests',
+        'clear-site-data',
+        'content-security-policy',
+        'content-security-policy-report-only',
+        'cross-origin-opener-policy',
+        'cross-origin-embedder-policy',
+        'cross-origin-resource-policy',
+        'vary',
+        'x-playground-cors-proxy',
+        'x-kandelo-proxy-session',
+    ], hop_by_hop_header_names(), connection_header_names($headers));
+    foreach ($proxy_headers as $header) {
+        $disallowed[] = strtolower(trim(explode(':', $header, 2)[0]));
+    }
+
+    return array_values(array_filter($headers, function ($header) use ($disallowed) {
+        $name = strtolower(trim(explode(':', $header, 2)[0]));
+        return !in_array($name, $disallowed, true) &&
+            !str_starts_with($name, 'access-control-') &&
+            !str_starts_with($name, 'x-spacefast-') &&
+            !str_starts_with($name, 'x-stattic-') &&
+            !is_server_control_response_header($name);
+    }));
+}
+
+function hop_by_hop_header_names() {
+    return [
+        'connection',
+        'keep-alive',
+        'proxy-authenticate',
+        'proxy-authorization',
+        'te',
+        'trailer',
+        'transfer-encoding',
+        'upgrade',
+    ];
+}
+
+/**
+ * Reads every Connection field before filtering, including repeated fields.
+ */
+function connection_header_names($headers) {
+    $names = [];
+    foreach ($headers as $header) {
+        $parts = explode(':', $header, 2);
+        if (count($parts) === 2 && strcasecmp(trim($parts[0]), 'Connection') === 0) {
+            foreach (explode(',', $parts[1]) as $name) {
+                $name = strtolower(trim($name));
+                if ($name !== '') {
+                    $names[] = $name;
+                }
+            }
+        }
+    }
+    return $names;
+}
+
+/**
  * Filters headers by name, removing disallowed headers and enforcing opt-in requirements.
  *
  * @param array $php_headers {
