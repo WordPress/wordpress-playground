@@ -2,14 +2,13 @@ import {
 	PHP,
 	SupportedPHPVersions,
 	setPhpIniEntries,
-	popLoadedRuntime,
 	type SupportedPHPVersion,
 } from '@php-wasm/universal';
 import express from 'express';
 import { rootCertificates } from 'tls';
 import { loadNodeRuntime } from '../lib';
 import type { PHPLoaderOptions } from '../lib';
-import http from 'http';
+import net from 'net';
 
 const phpVersions =
 	'PHP' in process.env
@@ -416,28 +415,335 @@ describe.each(phpVersions)('PHP %s', (phpVersion) => {
 				},
 				{ timeout: 15000 }
 			);
+		});
 
-			it('should close server when runtime is exited', async () => {
-				const id = await loadNodeRuntime(phpVersion, options);
-				const rt = popLoadedRuntime(id, {
-					dangerouslyKeepTheRuntimeInTheMap: true,
-				});
-				const php = new PHP(id);
-
-				expect(rt.outboundNetworkProxyServer).toBeDefined();
-				expect(rt.outboundNetworkProxyServer).toBeInstanceOf(
-					http.Server
+		describe('Runtime exit', () => {
+			it('should not open connections after the runtime exits', async () => {
+				const connections: net.Socket[] = [];
+				let notifyWaiting: () => void;
+				const waiting = new Promise<void>(
+					(resolve) => (notifyWaiting = resolve)
 				);
-				expect(rt.outboundNetworkProxyServer.listening).toBe(true);
-				php.exit();
-
-				// Wait for the server to close
-				await new Promise((resolve) => {
-					rt.outboundNetworkProxyServer.on('close', resolve);
+				let notifyLateConnection: () => void;
+				const lateConnection = new Promise<void>(
+					(resolve) => (notifyLateConnection = resolve)
+				);
+				const tcpServer = net.createServer((socket) => {
+					connections.push(socket);
+					if (connections.length > 1) {
+						notifyLateConnection();
+					}
+					socket.once('data', () => notifyWaiting());
 				});
+				await new Promise<void>((resolve) =>
+					tcpServer.listen(0, '127.0.0.1', resolve)
+				);
+				const { port } = tcpServer.address() as net.AddressInfo;
+				let php: PHP | undefined;
+				try {
+					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					// Closing the socket at exit can wake PHP waiting in fread(), and
+					// PHP then runs the rest of its script.
+					const request = php.run({
+						code: `<?php
+						$s = fsockopen('127.0.0.1', ${port});
+						fwrite($s, 'waiting');
+						fread($s, 1);
+						@fsockopen('127.0.0.1', ${port});
+						`,
+					});
+					// The test checks connections, not how the request ends.
+					request.catch(() => {});
+					await waiting;
+					php.exit();
+					// Without the guard, the late connection arrives within a few
+					// hundred milliseconds, and after the request settles.
+					await Promise.race([
+						lateConnection,
+						new Promise((resolve) => setTimeout(resolve, 1000)),
+					]);
 
-				expect(rt.outboundNetworkProxyServer.listening).toBe(false);
+					expect(connections).toHaveLength(1);
+				} finally {
+					php?.exit();
+					connections.forEach((socket) => socket.destroy());
+					await new Promise((resolve) => tcpServer.close(resolve));
+				}
+			});
+
+			it('should flush persistent and closed connections when the runtime exits', async () => {
+				const size = 8 * 1024 * 1024;
+				const tcpServer = net.createServer();
+				const connections: net.Socket[] = [];
+				const received: number[] = [];
+				const ended: Promise<void>[] = [];
+				const bothConnected = new Promise<void>((resolve) =>
+					tcpServer.on('connection', (socket) => {
+						const index = connections.length;
+						connections.push(socket);
+						received.push(0);
+						// Keep writes queued until after the runtime exits.
+						socket.pause();
+						socket.write('ready');
+						socket.on('data', (data) => {
+							received[index] += data.length;
+						});
+						ended.push(
+							new Promise((resolveEnd) =>
+								socket.once('end', () => resolveEnd())
+							)
+						);
+						if (connections.length === 2) {
+							resolve();
+						}
+					})
+				);
+				await new Promise<void>((resolve) =>
+					tcpServer.listen(0, '127.0.0.1', resolve)
+				);
+				const { port } = tcpServer.address() as net.AddressInfo;
+				let php: PHP | undefined;
+				try {
+					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					const { text } = await php.run({
+						code: `<?php
+						$payload = str_repeat('x', ${size});
+						$persistent = pfsockopen('127.0.0.1', ${port});
+						$closed = fsockopen('127.0.0.1', ${port});
+						// Wait for both TCP connections before writing and closing.
+						fread($persistent, 5);
+						fread($closed, 5);
+						$written = [fwrite($persistent, $payload), fwrite($closed, $payload)];
+						fclose($closed);
+						echo json_encode($written);
+						`,
+					});
+					await bothConnected;
+					php.exit();
+					connections.forEach((socket) => socket.resume());
+					await Promise.all(ended);
+
+					expect(JSON.parse(text)).toEqual([size, size]);
+					expect(received).toEqual([size, size]);
+				} finally {
+					php?.exit();
+					connections.forEach((socket) => socket.destroy());
+					await new Promise((resolve) => tcpServer.close(resolve));
+				}
+			});
+			it('should unref every connection when the runtime exits', async () => {
+				// The server keeps its side open after the client closes, so a
+				// connection the runtime doesn't unref would keep Node.js running.
+				const tcpServer = net.createServer({ allowHalfOpen: true });
+				const connections: net.Socket[] = [];
+				const bothConnected = new Promise<void>((resolve) =>
+					tcpServer.on('connection', (socket) => {
+						socket.resume();
+						socket.write('ready');
+						connections.push(socket);
+						if (connections.length === 2) {
+							resolve();
+						}
+					})
+				);
+				await new Promise<void>((resolve) =>
+					tcpServer.listen(0, '127.0.0.1', resolve)
+				);
+				const { port } = tcpServer.address() as net.AddressInfo;
+				let php: PHP | undefined;
+				try {
+					php = new PHP(await loadNodeRuntime(phpVersion, options));
+					// Wait for both TCP connections. The runtime destroys a
+					// socket that's still connecting at exit instead of unrefing it.
+					await php.run({
+						code: `<?php
+						$persistent = pfsockopen('127.0.0.1', ${port});
+						$closed = fsockopen('127.0.0.1', ${port});
+						fread($persistent, 5);
+						fread($closed, 5);
+						fclose($closed);
+						`,
+					});
+					await bothConnected;
+					// Record the local port of each socket the runtime unrefs. The
+					// server sees it as the connection's remotePort, and a client
+					// gets its local port as soon as it starts connecting.
+					const unrefedPorts = new Set<number | undefined>();
+					const unref = net.Socket.prototype.unref;
+					const unrefSpy = vi
+						.spyOn(net.Socket.prototype, 'unref')
+						.mockImplementation(function (this: net.Socket) {
+							if (!connections.includes(this)) {
+								unrefedPorts.add(this.localPort);
+							}
+							return unref.apply(this);
+						});
+					try {
+						php.exit();
+					} finally {
+						unrefSpy.mockRestore();
+					}
+
+					expect([...unrefedPorts].sort()).toEqual(
+						connections.map((socket) => socket.remotePort).sort()
+					);
+				} finally {
+					php?.exit();
+					connections.forEach((socket) => socket.destroy());
+					tcpServer.close();
+				}
+			});
+		});
+
+		describe('Listening sockets', () => {
+			it('should accept a connection and report the real peer address', async () => {
+				const port = await getUnusedPort();
+				const php = new PHP(await loadNodeRuntime(phpVersion, options));
+				let clientPort = 0;
+				let received = '';
+				let phpFinished = false;
+				// PHP's server starts during php.run(), so retry until it listens
+				// or PHP stops waiting for a connection.
+				const client = (async () => {
+					while (!phpFinished) {
+						try {
+							await new Promise<void>((resolve, reject) => {
+								const socket = net.connect(port, '127.0.0.1');
+								socket.once('error', reject);
+								socket.once('connect', () => {
+									clientPort = socket.localPort!;
+									socket.write('hello from node');
+								});
+								socket.on('data', (data) => (received += data));
+								socket.once('close', () => resolve());
+							});
+							return;
+						} catch {
+							await new Promise((resolve) =>
+								setTimeout(resolve, 20)
+							);
+						}
+					}
+				})();
+				try {
+					const { text } = await php.run({
+						code: `<?php
+						$server = stream_socket_server("tcp://127.0.0.1:${port}");
+						$start = microtime(true);
+						$connection = false;
+						// stream_select() reports the server ready as soon as a client
+						// connects, before its data arrives. Pause so the data is there
+						// before accepting: with Asyncify, PHP crashes if
+						// stream_socket_accept() has to wait. See
+						// https://github.com/WordPress/wordpress-playground/issues/4576.
+						while (!$connection && microtime(true) - $start < 10) {
+							$read = [$server];
+							$write = $except = null;
+							if (stream_select($read, $write, $except, 0, 100000)) {
+								usleep(50000);
+								$connection = stream_socket_accept($server, 0, $peer);
+							} else {
+								usleep(10000);
+							}
+						}
+						$data = fread($connection, 100);
+						fwrite($connection, 'hello from php');
+						fclose($connection);
+						fclose($server);
+						echo json_encode(['data' => $data, 'peer' => $peer]);
+						`,
+					});
+					phpFinished = true;
+					await client;
+					const { data, peer } = JSON.parse(text);
+					expect(data).toBe('hello from node');
+					expect(peer).toBe(`127.0.0.1:${clientPort}`);
+					expect(received).toBe('hello from php');
+				} finally {
+					phpFinished = true;
+					php.exit();
+				}
+			}, 15000);
+		});
+
+		describe('Connection failures', () => {
+			it('should fail promptly when cURL connects to a closed port', async () => {
+				const port = await getUnusedPort();
+				const php = new PHP(await loadNodeRuntime(phpVersion, options));
+				try {
+					const { text } = await php.run({
+						code: `<?php
+						$ch = curl_init("http://127.0.0.1:${port}/");
+						curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+						curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+						$start = microtime(true);
+						$result = curl_exec($ch);
+						echo json_encode([
+							'result' => $result,
+							'errno' => curl_errno($ch),
+							'seconds' => microtime(true) - $start,
+						]);
+						`,
+					});
+					const { result, errno, seconds } = JSON.parse(text);
+					expect(result).toBe(false);
+					// 28 is CURLE_OPERATION_TIMEDOUT.
+					expect(errno).not.toBe(28);
+					expect(seconds).toBeLessThan(5);
+				} finally {
+					php.exit();
+				}
+			});
+
+			it('should read the data and the end of the stream when the peer resets the connection', async () => {
+				const tcpServer = net.createServer((socket) => {
+					socket.write('partial');
+					setTimeout(() => socket.resetAndDestroy(), 50);
+				});
+				await new Promise<void>((resolve) =>
+					tcpServer.listen(0, '127.0.0.1', resolve)
+				);
+				const { port } = tcpServer.address() as net.AddressInfo;
+				const php = new PHP(await loadNodeRuntime(phpVersion, options));
+				try {
+					const { text } = await php.run({
+						code: `<?php
+						$start = microtime(true);
+						$socket = fsockopen('127.0.0.1', ${port});
+						$data = '';
+						while (!feof($socket) && microtime(true) - $start < 10) {
+							$chunk = fread($socket, 100);
+							if ($chunk === false) {
+								break;
+							}
+							$data .= $chunk;
+						}
+						echo json_encode([
+							'data' => $data,
+							'eof' => feof($socket),
+							'seconds' => microtime(true) - $start,
+						]);
+						`,
+					});
+					const { data, eof, seconds } = JSON.parse(text);
+					expect(data).toBe('partial');
+					expect(eof).toBe(true);
+					expect(seconds).toBeLessThan(5);
+				} finally {
+					php.exit();
+					tcpServer.close();
+				}
 			});
 		});
 	});
 });
+
+async function getUnusedPort() {
+	const server = net.createServer();
+	await new Promise<void>((resolve) =>
+		server.listen(0, '127.0.0.1', resolve)
+	);
+	const { port } = server.address() as net.AddressInfo;
+	await new Promise((resolve) => server.close(resolve));
+	return port;
+}

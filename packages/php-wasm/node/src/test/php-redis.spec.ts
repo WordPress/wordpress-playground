@@ -53,12 +53,12 @@ if (!isJspiAvailable) {
 
 	/**
 	 * PHP helper function that creates a configured Redis instance with proper
-	 * timeout settings for WebSocket-based TCP connections.
+	 * timeout settings.
 	 */
 	const createRedisPHP = () => `
 	function createRedis() {
 		$r = new Redis();
-		// Set timeouts to give WebSocket proxy time to connect
+		// Allow time for the TCP connection to be established
 		$r->connect('${REDIS_HOST}', ${REDIS_PORT}, 5.0);
 		return $r;
 	}
