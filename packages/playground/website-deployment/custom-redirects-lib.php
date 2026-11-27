@@ -45,11 +45,19 @@ function playground_is_static_file_needing_special_treatment( $path ) {
  * @param string|null $php_directory Private directory holding the release's PHP endpoints.
  */
 function playground_handle_request( $build_directory = null, $wordpress_origin = null, $app_origin = null, $php_directory = null ) {
+	$cacheable_not_found = false;
 	// Endpoints and range handling can fail after setting cacheable headers.
 	// Check the final status before output. PHP has only one header callback;
 	// native endpoints must not replace this callback.
-	header_register_callback( function () {
-		if ( http_response_code() >= 400 ) {
+	header_register_callback( function () use ( &$cacheable_not_found ) {
+		$status = http_response_code();
+		if (
+			404 === $status && $cacheable_not_found &&
+			in_array( $_SERVER['REQUEST_METHOD'], array( 'GET', 'HEAD' ), true )
+		) {
+			header( 'A8C-Edge-Cache: cache' );
+			header( 'Cache-Control: public, max-age=0, s-maxage=60' );
+		} elseif ( $status >= 400 ) {
 			header( 'A8C-Edge-Cache: no-cache' );
 			header( 'Cache-Control: no-store' );
 		}
@@ -92,6 +100,9 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		0 === strcasecmp( $request_host, parse_url( $wordpress_origin, PHP_URL_HOST ) )
 	) {
 		if ( $is_scoped_navigation ) {
+			// Safari can open a WordPress link in a new tab outside the service
+			// worker's control. The app page recreates the iframe so it can
+			// reconnect to the site running in the browser.
 			header( 'Cache-Control: no-store' );
 			header( 'A8C-Edge-Cache: no-cache' );
 			header( 'Location: ' . $app_origin . $_SERVER['REQUEST_URI'], true, 302 );
@@ -112,14 +123,19 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 		}
 		http_response_code( 404 );
 		if ( str_starts_with( $original_requested_path, '/scope:' ) ) {
+			// Keep this 404 out of the edge cache so it cannot mask the
+			// new-tab redirect for a top-level GET to the same URL.
 			header( 'Content-Type: text/plain; charset=utf-8' );
 			echo 'This browser could not connect to the Playground site. Open it in Playground and try again.';
+		} else {
+			$cacheable_not_found = true;
 		}
 		exit;
 	}
 
 	if ( null !== $app_origin && str_starts_with( $original_requested_path, '/scope:' ) ) {
 		if ( ! $is_scoped_navigation ) {
+			// A top-level GET here needs the app wrapper, so keep this 404 uncached too.
 			http_response_code( 404 );
 			exit;
 		}
@@ -220,6 +236,7 @@ function playground_handle_request( $build_directory = null, $wordpress_origin =
 
 	if ( false === $resolved_path ) {
 		$log( "File not found: '$resolved_path'" );
+		$cacheable_not_found = $may_edge_cache;
 		http_response_code( 404 );
 		die();
 	}

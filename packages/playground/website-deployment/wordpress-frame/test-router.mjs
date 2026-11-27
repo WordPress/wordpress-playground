@@ -43,6 +43,7 @@ const backups = join(temporary, 'backups');
 const fakeBin = join(temporary, 'bin');
 const phpCalls = join(temporary, 'php-calls.txt');
 const purges = join(temporary, 'purges.txt');
+const targetedPurge = join(temporary, 'targeted-purge.json');
 const run = promisify(execFile);
 let server;
 let port;
@@ -58,15 +59,37 @@ try {
 	await writeFile(
 		join(fakeBin, 'curl'),
 		`#!/usr/bin/env node
+const fs = require('node:fs');
+const args = process.argv.slice(2);
+const url = args.at(-1);
+const target = ${JSON.stringify(targetedPurge)};
 if (process.argv.includes('-X')) {
     if (process.env.PLAYGROUND_TEST_PURGE_FAILURE === '1') {
         process.stderr.write('Fixture edge purge failed\\n');
         process.exit(22);
     }
-    require('node:fs').appendFileSync(${JSON.stringify(purges)}, process.argv.at(-1) + '\\n');
+    const uris = args.filter((arg) => arg.startsWith('purge_uris[]='));
+    if (uris.length > 0) {
+        const loader = fs.readFileSync(${JSON.stringify(join(webRoot, 'sw.js'))}, 'utf8');
+        fs.writeFileSync(target, JSON.stringify({ url, uris, loader }));
+    } else {
+        fs.appendFileSync(${JSON.stringify(purges)}, url + '\\n');
+    }
     process.exit(0);
 }
-process.stdout.write(process.argv.at(-1).includes('/sw.js?') ? '200' : '403');
+const asset = new URL(url).pathname;
+if (asset.startsWith('/releases/')) {
+    const mode = process.env.PLAYGROUND_TEST_ASSET;
+    if (mode === 'blocked' && url.startsWith('https://wordpress.example/')) {
+        process.stdout.write('403');
+    } else if (mode === 'stale' && url.startsWith('https://wordpress.example/') && !fs.existsSync(target)) {
+        process.stdout.write('404');
+    } else {
+        process.stdout.write('200');
+    }
+} else {
+    process.stdout.write(url.includes('/sw.js?') ? '200' : '403');
+}
 `
 	);
 	await chmod(join(fakeBin, 'curl'), 0o755);
@@ -372,7 +395,7 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	// Exercise the PHP boundary directly; the static/Nginx boundary has its own checks.
 	for (const [path, status] of [
 		['/outside.txt', 403],
-		['/missing.js', 404],
+		['/error.php?status=404', 404],
 		['/error.php?status=400', 400],
 		['/error.php?status=500', 500],
 	]) {
@@ -384,6 +407,26 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 
 	for (const path of ['/../outside.txt', '/%2e%2e/outside.txt'])
 		assert.equal((await request(path, app)).status, 403, path);
+
+	for (const host of [app, wordpress]) {
+		for (const method of ['GET', 'HEAD', 'POST']) {
+			const response = await request('/missing.js', host, {}, method);
+			assert.equal(response.status, 404);
+			if (method === 'POST') {
+				assert.equal(
+					response.headers.get('a8c-edge-cache'),
+					'no-cache'
+				);
+				assert.equal(response.headers.get('cache-control'), 'no-store');
+			} else {
+				assert.equal(response.headers.get('a8c-edge-cache'), 'cache');
+				assert.equal(
+					response.headers.get('cache-control'),
+					'public, max-age=0, s-maxage=60'
+				);
+			}
+		}
+	}
 
 	// The WordPress host runs no app handler or endpoint. Old clients' versioned
 	// bridge URLs receive the active release's bridge.
@@ -406,11 +449,12 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 		/wrapper A$/
 	);
 	for (const host of [app, wordpress]) {
-		assert.equal(
-			(await request(scoped, host, { 'Sec-Fetch-Dest': 'iframe' }))
-				.status,
-			404
-		);
+		const iframe = await request(scoped, host, {
+			'Sec-Fetch-Dest': 'iframe',
+		});
+		assert.equal(iframe.status, 404);
+		assert.equal(iframe.headers.get('a8c-edge-cache'), 'no-cache');
+		assert.equal(iframe.headers.get('cache-control'), 'no-store');
 		assert.equal(
 			(await request(scoped, host, navigation, 'POST')).status,
 			404
@@ -418,9 +462,23 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 	}
 
 	// A later release replaces the root files and keeps A for open tabs.
+	await assert.rejects(
+		install('blocked', await makeBuild('blocked'), {
+			environment: { PLAYGROUND_TEST_ASSET: 'blocked' },
+		}),
+		failure('returned 403, expected 200')
+	);
+	assert.equal(
+		await readFile(join(webRoot, 'sw.js'), 'utf8'),
+		'import "/releases/A/sw.js";\n'
+	);
+	await assert.rejects(stat(join(backups, 'pending-edge-purge')));
 	const uploadB = await makeBuild('B');
 	await whileLocked(
-		() => install('B', uploadB),
+		() =>
+			install('B', uploadB, {
+				environment: { PLAYGROUND_TEST_ASSET: 'stale' },
+			}),
 		async () => {
 			await stat(uploadB);
 			assert.equal(
@@ -431,6 +489,14 @@ require ${JSON.stringify(join(webRoot, 'custom-redirects.php'))};
 			);
 		}
 	);
+	assert.deepEqual(JSON.parse(await readFile(targetedPurge, 'utf8')), {
+		url: 'https://api.example/edge-cache/test/purge/wordpress.example',
+		uris: [
+			'purge_uris[]=/releases/B/sw.js',
+			'purge_uris[]=/releases/B/wordpress-bridge.html',
+		],
+		loader: 'import "/releases/A/sw.js";\n',
+	});
 	assert.match(
 		await (await request('/remote.html', app)).text(),
 		/remote B$/
