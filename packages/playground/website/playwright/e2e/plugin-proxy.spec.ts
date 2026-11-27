@@ -161,7 +161,7 @@ test("serves a fork pull request from its own fork's runs only", async ({
 	});
 });
 
-test('reports a missing artifact when only other repositories ran on the branch', async ({
+test('reports no runs when only other repositories ran on the branch', async ({
 	request,
 }) => {
 	const response = await request.get(
@@ -170,7 +170,7 @@ test('reports a missing artifact when only other repositories ran on the branch'
 
 	expect(response.status()).toBe(400);
 	expect(await response.json()).toEqual({
-		error: 'artifact_not_found',
+		error: 'no_ci_runs',
 		artifactListRequests: [],
 	});
 });
@@ -200,6 +200,20 @@ test("serves a branch preview from the queried repository's runs only", async ({
 	expect(await response.json()).toEqual({
 		error: null,
 		artifactListRequests: [1],
+	});
+});
+
+test('serves no branch preview when only forks or deleted forks ran', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({ mode: 'branch', runs: '2,null' })
+	);
+
+	expect(response.status()).toBe(400);
+	expect(await response.json()).toEqual({
+		error: 'no_ci_runs',
+		artifactListRequests: [],
 	});
 });
 

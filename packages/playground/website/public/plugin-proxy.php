@@ -145,7 +145,9 @@ class PluginDownloader
 			$artifactsUrls[] = $run->artifacts_url;
 		}
 		if (!$artifactsUrls) {
-			throw new ApiException('artifact_not_found');
+			// Runs from other repositories say nothing about this branch's
+			// build, so this is the same as the branch having no runs.
+			throw new ApiException('no_ci_runs');
 		}
 
 		$found_stale_artifact = false;
