@@ -33,7 +33,7 @@ npx tsx my-script.ts
 
 ## Setting a blueprint
 
-You can provide a blueprint in two ways: either as an object literal directly passed to the `blueprint` property, or as a string containing the path to an external `.json` file.
+You can provide a blueprint in two ways: either as an object literal directly passed to the `blueprint` property, or as a string containing the path to an external `.json` file. The string form works at runtime, but the exported `RunCLIArgs` type does not include it, so TypeScript reports a type error for it.
 
 ```TypeScript
 import { runCLI } from "@wp-playground/cli";
@@ -80,7 +80,7 @@ const myBlueprint: BlueprintDeclaration = {
 
 ## Mounting a plugin programmatically
 
-You can mount local directories programmatically using `runCLI`. The options `mount` and `mount-before-install` are available. The `hostPath` property expects a path to a directory on your local machine. This path should be relative to where your script is being executed.
+You can mount local directories programmatically using `runCLI`. The options `mount` and `mount-before-install` are available. The `hostPath` property expects a path to a directory on your local machine. A relative path is resolved from the current working directory, the directory you run the script from.
 
 ```TypeScript
 import { runCLI } from "@wp-playground/cli";
@@ -134,23 +134,12 @@ const cliServer: RunCLIServer = await runCLI({
 The programmatic API is excellent for automated testing. Here's a complete example using Vitest:
 
 ```TypeScript
-import { describe, test, expect, afterEach } from 'vitest';
+import { describe, test, expect } from 'vitest';
 import { runCLI } from "@wp-playground/cli";
-import type { RunCLIServer } from "@wp-playground/cli";
 
 describe('My Plugin Tests', () => {
-  let cliServer: RunCLIServer | undefined;
-
-  afterEach(async () => {
-    if (cliServer) {
-      // RunCLIServer exposes Symbol.asyncDispose as its public async cleanup API.
-      await cliServer[Symbol.asyncDispose]();
-      cliServer = undefined;
-    }
-  });
-
   test('plugin activates successfully', async () => {
-    cliServer = await runCLI({
+    const cliServer = await runCLI({
       command: 'server',
       mount: [
         {
@@ -168,16 +157,21 @@ describe('My Plugin Tests', () => {
       }
     });
 
-    const homeUrl = new URL('/', cliServer.serverUrl);
-    const response = await fetch(homeUrl);
+    try {
+      const homeUrl = new URL('/', cliServer.serverUrl);
+      const response = await fetch(homeUrl);
 
-    expect(response.status).toBe(200);
-    const html = await response.text();
-    expect(html).toContain('My Plugin');
+      expect(response.status).toBe(200);
+      const html = await response.text();
+      expect(html).toContain('My Plugin');
+    } finally {
+      // RunCLIServer exposes Symbol.asyncDispose as its public async cleanup API.
+      await cliServer[Symbol.asyncDispose]();
+    }
   }, 30_000);
 
   test('plugin settings page loads', async () => {
-    cliServer = await runCLI({
+    const cliServer = await runCLI({
       command: 'server',
       login: true, // Auto-login as admin
       internalCookieStore: true, // Preserve login cookies across Node.js fetch requests.
@@ -197,16 +191,20 @@ describe('My Plugin Tests', () => {
       }
     });
 
-    const settingsUrl = new URL(
-      '/wp-admin/options-general.php?page=my-plugin',
-      cliServer.serverUrl
-    );
-    const response = await fetch(settingsUrl);
+    try {
+      const settingsUrl = new URL(
+        '/wp-admin/options-general.php?page=my-plugin',
+        cliServer.serverUrl
+      );
+      const response = await fetch(settingsUrl);
 
-    expect(response.status).toBe(200);
-    expect(response.url).toBe(settingsUrl.href);
-    const html = await response.text();
-    expect(html).toContain('My Plugin');
+      expect(response.status).toBe(200);
+      expect(response.url).toBe(settingsUrl.href);
+      const html = await response.text();
+      expect(html).toContain('My Plugin');
+    } finally {
+      await cliServer[Symbol.asyncDispose]();
+    }
   }, 30_000);
 });
 ```
@@ -265,16 +263,20 @@ const cliServer = await runCLI({
     skipSqliteSetup: true,
 });
 
-// Test PHP version
-await cliServer.playground.writeFile(
-  '/wordpress/version.php',
-  '<?php echo phpversion(); ?>'
-);
+try {
+  // Test PHP version
+  await cliServer.playground.writeFile(
+    '/wordpress/version.php',
+    '<?php echo phpversion(); ?>'
+  );
 
-const versionUrl = new URL('/version.php', cliServer.serverUrl);
-const response = await fetch(versionUrl);
-const version = await response.text();
-console.log('PHP Version:', version); // Outputs: 8.3.x
+  const versionUrl = new URL('/version.php', cliServer.serverUrl);
+  const response = await fetch(versionUrl);
+  const version = await response.text();
+  console.log('PHP Version:', version); // Outputs: 8.3.x
+} finally {
+  await cliServer[Symbol.asyncDispose]();
+}
 ```
 
 ### Error handling
@@ -285,11 +287,14 @@ import { runCLI } from "@wp-playground/cli";
 try {
   const cliServer = await runCLI({
     command: 'server',
-    debug: true, // Enable PHP error logging.
+    verbosity: 'debug', // If boot fails, the thrown error includes the PHP error log.
   });
 
-  // Your test code here
-
+  try {
+    // Your test code here
+  } finally {
+    await cliServer[Symbol.asyncDispose]();
+  }
 } catch (error) {
   console.error('Server failed to start:', error);
 }
