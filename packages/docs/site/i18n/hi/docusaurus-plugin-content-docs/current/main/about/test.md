@@ -26,9 +26,9 @@ Playground में आप किसी भी प्लगइन या थी
 
 [https://playground.wordpress.net/?theme=pendant&plugin=gutenberg](https://playground.wordpress.net/?theme=pendant&plugin=gutenberg)
 
-<!-- But you can also test [more elaborate configurations using blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md), for example testing a plugin’s code from a gist (see [blueprint](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json)) -->
+<!-- But you can also test [more elaborate configurations using blueprints](https://developer.wordpress.org/playground/blueprints/examples/), for example testing a plugin’s code from a gist (see [blueprint](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json)) -->
 
-आप [ब्लूप्रिंट की मदद से ज़्यादा विस्तृत कॉन्फ़िगरेशन](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) भी टेस्ट कर सकते हैं, जैसे किसी gist से प्लगइन के कोड का परीक्षण करना ([ब्लूप्रिंट](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) और [लाइव डेमो](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json) देखें)।
+आप [ब्लूप्रिंट की मदद से ज़्यादा विस्तृत कॉन्फ़िगरेशन](https://developer.wordpress.org/playground/blueprints/examples/) भी टेस्ट कर सकते हैं, जैसे किसी gist से प्लगइन के कोड का परीक्षण करना ([ब्लूप्रिंट](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) और [लाइव डेमो](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json) देखें)।
 
 <!-- ## Live preview pull requests -->
 

@@ -729,6 +729,12 @@ export async function resolveWordPressRelease(versionQuery = 'latest') {
 		}
 	}
 
+	if (versionQuery === 'beta') {
+		throw new Error(
+			'No WordPress beta or RC release is currently offered. Use "latest" or "trunk".'
+		);
+	}
+
 	/**
 	 * Replace "6.8.0" with "6.8" to support installing the exact "6.8.0" release.
 	 *

@@ -42,7 +42,7 @@ Use MCP when you want an assistant to work with a visible, browser-managed WordP
 - Test a redirect or URL: "Open this page and tell me where the browser ends up."
 - Inspect a running site: "Find the admin screen that matches this plugin feature."
 
-MCP is less useful when the job is mostly local automation, such as running the same Blueprint repeatedly, mounting a plugin from your filesystem, or testing a version matrix. Use the Playground CLI for those workflows or [write tests using runCli](/guides/e2e-testing-with-playwright#first-test-file).
+MCP is less useful when the job is mostly local automation, such as running the same Blueprint repeatedly, mounting a plugin from your filesystem, or testing a version matrix. Use the Playground CLI for those workflows or [write tests using `runCLI`](/guides/e2e-testing-with-playwright#first-test-file).
 
 ## Before you start
 

@@ -10,7 +10,7 @@ description: अपने कोडिंग एजेंट से WordPress Pl
 
 <!-- Want an AI assistant that already knows how to spin up WordPress instances, run Blueprints, and debug plugins? The **wp-playground** agent skill teaches coding agents the WordPress Playground CLI and browser workflows. You describe what you need in plain language. The agent handles the commands. -->
 
-क्या आप ऐसा AI सहायक चाहते हैं जो पहले से जानता हो कि WordPress इंस्टेंस कैसे शुरू करें, Blueprint कैसे चलाएँ और प्लगइन डीबग कैसे करें? **wp-playground** एजेंट स्किल कोडिंग एजेंट को WordPress Playground CLI और ब्राउज़र के वर्कफ़्लो सिखाती है। आप आसान भाषा में बताते हैं कि आपको क्या चाहिए। कमांड एजेंट संभालता है।
+क्या आप ऐसा AI सहायक चाहते हैं जो पहले से जानता हो कि WordPress इंस्टेंस कैसे शुरू करें, ब्लूप्रिंट कैसे चलाएँ और प्लगइन डीबग कैसे करें? **wp-playground** एजेंट स्किल कोडिंग एजेंट को WordPress Playground CLI और ब्राउज़र के वर्कफ़्लो सिखाती है। आप आसान भाषा में बताते हैं कि आपको क्या चाहिए। कमांड एजेंट संभालता है।
 
 <!-- Your coding agent reads the skill reference — a document with CLI flags, procedures, and troubleshooting steps — before responding. This ensures Playground commands run correctly. -->
 
@@ -54,7 +54,7 @@ Node.js 22.20 या उसके बाद का संस्करण `npx sk
 
 <!-- Install the skill using the `npx skills` CLI. Add the `blueprint` skill too: the wp-playground skill hands Blueprint authoring to it. -->
 
-स्किल को `npx skills` CLI से स्थापित करें। साथ में `blueprint` स्किल भी जोड़ें: wp-playground स्किल Blueprint लिखने का काम उसी को सौंपती है।
+स्किल को `npx skills` CLI से स्थापित करें। साथ में `blueprint` स्किल भी जोड़ें: wp-playground स्किल ब्लूप्रिंट लिखने का काम उसी को सौंपती है।
 
 ```bash
 npx skills add wordpress/agent-skills --skill wp-playground blueprint
@@ -151,7 +151,7 @@ gemini /skills list
 
 <!-- With the skill installed, describe your WordPress environment to your coding agent. The agent builds the Blueprint, runs the CLI commands, and starts the server. -->
 
-स्किल स्थापित होने के बाद, अपने कोडिंग एजेंट को बताएँ कि आपको कैसा WordPress एनवायरनमेंट चाहिए। एजेंट Blueprint बनाता है, CLI कमांड चलाता है और सर्वर शुरू करता है।
+स्किल स्थापित होने के बाद, अपने कोडिंग एजेंट को बताएँ कि आपको कैसा WordPress एनवायरनमेंट चाहिए। एजेंट ब्लूप्रिंट बनाता है, CLI कमांड चलाता है और सर्वर शुरू करता है।
 
 <!-- Open your coding agent in the terminal and type your request: -->
 
@@ -179,7 +179,7 @@ gemini /skills list
 
 <!-- The agent creates a Blueprint with a `runPHP` step that generates the posts using `wp_insert_post()`. -->
 
-एजेंट एक Blueprint बनाता है, जिसमें एक `runPHP` चरण होता है। यह चरण `wp_insert_post()` का उपयोग करके पोस्ट बनाता है।
+एजेंट एक ब्लूप्रिंट बनाता है, जिसमें एक `runPHP` चरण होता है। यह चरण `wp_insert_post()` का उपयोग करके पोस्ट बनाता है।
 
 <!-- More examples: -->
 
@@ -199,7 +199,7 @@ gemini /skills list
 
 <!-- Each prompt produces a complete Blueprint that runs locally, handling user creation, role assignment, post generation, and taxonomy setup through Blueprint steps. -->
 
-हर प्रॉम्प्ट से एक पूरा Blueprint बनता है, जो लोकल रूप से चलता है। यह Blueprint चरणों के ज़रिए उपयोगकर्ता बनाना, भूमिकाएँ देना, पोस्ट बनाना और टैक्सोनॉमी सेटअप करना संभालता है।
+हर प्रॉम्प्ट से एक पूरा ब्लूप्रिंट बनता है, जो लोकल रूप से चलता है। यह ब्लूप्रिंट चरणों के ज़रिए उपयोगकर्ता बनाना, भूमिकाएँ देना, पोस्ट बनाना और टैक्सोनॉमी सेटअप करना संभालता है।
 
 <!-- ### Version compatibility testing -->
 
@@ -257,7 +257,7 @@ gemini /skills list
 
 <!-- The agent breaks these into the right sequence of Blueprint steps and CLI flags. Each request produces a fully configured, running instance. -->
 
-एजेंट इन्हें Blueprint चरणों और CLI फ़्लैग के सही क्रम में बाँट देता है। हर अनुरोध से एक पूरी तरह कॉन्फ़िगर किया हुआ, चलता हुआ इंस्टेंस मिलता है।
+एजेंट इन्हें ब्लूप्रिंट चरणों और CLI फ़्लैग के सही क्रम में बाँट देता है। हर अनुरोध से एक पूरी तरह कॉन्फ़िगर किया हुआ, चलता हुआ इंस्टेंस मिलता है।
 
 <!-- ## How the skill works -->
 
@@ -275,13 +275,13 @@ gemini /skills list
 -->
 
 - **SKILL.md**: रूटिंग की प्रक्रिया। यह पहचानती है कि आपको कौन-सा वर्कफ़्लो चाहिए और सिर्फ़ उससे मेल खाने वाला संदर्भ लोड करती है। इसमें सुरक्षा नियम, सत्यापन जाँच और विफलता की स्थितियाँ भी हैं।
-- **references/cli.md**: `@wp-playground/cli` के साथ लोकल रूप से चलाना: सर्वर, माउंट, Blueprint चलाना, स्नैपशॉट और संस्करण बदलना।
+- **references/cli.md**: `@wp-playground/cli` के साथ लोकल रूप से चलाना: सर्वर, माउंट, ब्लूप्रिंट चलाना, स्नैपशॉट और संस्करण बदलना।
 - **references/debugging.md**: Xdebug सेटअप, पाथ मैपिंग, लॉग और अटके हुए CLI रन।
-- **references/website.md**: playground.wordpress.net पर सिर्फ़ ब्राउज़र में होने वाले वर्कफ़्लो, जैसे Blueprint URL और शेयर लिंक।
+- **references/website.md**: playground.wordpress.net पर सिर्फ़ ब्राउज़र में होने वाले वर्कफ़्लो, जैसे ब्लूप्रिंट URL और शेयर लिंक।
 
 <!-- The `references/webmcp.md`, `references/mcp.md`, and `references/sites-api.md` files cover the ways an agent can work with an open Playground site. Blueprint structure, steps, and authoring live in the separate `blueprint` skill, which the wp-playground skill uses for any Blueprint work. -->
 
-कोई एजेंट किसी खुली Playground साइट के साथ किन तरीकों से काम कर सकता है, यह `references/webmcp.md`, `references/mcp.md` और `references/sites-api.md` फ़ाइलों में बताया गया है। Blueprint की संरचना, उसके चरण और उसे लिखने की जानकारी अलग `blueprint` स्किल में है। Blueprint से जुड़े हर काम के लिए wp-playground स्किल उसी का उपयोग करती है।
+कोई एजेंट किसी खुली Playground साइट के साथ किन तरीकों से काम कर सकता है, यह `references/webmcp.md`, `references/mcp.md` और `references/sites-api.md` फ़ाइलों में बताया गया है। ब्लूप्रिंट की संरचना, उसके चरण और उसे लिखने की जानकारी अलग `blueprint` स्किल में है। ब्लूप्रिंट से जुड़े हर काम के लिए wp-playground स्किल उसी का उपयोग करती है।
 
 <!-- Your coding agent reads the files it needs before generating commands, ensuring correct flags and warning you about common pitfalls. -->
 

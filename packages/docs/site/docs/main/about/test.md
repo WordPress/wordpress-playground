@@ -16,7 +16,7 @@ For example, the following link will load the [“pendant” theme](https://word
 
 [https://playground.wordpress.net/?theme=pendant&plugin=gutenberg](https://playground.wordpress.net/?theme=pendant&plugin=gutenberg)
 
-But you can also test [more elaborate configurations using blueprints](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md), for example testing a plugin’s code from a gist (see [blueprint](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) and [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json))
+But you can also test [more elaborate configurations using blueprints](https://developer.wordpress.org/playground/blueprints/examples/). For example, learn how to [load a plugin from code stored in a GitHub Gist](/guides/for-plugin-developers/#plugin-from-code-in-a-file-or-gist-in-github), then inspect the [Blueprint source](https://github.com/wordpress/blueprints/blob/trunk/blueprints/install-plugin-from-gist/blueprint.json) or launch the [live demo](https://playground.wordpress.net/?blueprint-url=https://raw.githubusercontent.com/wordpress/blueprints/trunk/blueprints/install-plugin-from-gist/blueprint.json).
 
 ## Live preview pull requests
 

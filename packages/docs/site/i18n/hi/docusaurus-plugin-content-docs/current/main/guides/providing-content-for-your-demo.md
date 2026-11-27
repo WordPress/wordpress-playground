@@ -368,12 +368,12 @@ import images into the Playground instance:
 Check the
 [“Use wp-cli to add a post with image”](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image)
 example from the
-[Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md)
+[Blueprints Gallery](https://wordpress.github.io/blueprints/)
 to see the full example showing the connection between the content and the
 featured image.
 -->
 
-सामग्री और फ़ीचर्ड इमेज के बीच का संबंध दिखाने वाला पूरा उदाहरण देखने के लिए [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) का [“Use wp-cli to add a post with image”](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) उदाहरण देखें।
+सामग्री और फ़ीचर्ड इमेज के बीच का संबंध दिखाने वाला पूरा उदाहरण देखने के लिए [Blueprints Gallery](https://wordpress.github.io/blueprints/) का [“Use wp-cli to add a post with image”](https://github.com/WordPress/blueprints/tree/trunk/blueprints/wpcli-post-with-image) उदाहरण देखें।
 
 </div>
 

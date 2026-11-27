@@ -13,7 +13,7 @@ sidebar_class_name: navbar-build-item
 
 <!-- This guide assumes familiarity with WordPress plugin or theme development. For an introduction to using Playground in your development workflow, see [WordPress Playground for Plugin Developers](/guides/for-plugin-developers). For Blueprint configuration details, see [Blueprints Getting Started](/blueprints/getting-started). -->
 
-यह गाइड मानकर चलती है कि आप WordPress प्लगइन या थीम डेवलपमेंट से परिचित हैं। अपने डेवलपमेंट वर्कफ़्लो में Playground के उपयोग के परिचय के लिए [प्लगइन डेवलपर के लिए WordPress Playground](/guides/for-plugin-developers) देखें। Blueprint कॉन्फ़िगरेशन की जानकारी के लिए [Blueprints के साथ शुरुआत](/blueprints/getting-started) देखें।
+यह गाइड मानकर चलती है कि आप WordPress प्लगइन या थीम डेवलपमेंट से परिचित हैं। अपने डेवलपमेंट वर्कफ़्लो में Playground के उपयोग के परिचय के लिए [प्लगइन डेवलपर के लिए WordPress Playground](/guides/for-plugin-developers) देखें। ब्लूप्रिंट कॉन्फ़िगरेशन की जानकारी के लिए [Blueprints के साथ शुरुआत](/blueprints/getting-started) देखें।
 
 </div>
 
@@ -277,7 +277,7 @@ await expect.soft(page.getByRole('heading', { level: 1 })).toContainText('Settin
 
 <!-- The `runCLI` function starts a local Playground server and returns an object with `serverUrl` (the URL string) and `server` (the HTTP server instance). When your tests finish, call `[Symbol.asyncDispose]()` on the returned object to stop the server and clean up its resources. Pass a Blueprint to configure the WordPress instance: -->
 
-फ़ंक्शन `runCLI` एक लोकल Playground सर्वर शुरू करता है और एक ऑब्जेक्ट लौटाता है, जिसमें `serverUrl` (URL स्ट्रिंग) और `server` (HTTP सर्वर इंस्टेंस) होते हैं। परीक्षण पूरे होने पर सर्वर बंद करने और उसके संसाधन साफ़ करने के लिए लौटाए गए ऑब्जेक्ट पर `[Symbol.asyncDispose]()` कॉल करें। WordPress इंस्टेंस को कॉन्फ़िगर करने के लिए एक Blueprint पास करें:
+फ़ंक्शन `runCLI` एक लोकल Playground सर्वर शुरू करता है और एक ऑब्जेक्ट लौटाता है, जिसमें `serverUrl` (URL स्ट्रिंग) और `server` (HTTP सर्वर इंस्टेंस) होते हैं। परीक्षण पूरे होने पर सर्वर बंद करने और उसके संसाधन साफ़ करने के लिए लौटाए गए ऑब्जेक्ट पर `[Symbol.asyncDispose]()` कॉल करें। WordPress इंस्टेंस को कॉन्फ़िगर करने के लिए एक ब्लूप्रिंट पास करें:
 
 ```typescript
 const cli = await runCLI({
@@ -337,11 +337,11 @@ test.afterEach(async () => {
 
 <!-- ### Using Blueprints as test fixtures -->
 
-### Blueprints को परीक्षण फ़िक्स्चर के रूप में इस्तेमाल करना {#using-blueprints-as-test-fixtures}
+### ब्लूप्रिंट को परीक्षण फ़िक्स्चर के रूप में इस्तेमाल करना {#using-blueprints-as-test-fixtures}
 
 <!-- Blueprints define the WordPress state each test scenario needs. Here are common patterns: -->
 
-Blueprints हर परीक्षण परिदृश्य के लिए ज़रूरी WordPress स्थिति तय करते हैं। यहाँ कुछ आम पैटर्न दिए गए हैं:
+ब्लूप्रिंट हर परीक्षण परिदृश्य के लिए ज़रूरी WordPress स्थिति तय करते हैं। यहाँ कुछ आम पैटर्न दिए गए हैं:
 
 <!-- #### Installing a plugin from wordpress.org -->
 
@@ -431,7 +431,7 @@ const blueprint = {
 
 <!-- Use the [Playground Step Library](https://akirk.github.io/playground-step-library/) or [Pootle Playground](https://pootleplayground.com/) to prototype your Blueprint configuration visually before adding it to your test code. -->
 
-अपने परीक्षण कोड में जोड़ने से पहले अपने Blueprint कॉन्फ़िगरेशन का विज़ुअल प्रोटोटाइप बनाने के लिए [Playground Step Library](https://akirk.github.io/playground-step-library/) या [Pootle Playground](https://pootleplayground.com/) का उपयोग करें।
+अपने परीक्षण कोड में जोड़ने से पहले अपने ब्लूप्रिंट कॉन्फ़िगरेशन का विज़ुअल प्रोटोटाइप बनाने के लिए [Playground Step Library](https://akirk.github.io/playground-step-library/) या [Pootle Playground](https://pootleplayground.com/) का उपयोग करें।
 
 </div>
 
@@ -615,7 +615,7 @@ for (const { php, wp } of versionMatrix) {
 
 <!-- The `preferredVersions` property in the Blueprint controls which PHP and WordPress versions the Playground instance uses. Supported ranges: PHP 7.4–8.5, WordPress 6.3 and later, plus `latest`, `nightly`, and `beta`. For type-safe PHP version values, use the `SupportedPHPVersion` type from `@php-wasm/universal`. -->
 
-Blueprint की `preferredVersions` प्रॉपर्टी तय करती है कि Playground इंस्टेंस PHP और WordPress के कौन-से संस्करण इस्तेमाल करता है। समर्थित रेंज: PHP 7.4–8.5, WordPress 6.3 और उसके बाद के संस्करण, साथ में `latest`, `nightly` और `beta`। टाइप-सेफ़ PHP संस्करण मानों के लिए `@php-wasm/universal` के `SupportedPHPVersion` टाइप का उपयोग करें।
+ब्लूप्रिंट की `preferredVersions` प्रॉपर्टी तय करती है कि Playground इंस्टेंस PHP और WordPress के कौन-से संस्करण इस्तेमाल करता है। समर्थित रेंज: PHP 7.4–8.5, WordPress 6.3 और उसके बाद के संस्करण, साथ में `latest`, `nightly` और `beta`। टाइप-सेफ़ PHP संस्करण मानों के लिए `@php-wasm/universal` के `SupportedPHPVersion` टाइप का उपयोग करें।
 
 <!-- ## Running tests in CI/CD -->
 
@@ -727,7 +727,7 @@ npx playwright test --shard=3/3
 
 <!-- **WordPress not loading** — Check your Blueprint syntax against the [Blueprint schema](https://playground.wordpress.net/blueprint-schema.json). Invalid steps fail silently in some cases. -->
 
-**WordPress लोड नहीं हो रहा**: अपने Blueprint का सिंटैक्स [Blueprint स्कीमा](https://playground.wordpress.net/blueprint-schema.json) से मिलाकर जाँचें। कुछ मामलों में अमान्य चरण बिना कोई एरर दिखाए विफल हो जाते हैं।
+**WordPress लोड नहीं हो रहा**: अपने ब्लूप्रिंट का सिंटैक्स [ब्लूप्रिंट स्कीमा](https://playground.wordpress.net/blueprint-schema.json) से मिलाकर जाँचें। कुछ मामलों में अमान्य चरण बिना कोई एरर दिखाए विफल हो जाते हैं।
 
 <!-- **Tests pass locally but fail in CI** — CI runners have less memory and CPU. Increase timeouts, reduce parallel workers, and ensure `workers: 1` in the config. -->
 
@@ -790,5 +790,5 @@ npx playwright test --ui
 
 - [WordPress Playground CLI दस्तावेज़](/developers/local-development/wp-playground-cli): CLI का पूरा संदर्भ
 - [Playwright दस्तावेज़](https://playwright.dev/docs/intro): परीक्षण लिखने की गाइड और API संदर्भ
-- [Blueprints संदर्भ](/blueprints/steps): Blueprint के सभी उपलब्ध चरण
+- [Blueprints संदर्भ](/blueprints/steps): ब्लूप्रिंट के सभी उपलब्ध चरण
 - [PR पूर्वावलोकन बटन जोड़ना](/guides/github-action-pr-preview): अपने-आप चलने वाले परीक्षणों को मैन्युअल PR पूर्वावलोकन के साथ जोड़ें
