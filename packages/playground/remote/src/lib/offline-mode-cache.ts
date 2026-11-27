@@ -1,6 +1,7 @@
 import { isURLScoped } from '@php-wasm/scopes';
 import { isDevServer } from './dev-server';
 import { playgroundOrigin } from './config';
+import { logger } from '@php-wasm/logger';
 // @ts-ignore
 import { buildVersion } from 'virtual:remote-config';
 
@@ -11,11 +12,18 @@ const LATEST_CACHE_NAME = `${CACHE_NAME_PREFIX}-${buildVersion}`;
 
 // We save a top-level Promise because this module is imported by
 // a Service Worker module which does not allow top-level await.
-const promisedOfflineModeCache = caches.open(LATEST_CACHE_NAME);
+const promisedOfflineModeCache = Promise.resolve()
+	.then(() => caches.open(LATEST_CACHE_NAME))
+	.catch((error) => {
+		logger.warn(
+			'Offline cache unavailable. Loading assets from HTTP.',
+			error
+		);
+		return undefined;
+	});
 
 export async function cacheFirstFetch(request: Request): Promise<Response> {
-	const offlineModeCache = await promisedOfflineModeCache;
-	const cachedResponse = await offlineModeCache.match(request, {
+	const cachedResponse = await readCachedResponse(request, {
 		ignoreSearch: true,
 	});
 	if (cachedResponse) {
@@ -52,7 +60,7 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 			// Intentionally do not await writing to the cache so the response
 			// promise can be returned immediately and observed for progress events.
 			// NOTE: This is a race condition for simultaneous requests for the same asset.
-			offlineModeCache.put(requestWithoutRangeHeader, response.clone());
+			void putCachedResponse(requestWithoutRangeHeader, response.clone());
 		}
 	}
 
@@ -60,8 +68,7 @@ export async function cacheFirstFetch(request: Request): Promise<Response> {
 }
 
 export async function networkFirstFetch(request: Request): Promise<Response> {
-	const offlineModeCache = await promisedOfflineModeCache;
-	const cachedResponse = await offlineModeCache.match(request, {
+	const cachedResponse = await readCachedResponse(request, {
 		ignoreSearch: true,
 	});
 
@@ -95,9 +102,12 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
 		// Intentionally do not await writing to the cache so the response
 		// promise can be returned immediately and observed for progress events.
 		// NOTE: This is a race condition for simultaneous requests for the same asset.
-		offlineModeCache.put(request, response.clone());
+		void putCachedResponse(request, response.clone());
 		return response;
 	}
+
+	// Preserve offline availability for every unsuccessful HTTP status. A status
+	// alone cannot distinguish a challenge from an outage or proxy denial.
 
 	if (cachedResponse) {
 		return cachedResponse;
@@ -108,7 +118,6 @@ export async function networkFirstFetch(request: Request): Promise<Response> {
 
 /** Fetch the directory index without serving upstream HTML or headers on the app origin. */
 export async function fetchBlueprintsIndex(): Promise<Response> {
-	const offlineModeCache = await promisedOfflineModeCache;
 	let jsonResponse: Response;
 	try {
 		const response = await fetchFresh(BLUEPRINTS_INDEX_URL, {
@@ -121,8 +130,7 @@ export async function fetchBlueprintsIndex(): Promise<Response> {
 			headers: { 'X-Content-Type-Options': 'nosniff' },
 		});
 	} catch {
-		const cachedResponse =
-			await offlineModeCache.match(BLUEPRINTS_INDEX_URL);
+		const cachedResponse = await readCachedResponse(BLUEPRINTS_INDEX_URL);
 		return (
 			cachedResponse ??
 			new Response('Blueprints directory index unavailable.', {
@@ -132,9 +140,7 @@ export async function fetchBlueprintsIndex(): Promise<Response> {
 	}
 
 	// Keep only valid JSON for offline use. A full cache must not hide a fresh index.
-	await offlineModeCache
-		.put(BLUEPRINTS_INDEX_URL, jsonResponse.clone())
-		.catch(() => {});
+	await putCachedResponse(BLUEPRINTS_INDEX_URL, jsonResponse.clone());
 	return jsonResponse;
 }
 
@@ -148,6 +154,8 @@ export async function fetchBlueprintsIndex(): Promise<Response> {
 export async function cacheOfflineModeAssetsForCurrentRelease(
 	excludedAssets: readonly string[] = []
 ): Promise<any> {
+	const offlineModeCache = await promisedOfflineModeCache;
+	if (!offlineModeCache) return;
 	// Get the cache manifest and add all the files to the cache
 	const manifestResponse = await fetchFresh(
 		'/assets-required-for-offline-mode.json'
@@ -171,7 +179,6 @@ export async function cacheOfflineModeAssetsForCurrentRelease(
 				cache: 'no-store',
 			})
 	);
-	const offlineModeCache = await promisedOfflineModeCache;
 	await offlineModeCache.addAll(websiteRequests);
 }
 
@@ -186,11 +193,16 @@ export async function cacheOfflineModeAssetsForCurrentRelease(
  * `buildVersionPlugin` for more details on how it's generated.
  */
 export async function purgeEverythingFromPreviousRelease() {
-	const keys = await caches.keys();
-	const oldKeys = keys.filter(
-		(key) => key.startsWith(CACHE_NAME_PREFIX) && key !== LATEST_CACHE_NAME
-	);
-	return Promise.all(oldKeys.map((key) => caches.delete(key)));
+	try {
+		const keys = await caches.keys();
+		const oldKeys = keys.filter(
+			(key) =>
+				key.startsWith(CACHE_NAME_PREFIX) && key !== LATEST_CACHE_NAME
+		);
+		await Promise.all(oldKeys.map((key) => caches.delete(key)));
+	} catch (error) {
+		logger.warn('Unable to remove old offline caches.', error);
+	}
 }
 
 /**
@@ -201,8 +213,7 @@ export async function hasCachedResponse(
 	url: string,
 	queryOptions: CacheQueryOptions = { ignoreSearch: true }
 ): Promise<boolean> {
-	const offlineModeCache = await promisedOfflineModeCache;
-	const cachedResponse = await offlineModeCache.match(url, queryOptions);
+	const cachedResponse = await readCachedResponse(url, queryOptions);
 	return !!cachedResponse;
 }
 
@@ -211,7 +222,27 @@ export async function putCachedResponse(
 	response: Response
 ): Promise<void> {
 	const offlineModeCache = await promisedOfflineModeCache;
-	await offlineModeCache.put(request, response);
+	try {
+		await offlineModeCache?.put(request, response);
+	} catch (error) {
+		logger.warn('Unable to save an offline response.', error);
+	}
+}
+
+async function readCachedResponse(
+	request: RequestInfo,
+	options?: CacheQueryOptions
+): Promise<Response | undefined> {
+	const offlineModeCache = await promisedOfflineModeCache;
+	try {
+		return await offlineModeCache?.match(request, options);
+	} catch (error) {
+		logger.warn(
+			'Unable to read an offline response. Loading from HTTP.',
+			error
+		);
+		return undefined;
+	}
 }
 
 /**
