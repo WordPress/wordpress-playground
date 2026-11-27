@@ -55,7 +55,10 @@ import type { PHPSendmailSpawnedEvent } from '@php-wasm/util';
 import PostalMime from 'postal-mime';
 import { runSiteFirstBootInitializer } from './site-first-boot-initializer';
 import { captureAndPersistSiteThumbnail } from './capture-site-thumbnail';
-import { getPlaygroundDefinedPHPConstants } from './playground-defined-php-constants';
+import {
+	filterPHPConstantsForSavedSite,
+	getPlaygroundDefinedPHPConstants,
+} from './playground-defined-php-constants';
 
 const PENDING_OPFS_SITE_REMOVAL_RETRY_DELAYS_MS = [700, 1400];
 
@@ -181,10 +184,10 @@ export function bootSiteClient(
 				},
 				extraLibraries: site.metadata.runtimeConfiguration
 					.extraLibraries as any[],
-				constants: {
+				constants: filterPHPConstantsForSavedSite({
 					...site.metadata.runtimeConfiguration.constants,
 					...site.metadata.playgroundDefinedConstants,
-				},
+				}),
 			};
 		} else {
 			blueprint = site.metadata.originalBlueprint as Blueprint;

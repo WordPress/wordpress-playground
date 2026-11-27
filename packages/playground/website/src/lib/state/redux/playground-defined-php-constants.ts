@@ -18,5 +18,24 @@ export async function getPlaygroundDefinedPHPConstants(
 	if (!(await playground.fileExists(constantsPath))) {
 		return {};
 	}
-	return JSON.parse(await playground.readFileAsText(constantsPath));
+	return filterPHPConstantsForSavedSite(
+		JSON.parse(await playground.readFileAsText(constantsPath))
+	);
+}
+
+/**
+ * Returns the PHP constants to keep when saving or reopening a Playground.
+ *
+ * The worker sets `USE_FETCH_FOR_REQUESTS` to `true` when it installs the
+ * network transport, and saved constants are defined again after the worker
+ * boots. For example, a saved `true` keeps the fetch transport selected after
+ * the user turns Network access off, when nothing handles its requests.
+ * Leave the flag out of new saves and ignore it when loading older saves.
+ */
+export function filterPHPConstantsForSavedSite(
+	constants: PHPConstants
+): PHPConstants {
+	const savedSiteConstants = { ...constants };
+	delete savedSiteConstants.USE_FETCH_FOR_REQUESTS;
+	return savedSiteConstants;
 }
