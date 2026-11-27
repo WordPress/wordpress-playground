@@ -337,6 +337,216 @@ SupportedPHPVersions.forEach((phpVersion) => {
 			);
 		});
 	});
+
+	test.describe(`Xdebug - PHP ${phpVersion}`, () => {
+		const isPHP85orHigher =
+			SupportedPHPVersions.indexOf(phpVersion) <=
+			SupportedPHPVersions.indexOf('8.5');
+
+		test.beforeEach(async ({ page }) => {
+			page.on('console', (log) => console.log(log.text()));
+
+			await page.goto('/');
+
+			await page.addScriptTag({
+				type: 'module',
+				url: '/src/test/playwright/browser-globals.ts',
+			});
+		});
+
+		test('does not load at startup by default', async ({ page }) => {
+			const result = await page.evaluate(async (phpVersion) => {
+				const php = new window.PHP(
+					await window.loadWebRuntime(phpVersion as any)
+				);
+
+				const response = await php.runStream({
+					code: `<?php
+						var_dump(extension_loaded('xdebug'));`,
+				});
+
+				php.exit();
+
+				return await response.stdoutText;
+			}, phpVersion);
+
+			test.expect(result).toEqual('bool(false)\n');
+		});
+
+		test('loads at startup when requested', async ({ page }) => {
+			const result = await page.evaluate(async (phpVersion) => {
+				const php = new window.PHP(
+					await window.loadWebRuntime(phpVersion as any, {
+						extensions: ['xdebug'],
+					})
+				);
+
+				const response = await php.runStream({
+					code: `<?php
+						var_dump(extension_loaded('xdebug'));`,
+				});
+				const output = await response.stdoutText;
+
+				php.exit();
+
+				return output;
+			}, phpVersion);
+
+			test.expect(result).toEqual(
+				[
+					"<pre class='xdebug-var-dump' dir='ltr'>",
+					"<small>/internal/eval.php:2:</small><small>boolean</small> <font color='#75507b'>true</font>",
+					'</pre>',
+				].join('\n')
+			);
+		});
+
+		test('has its own ini file and entries', async ({ page }) => {
+			const result = await page.evaluate(async (phpVersion) => {
+				const php = new window.PHP(
+					await window.loadWebRuntime(phpVersion as any, {
+						extensions: ['xdebug'],
+					})
+				);
+
+				const text = php.readFileAsText(
+					'/internal/shared/extensions/xdebug.ini'
+				);
+
+				php.exit();
+
+				return text;
+			}, phpVersion);
+
+			const expected = [
+				'zend_extension=/internal/shared/extensions/xdebug.so',
+				'xdebug.mode=debug,develop',
+				'xdebug.start_with_request=yes',
+				'xdebug.idekey="PHPWASMWEB"',
+				'xdebug.path_mapping=yes',
+			].join('\n');
+
+			test.expect(result).toEqual(expected);
+		});
+
+		test('handles path mapping and path skipping', async ({ page }) => {
+			test.skip(!isPHP85orHigher);
+			const result = await page.evaluate(async (phpVersion) => {
+				const php = new window.PHP(
+					await window.loadWebRuntime(phpVersion as any, {
+						extensions: [
+							{
+								name: 'xdebug',
+								options: {
+									pathMappings: [
+										{
+											hostPath: '/foo/',
+											vfsPath: '/bar/baz/',
+										},
+									],
+									pathSkippings: ['/baz/', '/qux.php'],
+								},
+							},
+						],
+					})
+				);
+
+				const pathMappings = php.readFileAsText('/.xdebug/path.map');
+				const pathSkippings = php.readFileAsText('/.xdebug/skip.map');
+
+				php.exit();
+
+				return { pathMappings, pathSkippings };
+			}, phpVersion);
+
+			test.expect(result).toEqual({
+				pathMappings: '/bar/baz/ = /foo/',
+				pathSkippings: ['/baz/ = SKIP', '/qux.php = SKIP'].join('\n'),
+			});
+		});
+
+		test('communicates with a DBGP client', async ({ page }) => {
+			const result = await page.evaluate(async (phpVersion) => {
+				const queries = [
+					'feature_set -i 1 -n resolved_breakpoints -v 1',
+					'feature_set -i 2 -n notify_ok -v 1',
+					'feature_set -i 3 -n extended_properties -v 1',
+					'feature_set -i 4 -n breakpoint_include_return_value -v 1',
+					'feature_set -i 5 -n max_children -v 100',
+					'run -i 6',
+					'stop -i 7',
+				];
+
+				let responses = '';
+				let i = 0;
+
+				class DBGpWebSocket {
+					CONNECTING = WebSocket.CONNECTING;
+					OPEN = WebSocket.OPEN;
+					CLOSING = WebSocket.CLOSING;
+					CLOSED = WebSocket.CLOSED;
+					readyState: number = WebSocket.OPEN;
+					binaryType = 'arraybuffer';
+					onopen?: () => void;
+					onmessage?: (event: { data: ArrayBuffer }) => void;
+					onclose?: () => void;
+
+					constructor() {
+						setTimeout(() => this.onopen?.());
+					}
+
+					send(data: Uint8Array) {
+						responses += new TextDecoder().decode(data);
+						const query = queries[i++];
+						if (!query) {
+							return;
+						}
+						const payload = new TextEncoder().encode(
+							`${query.length}\x00${query}\x00`
+						);
+						setTimeout(() =>
+							this.onmessage?.({ data: payload.buffer })
+						);
+					}
+
+					close() {
+						this.readyState = WebSocket.CLOSED;
+						this.onclose?.();
+					}
+				}
+
+				const php = new window.PHP(
+					await window.loadWebRuntime(phpVersion as any, {
+						extensions: [
+							{ name: 'xdebug', options: { ideKey: 'FOO' } },
+						],
+						emscriptenOptions: {
+							websocket: {
+								decorator: () => DBGpWebSocket,
+							},
+						},
+					})
+				);
+
+				const response = await php.runStream({
+					code: `<?php
+						echo "Hello Xdebug World";`,
+				});
+				const output = await response.stdoutText;
+
+				php.exit();
+
+				return { output, responses };
+			}, phpVersion);
+
+			test.expect(result.responses).toContain(
+				'<init xmlns="urn:debugger_protocol_v1"'
+			);
+			test.expect(result.responses).toContain('idekey="FOO"');
+			test.expect(result.responses).toContain('success="1"></response>');
+			test.expect(result.output).toEqual('Hello Xdebug World');
+		});
+	});
 });
 
 test.describe('External PHP side modules', () => {

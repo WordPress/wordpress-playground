@@ -6,6 +6,8 @@ FROM playground-php-wasm:base
 # compatible with a particular Zend Engine API version.
 ARG PHP_VERSION
 
+ARG PLATFORM
+
 ARG JSPI
 
 ARG DEBUG
@@ -86,16 +88,6 @@ RUN set -euxo pipefail; \
 		--single-branch \
 		--depth 1;
 
-# Fix root-level .xdebug mapping discovery.
-# Strict `>` checks skipped resolving "/" for shallow paths.
-# Using `>=` ensures "/.xdebug" is properly scanned.
-# Pending upstream pull request : https://github.com/xdebug/xdebug/pull/1062
-RUN if [[ "${PHP_VERSION:0:3}" != "7.4" ]]; then \
-		/root/replace.sh 's/current_dir\s*=\s*parts->c\s*>\s*2/current_dir = parts->c >= 2/g' /root/xdebug/src/lib/maps/maps.c; \
-		/root/replace.sh 's/parent_dir\s*=\s*parts->c\s*>\s*3/parent_dir = parts->c >= 3/g' /root/xdebug/src/lib/maps/maps.c; \
-		/root/replace.sh 's/grand_dir\s*=\s*parts->c\s*>\s*4/grand_dir = parts->c >= 4/g' /root/xdebug/src/lib/maps/maps.c; \
-	fi;
-
 RUN	cd xdebug; \
 
 	phpize . ; \
@@ -109,7 +101,12 @@ RUN	cd xdebug; \
 	# with the main module.
 	/root/replace.sh 's/^(XDEBUG_SHARED_LIBADD\s*=.*\s*)-lm\b/$1/' Makefile; \
 
-	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv -Dgetpid=__wrap_getpid"; \
+	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv"; \
+
+	# Only the Node main module wraps getpid.
+	if [ "$PLATFORM" = "node" ]; then \
+		export EMCC_FLAGS="${EMCC_FLAGS} -Dgetpid=__wrap_getpid"; \
+	fi; \
 
 	if [ "$DEBUG" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O0 -g3"; \

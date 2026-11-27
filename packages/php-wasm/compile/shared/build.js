@@ -83,6 +83,8 @@ await asyncSpawn(
 		getArg('DEBUG'),
 		'--build-arg',
 		getArg('JSPI'),
+		'--build-arg',
+		getArg('PLATFORM'),
 	],
 	{ cwd: path.dirname(sourceDir), stdio: 'inherit' }
 );

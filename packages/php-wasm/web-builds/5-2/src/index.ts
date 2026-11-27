@@ -15,4 +15,8 @@ export async function getIntlExtensionPath(): Promise<string> {
 	throw new Error('The intl extension is not available for PHP 5.2.');
 }
 
+export async function getXdebugExtensionPath(): Promise<string> {
+	throw new Error('The Xdebug extension is not available for PHP 5.2.');
+}
+
 export { jspi };

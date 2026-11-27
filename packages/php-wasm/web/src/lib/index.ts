@@ -1,8 +1,11 @@
 export type { LoaderOptions as PHPWebLoaderOptions } from './load-runtime';
 export type {
+	BuiltInPHPWebExtension,
 	BuiltInPHPWebExtensionName,
+	PathMapping,
 	PHPWebExtension,
 	RuntimePHPWebExtensionSource,
+	XdebugOptions,
 } from './extensions/load-extensions';
 
 export { loadWebRuntime } from './load-runtime';
