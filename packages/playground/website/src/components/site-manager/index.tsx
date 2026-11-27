@@ -1,5 +1,6 @@
 import classNames from 'classnames';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
+import { __ } from '@wordpress/i18n';
 import { setDockPaneOpen } from '../../lib/state/redux/slice-ui';
 import {
 	useActiveSite,
@@ -92,7 +93,10 @@ export const SiteManager = forwardRef<HTMLDivElement, SiteManagerProps>(
 		} else if (selectedSiteTab && !activeSite && isVisible) {
 			activePanel = (
 				<div className={css.emptyPanel}>
-					Start or select a Playground before opening this tool.
+					{__(
+						'Start or select a Playground before opening this tool.',
+						'playground-website'
+					)}
 				</div>
 			);
 		}

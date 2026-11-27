@@ -1,3 +1,4 @@
+import { __ } from '@wordpress/i18n';
 import { OlderWordPressVersions } from './older-wordpress-versions';
 import { formatWordPressVersionLabel } from './wordpress-release-names';
 
@@ -43,21 +44,27 @@ export function getWordPressVersionOptions({
 			// Without an empty option, React sometimes says the
 			// current selected version is "trunk" when `wp` is
 			// actually "6.4".
-			{ label: '-- Select a version --', value: '' },
+			{
+				label: __('-- Select a version --', 'playground-website'),
+				value: '',
+			},
 			...modernOptions,
 		];
 	}
 
 	return [
-		{ label: '-- Select a version --', value: '' },
 		{
-			label: '── Current versions ──',
+			label: __('-- Select a version --', 'playground-website'),
+			value: '',
+		},
+		{
+			label: __('── Current versions ──', 'playground-website'),
 			value: '__modern_sep',
 			disabled: true,
 		},
 		...modernOptions,
 		{
-			label: '── Older versions ──',
+			label: __('── Older versions ──', 'playground-website'),
 			value: '__older_sep',
 			disabled: true,
 		},

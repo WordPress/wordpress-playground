@@ -1,3 +1,5 @@
+import { __ } from '@wordpress/i18n';
+
 export const GITHUB_OAUTH_MESSAGE_TYPE = 'playground-github-oauth-token';
 export const GITHUB_OAUTH_STATE_PREFIX = 'playground-popup-';
 const GITHUB_OAUTH_POPUP_TIMEOUT_MS = 5 * 60 * 1000;
@@ -23,7 +25,11 @@ export function startGitHubOAuthFlow(): Promise<string> {
 	);
 
 	if (!popup) {
-		return Promise.reject(new Error('Unable to open GitHub OAuth popup.'));
+		return Promise.reject(
+			new Error(
+				__('Unable to open GitHub OAuth popup.', 'playground-website')
+			)
+		);
 	}
 
 	return waitForGitHubOAuthMessage(popup, state, oauthUrl);
@@ -89,13 +95,24 @@ function waitForGitHubOAuthMessage(
 		const closedCheck = window.setInterval(() => {
 			if (popup.closed) {
 				cleanup();
-				reject(new Error('GitHub OAuth popup was closed.'));
+				reject(
+					new Error(
+						__(
+							'GitHub OAuth popup was closed.',
+							'playground-website'
+						)
+					)
+				);
 			}
 		}, 500);
 		const flowTimeout = window.setTimeout(() => {
 			cleanup();
 			popup.close();
-			reject(new Error('GitHub OAuth popup timed out.'));
+			reject(
+				new Error(
+					__('GitHub OAuth popup timed out.', 'playground-website')
+				)
+			);
 		}, GITHUB_OAUTH_POPUP_TIMEOUT_MS);
 
 		const handleMessage = (event: MessageEvent) => {

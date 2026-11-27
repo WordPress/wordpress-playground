@@ -1,5 +1,6 @@
 import type { ComponentType, ReactNode } from 'react';
 import { Icon } from '@wordpress/components';
+import { __, _x } from '@wordpress/i18n';
 import {
 	envelope,
 	external,
@@ -42,119 +43,221 @@ type DockToolDefinition = {
 const definitions = [
 	{
 		section: 'new',
-		label: 'New',
-		ariaLabel: 'New Playground',
+		get label() {
+			return _x('New', 'dock navigation item', 'playground-website');
+		},
+		get ariaLabel() {
+			return __('New Playground', 'playground-website');
+		},
 		icon: <Icon icon={plus} size={24} />,
 		isPrimary: true,
 		group: 'main',
-		title: 'New Playground',
-		description: 'Spin up a fresh Playground or start from a Blueprint.',
+		get title() {
+			return __('New Playground', 'playground-website');
+		},
+		get description() {
+			return __(
+				'Spin up a fresh Playground or start from a Blueprint.',
+				'playground-website'
+			);
+		},
 		layout: 'default',
 		fixedHeight: true,
 	},
 	{
 		section: 'playgrounds',
-		label: 'Playgrounds',
-		ariaLabel: 'Your Playgrounds',
+		get label() {
+			return __('Playgrounds', 'playground-website');
+		},
+		get ariaLabel() {
+			return __('Your Playgrounds', 'playground-website');
+		},
 		icon: <Icon icon={grid} size={22} />,
 		group: 'main',
-		title: 'Your Playgrounds',
-		description: 'Switch between your recent and saved Playgrounds.',
+		get title() {
+			return __('Your Playgrounds', 'playground-website');
+		},
+		get description() {
+			return __(
+				'Switch between your recent and saved Playgrounds.',
+				'playground-website'
+			);
+		},
 		layout: 'default',
 	},
 	{
 		section: 'settings',
-		label: 'Site Settings',
-		ariaLabel: 'Site Settings',
+		get label() {
+			return __('Site Settings', 'playground-website');
+		},
+		get ariaLabel() {
+			return __('Site Settings', 'playground-website');
+		},
 		icon: <Icon icon={wordpress} size={24} />,
 		group: 'main',
-		title: 'Site Settings',
-		description:
-			'Change this Playground’s WordPress, PHP, language, and network settings.',
+		get title() {
+			return __('Site Settings', 'playground-website');
+		},
+		get description() {
+			return __(
+				'Change this Playground’s WordPress, PHP, language, and network settings.',
+				'playground-website'
+			);
+		},
 		layout: 'compact',
 		Panel: SettingsTool,
 		panelClassName: css.tabContents,
 	},
 	{
 		section: 'share',
-		label: 'Export',
-		ariaLabel: 'Export',
+		get label() {
+			return _x('Export', 'dock navigation item', 'playground-website');
+		},
+		get ariaLabel() {
+			return _x('Export', 'dock navigation item', 'playground-website');
+		},
 		icon: <Icon icon={external} size={24} />,
 		group: 'main',
-		title: 'Export',
+		get title() {
+			return _x('Export', 'dock navigation item', 'playground-website');
+		},
 		description: '',
 		layout: 'compact',
 	},
 	{
 		section: 'blueprint',
-		label: 'Blueprint',
-		ariaLabel: 'Current Blueprint',
+		get label() {
+			return __('Blueprint', 'playground-website');
+		},
+		get ariaLabel() {
+			return __('Current Blueprint', 'playground-website');
+		},
 		icon: <DockBlueprintIcon />,
 		group: 'developer',
-		title: 'Blueprint',
-		description:
-			'Review and edit the Blueprint that describes this Playground.',
+		get title() {
+			return __('Blueprint', 'playground-website');
+		},
+		get description() {
+			return __(
+				'Review and edit the Blueprint that describes this Playground.',
+				'playground-website'
+			);
+		},
 		layout: 'editor',
 		Panel: BlueprintTool,
 		panelClassName: css.blueprintWrapper,
 	},
 	{
 		section: 'database',
-		label: 'Database',
-		ariaLabel: 'Database',
+		get label() {
+			return __('Database', 'playground-website');
+		},
+		get ariaLabel() {
+			return __('Database', 'playground-website');
+		},
 		icon: <DockDatabaseIcon />,
 		group: 'developer',
-		title: 'Database',
-		description:
-			'Inspect and edit the SQLite database behind this Playground.',
+		get title() {
+			return __('Database', 'playground-website');
+		},
+		get description() {
+			return __(
+				'Inspect and edit the SQLite database behind this Playground.',
+				'playground-website'
+			);
+		},
 		layout: 'default',
 		Panel: DatabaseTool,
 		panelClassName: `${css.tabContents} ${css.toolTabContents}`,
 	},
 	{
 		section: 'terminal',
-		label: 'Terminal',
-		ariaLabel: 'Terminal',
+		get label() {
+			return __('Terminal', 'playground-website');
+		},
+		get ariaLabel() {
+			return __('Terminal', 'playground-website');
+		},
 		icon: <DockTerminalIcon />,
 		group: 'developer',
-		title: 'Terminal',
-		description: 'Run PHP snippets or WP-CLI commands in this Playground.',
+		get title() {
+			return __('Terminal', 'playground-website');
+		},
+		get description() {
+			return __(
+				'Run PHP snippets or WP-CLI commands in this Playground.',
+				'playground-website'
+			);
+		},
 		layout: 'wide',
 		Panel: TerminalTool,
 		panelClassName: `${css.tabContents} ${css.toolTabContents}`,
 	},
 	{
 		section: 'files',
-		label: 'Files',
-		ariaLabel: 'Files',
+		get label() {
+			return __('Files', 'playground-website');
+		},
+		get ariaLabel() {
+			return __('Files', 'playground-website');
+		},
 		icon: <Icon icon={page} size={24} />,
 		group: 'developer',
-		title: 'Files',
-		description: 'Browse and edit the active Playground filesystem.',
+		get title() {
+			return __('Files', 'playground-website');
+		},
+		get description() {
+			return __(
+				'Browse and edit the active Playground filesystem.',
+				'playground-website'
+			);
+		},
 		layout: 'editor',
 		Panel: FilesTool,
 		panelClassName: `${css.tabContents} ${css.fileBrowserTab}`,
 	},
 	{
 		section: 'logs',
-		label: 'Logs',
-		ariaLabel: 'Logs',
+		get label() {
+			return __('Logs', 'playground-website');
+		},
+		get ariaLabel() {
+			return __('Logs', 'playground-website');
+		},
 		icon: <Icon icon={list} size={24} />,
 		group: 'developer',
-		title: 'PHP error log',
-		description: 'Errors, warnings, and notices from your site.',
+		get title() {
+			return __('PHP error log', 'playground-website');
+		},
+		get description() {
+			return __(
+				'Errors, warnings, and notices from your site.',
+				'playground-website'
+			);
+		},
 		layout: 'wide',
 		Panel: LogsTool,
 		panelClassName: `${css.tabContents} ${css.toolTabContents}`,
 	},
 	{
 		section: 'mail',
-		label: 'Email',
-		ariaLabel: 'Email',
+		get label() {
+			return __('Email', 'playground-website');
+		},
+		get ariaLabel() {
+			return __('Email', 'playground-website');
+		},
 		icon: <Icon icon={envelope} size={24} />,
 		group: 'developer',
-		title: 'Email',
-		description: 'Preview messages sent by this Playground.',
+		get title() {
+			return __('Email', 'playground-website');
+		},
+		get description() {
+			return __(
+				'Preview messages sent by this Playground.',
+				'playground-website'
+			);
+		},
 		layout: 'editor',
 		fixedHeight: true,
 		Panel: MailTool,
@@ -162,23 +265,39 @@ const definitions = [
 	},
 	{
 		section: 'transfer',
-		label: 'Clone site',
-		ariaLabel: 'Clone site',
+		get label() {
+			return __('Clone site', 'playground-website');
+		},
+		get ariaLabel() {
+			return __('Clone site', 'playground-website');
+		},
 		icon: <Icon icon={external} size={24} />,
 		group: 'hidden',
-		title: 'Clone a WordPress site',
-		description:
-			'Copy a live site into a new Playground with Reprint. Your live site stays unchanged.',
+		get title() {
+			return __('Clone a WordPress site', 'playground-website');
+		},
+		get description() {
+			return __(
+				'Copy a live site into a new Playground with Reprint. Your live site stays unchanged.',
+				'playground-website'
+			);
+		},
 		layout: 'default',
 		Panel: TransferTool,
 		panelClassName: `${css.tabContents} ${css.toolTabContents}`,
 	},
 	{
 		section: 'save',
-		label: 'Store permanently',
-		ariaLabel: 'Store permanently',
+		get label() {
+			return __('Store permanently', 'playground-website');
+		},
+		get ariaLabel() {
+			return __('Store permanently', 'playground-website');
+		},
 		group: 'hidden',
-		title: 'Store permanently',
+		get title() {
+			return __('Store permanently', 'playground-website');
+		},
 		description: '',
 		layout: 'compact',
 	},

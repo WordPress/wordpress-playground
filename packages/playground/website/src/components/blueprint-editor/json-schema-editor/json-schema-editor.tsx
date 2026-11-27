@@ -36,6 +36,7 @@ import {
 	type ViewUpdate,
 } from '@codemirror/view';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { __ } from '@wordpress/i18n';
 import {
 	inferLanguageFromBlueprint,
 	type SupportedLanguage,
@@ -99,8 +100,11 @@ function createStringEditorTooltip(openStringEditor: () => boolean) {
 
 					const button = document.createElement('button');
 					button.className = 'cm-string-editor-button';
-					button.innerHTML = '✎ Multiline Edit';
-					button.title = 'Edit string (Cmd/Ctrl+E)';
+					button.textContent = `✎ ${__('Multiline Edit', 'playground-website')}`;
+					button.title = __(
+						'Edit string (Cmd/Ctrl+E)',
+						'playground-website'
+					);
 					button.onmousedown = (e) => {
 						e.preventDefault();
 						e.stopPropagation();

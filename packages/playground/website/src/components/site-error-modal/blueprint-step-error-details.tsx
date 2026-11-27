@@ -1,4 +1,5 @@
 import React from 'react';
+import { __, sprintf } from '@wordpress/i18n';
 import css from './style.module.css';
 import type { BlueprintStepError } from './types';
 
@@ -11,8 +12,15 @@ export function BlueprintStepErrorDetails({ stepError }: Props) {
 		<div className={css.stepError}>
 			<div className={css.stepErrorHeader}>
 				<p className={css.stepErrorTitle}>
-					Blueprint failed at step #{stepError.stepNumber}: Could not{' '}
-					{stepError.description}.
+					{sprintf(
+						/* translators: 1: Step number in the Blueprint, 2: Description of the step action. */
+						__(
+							'Blueprint failed at step #%1$d: Could not %2$s.',
+							'playground-website'
+						),
+						stepError.stepNumber,
+						stepError.description
+					)}
 				</p>
 			</div>
 			{stepError.messages.length > 0 &&
@@ -22,7 +30,9 @@ export function BlueprintStepErrorDetails({ stepError }: Props) {
 					</p>
 				))}
 			<div className={css.stepErrorCodeWrapper}>
-				<div className={css.stepErrorLabel}>Step definition</div>
+				<div className={css.stepErrorLabel}>
+					{__('Step definition', 'playground-website')}
+				</div>
 				<pre className={css.stepErrorCode}>{stepError.stepJson}</pre>
 			</div>
 		</div>

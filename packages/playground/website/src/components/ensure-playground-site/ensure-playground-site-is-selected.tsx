@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import classNames from 'classnames';
 import { Button, Icon, Popover } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { close, wordpress } from '@wordpress/icons';
 import css from './restore-autosave-nudge.module.css';
 import calloutCss from '../dock-callout.module.css';
@@ -133,9 +134,14 @@ export function EnsurePlaygroundSiteIsSelected({
 				dispatch(
 					setDockOperationNotice({
 						status: 'error',
-						title: 'Couldn’t load Playgrounds',
-						message:
+						title: __(
+							'Couldn’t load Playgrounds',
+							'playground-website'
+						),
+						message: __(
 							'Reload the page to try browser storage again.',
+							'playground-website'
+						),
 					})
 				);
 				dispatch(OPFSSitesLoaded([]));
@@ -351,9 +357,14 @@ export function EnsurePlaygroundSiteIsSelected({
 			dispatch(
 				setDockOperationNotice({
 					status: 'error',
-					title: 'Couldn’t autosave this Playground',
-					message:
+					title: __(
+						'Couldn’t autosave this Playground',
+						'playground-website'
+					),
+					message: __(
 						'It’s still open but will be lost on refresh. Your earlier autosave is unchanged.',
+						'playground-website'
+					),
 				})
 			);
 			return false;
@@ -389,7 +400,10 @@ export function EnsurePlaygroundSiteIsSelected({
 								error
 							);
 							setAutosaveNudgeError(
-								'Could not restore the autosave. Try again or keep the new Playground.'
+								__(
+									'Could not restore the autosave. Try again or keep the new Playground.',
+									'playground-website'
+								)
 							);
 						} finally {
 							autosaveNudgeActionPendingRef.current = false;
@@ -455,14 +469,19 @@ function YouHaveAutosaveNudge({
 				[css.nudgeFloating]: !anchorButton,
 				[calloutCss.surface]: !anchorButton,
 			})}
-			aria-label="Recent autosaved Playground"
+			aria-label={__('Recent autosaved Playground', 'playground-website')}
 		>
 			<div className={calloutCss.header}>
-				<div className={calloutCss.eyebrow}>Recent autosave</div>
+				<div className={calloutCss.eyebrow}>
+					{__('Recent autosave', 'playground-website')}
+				</div>
 				<Button
 					className={calloutCss.dismiss}
 					icon={close}
-					label="Dismiss and keep this Playground"
+					label={__(
+						'Dismiss and keep this Playground',
+						'playground-website'
+					)}
 					onClick={onDismiss}
 					disabled={isBusy}
 				/>
@@ -476,7 +495,11 @@ function YouHaveAutosaveNudge({
 						{site.metadata.name}
 					</div>
 					<div className={calloutCss.identityMeta}>
-						Autosaved {getRelativeDate(autosavedAt)}
+						{sprintf(
+							/* translators: %s: Relative time since the Playground was autosaved, e.g. "5 minutes ago". */
+							__('Autosaved %s', 'playground-website'),
+							getRelativeDate(autosavedAt)
+						)}
 					</div>
 				</div>
 			</div>
@@ -491,11 +514,13 @@ function YouHaveAutosaveNudge({
 				onClick={onRestore}
 				disabled={isBusy}
 			>
-				Restore autosave
+				{__('Restore autosave', 'playground-website')}
 			</Button>
 			<p className={calloutCss.hint}>
-				Kept in this browser as a periodic snapshot — not every change
-				is saved.
+				{__(
+					'Kept in this browser as a periodic snapshot — not every change is saved.',
+					'playground-website'
+				)}
 			</p>
 			<Button
 				variant="link"
@@ -503,7 +528,7 @@ function YouHaveAutosaveNudge({
 				onClick={onDisableNotifications}
 				disabled={isBusy}
 			>
-				Don’t notify me about autosaves
+				{__('Don’t notify me about autosaves', 'playground-website')}
 			</Button>
 		</aside>
 	);

@@ -1,5 +1,6 @@
 import classNames from 'classnames';
 import type { MouseEventHandler, PointerEventHandler, ReactNode } from 'react';
+import { __ } from '@wordpress/i18n';
 import css from './style.module.css';
 
 export type DockCornerSide = 'left' | 'right';
@@ -27,8 +28,11 @@ export function DockCornerLauncher({
 	children,
 	isDragging = false,
 	isFolding = false,
-	ariaLabel = 'Show Playground tools',
-	title = 'Drag out or click to show Playground tools',
+	ariaLabel = __('Show Playground tools', 'playground-website'),
+	title = __(
+		'Drag out or click to show Playground tools',
+		'playground-website'
+	),
 	onClick,
 	onPointerDown,
 	onPointerMove,

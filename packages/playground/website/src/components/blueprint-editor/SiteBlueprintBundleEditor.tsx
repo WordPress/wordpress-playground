@@ -1,4 +1,5 @@
 import { logger } from '@php-wasm/logger';
+import { __ } from '@wordpress/i18n';
 import { dirname, ensureAbsolutePath } from '@php-wasm/util';
 import { type Blueprint, BlueprintReflection } from '@wp-playground/blueprints';
 import {
@@ -342,7 +343,12 @@ export const SiteBlueprintBundleEditor = forwardRef<
 					mobileHeaderTarget={mobileHeaderTarget}
 				/>
 			) : (
-				<PaneLoading message="Loading the Blueprint editor…" />
+				<PaneLoading
+					message={__(
+						'Loading the Blueprint editor…',
+						'playground-website'
+					)}
+				/>
 			)}
 		</div>
 	);

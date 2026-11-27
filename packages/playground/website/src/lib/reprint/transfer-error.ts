@@ -1,3 +1,4 @@
+import { __ } from '@wordpress/i18n';
 import { redactReprintPrivateKeys } from './keys';
 
 export type TransferErrorDetails = {
@@ -53,112 +54,187 @@ export function getTransferRecovery({
 		case 'AUTH_NO_CREDENTIAL':
 		case 'EXPORT_NOT_CONFIGURED':
 			return {
-				title: 'Add your migration key',
-				message:
+				title: __('Add your migration key', 'playground-website'),
+				message: __(
 					'The live site has not accepted this tab’s migration key. Add it in Reprint settings, then come back here. Trying again before that will not help.',
+					'playground-website'
+				),
 				action: 'settings',
-				label: 'Open Reprint settings',
-				resumeLabel: 'I’ve added the key — continue',
+				label: __('Open Reprint settings', 'playground-website'),
+				resumeLabel: __(
+					'I’ve added the key — continue',
+					'playground-website'
+				),
 			};
 		case 'REDIRECT':
 			return {
-				title: 'Check the live site address',
-				message:
+				title: __('Check the live site address', 'playground-website'),
+				message: __(
 					'The site sent Reprint to a different address. Use the final WordPress address shown in your browser. Reprint does not follow redirects.',
+					'playground-website'
+				),
 				action: 'address',
-				label: 'Edit site address',
+				label: __('Edit site address', 'playground-website'),
 			};
 		case 'NOT_FOUND':
 		case 'HTML_RESPONSE':
 		case 'INVALID_PREFLIGHT_RESPONSE':
 			return {
-				title: 'The site did not return a Reprint response',
-				message:
+				title: __(
+					'The site did not return a Reprint response',
+					'playground-website'
+				),
+				message: __(
 					'Check the WordPress address and make sure Reprint is active. A sign-in page or a security rule can also hide its response.',
+					'playground-website'
+				),
 				action: 'install',
-				label: 'Check Reprint installation',
-				resumeLabel: 'I’ve checked the site — continue',
+				label: __('Check Reprint installation', 'playground-website'),
+				resumeLabel: __(
+					'I’ve checked the site — continue',
+					'playground-website'
+				),
 			};
 		case 'AUTH_KEY_UNSUPPORTED':
 			return {
-				title: 'Update Reprint on the live site',
-				message:
+				title: __(
+					'Update Reprint on the live site',
+					'playground-website'
+				),
+				message: __(
 					'The live site may be using an older Reprint plugin that cannot verify migration keys. Update the plugin, then continue with the same key.',
+					'playground-website'
+				),
 				action: 'plugins',
-				label: 'Open installed plugins',
-				resumeLabel: 'I’ve updated Reprint — continue',
+				label: __('Open installed plugins', 'playground-website'),
+				resumeLabel: __(
+					'I’ve updated Reprint — continue',
+					'playground-website'
+				),
 			};
 		case 'AUTH_REQUIRES_TOKEN':
 			return {
-				title: 'This host needs the Reprint CLI',
-				message:
+				title: __(
+					'This host needs the Reprint CLI',
+					'playground-website'
+				),
+				message: __(
 					'This host cannot verify migration keys. Use Reprint’s command-line tool with a connection token instead. Retrying in this browser will not help.',
+					'playground-website'
+				),
 				action: 'cli',
-				label: 'Use the Reprint CLI',
+				label: __('Use the Reprint CLI', 'playground-website'),
 			};
 		case 'SITE_TOO_LARGE':
 			return {
-				title: 'This site is too large for a browser import',
-				message:
+				title: __(
+					'This site is too large for a browser import',
+					'playground-website'
+				),
+				message: __(
 					'The selected files and database exceed Playground’s 2 GiB limit. Use Reprint’s command-line tool to copy this site to your computer.',
+					'playground-website'
+				),
 				action: 'cli',
-				label: 'Use the Reprint CLI',
+				label: __('Use the Reprint CLI', 'playground-website'),
 			};
 		case 'LOGIN_FAILED':
 			return {
-				title: 'Site cloned. Sign-in needs attention.',
-				message:
+				title: __(
+					'Site cloned. Sign-in needs attention.',
+					'playground-website'
+				),
+				message: __(
 					'Your files and database have been copied. Automatic admin sign-in did not finish. Open the copy to sign in yourself, or try automatic sign-in again. Your site will not be downloaded again.',
+					'playground-website'
+				),
 				action: 'open-copy',
-				label: 'Open cloned site',
-				resumeLabel: 'Try signing in again',
+				label: __('Open cloned site', 'playground-website'),
+				resumeLabel: __('Try signing in again', 'playground-website'),
 			};
 		case 'AUTH_CLOCK_SKEW':
 			return {
-				title: 'Check the clocks',
-				message:
+				title: __('Check the clocks', 'playground-website'),
+				message: __(
 					'The live site rejected the request’s time stamp. Check your computer’s date and time. Ask your host to check the server’s clock too.',
+					'playground-website'
+				),
 				action: 'resume',
-				label: 'I’ve checked the clocks — continue',
+				label: __(
+					'I’ve checked the clocks — continue',
+					'playground-website'
+				),
 			};
 		case 'WORDFENCE_BLOCKED':
 			return {
-				title: 'Wordfence blocked the connection',
-				message:
+				title: __(
+					'Wordfence blocked the connection',
+					'playground-website'
+				),
+				message: __(
 					'Wait for the temporary block to expire, or check Wordfence’s firewall rules on the live site. Then resume with this tab open. You do not need a new key.',
+					'playground-website'
+				),
 				action: 'wordfence',
-				label: 'Open Wordfence',
-				resumeLabel: 'Try resuming after the block clears',
+				label: __('Open Wordfence', 'playground-website'),
+				resumeLabel: __(
+					'Try resuming after the block clears',
+					'playground-website'
+				),
 			};
 		case 'AUTH_REQUEST_REWRITTEN':
 		case 'AUTH_HEADERS_STRIPPED':
 		case 'AUTH_CONTENT_TAMPERED':
 			return {
-				title: 'The host is changing Reprint’s requests',
-				message:
+				title: __(
+					'The host is changing Reprint’s requests',
+					'playground-website'
+				),
+				message: __(
 					'A proxy, firewall, or security plugin is changing the signed request before it reaches WordPress. Ask your host to pass the request path, headers, and body through unchanged. A new migration key will not help.',
+					'playground-website'
+				),
 				action: 'admin',
-				label: 'Open WordPress admin',
-				resumeLabel: 'The host settings changed — continue',
+				label: __('Open WordPress admin', 'playground-website'),
+				resumeLabel: __(
+					'The host settings changed — continue',
+					'playground-website'
+				),
 			};
 		case 'REQUEST_TOO_LARGE':
 		case 'UNSUPPORTED_MEDIA_TYPE':
 			return {
-				title: 'The host rejected Reprint’s request',
-				message:
+				title: __(
+					'The host rejected Reprint’s request',
+					'playground-website'
+				),
+				message: __(
 					'The live server rejected the request’s size or format. Ask your host to allow Reprint’s API requests before continuing. Retrying unchanged will not help.',
+					'playground-website'
+				),
 				action: 'admin',
-				label: 'Open WordPress admin',
-				resumeLabel: 'The host settings changed — continue',
+				label: __('Open WordPress admin', 'playground-website'),
+				resumeLabel: __(
+					'The host settings changed — continue',
+					'playground-website'
+				),
 			};
 		case 'AUTH_FAILED':
 			return {
-				title: 'The live site refused the connection',
-				message:
+				title: __(
+					'The live site refused the connection',
+					'playground-website'
+				),
+				message: __(
 					'The response does not confirm a key problem. Check the live site’s security rules, or ask your host why the request was refused. Keep your current migration key.',
+					'playground-website'
+				),
 				action: 'admin',
-				label: 'Open WordPress admin',
-				resumeLabel: 'I’ve checked access — continue',
+				label: __('Open WordPress admin', 'playground-website'),
+				resumeLabel: __(
+					'I’ve checked access — continue',
+					'playground-website'
+				),
 			};
 	}
 	// A cURL failure is not always temporary: certificate and URL errors also
@@ -174,31 +250,52 @@ export function getTransferRecovery({
 			[408, 429, 500, 502, 503, 504].includes(httpStatus ?? 0))
 	) {
 		return {
-			title: 'The connection was interrupted',
-			message:
+			title: __('The connection was interrupted', 'playground-website'),
+			message: __(
 				'The live site may be busy or the connection may have dropped. Wait a moment, then resume. Keep this tab open so Reprint can reuse its saved download position.',
+				'playground-website'
+			),
 			action: 'resume',
-			label: 'Resume cloning',
+			label: __('Resume cloning', 'playground-website'),
 		};
 	}
 	if (code === 'CURL_ERROR') {
 		return {
-			title: 'Check the connection to the live site',
-			message:
+			title: __(
+				'Check the connection to the live site',
+				'playground-website'
+			),
+			message: __(
 				'Reprint could not make a secure connection. Check that the live site opens normally. Your host may need to correct its HTTPS settings. Retrying unchanged may fail again.',
+				'playground-website'
+			),
 			action: 'site',
-			label: 'Open live site',
-			resumeLabel: 'I’ve checked the connection — continue',
+			label: __('Open live site', 'playground-website'),
+			resumeLabel: __(
+				'I’ve checked the connection — continue',
+				'playground-website'
+			),
 		};
 	}
 	return {
 		title:
-			stage === 'files-prepare' ? 'Local setup paused' : 'Cloning paused',
+			stage === 'files-prepare'
+				? __('Local setup paused', 'playground-website')
+				: __('Cloning paused', 'playground-website'),
 		message:
 			stage === 'files-prepare'
-				? 'The downloaded files are still here, but Playground could not finish setting them up. Check the details below. You can retry local setup without downloading those files again.'
-				: 'We could not finish this step. Check the details below before trying again. Keep this tab open to retain the current transfer.',
+				? __(
+						'The downloaded files are still here, but Playground could not finish setting them up. Check the details below. You can retry local setup without downloading those files again.',
+						'playground-website'
+					)
+				: __(
+						'We could not finish this step. Check the details below before trying again. Keep this tab open to retain the current transfer.',
+						'playground-website'
+					),
 		action: 'resume',
-		label: stage === 'files-prepare' ? 'Retry local setup' : 'Try again',
+		label:
+			stage === 'files-prepare'
+				? __('Retry local setup', 'playground-website')
+				: __('Try again', 'playground-website'),
 	};
 }

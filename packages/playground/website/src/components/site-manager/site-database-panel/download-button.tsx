@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { logger } from '@php-wasm/logger';
 import { Button, Icon, Flex, FlexItem } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { download } from '@wordpress/icons';
 import type { PlaygroundClient } from '@wp-playground/client';
 import css from './style.module.css';
@@ -27,7 +28,12 @@ export function DownloadButton({
 			await downloadDatabase(playground, databasePath);
 		} catch (downloadError) {
 			logger.error('Failed to download database', downloadError);
-			setError('Could not download the database. Please try again.');
+			setError(
+				__(
+					'Could not download the database. Please try again.',
+					'playground-website'
+				)
+			);
 		} finally {
 			setIsDownloading(false);
 		}
@@ -42,7 +48,9 @@ export function DownloadButton({
 				onClick={handleDownload}
 			>
 				<Flex justify="space-between" gap={2} expanded={true}>
-					<FlexItem>Download database.sqlite</FlexItem>
+					<FlexItem>
+						{__('Download database.sqlite', 'playground-website')}
+					</FlexItem>
 					<FlexItem>
 						<Icon icon={download} size={16} />
 					</FlexItem>
@@ -63,7 +71,9 @@ export async function downloadDatabase(
 ): Promise<void> {
 	const fileExists = await playground.fileExists(databasePath);
 	if (!fileExists) {
-		throw new Error('Database file does not exist');
+		throw new Error(
+			__('Database file does not exist', 'playground-website')
+		);
 	}
 
 	const buffer = await playground.readFileAsBuffer(databasePath);

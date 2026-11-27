@@ -3,6 +3,7 @@ import css from './style.module.css';
 import type { PlaygroundReduxState } from '../../lib/state/redux/store';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
 import { useEffect, useState, useRef, lazy, Suspense } from 'react';
+import { __ } from '@wordpress/i18n';
 import { GitHubOAuthGuardModal } from '../../github/github-oauth-guard';
 import {
 	GitHubExportSessionProvider,
@@ -115,7 +116,10 @@ export function Layout() {
 							className={classNames(css.previewDismiss, {
 								[css.previewDismissVisible]: dockPaneIsOpen,
 							})}
-							aria-label="Close Playground tools"
+							aria-label={__(
+								'Close Playground tools',
+								'playground-website'
+							)}
 							aria-hidden={dockPaneIsOpen ? undefined : true}
 							tabIndex={dockPaneIsOpen ? 0 : -1}
 							disabled={paneCloseBlocked}

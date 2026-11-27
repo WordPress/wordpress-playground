@@ -1,0 +1,3703 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: WordPress Playground Website\n"
+"Report-Msgid-Bugs-To: "
+"https://github.com/WordPress/wordpress-playground/issues\n"
+"POT-Creation-Date: 2026-11-27 00:00+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: WordPress Playground i18n tooling\n"
+"X-Domain: playground-website\n"
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/transfer-progress.tsx:36
+#. 1: Formatted count of transferred files, 2: Formatted total file count.
+msgid "%1$s / %2$s file"
+msgid_plural "%1$s / %2$s files"
+msgstr[0] ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-actions.ts:62
+#. 1: First setting name, 2: Second setting name.
+msgid "%1$s and %2$s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/terminal-error.ts:51
+#. 1: PHP ParseError message, 2: Line number, 3: Character offset.
+msgid "%1$s on line %2$d, character %3$d"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock-item-button.tsx:50
+#. 1: Dock button accessible label, 2: Notification status suffix.
+msgid "%1$s — %2$s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-actions.ts:69
+#. 1: Comma-separated setting names, 2: Final setting name.
+msgid "%1$s, and %2$s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-attachments.tsx:56
+#. %d: Number of email attachments.
+msgid "%d attachment"
+msgid_plural "%d attachments"
+msgstr[0] ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1372
+#. %d: Number of Blueprint JSON validation errors.
+msgid "%d validation error"
+msgid_plural "%d validation errors"
+msgstr[0] ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:461
+#: packages/playground/website/src/components/save-site-modal/index.tsx:474
+#. %s: Storage option label.
+msgid "%s (not available)"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:876
+#. %s: Human-readable Blueprint name.
+msgid "%s Blueprint"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1487
+#. %s: Hostname of the cloned site.
+msgid "%s cloned"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1497
+#. %s: Formatted number of cloned files.
+msgid "%s file"
+msgid_plural "%s files"
+msgstr[0] ""
+
+#: packages/playground/website/src/components/dock/dock-pane.tsx:142
+#. %s: Dock pane title.
+msgid "%s pane"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-display.ts:5
+msgid "(No subject)"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:780
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:983
+msgid "(no output)"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/multiple-paths-input.tsx:71
+msgid "+ Add path"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:758
+msgid "-- Select a plugin --"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:727
+msgid "-- Select a theme --"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/wordpress-version-options.ts:48
+#: packages/playground/website/src/components/site-manager/site-settings-form/wordpress-version-options.ts:57
+msgid "-- Select a version --"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:605
+#: packages/playground/website/src/github/github-import-form/form.tsx:403
+msgid "-- Select an option --"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1183
+msgid "1. Copy your migration key"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1303
+#. %s: Hostname of the live site.
+msgid "2. Authorize on %s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1355
+msgid "3. Return here and clone your site"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1359
+msgid "3. Return here and pull your site"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:319
+msgid "A Pull Request:"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:135
+msgid "A clean WordPress install — the default starting point."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:793
+msgid "A firewall, proxy, or VPN may be blocking the download."
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:309
+msgid "A path inside a repository:"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:614
+msgid "A plugin"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:193
+msgid ""
+"A proxy, firewall, or security plugin is changing the signed request before "
+"it reaches WordPress. Ask your host to pass the request path, headers, and "
+"body through unchanged. A new migration key will not help."
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:305
+msgid "A repository:"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:722
+msgid "A required resource is not available for download."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:611
+msgid "A theme"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1271
+msgid "About this connection"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1220
+#. %s: Playground name.
+msgid "Actions for %s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:89
+msgid "Activate a plugin."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:97
+msgid "Activate a theme."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1093
+msgid "Activate the plugin"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:68
+msgid "Active plugins"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1047
+#. %s: Hostname of the live site.
+msgid ""
+"Add the plugin to <siteLink>%s</siteLink> so Playground can connect to your "
+"live site."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:57
+msgid "Add your migration key"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:147
+msgid "All"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:266
+#: packages/playground/website/src/components/save-site-modal/index.tsx:323
+msgid "Allow Playground to edit that directory in the browser prompt to continue."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/unconnected-site-settings-form.tsx:555
+msgid "Allow network access"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:656
+#. 1: CORS proxy hostname, 2: Current site hostname.
+msgid ""
+"Allow outbound HTTPS requests to <primaryHost>%1$s</primaryHost> and "
+"<currentHost>%2$s</currentHost>."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:675
+#. %s: CORS proxy hostname.
+msgid "Allow outbound HTTPS requests to <primaryHost>%s</primaryHost>."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1124
+msgid "Already active?"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:937
+msgid ""
+"Also export the changes as a zip file, so they can be imported into another "
+"Playground instance."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:92
+msgid ""
+"An earlier reset was interrupted, and old site files are still in this "
+"saved Playground."
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:481
+msgid "Analyzing the repository..."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-action-footer.tsx:211
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-action-footer.tsx:84
+msgid "Apply to this Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/delete-site-modal/index.tsx:83
+#. %s: Name of the Playground site being deleted.
+msgid ""
+"Are you sure you want to delete the site \"%s\"? This action cannot be "
+"undone."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-attachments.tsx:82
+msgid "Attachments"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-preview.tsx:131
+msgid "Attachments:"
+msgstr ""
+
+#: packages/playground/website/src/components/github-private-repo-auth-modal/index.tsx:54
+#: packages/playground/website/src/github/github-oauth-guard/index.tsx:54
+msgid ""
+"Authorization popup opened. Continue in the popup to connect your GitHub "
+"account."
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:483
+msgid "Autosave complete"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:572
+msgid "Autosave failed"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:353
+msgid "Autosave progress"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:334
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:546
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:794
+msgid "Autosaved"
+msgstr ""
+
+#: packages/playground/website/src/components/ensure-playground-site/ensure-playground-site-is-selected.tsx:500
+#. %s: Relative time since the Playground was autosaved, e.g. "5 minutes ago".
+msgid "Autosaved %s"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:545
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:549
+msgid "Autosaving"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:2197
+msgid "Autosaving…"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:2187
+#. %d: Autosave completion percentage.
+msgid "Autosaving… %d%%"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:761
+msgid "Back to New Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:180
+msgid "Back to export options"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:766
+msgid "Back to migration key"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:770
+msgid "Back to site address"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:221
+msgid "Back to the GitHub repository URL"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:551
+msgid ""
+"Because of access restrictions set by your organization, these changes "
+"could not be submitted directly to the repository. Instead, they were "
+"submitted to your fork of the repository."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1130
+#: packages/playground/website/src/components/dock/tool-registry.tsx:130
+#: packages/playground/website/src/components/dock/tool-registry.tsx:138
+msgid "Blueprint"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-url-modal/index.tsx:60
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1913
+msgid "Blueprint URL"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:882
+#. %s: Hostname where the Blueprint is hosted.
+msgid "Blueprint URL on %s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:292
+msgid "Blueprint URL:"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:276
+msgid "Blueprint could not be downloaded"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:922
+msgid "Blueprint downloaded"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:927
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:939
+msgid "Blueprint error details"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:925
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:937
+msgid "Blueprint execution failed"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/blueprint-step-error-details.tsx:17
+#. 1: Step number in the Blueprint, 2: Description of the step action.
+msgid "Blueprint failed at step #%1$d: Could not %2$s."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1052
+msgid "Blueprint from a URL"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1044
+msgid "Blueprint gallery"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:619
+msgid "Blueprint is running"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:605
+msgid "Blueprint is running in a new Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:225
+msgid "Blueprint issue"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/json-schema-editor/blueprint-linter.ts:106
+msgid "Blueprint must be an object"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:180
+msgid "Blueprint run did not finish"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:178
+msgid "Blueprint run failed"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:399
+msgid "Blueprint validation error"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:670
+msgid "Branch"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/resolve-pr-input.ts:16
+msgid ""
+"Branch names aren't supported for WordPress Core — paste a pull request "
+"number or URL instead. (To preview a Gutenberg branch, paste its full "
+"GitHub branch URL.)"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:210
+msgid "Browse and edit the active Playground filesystem."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:985
+msgid "Browse files"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1157
+msgid "Browse files under /"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:799
+msgid ""
+"Browser extensions such as ad blockers can sometimes interfere with "
+"downloads."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1337
+msgid "Browser storage is unavailable"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:333
+msgid "Bundled resources used outside of a Blueprint bundle"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:94
+msgid "Calculating…"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/string-editor-modal.tsx:231
+#: packages/playground/website/src/components/modal/modal-buttons.tsx:39
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:361
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:751
+msgid "Cancel"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:1071
+#: packages/playground/website/src/github/github-export-form/form.tsx:341
+msgid ""
+"Cannot update this pull request because its source repository is "
+"unavailable."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:1083
+msgid ""
+"Cannot update this pull request because you don't have permission to push "
+"to its source branch. Create a new pull request instead."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-preview.tsx:113
+msgid "Cc:"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:81
+msgid "Change the site title."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:102
+msgid "Change this Playground’s WordPress, PHP, language, and network settings."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:103
+msgid "Changes from WordPress Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-actions.ts:50
+#. %s: List of changed Playground settings (e.g. "WordPress version and language").
+msgid "Changing %s requires a fresh Playground."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:92
+msgid "Check Reprint installation"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1120
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:995
+msgid "Check again"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:999
+msgid "Check site"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:87
+msgid ""
+"Check the WordPress address and make sure Reprint is active. A sign-in page "
+"or a security rule can also hide its response."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:157
+msgid "Check the clocks"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:264
+msgid "Check the connection to the live site"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:71
+msgid "Check the live site address"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:223
+msgid ""
+"Check the number, or paste the full GitHub URL if its preview build is "
+"still being prepared."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:153
+msgid "Check the pull request"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:358
+msgid "Check the pull request number or URL and try again."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1767
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:787
+msgid "Check your internet connection and try again."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:203
+#: packages/playground/website/src/github/preview-pr/form.tsx:334
+msgid "Check your internet connection, then try previewing the pull request again."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:317
+msgid "Checking GitHub for a preview build…"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:189
+msgid "Checking WordPress Core and Gutenberg…"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1212
+msgid "Checking availability…"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1119
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:990
+msgid "Checking…"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1100
+msgid "Choose <strong>Activate</strong>, then come back here."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:360
+msgid "Choose a WordPress Playground .zip export."
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:311
+msgid "Choose a directory to continue."
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:513
+msgid "Choose a directory..."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:698
+msgid "Choose the change you want to preview."
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:525
+msgid "Choose..."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:417
+msgid "Clear PHP history"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:418
+msgid "Clear WP-CLI history"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:233
+msgid "Clear filters"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:421
+msgid "Clear history"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:125
+msgid "Clear the object cache."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:225
+msgid "Clipboard access was blocked. Please try again."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:277
+msgid "Clone a WordPress site"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1699
+msgid "Clone a live site"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:269
+#: packages/playground/website/src/components/dock/tool-registry.tsx:272
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:981
+msgid "Clone site"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:726
+#. %s: Hostname of the site being cloned.
+msgid "Cloning %s"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:284
+msgid "Cloning paused"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock-pane.tsx:98
+#: packages/playground/website/src/components/dock/dock.tsx:1196
+msgid "Close"
+msgstr ""
+
+#: packages/playground/website/src/components/layout/index.tsx:119
+msgid "Close Playground tools"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:112
+msgid ""
+"Close any other Playground tabs that may be using this saved site, then "
+"click <reload>Reload</reload>. If no other Playground tabs are open, make "
+"sure your browser has free storage, then reload."
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:240
+msgid "Close local directory status"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:84
+msgid "Close other Playground tabs, then reload"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:894
+msgid "Commit message:"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:363
+msgid ""
+"Confirm that referenced files exist next to the blueprint.json file inside "
+"the bundle."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1137
+msgid "Connect manually"
+msgstr ""
+
+#: packages/playground/website/src/components/github-private-repo-auth-modal/index.tsx:28
+#: packages/playground/website/src/github/github-oauth-guard/index.tsx:27
+msgid "Connect to GitHub"
+msgstr ""
+
+#: packages/playground/website/src/components/github-private-repo-auth-modal/index.tsx:63
+#: packages/playground/website/src/components/github-private-repo-auth-modal/index.tsx:83
+#: packages/playground/website/src/github/github-oauth-guard/index.tsx:122
+#: packages/playground/website/src/github/github-oauth-guard/index.tsx:137
+msgid "Connect your GitHub account"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1168
+msgid "Connection steps"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-preview.tsx:147
+#. %s: Email subject line.
+msgid "Contents of %s"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:502
+msgid "Continue"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-action-footer.tsx:271
+msgid "Continuing permanently discards all of its files and changes."
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:189
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1257
+msgid "Copied"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:202
+msgid ""
+"Copies a URL that rebuilds this Playground from its original Blueprint on "
+"any device. It restores the starting setup only — your edits to files and "
+"content aren't included."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1033
+msgid "Copy Blueprint URL"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:280
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:937
+msgid ""
+"Copy a live site into a new Playground with Reprint. Your live site stays "
+"unchanged."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:211
+msgid "Copy link"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1191
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1195
+msgid "Copy link to blueprint"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:360
+#: packages/playground/website/src/components/log-modal/index.tsx:361
+msgid "Copy log entry"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:190
+msgid "Copy logs"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1242
+msgid "Copy migration key"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:199
+msgid "Copy original setup link"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:687
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:691
+msgid "Copy result"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:700
+msgid "Copy transfer log"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1464
+msgid "Copying to the clipboard failed. Select the log and copy it manually."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:260
+msgid ""
+"Could not analyze this GitHub branch URL. Please paste the repository URL "
+"and enter the path manually."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:958
+msgid "Could not copy link. Try again."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:687
+msgid "Could not create Playground. Try again."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:887
+#. %s: WP-CLI download URL.
+msgid "Could not download WP-CLI from %s."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:928
+msgid "Could not download bundle. Try again."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:759
+msgid "Could not download required files"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/download-button.tsx:32
+msgid "Could not download the database. Please try again."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:244
+#. %s: Error message from key generation.
+msgid "Could not generate a migration key: %s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-info-panel/site-tool-renderers.tsx:102
+msgid "Could not load Playground files."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-file-browser/index.tsx:174
+msgid "Could not mount the repository."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:666
+#. %s: Error message from reading the transfer log.
+msgid "Could not read the transfer log: %s"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:691
+msgid "Could not recreate Playground. Try again."
+msgstr ""
+
+#: packages/playground/website/src/components/ensure-playground-site/ensure-playground-site-is-selected.tsx:403
+msgid "Could not restore the autosave. Try again or keep the new Playground."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:436
+msgid "Could not save changes. Try again."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/use-site-settings-submission.ts:34
+msgid "Could not update Playground settings. Please try again."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:407
+msgid "Couldn’t autosave imported Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/ensure-playground-site/ensure-playground-site-is-selected.tsx:360
+msgid "Couldn’t autosave this Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:839
+msgid "Couldn’t complete this step"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:217
+#. %s: Pull request number.
+msgid "Couldn’t find PR %s in WordPress Core or Gutenberg."
+msgstr ""
+
+#: packages/playground/website/src/components/ensure-playground-site/ensure-playground-site-is-selected.tsx:137
+msgid "Couldn’t load Playgrounds"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:571
+#. %s: Playground name.
+msgid "Couldn’t open “%s”"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:744
+#. %s: Playground name.
+msgid "Couldn’t save %s locally"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:467
+msgid "Couldn’t save the cloned site"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:693
+#. %s: Playground name.
+msgid "Couldn’t store “%s” in browser storage"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1859
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1936
+msgid "Create Playground"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:985
+msgid "Create Pull Request"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-action-footer.tsx:227
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-action-footer.tsx:85
+msgid "Create a fresh Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/unconnected-site-settings-form.tsx:575
+msgid "Create a multisite network"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:826
+msgid "Create a new PR"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1804
+msgid ""
+"Create a new Playground from this draft. The full Blueprint editor opens "
+"this Playground's stored Blueprint instead."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:106
+msgid "Create a post."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:60
+msgid "Create post"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:599
+msgid "Creating a new Playground…"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:967
+msgid "Creating the Pull Request"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:133
+msgid "Current Blueprint"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1546
+msgid "Current Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/address-bar/index.tsx:50
+msgid "Dashboard"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:153
+#: packages/playground/website/src/components/dock/tool-registry.tsx:156
+#: packages/playground/website/src/components/dock/tool-registry.tsx:161
+msgid "Database"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/download-button.tsx:75
+msgid "Database file does not exist"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:2088
+msgid "Default"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1392
+msgid "Delete"
+msgstr ""
+
+#: packages/playground/website/src/components/delete-site-modal/index.tsx:65
+#: packages/playground/website/src/components/delete-site-modal/index.tsx:96
+msgid "Delete Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/delete-site-modal/index.tsx:53
+msgid "Deleting failed. Please try again."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:273
+msgid "Describe what caused the error and how can we recreate it."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1374
+#: packages/playground/website/src/components/dock/dock.tsx:1393
+msgid "Dev Tools"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1357
+#: packages/playground/website/src/components/dock/dock.tsx:1406
+msgid "Developer tools"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:247
+msgid "Directory selection is not supported in this browser."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:739
+msgid "Discard changes"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1257
+msgid "Discard current Playground & run Blueprint"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-action-footer.tsx:285
+msgid "Discard current work & create a fresh Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:720
+msgid "Discard your edits and open the selected result?"
+msgstr ""
+
+#: packages/playground/website/src/components/ensure-playground-site/ensure-playground-site-is-selected.tsx:481
+msgid "Dismiss and keep this Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1248
+msgid "Dismiss operation error"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1244
+msgid "Dismiss operation notification"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:805
+msgid "Do you want to update an existing PR or create a new one?"
+msgstr ""
+
+#: packages/playground/website/src/components/start-error-modal/index.tsx:41
+msgid "Don't show again"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:565
+msgid "Done"
+msgstr ""
+
+#: packages/playground/website/src/components/ensure-playground-site/ensure-playground-site-is-selected.tsx:531
+msgid "Don’t notify me about autosaves"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-attachments.tsx:202
+msgid "Download"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-attachments.tsx:189
+#. %s: Attachment filename.
+msgid "Download %s"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1045
+msgid "Download Zip"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:165
+msgid "Download a copy"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:182
+msgid "Download as .zip"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1209
+msgid "Download bundle"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/download-button.tsx:52
+msgid "Download database.sqlite"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:740
+msgid "Download details"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock-corner-launcher.tsx:32
+msgid "Drag out or click to show Playground tools"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:70
+msgid "Driver:"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1955
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1986
+msgid "Drop a Playground ZIP here"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:107
+msgid "Early access"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:197
+msgid "Edit Blueprint"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/string-editor-modal.tsx:212
+msgid "Edit String"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:77
+msgid "Edit site address"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:187
+#: packages/playground/website/src/components/blueprint-editor/json-schema-editor/json-schema-editor.tsx:104
+msgid "Edit string (Cmd/Ctrl+E)"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:245
+#: packages/playground/website/src/components/dock/tool-registry.tsx:248
+#: packages/playground/website/src/components/dock/tool-registry.tsx:253
+#: packages/playground/website/src/components/site-manager/site-mail-panel/index.tsx:33
+#: packages/playground/website/src/components/site-manager/site-mail-panel/index.tsx:59
+msgid "Email"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/index.tsx:45
+msgid "Emails sent by this Playground will appear here."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:175
+msgid "Enable networking and use PHP 8.1 or newer."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:357
+msgid ""
+"Ensure you are loading a Blueprint bundle (for example, a blueprint.zip "
+"file or a URL)."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:804
+msgid ""
+"Enter a WordPress Core or Gutenberg PR number or GitHub URL to open it in a "
+"fresh Playground."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/resolve-pr-input.ts:37
+msgid "Enter a pull request number or URL."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/resolve-pr-input.ts:147
+msgid "Enter a valid pull request number."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:865
+msgid "Enter the path in the repository where the changes should be committed:"
+msgstr ""
+
+#: packages/playground/website/src/components/start-error-modal/index.tsx:50
+msgid "Error"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:259
+msgid "Error details"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:53
+msgid "Errors"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:233
+msgid "Errors, warnings, and notices from your site."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:430
+msgid "Example PHP snippets"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:628
+msgid "Execution time"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:831
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:948
+#. %d: Process exit code.
+msgid "Exit code: %d"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock-toggle-pill.tsx:38
+msgid "Exit full width"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:137
+#. %s: Expected JSON value type (e.g. "string", "object").
+msgid "Expected %s"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1002
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:992
+msgid "Export"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:150
+msgid "Export options"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:574
+msgid "Export plugins, themes, or a wp-content directory to a GitHub repository."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:179
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:245
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:262
+#: packages/playground/website/src/github/github-export-form/modal.tsx:31
+msgid "Export to GitHub"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:110
+msgid "Export to GitHub form"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:774
+msgid "Failed file:"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/adminer-button.tsx:157
+#. %s: Error message from installing Adminer.
+msgid "Failed to install Adminer. Please try again. Error: %s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/phpmyadmin-button.tsx:133
+#. %s: Error message from installing phpMyAdmin.
+msgid "Failed to install phpMyAdmin. Please try again. Error: %s"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1134
+#: packages/playground/website/src/components/dock/tool-registry.tsx:199
+#: packages/playground/website/src/components/dock/tool-registry.tsx:202
+#: packages/playground/website/src/components/dock/tool-registry.tsx:207
+msgid "Files"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:139
+msgid "Filter logs"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:375
+msgid "Finalizing save..."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:818
+msgid "Find pull request"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1248
+msgid "Finishing Playground sync…"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1235
+msgid "Fix validation errors before running"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:114
+msgid "Flush rewrite rules."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:648
+msgid "For IT administrators"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1071
+msgid "From GitHub"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:638
+msgid "From Playground path"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1051
+msgid "From a URL"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:440
+msgid "From the following path in the repo:"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-preview.tsx:97
+msgid "From:"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock-toggle-pill.tsx:39
+msgid "Full width"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1196
+msgid "Generating a migration key…"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:206
+msgid "GitHub"
+msgstr ""
+
+#: packages/playground/website/src/github/oauth-popup.ts:113
+msgid "GitHub OAuth popup timed out."
+msgstr ""
+
+#: packages/playground/website/src/github/oauth-popup.ts:100
+msgid "GitHub OAuth popup was closed."
+msgstr ""
+
+#: packages/playground/website/src/github/client.ts:16
+msgid "GitHub authentication is required."
+msgstr ""
+
+#: packages/playground/website/src/github/connect-to-github.ts:42
+msgid "GitHub authorization failed."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:372
+#. %s: Pull request number.
+msgid ""
+"GitHub hasn’t started a preview build for PR %s. Check that its preview "
+"workflow is enabled, then try again."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:259
+#. 1: Pull request number, 2: Retry delay in seconds.
+msgid ""
+"GitHub is still building PR %1$s. This can take 15 minutes or more. "
+"Retrying in %2$d second…"
+msgid_plural ""
+"GitHub is still building PR %1$s. This can take 15 minutes or more. "
+"Retrying in %2$d seconds…"
+msgstr[0] ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:248
+#. 1: Branch name, 2: Retry delay in seconds.
+msgid ""
+"GitHub is still building branch %1$s. This can take 15 minutes or more. "
+"Retrying in %2$d second…"
+msgid_plural ""
+"GitHub is still building branch %1$s. This can take 15 minutes or more. "
+"Retrying in %2$d seconds…"
+msgstr[0] ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:251
+msgid ""
+"GitHub only keeps pull-request build artifacts for a limited time. Re-run "
+"the workflow or restart without that PR."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:823
+#. %s: Gutenberg pull request number.
+msgid "Gutenberg PR #%s"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:835
+#. %s: Gutenberg git branch name.
+msgid "Gutenberg branch %s"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:299
+msgid "Here's a few examples of URLs you can use:"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:292
+msgid "Hide examples"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:984
+msgid "Hide files"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock-toggle-pill.tsx:36
+msgid "Hide tools"
+msgstr ""
+
+#: packages/playground/website/src/components/address-bar/index.tsx:45
+msgid "Homepage"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:269
+msgid "How can we recreate this error?"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:593
+msgid "I am exporting:"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:388
+msgid "I am importing a:"
+msgstr ""
+
+#: packages/playground/website/src/github/github-oauth-guard/index.tsx:114
+msgid "I understand, and I have exported my Playground as a zip if needed."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:777
+msgid "I want my Pull Request to target this GitHub repo:"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:258
+msgid "I want to import from this GitHub URL:"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:839
+msgid "I want to update the PR number:"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:354
+msgid "If this is a Gutenberg PR, paste its full GitHub URL instead."
+msgstr ""
+
+#: packages/playground/website/src/components/github-private-repo-auth-modal/index.tsx:44
+msgid ""
+"If you have a GitHub account with access to this repository, you can "
+"connect it to continue."
+msgstr ""
+
+#: packages/playground/website/src/components/missing-site-modal/index.tsx:54
+msgid ""
+"If you want to preserve your changes, you can save the Playground to "
+"browser storage."
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:500
+msgid "Import"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1079
+msgid "Import a .zip export"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1966
+msgid ""
+"Import a WordPress Playground <code>.zip</code> export to start a new "
+"Playground from it."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1892
+msgid "Import finished! Your Playground has been updated."
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/modal.tsx:66
+msgid "Import finished! Your Playground site has been updated."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1072
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:220
+#: packages/playground/website/src/github/github-import-form/modal.tsx:54
+msgid "Import from GitHub"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1078
+msgid "Import zip"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:336
+#. 1: Pull Request number, 2: Repository owner, 3: Repository name.
+msgid "Importing from Pull Request #%1$s at %2$s/%3$s"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:349
+#. 1: Branch name, 2: Repository owner, 3: Repository name.
+msgid "Importing from branch %1$s at %2$s/%3$s"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:362
+#. 1: Repository owner, 2: Repository name.
+msgid "Importing from the %1$s/%2$s repository"
+msgstr ""
+
+#: packages/playground/website/src/github/github-oauth-guard/index.tsx:89
+msgid ""
+"Importing plugins, themes, and wp-content directories directly from your "
+"public GitHub repositories."
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:491
+#. 1: Number of downloaded files, 2: Total number of files found.
+msgid "Importing... %1$d/%2$d files downloaded"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/unconnected-site-settings-form.tsx:219
+msgid "Include older versions"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:55
+msgid "Info"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:448
+#. %s: PHP example snippet code.
+msgid "Insert example: %s"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:164
+msgid "Inspect and edit the SQLite database behind this Playground."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:255
+msgid "Inspection details"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1074
+msgid "Install Reprint"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1029
+msgid "Install Reprint Server"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:232
+msgid ""
+"It seems like the local directory backing this site was removed. This "
+"Playground copy will not load anymore."
+msgstr ""
+
+#: packages/playground/website/src/components/ensure-playground-site/ensure-playground-site-is-selected.tsx:364
+msgid ""
+"It’s still open but will be lost on refresh. Your earlier autosave is "
+"unchanged."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:64
+msgid "I’ve added the key — continue"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1384
+msgid "I’ve authorized it — clone site"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1388
+msgid "I’ve authorized it — pull site"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:234
+msgid "I’ve checked access — continue"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:163
+msgid "I’ve checked the clocks — continue"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:274
+msgid "I’ve checked the connection — continue"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:93
+msgid "I’ve checked the site — continue"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1238
+msgid "I’ve copied the key"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:110
+msgid "I’ve updated Reprint — continue"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1350
+msgid "Keep autosave permanently"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1428
+msgid "Keep pulling"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1437
+msgid "Keep this tab open until the clone finishes."
+msgstr ""
+
+#: packages/playground/website/src/components/missing-site-modal/index.tsx:99
+msgid "Keep using an Unsaved Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/ensure-playground-site/ensure-playground-site-is-selected.tsx:520
+msgid "Kept in this browser as a periodic snapshot — not every change is saved."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/string-editor-modal.tsx:218
+#: packages/playground/website/src/components/site-manager/site-settings-form/unconnected-site-settings-form.tsx:289
+msgid "Language"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:375
+msgid "Learn how Blueprint Bundles work"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:210
+msgid "Link copied"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:952
+msgid "Link copied to clipboard"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:613
+msgid "Link fails to load?"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:622
+msgid "Link works fine?"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:939
+msgid ""
+"Linking to blueprint bundles is not supported yet. Only single-file "
+"blueprints can be shared via link."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:85
+msgid "List installed plugins."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:93
+msgid "List installed themes."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:54
+msgid "List posts"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:101
+msgid "List posts."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:110
+msgid "List users."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:950
+msgid "Live site URL"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-info-panel/site-tool-renderers.tsx:206
+msgid "Loading Terminal…"
+msgstr ""
+
+#: packages/playground/website/src/components/modal-loading-fallback/index.tsx:15
+msgid "Loading modal..."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-info-panel/site-tool-renderers.tsx:235
+msgid "Loading site transfer…"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/SiteBlueprintBundleEditor.tsx:347
+#: packages/playground/website/src/components/site-manager/site-info-panel/site-tool-renderers.tsx:173
+msgid "Loading the Blueprint editor…"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-info-panel/site-tool-renderers.tsx:138
+msgid "Loading the file browser…"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:174
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:85
+msgid "Loading…"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:232
+#: packages/playground/website/src/components/save-site-modal/index.tsx:499
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:763
+msgid "Local directory"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:180
+msgid "Local directory permissions expired"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:225
+msgid "Local directory save status"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:228
+msgid "Local directory was deleted"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1441
+msgid "Local edits may be replaced. Keep this tab open until the pull finishes."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:283
+msgid "Local setup paused"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/unconnected-site-settings-form.tsx:262
+#. %s: PHP version number, e.g. 7.4.
+msgid "Locked to PHP %s for this WordPress version."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:222
+#: packages/playground/website/src/components/dock/tool-registry.tsx:225
+msgid "Logs"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:292
+msgid "Making WordPress #playground-logs Slack channel"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:812
+msgid "Migration key"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:119
+#. %s: Required property name in Blueprint JSON.
+msgid "Missing required property \"%s\""
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:688
+msgid "More options"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-action-footer.tsx:106
+msgid "More settings actions"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-file-browser/index.tsx:390
+#. 1: Repository path, 2: Git reference (branch, tag, or commit).
+msgid "Mounted from %1$s (%2$s)"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1017
+msgid "Multi-file Blueprints can’t be shared as a URL — download a zip instead."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:186
+#: packages/playground/website/src/components/blueprint-editor/json-schema-editor/json-schema-editor.tsx:103
+msgid "Multiline Edit"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:73
+msgid "MySQL emulation backed by SQLite"
+msgstr ""
+
+#: packages/playground/website/src/components/rename-site-modal/index.tsx:82
+msgid "Name"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:293
+msgid "Need an example?"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:199
+msgid "Need urgent access? Let us know on <githubLink>GitHub</githubLink>."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1658
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1687
+msgid "Needs an internet connection — unavailable offline"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:536
+msgid "Network blocked this request"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:278
+msgid "Network error details"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1171
+#: packages/playground/website/src/components/dock/tool-registry.tsx:50
+#: packages/playground/website/src/components/dock/tool-registry.tsx:56
+msgid "New Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/address-bar/index.tsx:60
+msgid "New Post"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:665
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:669
+msgid "Next result"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:974
+msgid "Next step"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1779
+msgid "No Blueprints found matching your criteria."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1536
+msgid "No Playgrounds available yet."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1007
+msgid "No account or migration key needed."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:952
+msgid "No active Playground to import into."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:699
+msgid "No changes were made to this Playground."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/index.tsx:42
+msgid "No emails yet"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:222
+msgid "No logs match the current filter."
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:216
+#. %s: Log search term entered by the user.
+msgid "No logs match “%s”."
+msgstr ""
+
+#: packages/playground/website/src/components/playground-viewport/index.tsx:165
+msgid "No site is selected"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:196
+#: packages/playground/website/src/components/save-site-modal/index.tsx:488
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1213
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1296
+msgid "Not available in this browser"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:197
+msgid "Not available on this site"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:760
+msgid "Not saved to browser storage"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:240
+msgid "Nothing logged yet"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/resolve-pr-input.ts:79
+msgid "Only WordPress/wordpress-develop and WordPress/gutenberg URLs are supported."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1283
+msgid ""
+"Only the migration key goes to your live site. The private key stays in "
+"this tab and is reused when you retry."
+msgstr ""
+
+#: packages/playground/website/src/components/start-error-modal/index.tsx:27
+msgid ""
+"Oops! There was a problem starting Playground. To figure out what went "
+"wrong, please take a look at the error logs provided below. If you see an "
+"\"Invalid blueprint error,\" the logs will point out the specific step "
+"causing the issue. You can then double-check your blueprint. For more help, "
+"you can also"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1434
+#. %s: Playground name.
+msgid "Open %s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/adminer-button.tsx:145
+msgid "Open Adminer"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:63
+msgid "Open Reprint settings"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1334
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1341
+msgid "Open Reprint settings ↗"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:198
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:216
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:233
+msgid "Open WordPress admin"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:179
+msgid "Open Wordfence"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:152
+msgid "Open cloned site"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:109
+msgid "Open installed plugins"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:273
+msgid "Open live site"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/phpmyadmin-button.tsx:121
+msgid "Open phpMyAdmin"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1533
+msgid "Open site"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1825
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1829
+msgid "Open the full Blueprint editor"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:191
+msgid "Open this Playground to save it to a local directory"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:301
+msgid "Open this Playground to save it to a local directory."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:609
+msgid "Opening the new Playground now."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1226
+msgid "Operation failed"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1225
+msgid "Operation succeeded"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/unconnected-site-settings-form.tsx:255
+msgid "PHP Version"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/unconnected-site-settings-form.tsx:244
+msgid "PHP Version is required"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:163
+msgid "PHP code"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:230
+#: packages/playground/website/src/components/log-modal/index.tsx:39
+msgid "PHP error log"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:243
+msgid ""
+"PHP errors, warnings, and notices from your site appear here as they are "
+"written to the debug log."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:663
+#: packages/playground/website/src/github/preview-pr/form.tsx:731
+#. %s: Pull request number.
+msgid "PR #%s"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:460
+#. %s: Pull request number.
+msgid ""
+"PR %s couldn’t be previewed. Try again later or file an issue in the "
+"WordPress Playground repository."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:389
+#. %s: Pull request number.
+msgid ""
+"PR %s predates the Pull Request previewer. Rebase it to create a preview "
+"build."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:350
+#. %s: Pull request number.
+msgid "PR %s wasn’t found"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:632
+#: packages/playground/website/src/github/preview-pr/form.tsx:640
+msgid "PR number or GitHub URL"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:614
+msgid "PR number or URL"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:615
+msgid "PR number, URL, or a branch name"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/terminal-error.ts:25
+#. 1: Line number, 2: Character offset.
+msgid ""
+"ParseError on line %1$d, character %2$d: Incomplete PHP code. Check for a "
+"missing semicolon or closing delimiter."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/terminal-error.ts:36
+#. %s: Line number.
+msgid ""
+"ParseError on line %s: Incomplete PHP code. Check for a missing semicolon "
+"or closing delimiter."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/terminal-error.ts:43
+msgid ""
+"ParseError: Incomplete PHP code. Check for a missing semicolon or closing "
+"delimiter."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/resolve-pr-input.ts:130
+#: packages/playground/website/src/github/preview-pr/resolve-pr-input.ts:55
+#: packages/playground/website/src/github/preview-pr/resolve-pr-input.ts:67
+msgid ""
+"Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch "
+"URL."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1312
+msgid ""
+"Paste into <token>Migration Token</token>, then choose <authorize>Authorize "
+"client</authorize>."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:79
+msgid "Path:"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:692
+msgid "Paths to export - relative to the path root"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:111
+msgid ""
+"Playground <sqliteLink>emulates MySQL with SQLite</sqliteLink>. These tools "
+"are a work in progress — <issuesLink>report issues</issuesLink>."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1347
+msgid "Playground actions"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:767
+msgid ""
+"Playground could not download one or more files it needs to run. This is "
+"usually caused by a network problem."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:548
+#. %s: Hostname of the blocked file download server.
+msgid "Playground couldn't download a file from <host>%s</host>."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:558
+msgid "Playground couldn't download a file."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:285
+msgid ""
+"Playground couldn't download the Blueprint file. Make sure the file is "
+"reachable, responds with valid JSON or a blueprint.zip archive, and is "
+"still available at the link before trying again."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:199
+#: packages/playground/website/src/github/preview-pr/form.tsx:330
+msgid "Playground couldn’t check GitHub right now."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:838
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:229
+msgid "Playground crashed"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-info-panel/site-tool-renderers.tsx:155
+msgid "Playground files are still loading…"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:383
+msgid "Playground imported"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:442
+msgid "Playground name"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:574
+#. %s: Hostname of the CORS proxy server.
+msgid ""
+"Playground runs entirely in your browser. To download plugins, themes, and "
+"other files, it routes requests through a CORS proxy server at "
+"<host>%s</host>. Your network seems to be blocking this proxy, a common "
+"issue on school, university, and corporate networks."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:584
+msgid ""
+"Playground runs entirely in your browser. To download plugins, themes, and "
+"other files, it routes requests through a CORS proxy server. Your network "
+"seems to be blocking this proxy, a common issue on school, university, and "
+"corporate networks."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:887
+msgid ""
+"Playground stopped because the downloaded WordPress package was missing "
+"files."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:105
+msgid ""
+"Playground stopped because those old files may show the old site instead of "
+"the reset site."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1316
+msgid "Playground title"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1286
+msgid "Playground tools"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:452
+#. %s: Pull request number.
+msgid ""
+"Playground treated %s as a WordPress Core PR but couldn’t verify it. If "
+"this is a Gutenberg PR, paste its full GitHub URL instead."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:99
+msgid ""
+"Playground tried to remove those old files again before opening the site, "
+"but the browser still would not remove them."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:70
+msgid "Playgrounds"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:303
+msgid "Please enter a PR number"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:211
+#: packages/playground/website/src/github/github-import-form/form.tsx:84
+msgid "Please enter a URL"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:296
+msgid "Please select an option"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:164
+msgid "Please select what you want to import"
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:415
+msgid "Plugin"
+msgstr ""
+
+#: packages/playground/website/src/components/address-bar/index.tsx:65
+msgid "Plugins"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:181
+msgid "Preparing .zip…"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:383
+msgid "Preparing to save..."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:819
+#: packages/playground/website/src/github/preview-pr/form.tsx:827
+msgid "Preview"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:867
+#. 1: PR or branch title, 2: Repository name.
+msgid "Preview %1$s from %2$s"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/modal.tsx:20
+msgid "Preview a Gutenberg PR or Branch"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1065
+msgid "Preview a PR"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/modal.tsx:19
+msgid "Preview a WordPress PR"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:623
+msgid "Preview a pull request"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:118
+msgid "Preview a search and replace."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:432
+msgid "Preview build expired"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:244
+msgid "Preview build in progress"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:366
+msgid "Preview build not started"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:256
+msgid "Preview messages sent by this Playground."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:448
+msgid "Preview unavailable"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:643
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:647
+msgid "Previous result"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:532
+msgid "Pull Request created!"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:533
+msgid "Pull Request updated!"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:712
+#. %s: Pull request number.
+msgid "Pull request %s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:985
+msgid "Pull site"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:734
+#. %s: Hostname of the site being pulled.
+msgid "Pulling %s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:248
+msgid "Pushes the current state — including your edits — to a GitHub repository."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:192
+msgid "Re-selecting the directory is not supported yet."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:422
+#. %s: Pull request number.
+msgid "Rebase PR %s to create a valid preview build."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:386
+#: packages/playground/website/src/github/preview-pr/form.tsx:419
+msgid "Rebase required"
+msgstr ""
+
+#: packages/playground/website/src/components/ensure-playground-site/ensure-playground-site-is-selected.tsx:476
+msgid "Recent autosave"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:315
+#. %d: Maximum number of autosaved Playgrounds kept in browser storage.
+msgid ""
+"Recent autosave — deleted after %d newer autosaves. Click to store it "
+"permanently."
+msgstr ""
+
+#: packages/playground/website/src/components/ensure-playground-site/ensure-playground-site-is-selected.tsx:472
+msgid "Recent autosaved Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1562
+msgid "Recent autosaves"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:620
+msgid "Recreating this Playground now."
+msgstr ""
+
+#: packages/playground/website/src/components/address-bar/index.tsx:246
+#: packages/playground/website/src/components/address-bar/index.tsx:247
+msgid "Refresh page"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:130
+msgid "Reload"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:855
+msgid "Reload Fresh Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:914
+msgid "Reload and try again"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:278
+msgid "Reload files from disk"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:813
+msgid "Reload page"
+msgstr ""
+
+#: packages/playground/website/src/components/ensure-playground-site/ensure-playground-site-is-selected.tsx:141
+msgid "Reload the page to try browser storage again."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:900
+msgid "Reload to download WordPress again."
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:284
+msgid "Reload to pick up edits made to the folder outside Playground."
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:277
+msgid "Reloading…"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1144
+#: packages/playground/website/src/components/rename-site-modal/index.tsx:98
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1365
+msgid "Rename"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1140
+#: packages/playground/website/src/components/rename-site-modal/index.tsx:65
+msgid "Rename Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/rename-site-modal/index.tsx:53
+msgid "Renaming failed. Please try again."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:352
+msgid "Report this crash"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:268
+msgid ""
+"Reprint could not make a secure connection. Check that the live site opens "
+"normally. Your host may need to correct its HTTPS settings. Retrying "
+"unchanged may fail again."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:737
+msgid "Required resource is unavailable"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:338
+msgid "Resource loader details"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:263
+msgid "Restart without that PR"
+msgstr ""
+
+#: packages/playground/website/src/components/ensure-playground-site/ensure-playground-site-is-selected.tsx:517
+msgid "Restore autosave"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:618
+#. 1: Current result index, 2: Total number of results.
+msgid "Result %1$d of %2$d"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:259
+msgid "Resume cloning"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:698
+#: packages/playground/website/src/components/site-manager/site-info-panel/site-tool-renderers.tsx:123
+msgid "Retry"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:298
+msgid "Retry local setup"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:151
+msgid "Return to your last Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:141
+msgid "Review and edit the Blueprint that describes this Playground."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:416
+msgid "Review the Blueprint data format"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:587
+msgid "Run"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-url-modal/index.tsx:68
+msgid "Run Blueprint"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-url-modal/index.tsx:43
+msgid "Run Blueprint from URL"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:791
+msgid "Run PHP code to see the result."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:187
+msgid "Run PHP snippets or WP-CLI commands in this Playground."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:795
+msgid "Run a WP-CLI command to see the result."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1253
+msgid "Run in a new Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1292
+msgid "Run will wait for this Playground to finish saving."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1299
+#. %s: Name of the current Playground.
+msgid ""
+"Running this Blueprint creates a fresh autosaved Playground. “%s” stays in "
+"Recent autosaves."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1307
+#. %s: Name of the current Playground.
+msgid ""
+"Running this Blueprint creates a fresh autosaved Playground. “%s” stays in "
+"Saved Playgrounds."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1923
+msgid "Runs a Blueprint hosted at a public URL as a fresh Playground."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:226
+msgid "Runtime error"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/string-editor-modal.tsx:236
+#: packages/playground/website/src/components/save-site-modal/index.tsx:560
+msgid "Save"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:589
+#: packages/playground/website/src/components/save-site-modal/index.tsx:590
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1287
+msgid "Save Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/missing-site-modal/index.tsx:79
+msgid "Save Playground to browser storage"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:484
+msgid "Save complete"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:573
+msgid "Save failed"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:396
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1278
+msgid "Save in a local directory"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1324
+msgid "Save in a local directory…"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:393
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1252
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1309
+msgid "Save in browser storage"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:394
+msgid "Save in this browser"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:354
+msgid "Save progress"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:397
+msgid "Save to a local directory"
+msgstr ""
+
+#: packages/playground/website/src/components/missing-site-modal/index.tsx:34
+msgid "Save to browser storage?"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:216
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:304
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1566
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:799
+msgid "Saved"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:259
+msgid "Saved directly to the linked folder"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1274
+msgid "Saved in a local directory"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1248
+msgid "Saved in browser storage"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:209
+msgid "Saved to a local directory."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:168
+msgid ""
+"Saves everything as it is right now — files, database, and your edits — to "
+"a .zip you can re-import later."
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:541
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:550
+msgid "Saving"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:379
+#. 1: Number of files saved so far, 2: Total number of files to save.
+msgid "Saving %1$d / %2$d files..."
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:378
+msgid "Saving failed. Click to try again."
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:349
+msgid "Saving failed. Please try again."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-persist-button/index.tsx:51
+msgid "Saving..."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:2198
+msgid "Saving…"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:2192
+#. %d: Save completion percentage.
+msgid "Saving… %d%%"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:130
+msgid "Search"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:2039
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:2043
+msgid "Search Blueprints"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:131
+msgid "Search logs"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1053
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1062
+msgid "See Blueprints documentation"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1426
+msgid "Select a file to view or edit its contents."
+msgstr ""
+
+#: packages/playground/website/src/components/playground-viewport/index.tsx:171
+msgid "Select a site from the site manager to explore Playground."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/unconnected-site-settings-form.tsx:225
+msgid "Selecting an older version locks the PHP version to the one it runs on."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/index.tsx:67
+msgid "Sent"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/index.tsx:63
+msgid "Sent emails"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-preview.tsx:123
+msgid "Sent:"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:229
+msgid "Setup URL copied to the clipboard."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1584
+#. %d: Number of hidden saved Playgrounds.
+msgid "Show %d more Playground"
+msgid_plural "Show %d more Playgrounds"
+msgstr[0] ""
+
+#: packages/playground/website/src/components/dock/dock-corner-launcher.tsx:31
+msgid "Show Playground tools"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:347
+#. %d: Number of lines in the log entry.
+msgid "Show all %d lines"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1581
+msgid "Show fewer Playgrounds"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1275
+msgid "Show key and connection details"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:343
+msgid "Show less"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:353
+msgid "Show more"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:77
+msgid "Show the site title."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock-toggle-pill.tsx:35
+msgid "Show tools"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1081
+msgid "Sign in if asked. Choose <strong>Install Now</strong>."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:717
+#. %s: Hostname of the cloned site.
+msgid "Signing in to %s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:519
+msgid "Signing in to the cloned site…"
+msgstr ""
+
+#: packages/playground/website/src/components/address-bar/index.tsx:55
+msgid "Site Editor"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:91
+#: packages/playground/website/src/components/dock/tool-registry.tsx:94
+#: packages/playground/website/src/components/dock/tool-registry.tsx:99
+msgid "Site Settings"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:50
+msgid "Site URL"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:745
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:750
+msgid "Site cloned"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:143
+msgid "Site cloned. Sign-in needs attention."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:90
+msgid "Size:"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-attachments.tsx:176
+#. %s: Formatted file size, e.g. "12.4 KB".
+msgid "Size: %s"
+msgstr ""
+
+#: packages/playground/website/src/components/offline-notice/index.tsx:12
+msgid "Some features may not be available because you are offline."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:843
+msgid ""
+"Something unexpected interrupted the boot process. Reload the tab or spin "
+"up a new site."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:623
+msgid "Specific paths"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:310
+msgid "Specify a commit message"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:231
+msgid "Specify the plugin to export"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:224
+msgid "Specify the theme to export"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:217
+msgid "Specify what you want to export"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:59
+msgid "Spin up a fresh Playground or start from a Blueprint."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-action-footer.tsx:237
+#. %d: Maximum number of autosaved Playgrounds kept in browser storage.
+msgid ""
+"Start a clean site. Your current Playground stays in Recent autosaves until "
+"%d newer autosaves replace it."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-action-footer.tsx:231
+msgid "Start a clean site. Your current Playground stays in Saved Playgrounds."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:172
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:162
+msgid "Start a new Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:140
+msgid "Start a new Playground to continue"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1045
+msgid "Start from a Blueprint"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/index.tsx:96
+msgid "Start or select a Playground before opening this tool."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-file-browser/index.tsx:198
+msgid "Start this Playground to browse and edit its files."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:323
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:389
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:430
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:705
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:748
+msgid "Start without a Blueprint"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:776
+#. %s: Origin of the Playground, e.g. "default WordPress" or "inline Blueprint".
+msgid "Started from %s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:420
+msgid "Starting Reprint…"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/blueprint-step-error-details.tsx:34
+msgid "Step definition"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1457
+msgid "Stop"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1422
+msgid "Stop pulling"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1405
+#. %s: Hostname of the live site.
+msgid "Stop pulling %s? Downloaded files stay saved, so you can resume later."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1453
+msgid "Stopping after this step…"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1240
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1266
+msgid "Storage can’t be changed"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:453
+msgid "Storage location"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:292
+#: packages/playground/website/src/components/dock/tool-registry.tsx:295
+#: packages/playground/website/src/components/dock/tool-registry.tsx:299
+msgid "Store permanently"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:297
+msgid "Stored permanently in this browser."
+msgstr ""
+
+#: packages/playground/website/src/components/modal/modal-buttons.tsx:20
+msgid "Submit"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:369
+msgid "Submit report"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:81
+msgid "Switch between your recent and saved Playgrounds."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1375
+msgid "Switch to another Playground first to delete this one."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:539
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:763
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:883
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:891
+msgid "Technical details"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:404
+msgid ""
+"Temporary Playground — everything is lost on refresh. Click to store it "
+"permanently."
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:432
+msgid ""
+"Temporary Playground — lost on refresh. Saving is unavailable in this "
+"browser."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:176
+#: packages/playground/website/src/components/dock/tool-registry.tsx:179
+#: packages/playground/website/src/components/dock/tool-registry.tsx:184
+msgid "Terminal"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:384
+msgid "Terminal mode"
+msgstr ""
+
+#: packages/playground/website/src/components/missing-site-modal/index.tsx:46
+#. %s: Name of the requested Playground that could not be found.
+msgid ""
+"The %s Playground does not exist, so we loaded an Unsaved Playground "
+"instead."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:405
+msgid ""
+"The Blueprint does not conform to the required JSON schema. Fix the "
+"validation output and retry."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1761
+msgid "The Blueprint gallery couldn’t load"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:136
+msgid "The Blueprint run did not finish."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:438
+#. %s: Pull request number.
+msgid ""
+"The CI build artifact has expired for PR %s. Push a new commit, rebase, or "
+"rerun the CI job to create a fresh build."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:747
+msgid "The Playground in your browser is unchanged."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:154
+msgid ""
+"The Playground is still loading — Download and Export to GitHub will be "
+"ready in a moment."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:137
+msgid ""
+"The Playground is still loading — Export to GitHub will be ready in a "
+"moment."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:155
+msgid "The Playground is still loading — database tools will be ready in a moment."
+msgstr ""
+
+#: packages/playground/website/src/components/pane-loading/index.tsx:28
+msgid "The Playground is still loading — these tools will be ready in a moment."
+msgstr ""
+
+#: packages/playground/website/src/github/github-oauth-guard/index.tsx:103
+msgid ""
+"The authentication flow opens in a popup. Your running Playground will stay "
+"open."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:446
+msgid ""
+"The browser could no longer access your local directory handle. "
+"Re-importing the folder will be necessary to continue."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:185
+msgid ""
+"The browser no longer lets Playground access your previously shared local "
+"directory."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:253
+msgid "The connection was interrupted"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:287
+msgid ""
+"The downloaded files are still here, but Playground could not finish "
+"setting them up. Check the details below. You can retry local setup without "
+"downloading those files again."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:189
+msgid "The host is changing Reprint’s requests"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:207
+msgid "The host rejected Reprint’s request"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:199
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:217
+msgid "The host settings changed — continue"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:411
+msgid "The imported page was ready, but its browser autosave failed."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:211
+msgid ""
+"The live server rejected the request’s size or format. Ask your host to "
+"allow Reprint’s API requests before continuing. Retrying unchanged will not "
+"help."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:58
+msgid ""
+"The live site has not accepted this tab’s migration key. Add it in Reprint "
+"settings, then come back here. Trying again before that will not help."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:254
+msgid ""
+"The live site may be busy or the connection may have dropped. Wait a "
+"moment, then resume. Keep this tab open so Reprint can reuse its saved "
+"download position."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:104
+msgid ""
+"The live site may be using an older Reprint plugin that cannot verify "
+"migration keys. Update the plugin, then continue with the same key."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:224
+msgid "The live site refused the connection"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:158
+msgid ""
+"The live site rejected the request’s time stamp. Check your computer’s date "
+"and time. Ask your host to check the server’s clock too."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:438
+msgid "The local directory became unavailable"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-file-browser/index.tsx:151
+msgid ""
+"The repository was fetched, but Playground could not determine where it was "
+"installed."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:228
+msgid ""
+"The response does not confirm a key problem. Check the live site’s security "
+"rules, or ask your host why the request was refused. Keep your current "
+"migration key."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:134
+msgid ""
+"The selected files and database exceed Playground’s 2 GiB limit. Use "
+"Reprint’s command-line tool to copy this site to your computer."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:83
+msgid "The site did not return a Reprint response"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:72
+msgid ""
+"The site sent Reprint to a different address. Use the final WordPress "
+"address shown in your browser. Reprint does not follow redirects."
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:409
+msgid "Theme"
+msgstr ""
+
+#: packages/playground/website/src/components/address-bar/index.tsx:70
+msgid "Themes"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:66
+msgid ""
+"There are no changes to export. Make an edit in the Playground before "
+"exporting to GitHub."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-persist-button/index.tsx:38
+msgid "There has been an error. Please try again."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:506
+#: packages/playground/website/src/github/github-import-form/form.tsx:222
+#. %s: Error message details.
+msgid ""
+"There was an unexpected error (%s), please try again. If the problem "
+"persists, please report it at "
+"https://github.com/WordPress/wordpress-playground/issues."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:512
+#: packages/playground/website/src/github/github-import-form/form.tsx:228
+msgid ""
+"There was an unexpected error, please try again. If the problem persists, "
+"please report it at "
+"https://github.com/WordPress/wordpress-playground/issues."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:1277
+msgid ""
+"This Blueprint bundle contains multiple files and cannot be shared via URL. "
+"Use the download button to export the bundle as a zip file."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:345
+msgid "This Blueprint references bundled files via"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:126
+msgid "This Blueprint run stopped before its WordPress files finished saving."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:247
+msgid "This GitHub artifact expired"
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:427
+msgid ""
+"This Playground is autosaved in this browser and may be removed after newer "
+"autosaves. Store it permanently in this browser or save it to a local "
+"directory."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:574
+msgid "This Playground is still available in your list."
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:436
+msgid ""
+"This Playground is temporary and will be lost when you refresh or close "
+"this page. Save it to keep your work and find it later in Your Playgrounds."
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:432
+msgid ""
+"This Playground is temporary and will be lost when you refresh or close "
+"this page. Store it permanently in this browser or save it to a local "
+"directory to keep your work and find it later in Your Playgrounds."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:241
+#: packages/playground/website/src/github/github-import-form/form.tsx:92
+msgid "This URL is not supported"
+msgstr ""
+
+#: packages/playground/website/src/components/github-private-repo-auth-modal/index.tsx:33
+msgid "This blueprint requires access to a private GitHub repository:"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:158
+msgid ""
+"This can happen if the tab was closed or reloaded, the browser suspended "
+"the page, or the browser ran out of space for saved sites."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:121
+msgid ""
+"This host cannot verify migration keys. Use Reprint’s command-line tool "
+"with a connection token instead. Retrying in this browser will not help."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:117
+msgid "This host needs the Reprint CLI"
+msgstr ""
+
+#: packages/playground/website/src/components/missing-site-modal/index.tsx:35
+msgid ""
+"This is a dialog window which overlays the main content of the page. It "
+"offers the user a choice between using an Unsaved Playground and a "
+"persistent Playground that is saved to browser storage."
+msgstr ""
+
+#: packages/playground/website/src/components/delete-site-modal/index.tsx:66
+msgid ""
+"This is a dialog window which overlays the main content of the page. The "
+"modal begins with a heading 2 called \"Delete Playground\". Pressing the "
+"Close button will close the modal and bring you back to where you were on "
+"the page."
+msgstr ""
+
+#: packages/playground/website/src/components/rename-site-modal/index.tsx:66
+msgid ""
+"This is a dialog window which overlays the main content of the page. The "
+"modal begins with a heading 2 called \"Rename Playground\". Pressing the "
+"Close button will close the modal and bring you back to where you were on "
+"the page."
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-url-modal/index.tsx:44
+msgid ""
+"This is a dialog window which overlays the main content of the page. The "
+"modal begins with a heading 2 called \"Run Blueprint from URL\". Pressing "
+"the Close button will close the modal and bring you back to where you were "
+"on the page."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-preview.tsx:158
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-preview.tsx:50
+msgid "This message has no body."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:625
+msgid ""
+"This might be a bug in Playground. Please <githubIssueLink>open an issue on "
+"GitHub</githubIssueLink> so we can investigate."
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:526
+msgid ""
+"This pull request cannot be imported because its source repository is "
+"unavailable."
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:142
+msgid "This repo (or the resource in it) doesn't exist"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:145
+msgid ""
+"This saved Playground is incomplete and can’t be reopened. Start a new "
+"Playground to keep working."
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:130
+msgid "This site is too large for a browser import"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-action-footer.tsx:265
+msgid "This temporary Playground will be lost forever."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:894
+msgid ""
+"This usually means the download was interrupted or a cached copy was "
+"damaged."
+msgstr ""
+
+#: packages/playground/website/src/github/github-oauth-guard/index.tsx:95
+msgid ""
+"To enable this feature, connect your GitHub account with WordPress "
+"Playground."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:660
+msgid "To repository path"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-preview.tsx:105
+msgid "To:"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1179
+#. %s: Formatted local time, e.g. "2:30 PM".
+msgid "Today at %s"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock-toggle-pill.tsx:33
+msgid "Tools cannot be hidden right now"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1463
+msgid "Transfer log"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:655
+msgid "Transfer log copied"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:309
+msgid "Troubleshoot Blueprint loading issues"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:338
+msgid "Troubleshoot with AI"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:299
+msgid "Try again"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:436
+msgid "Try an example:"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:599
+msgid "Try opening this link in a new browser tab:"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:180
+msgid "Try resuming after the block clears"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:153
+msgid "Try signing in again"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1800
+msgid ""
+"Tweak this Playground's Blueprint, then create a new Playground from it — "
+"or continue in the full Blueprint editor for a file tree and more room."
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:692
+msgid "Two pull requests found"
+msgstr ""
+
+#: packages/playground/website/src/components/address-bar/index.tsx:274
+msgid "URL to visit in the WordPress site, like \"/wp-admin\""
+msgstr ""
+
+#: packages/playground/website/src/components/save-site-modal/index.tsx:280
+msgid "Unable to access the selected directory."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:420
+msgid "Unable to import this file. Is it a valid WordPress Playground export?"
+msgstr ""
+
+#: packages/playground/website/src/github/oauth-popup.ts:30
+msgid "Unable to open GitHub OAuth popup."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-share-panel/index.tsx:74
+msgid "Unable to prepare the .zip download. Please try again."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:86
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:97
+msgid "Unavailable"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:405
+#. %s: Unrecognized export content type value.
+msgid "Unknown content type %s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/adminer-button.tsx:117
+#: packages/playground/website/src/components/site-manager/site-database-panel/phpmyadmin-button.tsx:91
+msgid "Unknown error"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:111
+#. %s: Property name in Blueprint JSON.
+msgid "Unknown property \"%s\""
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/index.tsx:91
+msgid "Unknown sender"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-mail-panel/mail-attachments.tsx:87
+msgid "Unnamed attachment"
+msgstr ""
+
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:422
+#: packages/playground/website/src/components/browser-chrome/save-status-indicator.tsx:439
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:788
+msgid "Unsaved"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:118
+msgid "Unsaved Playground"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:978
+#. %s: GitHub Pull Request number.
+msgid "Update Pull Request #%s"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:100
+msgid "Update Reprint on the live site"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:820
+msgid "Update an existing PR"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:392
+#. %s: Plugin directory name.
+msgid "Update plugin %s"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:384
+#. %s: Theme directory name.
+msgid "Update theme %s"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:378
+#: packages/playground/website/src/github/github-export-form/form.tsx:400
+msgid "Update wp-content"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:959
+msgid "Updating the Pull Request"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:126
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:139
+msgid "Use the Reprint CLI"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:141
+#: packages/playground/website/src/components/blueprint-editor/json-schema-editor/blueprint-linter.ts:313
+msgid "Validation error"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:401
+msgid "Validation output"
+msgstr ""
+
+#: packages/playground/website/src/components/blueprint-editor/BlueprintBundleEditor.tsx:128
+#. %s: Comma-separated list of allowed values.
+msgid "Value must be one of: %s"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:134
+msgid "Vanilla WordPress"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:2062
+msgid "Vanilla WordPress - New Playground"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:592
+msgid "Verify this is a network issue"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:46
+msgid "Versions"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:852
+msgid "View migration key"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:495
+msgid "WP-CLI command"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1192
+msgid "Wait for the current action to finish before closing"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:174
+msgid ""
+"Wait for the temporary block to expire, or check Wordfence’s firewall rules "
+"on the live site. Then resume with this tab open. You do not need a new key."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:916
+msgid "Waiting for the new Playground to boot…"
+msgstr ""
+
+#: packages/playground/website/src/components/log-modal/index.tsx:54
+msgid "Warnings"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1632
+msgid "Ways to start a new Playground"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:291
+msgid ""
+"We could not finish this step. Check the details below before trying again. "
+"Keep this tab open to retain the current transfer."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1039
+#. %s: Hostname of the live site.
+msgid ""
+"We couldn’t check Reprint on <siteLink>%s</siteLink>. Check the address, or "
+"follow the steps below."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1208
+msgid "We couldn’t copy automatically. Select and copy the key below."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:308
+msgid ""
+"We were unable to submit the error report. Please try again or open an "
+"<githubIssueLink>issue on GitHub</githubIssueLink>."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1365
+msgid "We’ll check access before copying your site."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1814
+msgid "What are Blueprints?"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:152
+msgid ""
+"What happened: the previous save stopped before all WordPress files were "
+"copied."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:749
+msgid "Which plugin?"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:718
+msgid "Which theme?"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:468
+msgid "WordPress PHP reference"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:814
+#. %s: WordPress Core pull request number.
+msgid "WordPress PR #%s"
+msgstr ""
+
+#: packages/playground/website/src/components/playground-viewport/index.tsx:336
+msgid ""
+"WordPress Playground wrapper (the actual WordPress site is in another, "
+"nested iframe)"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/unconnected-site-settings-form.tsx:200
+msgid "WordPress Version"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/unconnected-site-settings-form.tsx:187
+msgid "WordPress Version is required"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:879
+msgid "WordPress download was incomplete"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/terminal-error.ts:73
+msgid "WordPress encountered a critical error."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:600
+msgid "WordPress is still loading. The PHP runner will be ready in a moment."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-terminal-panel/index.tsx:604
+msgid "WordPress is still loading. The WP-CLI runner will be ready in a moment."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-actions.ts:15
+msgid "WordPress version"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:170
+msgid "Wordfence blocked the connection"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1058
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1059
+msgid "Write a Blueprint"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1184
+#. %s: Formatted local time, e.g. "2:30 PM".
+msgid "Yesterday at %s"
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:585
+msgid ""
+"You may export WordPress plugins, themes, and entire wp-content directories "
+"as pull requests to any public GitHub repository."
+msgstr ""
+
+#: packages/playground/website/src/github/github-import-form/form.tsx:247
+msgid ""
+"You may import WordPress plugins, themes, and entire wp-content directories "
+"from any public GitHub repository."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:393
+msgid "Your Playground is ready. Autosave will finish in the background."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:389
+msgid "Your Playground is ready. It’s available until you close this page."
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:73
+#: packages/playground/website/src/components/dock/tool-registry.tsx:78
+msgid "Your Playgrounds"
+msgstr ""
+
+#: packages/playground/website/src/github/github-oauth-guard/index.tsx:145
+msgid ""
+"Your access token is not stored anywhere, which means you'll have to "
+"re-authenticate after every page refresh."
+msgstr ""
+
+#: packages/playground/website/src/components/github-private-repo-auth-modal/index.tsx:93
+msgid ""
+"Your access token is stored only in memory and will be cleared when you "
+"close this tab."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:536
+msgid "Your changes have been submitted to GitHub. You can view them here:"
+msgstr ""
+
+#: packages/playground/website/src/lib/reprint/transfer-error.ts:147
+msgid ""
+"Your files and database have been copied. Automatic admin sign-in did not "
+"finish. Open the copy to sign in yourself, or try automatic sign-in again. "
+"Your site will not be downloaded again."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:563
+msgid "Your network appears to be blocking the request."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:615
+msgid ""
+"Your network is blocking the proxy. Try a different network (mobile data, "
+"personal Wi-Fi), use a VPN, or contact your IT administrator."
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:285
+msgid ""
+"Your report has been submitted to the <slackLink>Making WordPress "
+"#playground-logs Slack channel</slackLink> and will be reviewed by the team."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1011
+msgid "You’ll need admin access to this site."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1189
+msgid "You’ll paste it into Reprint on your live site."
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-transfer-panel/index.tsx:1539
+msgid "You’re signed in as an administrator. Your live site was not changed."
+msgstr ""
+
+#: packages/playground/website/src/lib/get-relative-date.ts:27
+msgid "a moment ago"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:350
+msgid "but it was loaded as a standalone JSON file."
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:860
+msgid "default WordPress"
+msgstr ""
+
+#: packages/playground/website/src/components/rename-site-modal/index.tsx:85
+msgid "e.g. Testing Gutenberg 24.17"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:118
+msgid "emulates MySQL with SQLite"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:855
+msgid "inline Blueprint"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/site-error-modal.tsx:315
+msgid "issue on GitHub"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-actions.ts:19
+msgid "language"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/site-settings-actions.ts:23
+msgid "multisite"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock-item-button.tsx:46
+msgid "notification available"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:632
+msgid "open an issue on GitHub"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:748
+#. %s: Date or relative time when the pull request was opened.
+msgid "opened <time>%s</time>"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1675
+msgid "or"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:1992
+msgid "or click to choose a file"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/dock.tsx:1038
+msgid "recent autosave available"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:886
+msgid "remote Blueprint"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-database-panel/index.tsx:129
+msgid "report issues"
+msgstr ""
+
+#: packages/playground/website/src/lib/get-relative-date.ts:33
+msgid "right now"
+msgstr ""
+
+#: packages/playground/website/src/components/saved-playgrounds-panel/index.tsx:858
+msgid "saved Playground files"
+msgstr ""
+
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:661
+#: packages/playground/website/src/components/site-error-modal/get-site-error-view.tsx:680
+msgid "the CORS proxy domain"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:942
+#. %s: Formatted local time, e.g. 2:30pm.
+msgid "today %s"
+msgstr ""
+
+#: packages/playground/website/src/components/start-error-modal/index.tsx:36
+msgid "visit our documentation."
+msgstr ""
+
+#: packages/playground/website/src/github/github-export-form/form.tsx:617
+#: packages/playground/website/src/github/github-import-form/form.tsx:421
+msgid "wp-content directory"
+msgstr ""
+
+#: packages/playground/website/src/github/preview-pr/form.tsx:949
+#. %s: Formatted local time, e.g. 2:30pm.
+msgid "yesterday at %s"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/wordpress-version-options.ts:61
+msgid "── Current versions ──"
+msgstr ""
+
+#: packages/playground/website/src/components/site-manager/site-settings-form/wordpress-version-options.ts:67
+msgid "── Older versions ──"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:114
+#: packages/playground/website/src/components/dock/tool-registry.tsx:117
+#: packages/playground/website/src/components/dock/tool-registry.tsx:122
+msgctxt "dock navigation item"
+msgid "Export"
+msgstr ""
+
+#: packages/playground/website/src/components/dock/tool-registry.tsx:47
+msgctxt "dock navigation item"
+msgid "New"
+msgstr ""

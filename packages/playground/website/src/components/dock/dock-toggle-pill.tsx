@@ -1,5 +1,6 @@
 import type { MouseEventHandler, Ref } from 'react';
 import classNames from 'classnames';
+import { __ } from '@wordpress/i18n';
 import {
 	DockCollapseChevronIcon,
 	DockFloatingIcon,
@@ -29,10 +30,13 @@ export function DockTogglePill({
 	onToggleFullWidth,
 }: DockTogglePillProps) {
 	const collapseButtonLabel = collapseDisabled
-		? 'Tools cannot be hidden right now'
+		? __('Tools cannot be hidden right now', 'playground-website')
 		: isCollapsed
-			? 'Show tools'
-			: 'Hide tools';
+			? __('Show tools', 'playground-website')
+			: __('Hide tools', 'playground-website');
+	const fullWidthButtonLabel = isFullWidth
+		? __('Exit full width', 'playground-website')
+		: __('Full width', 'playground-website');
 
 	return (
 		<div className={css.dockTogglePill}>
@@ -53,9 +57,9 @@ export function DockTogglePill({
 			<button
 				type="button"
 				className={classNames(css.dockPillBtn, css.dockPillFullWidth)}
-				aria-label={isFullWidth ? 'Exit full width' : 'Full width'}
+				aria-label={fullWidthButtonLabel}
 				aria-pressed={isFullWidth}
-				title={isFullWidth ? 'Exit full width' : 'Full width'}
+				title={fullWidthButtonLabel}
 				onClick={onToggleFullWidth}
 			>
 				{isFullWidth ? <DockFloatingIcon /> : <DockFullWidthIcon />}

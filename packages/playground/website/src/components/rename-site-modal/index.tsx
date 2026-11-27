@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Notice, TextControl } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
 import {
 	setActiveModal,
@@ -49,7 +50,10 @@ export function RenameSiteModal() {
 			setError(
 				e instanceof Error
 					? e.message
-					: 'Renaming failed. Please try again.'
+					: __(
+							'Renaming failed. Please try again.',
+							'playground-website'
+						)
 			);
 		} finally {
 			setIsSubmitting(false);
@@ -58,8 +62,11 @@ export function RenameSiteModal() {
 
 	return (
 		<Modal
-			title="Rename Playground"
-			contentLabel='This is a dialog window which overlays the main content of the page. The modal begins with a heading 2 called "Rename Playground". Pressing the Close button will close the modal and bring you back to where you were on the page.'
+			title={__('Rename Playground', 'playground-website')}
+			contentLabel={__(
+				'This is a dialog window which overlays the main content of the page. The modal begins with a heading 2 called "Rename Playground". Pressing the Close button will close the modal and bring you back to where you were on the page.',
+				'playground-website'
+			)}
 			onRequestClose={closeModal}
 			small
 		>
@@ -72,10 +79,13 @@ export function RenameSiteModal() {
 			>
 				<TextControl
 					__nextHasNoMarginBottom
-					label="Name"
+					label={__('Name', 'playground-website')}
 					value={name}
 					onChange={(val: string) => setName(val)}
-					placeholder="e.g. Testing Gutenberg 24.17"
+					placeholder={__(
+						'e.g. Testing Gutenberg 24.17',
+						'playground-website'
+					)}
 					maxLength={80}
 					autoFocus
 				/>
@@ -85,7 +95,7 @@ export function RenameSiteModal() {
 					</Notice>
 				) : null}
 				<ModalButtons
-					submitText="Rename"
+					submitText={__('Rename', 'playground-website')}
 					areDisabled={!name.trim()}
 					areBusy={isSubmitting}
 					onCancel={closeModal}

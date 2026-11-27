@@ -3,6 +3,7 @@ import {
 	Dropdown,
 	__experimentalVStack as VStack,
 } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { useEffect, useRef, useState } from 'react';
 import {
 	MAX_AUTOSAVED_SITES,
@@ -80,8 +81,8 @@ export function SiteSettingsActionFooter({
 					isBusy={isPending}
 				>
 					{primaryAction === 'apply'
-						? 'Apply to this Playground'
-						: 'Create a fresh Playground'}
+						? __('Apply to this Playground', 'playground-website')
+						: __('Create a fresh Playground', 'playground-website')}
 				</Button>
 				<Dropdown
 					className={css.splitButtonDropdown}
@@ -102,7 +103,10 @@ export function SiteSettingsActionFooter({
 							onClick={onToggle}
 							aria-expanded={isOpen}
 							aria-haspopup="menu"
-							aria-label="More settings actions"
+							aria-label={__(
+								'More settings actions',
+								'playground-website'
+							)}
 							disabled={isPending}
 						>
 							<span className={css.caret} aria-hidden="true" />
@@ -204,7 +208,7 @@ function SettingsActionMenu({
 				onClick={onSelectApply}
 			>
 				<span className={css.actionMenuTitle}>
-					Apply to this Playground
+					{__('Apply to this Playground', 'playground-website')}
 				</span>
 				{applyUnavailableReason && (
 					<span className={css.actionMenuDescription}>
@@ -220,21 +224,22 @@ function SettingsActionMenu({
 				onClick={onSelectCreateFresh}
 			>
 				<span className={css.actionMenuTitle}>
-					Create a fresh Playground
+					{__('Create a fresh Playground', 'playground-website')}
 				</span>
 				<span className={css.actionMenuDescription}>
-					{sitePersistence === 'explicit' ? (
-						<>
-							Start a clean site. Your current Playground stays in
-							Saved Playgrounds.
-						</>
-					) : (
-						<>
-							Start a clean site. Your current Playground stays in
-							Recent autosaves until {MAX_AUTOSAVED_SITES} newer
-							autosaves replace it.
-						</>
-					)}
+					{sitePersistence === 'explicit'
+						? __(
+								'Start a clean site. Your current Playground stays in Saved Playgrounds.',
+								'playground-website'
+							)
+						: sprintf(
+								/* translators: %d: Maximum number of autosaved Playgrounds kept in browser storage. */
+								__(
+									'Start a clean site. Your current Playground stays in Recent autosaves until %d newer autosaves replace it.',
+									'playground-website'
+								),
+								MAX_AUTOSAVED_SITES
+							)}
 				</span>
 			</button>
 		</div>
@@ -256,10 +261,17 @@ export function TemporarySiteSettingsActionFooter({
 			className={`${css.footer} ${css.formSection}`}
 		>
 			<p className={css.temporaryWarning}>
-				<strong>This temporary Playground will be lost forever.</strong>
+				<strong>
+					{__(
+						'This temporary Playground will be lost forever.',
+						'playground-website'
+					)}
+				</strong>
 				<span>
-					Continuing permanently discards all of its files and
-					changes.
+					{__(
+						'Continuing permanently discards all of its files and changes.',
+						'playground-website'
+					)}
 				</span>
 			</p>
 			<Button
@@ -270,7 +282,10 @@ export function TemporarySiteSettingsActionFooter({
 				disabled={isPending}
 				isBusy={isPending}
 			>
-				Discard current work &amp; create a fresh Playground
+				{__(
+					'Discard current work & create a fresh Playground',
+					'playground-website'
+				)}
 			</Button>
 			{error && (
 				<p className={css.actionError} role="alert">

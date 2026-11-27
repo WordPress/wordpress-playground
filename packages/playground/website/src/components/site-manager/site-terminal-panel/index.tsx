@@ -1,6 +1,7 @@
 import { EditorView, keymap } from '@codemirror/view';
 import { php } from '@codemirror/lang-php';
 import { Button, Icon } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { joinPaths } from '@php-wasm/util';
 import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
 import {
@@ -39,84 +40,92 @@ type TerminalMode = 'php' | 'wp-cli';
 type TerminalEntry = TerminalHistoryEntry;
 
 const WORDPRESS_PHP_DOCS_URL = 'https://developer.wordpress.org/reference/';
-const PHP_SNIPPETS = [
-	{
-		label: 'Versions',
-		code: "echo 'WordPress ' . get_bloginfo( 'version' ) . ' / PHP ' . PHP_VERSION;",
-	},
-	{
-		label: 'Site URL',
-		code: 'echo home_url();',
-	},
-	{
-		label: 'List posts',
-		code: `foreach ( get_posts() as $post ) {
+function getPhpSnippets() {
+	return [
+		{
+			label: __('Versions', 'playground-website'),
+			code: "echo 'WordPress ' . get_bloginfo( 'version' ) . ' / PHP ' . PHP_VERSION;",
+		},
+		{
+			label: __('Site URL', 'playground-website'),
+			code: 'echo home_url();',
+		},
+		{
+			label: __('List posts', 'playground-website'),
+			code: `foreach ( get_posts() as $post ) {
 	echo $post->post_title . "\\n";
 }`,
-	},
-	{
-		label: 'Create post',
-		code: `$post_id = wp_insert_post( [
+		},
+		{
+			label: __('Create post', 'playground-website'),
+			code: `$post_id = wp_insert_post( [
 	'post_title' => 'Hello from Playground',
 	'post_status' => 'publish',
 ] );
 echo "Created post {$post_id}\\n";`,
-	},
-	{
-		label: 'Active plugins',
-		code: "print_r( get_option( 'active_plugins' ) );",
-	},
-];
-const WP_CLI_SUGGESTIONS = [
-	{
-		command: 'wp option get blogname',
-		description: 'Show the site title.',
-	},
-	{
-		command: 'wp option update blogname "My Playground"',
-		description: 'Change the site title.',
-	},
-	{
-		command: 'wp plugin list',
-		description: 'List installed plugins.',
-	},
-	{
-		command: 'wp plugin activate gutenberg',
-		description: 'Activate a plugin.',
-	},
-	{
-		command: 'wp theme list',
-		description: 'List installed themes.',
-	},
-	{
-		command: 'wp theme activate twentytwentyfour',
-		description: 'Activate a theme.',
-	},
-	{
-		command: 'wp post list',
-		description: 'List posts.',
-	},
-	{
-		command: 'wp post create --post_title="Hello" --post_status=publish',
-		description: 'Create a post.',
-	},
-	{
-		command: 'wp user list',
-		description: 'List users.',
-	},
-	{
-		command: 'wp rewrite flush',
-		description: 'Flush rewrite rules.',
-	},
-	{
-		command: 'wp search-replace old.example new.example --dry-run',
-		description: 'Preview a search and replace.',
-	},
-	{
-		command: 'wp cache flush',
-		description: 'Clear the object cache.',
-	},
-];
+		},
+		{
+			label: __('Active plugins', 'playground-website'),
+			code: "print_r( get_option( 'active_plugins' ) );",
+		},
+	];
+}
+function getWpCliSuggestionsList() {
+	return [
+		{
+			command: 'wp option get blogname',
+			description: __('Show the site title.', 'playground-website'),
+		},
+		{
+			command: 'wp option update blogname "My Playground"',
+			description: __('Change the site title.', 'playground-website'),
+		},
+		{
+			command: 'wp plugin list',
+			description: __('List installed plugins.', 'playground-website'),
+		},
+		{
+			command: 'wp plugin activate gutenberg',
+			description: __('Activate a plugin.', 'playground-website'),
+		},
+		{
+			command: 'wp theme list',
+			description: __('List installed themes.', 'playground-website'),
+		},
+		{
+			command: 'wp theme activate twentytwentyfour',
+			description: __('Activate a theme.', 'playground-website'),
+		},
+		{
+			command: 'wp post list',
+			description: __('List posts.', 'playground-website'),
+		},
+		{
+			command:
+				'wp post create --post_title="Hello" --post_status=publish',
+			description: __('Create a post.', 'playground-website'),
+		},
+		{
+			command: 'wp user list',
+			description: __('List users.', 'playground-website'),
+		},
+		{
+			command: 'wp rewrite flush',
+			description: __('Flush rewrite rules.', 'playground-website'),
+		},
+		{
+			command: 'wp search-replace old.example new.example --dry-run',
+			description: __(
+				'Preview a search and replace.',
+				'playground-website'
+			),
+		},
+		{
+			command: 'wp cache flush',
+			description: __('Clear the object cache.', 'playground-website'),
+		},
+	];
+}
 
 export function SiteTerminalPanel({
 	playground,
@@ -150,7 +159,9 @@ export function SiteTerminalPanel({
 	const runCommandRef = useRef<() => void>(() => undefined);
 	const phpLanguageRef = useRef(php({ plain: true }));
 	const phpEditorExtensionsRef = useRef([
-		EditorView.contentAttributes.of({ 'aria-label': 'PHP code' }),
+		EditorView.contentAttributes.of({
+			'aria-label': __('PHP code', 'playground-website'),
+		}),
 		keymap.of([
 			{
 				key: 'Mod-Enter',
@@ -368,7 +379,10 @@ export function SiteTerminalPanel({
 	return (
 		<div className={css.terminalPanel}>
 			<div className={css.toolbar}>
-				<div className={css.modeTabs} aria-label="Terminal mode">
+				<div
+					className={css.modeTabs}
+					aria-label={__('Terminal mode', 'playground-website')}
+				>
 					<Button
 						className={`${css.modeTab} ${
 							mode === 'php' ? css.modeTabActive : ''
@@ -398,9 +412,13 @@ export function SiteTerminalPanel({
 					variant="secondary"
 					onClick={clearHistory}
 					disabled={entries.length === 0 || isRunning}
-					title={`Clear ${mode === 'php' ? 'PHP' : 'WP-CLI'} history`}
+					title={
+						mode === 'php'
+							? __('Clear PHP history', 'playground-website')
+							: __('Clear WP-CLI history', 'playground-website')
+					}
 				>
-					Clear history
+					{__('Clear history', 'playground-website')}
 				</Button>
 			</div>
 			<div className={css.runner}>
@@ -409,12 +427,15 @@ export function SiteTerminalPanel({
 						<div
 							className={css.phpSnippets}
 							role="group"
-							aria-label="Example PHP snippets"
+							aria-label={__(
+								'Example PHP snippets',
+								'playground-website'
+							)}
 						>
 							<span className={css.phpSnippetsLabel}>
-								Try an example:
+								{__('Try an example:', 'playground-website')}
 							</span>
-							{PHP_SNIPPETS.map((snippet) => (
+							{getPhpSnippets().map((snippet) => (
 								<Button
 									key={snippet.label}
 									className={css.phpSnippet}
@@ -422,7 +443,14 @@ export function SiteTerminalPanel({
 									variant="secondary"
 									icon={code}
 									iconSize={16}
-									label={`Insert example: ${snippet.code}`}
+									label={sprintf(
+										/* translators: %s: PHP example snippet code. */
+										__(
+											'Insert example: %s',
+											'playground-website'
+										),
+										snippet.code
+									)}
 									showTooltip
 									onClick={() =>
 										selectPhpSnippet(snippet.code)
@@ -437,7 +465,10 @@ export function SiteTerminalPanel({
 								target="_blank"
 								rel="noreferrer"
 							>
-								WordPress PHP reference
+								{__(
+									'WordPress PHP reference',
+									'playground-website'
+								)}
 							</a>
 						</div>
 						<CodeEditor
@@ -461,7 +492,10 @@ export function SiteTerminalPanel({
 							value={wpCliCommand}
 							disabled={!playground}
 							placeholder="wp option get blogname"
-							aria-label="WP-CLI command"
+							aria-label={__(
+								'WP-CLI command',
+								'playground-website'
+							)}
 							autoComplete="off"
 							role="combobox"
 							aria-autocomplete="list"
@@ -550,7 +584,7 @@ export function SiteTerminalPanel({
 						disabled={!canRun}
 						isBusy={isRunning}
 					>
-						Run
+						{__('Run', 'playground-website')}
 					</Button>
 				</div>
 				<div
@@ -561,7 +595,17 @@ export function SiteTerminalPanel({
 				>
 					{!playground ? (
 						<InlineProgress
-							message={`WordPress is still loading. The ${mode === 'php' ? 'PHP' : 'WP-CLI'} runner will be ready in a moment.`}
+							message={
+								mode === 'php'
+									? __(
+											'WordPress is still loading. The PHP runner will be ready in a moment.',
+											'playground-website'
+										)
+									: __(
+											'WordPress is still loading. The WP-CLI runner will be ready in a moment.',
+											'playground-website'
+										)
+							}
 						/>
 					) : activeEntry ? (
 						<>
@@ -569,12 +613,22 @@ export function SiteTerminalPanel({
 								<div className={css.resultHeaderRow}>
 									<div className={css.resultMeta}>
 										<span>
-											Result {activeEntryIndex + 1} of{' '}
-											{entries.length}
+											{sprintf(
+												/* translators: 1: Current result index, 2: Total number of results. */
+												__(
+													'Result %1$d of %2$d',
+													'playground-website'
+												),
+												activeEntryIndex + 1,
+												entries.length
+											)}
 										</span>
 										<span
 											className={css.executionTime}
-											title="Execution time"
+											title={__(
+												'Execution time',
+												'playground-website'
+											)}
 										>
 											{formatExecutionTime(
 												activeEntry.durationMs
@@ -586,8 +640,14 @@ export function SiteTerminalPanel({
 											className={css.historyButton}
 											size="compact"
 											variant="tertiary"
-											aria-label="Previous result"
-											title="Previous result"
+											aria-label={__(
+												'Previous result',
+												'playground-website'
+											)}
+											title={__(
+												'Previous result',
+												'playground-website'
+											)}
 											disabled={!canNavigatePrevious}
 											onClick={() =>
 												navigateRunHistory('previous')
@@ -602,8 +662,14 @@ export function SiteTerminalPanel({
 											className={css.historyButton}
 											size="compact"
 											variant="tertiary"
-											aria-label="Next result"
-											title="Next result"
+											aria-label={__(
+												'Next result',
+												'playground-website'
+											)}
+											title={__(
+												'Next result',
+												'playground-website'
+											)}
 											disabled={!canNavigateNext}
 											onClick={() =>
 												navigateRunHistory('next')
@@ -618,8 +684,14 @@ export function SiteTerminalPanel({
 											className={css.copyResult}
 											size="compact"
 											variant="tertiary"
-											aria-label="Copy result"
-											title="Copy result"
+											aria-label={__(
+												'Copy result',
+												'playground-website'
+											)}
+											title={__(
+												'Copy result',
+												'playground-website'
+											)}
 											onClick={() =>
 												copyOutput(
 													getEntryDisplayOutput(
@@ -645,8 +717,10 @@ export function SiteTerminalPanel({
 										role="alert"
 									>
 										<span>
-											Discard your edits and open the
-											selected result?
+											{__(
+												'Discard your edits and open the selected result?',
+												'playground-website'
+											)}
 										</span>
 										<div
 											className={
@@ -662,7 +736,10 @@ export function SiteTerminalPanel({
 													)
 												}
 											>
-												Discard changes
+												{__(
+													'Discard changes',
+													'playground-website'
+												)}
 											</Button>
 											<Button
 												size="compact"
@@ -671,7 +748,10 @@ export function SiteTerminalPanel({
 													setPendingHistoryIndex(null)
 												}
 											>
-												Cancel
+												{__(
+													'Cancel',
+													'playground-website'
+												)}
 											</Button>
 										</div>
 									</div>
@@ -696,15 +776,26 @@ export function SiteTerminalPanel({
 									</pre>
 								)}
 								{!activeEntry.output && !activeEntry.error && (
-									<pre>(no output)</pre>
+									<pre>
+										{__(
+											'(no output)',
+											'playground-website'
+										)}
+									</pre>
 								)}
 							</div>
 						</>
 					) : (
 						<div className={css.emptyOutput}>
-							Run{' '}
-							{mode === 'php' ? 'PHP code' : 'a WP-CLI command'}{' '}
-							to see the result.
+							{mode === 'php'
+								? __(
+										'Run PHP code to see the result.',
+										'playground-website'
+									)
+								: __(
+										'Run a WP-CLI command to see the result.',
+										'playground-website'
+									)}
 						</div>
 					)}
 				</div>
@@ -734,7 +825,13 @@ function formatPhpError(errors: string, exitCode: number, code: string) {
 		);
 	}
 	if (exitCode !== 0) {
-		parts.push(`Exit code: ${exitCode}`);
+		parts.push(
+			sprintf(
+				/* translators: %d: Process exit code. */
+				__('Exit code: %d', 'playground-website'),
+				exitCode
+			)
+		);
 	}
 	return parts.join('\n') || undefined;
 }
@@ -785,7 +882,11 @@ async function installWpCli(playground: PlaygroundClient) {
 	);
 	if (!response.ok) {
 		throw new Error(
-			`Could not download WP-CLI from ${defaultWpCliResource.url}.`
+			sprintf(
+				/* translators: %s: WP-CLI download URL. */
+				__('Could not download WP-CLI from %s.', 'playground-website'),
+				defaultWpCliResource.url
+			)
 		);
 	}
 	await playground.writeFile(
@@ -841,7 +942,13 @@ function formatResponse(response: {
 		parts.push(getTerminalErrorMessage(response.errors.trimEnd()));
 	}
 	if (response.exitCode !== 0) {
-		parts.push(`Exit code: ${response.exitCode}`);
+		parts.push(
+			sprintf(
+				/* translators: %d: Process exit code. */
+				__('Exit code: %d', 'playground-website'),
+				response.exitCode
+			)
+		);
 	}
 	return parts.join('\n');
 }
@@ -854,11 +961,12 @@ function formatExecutionTime(durationMs: number) {
 }
 
 function getWpCliSuggestions(input: string) {
+	const suggestions = getWpCliSuggestionsList();
 	const normalizedInput = stripWpPrefix(input.trim()).toLowerCase();
 	if (!normalizedInput) {
-		return WP_CLI_SUGGESTIONS;
+		return suggestions;
 	}
-	return WP_CLI_SUGGESTIONS.filter((suggestion) =>
+	return suggestions.filter((suggestion) =>
 		stripWpPrefix(suggestion.command)
 			.toLowerCase()
 			.includes(normalizedInput)
@@ -871,7 +979,8 @@ function getHistoryCommand(mode: TerminalMode, command: string) {
 
 function getEntryDisplayOutput(entry: TerminalEntry) {
 	return (
-		[entry.output, entry.error].filter(Boolean).join('\n') || '(no output)'
+		[entry.output, entry.error].filter(Boolean).join('\n') ||
+		__('(no output)', 'playground-website')
 	);
 }
 

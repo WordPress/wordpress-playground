@@ -12,6 +12,7 @@ import classNames from 'classnames';
 import css from './style.module.css';
 import { Modal } from '../modal';
 import { Icon, TextControl } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { check, copySmall } from '@wordpress/icons';
 import type {
 	PlaygroundDispatch,
@@ -34,7 +35,10 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 	}
 
 	return (
-		<Modal title={props.title || 'PHP error log'} onRequestClose={onClose}>
+		<Modal
+			title={props.title || __('PHP error log', 'playground-website')}
+			onRequestClose={onClose}
+		>
 			<div>{props.description}</div>
 			<SiteLogs key={activeModal} className={css.logsInsideModal} />
 		</Modal>
@@ -44,11 +48,13 @@ export function LogModal(props: { description?: JSX.Element; title?: string }) {
 /** Keep in sync with `-webkit-line-clamp` in style.module.css. */
 const CLAMP_LINES = 6;
 
-const TIER_FILTERS: Array<{ tier: LogTier; label: string }> = [
-	{ tier: 'error', label: 'Errors' },
-	{ tier: 'warning', label: 'Warnings' },
-	{ tier: 'info', label: 'Info' },
-];
+function getTierFilters(): Array<{ tier: LogTier; label: string }> {
+	return [
+		{ tier: 'error', label: __('Errors', 'playground-website') },
+		{ tier: 'warning', label: __('Warnings', 'playground-website') },
+		{ tier: 'info', label: __('Info', 'playground-website') },
+	];
+}
 
 export function SiteLogs({ className }: { className?: string }) {
 	const [logs, setLogs] = useState<string[]>([]);
@@ -121,8 +127,8 @@ export function SiteLogs({ className }: { className?: string }) {
 			{logs.length > 0 ? (
 				<div className={css.logToolbar}>
 					<TextControl
-						aria-label="Search"
-						placeholder="Search logs"
+						aria-label={__('Search', 'playground-website')}
+						placeholder={__('Search logs', 'playground-website')}
 						value={searchTerm}
 						onChange={setSearchTerm}
 						__nextHasNoMarginBottom
@@ -130,7 +136,7 @@ export function SiteLogs({ className }: { className?: string }) {
 					<div
 						className={css.logFilters}
 						role="group"
-						aria-label="Filter logs"
+						aria-label={__('Filter logs', 'playground-website')}
 					>
 						<button
 							type="button"
@@ -138,14 +144,14 @@ export function SiteLogs({ className }: { className?: string }) {
 							aria-pressed={tierFilter === 'all'}
 							onClick={() => setTierFilter('all')}
 						>
-							All
+							{__('All', 'playground-website')}
 							<span className={css.logFilterCount}>
 								{searchedEntries.length}
 							</span>
 						</button>
 						{/* The chip set is fixed: empty tiers dim instead of
 						    disappearing, so the row never reshuffles. */}
-						{TIER_FILTERS.map(({ tier, label }) => (
+						{getTierFilters().map(({ tier, label }) => (
 							<button
 								key={tier}
 								type="button"
@@ -179,7 +185,9 @@ export function SiteLogs({ className }: { className?: string }) {
 									)
 								}
 							>
-								{copiedAll ? 'Copied' : 'Copy logs'}
+								{copiedAll
+									? __('Copied', 'playground-website')
+									: __('Copy logs', 'playground-website')}
 							</button>
 						)}
 					</div>
@@ -203,8 +211,18 @@ export function SiteLogs({ className }: { className?: string }) {
 					<div className={css.logEmptyPlaceholder}>
 						<p className={css.logEmptyHint}>
 							{searchTerm
-								? `No logs match “${searchTerm}”.`
-								: 'No logs match the current filter.'}
+								? sprintf(
+										/* translators: %s: Log search term entered by the user. */
+										__(
+											'No logs match “%s”.',
+											'playground-website'
+										),
+										searchTerm
+									)
+								: __(
+										'No logs match the current filter.',
+										'playground-website'
+									)}
 						</p>
 						{(searchTerm !== '' || tierFilter !== 'all') && (
 							<button
@@ -212,16 +230,20 @@ export function SiteLogs({ className }: { className?: string }) {
 								className={css.logClearSearch}
 								onClick={clearFilters}
 							>
-								Clear filters
+								{__('Clear filters', 'playground-website')}
 							</button>
 						)}
 					</div>
 				) : (
 					<div className={css.logEmptyState}>
-						<p className={css.logEmptyTitle}>Nothing logged yet</p>
+						<p className={css.logEmptyTitle}>
+							{__('Nothing logged yet', 'playground-website')}
+						</p>
 						<p className={css.logEmptyHint}>
-							PHP errors, warnings, and notices from your site
-							appear here as they are written to the debug log.
+							{__(
+								'PHP errors, warnings, and notices from your site appear here as they are written to the debug log.',
+								'playground-website'
+							)}
 						</p>
 					</div>
 				)}
@@ -318,18 +340,25 @@ function LogEntryRow({
 						}}
 					>
 						{expanded
-							? 'Show less'
+							? __('Show less', 'playground-website')
 							: lineCount > CLAMP_LINES
-								? `Show all ${lineCount} lines`
-								: 'Show more'}
+								? sprintf(
+										/* translators: %d: Number of lines in the log entry. */
+										__(
+											'Show all %d lines',
+											'playground-website'
+										),
+										lineCount
+									)
+								: __('Show more', 'playground-website')}
 					</button>
 				)}
 			</div>
 			<button
 				type="button"
 				className={css.logCopy}
-				aria-label="Copy log entry"
-				title="Copy log entry"
+				aria-label={__('Copy log entry', 'playground-website')}
+				title={__('Copy log entry', 'playground-website')}
 				onClick={() => copy(entry.raw)}
 			>
 				<Icon icon={copied ? check : copySmall} size={18} />

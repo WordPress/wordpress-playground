@@ -14,6 +14,7 @@ import {
 	RadioControl,
 	Notice,
 } from '@wordpress/components';
+import { __, sprintf } from '@wordpress/i18n';
 import { Modal } from '../modal';
 import ModalButtons from '../modal/modal-buttons';
 import { useAppDispatch, useAppSelector } from '../../lib/state/redux/store';
@@ -187,10 +188,13 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 	}
 
 	const localUnavailableMessage = !targetIsActive
-		? 'Open this Playground to save it to a local directory'
+		? __(
+				'Open this Playground to save it to a local directory',
+				'playground-website'
+			)
 		: localFsAvailability === 'not-available'
-			? 'Not available in this browser'
-			: 'Not available on this site';
+			? __('Not available in this browser', 'playground-website')
+			: __('Not available on this site', 'playground-website');
 
 	const chooseStorage = (storage: StorageOption) => {
 		if (storage === 'local-fs' && !localIsAvailable) {
@@ -240,7 +244,10 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 		setSubmitError(null);
 		if (!(window as any).showDirectoryPicker) {
 			setDirectoryError(
-				'Directory selection is not supported in this browser.'
+				__(
+					'Directory selection is not supported in this browser.',
+					'playground-website'
+				)
 			);
 			return;
 		}
@@ -256,7 +263,10 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 			setDirectoryPermission(permission);
 			if (permission !== 'granted') {
 				setDirectoryError(
-					'Allow Playground to edit that directory in the browser prompt to continue.'
+					__(
+						'Allow Playground to edit that directory in the browser prompt to continue.',
+						'playground-website'
+					)
 				);
 			} else {
 				setDirectoryError(null);
@@ -266,7 +276,12 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 				return;
 			}
 			logger.error(error);
-			setDirectoryError('Unable to access the selected directory.');
+			setDirectoryError(
+				__(
+					'Unable to access the selected directory.',
+					'playground-website'
+				)
+			);
 		}
 	};
 
@@ -283,13 +298,21 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 			if (selectedStorage === 'local-fs') {
 				if (!targetIsActive) {
 					setDirectoryError(
-						'Open this Playground to save it to a local directory.'
+						__(
+							'Open this Playground to save it to a local directory.',
+							'playground-website'
+						)
 					);
 					setIsSubmitting(false);
 					return;
 				}
 				if (!directoryHandle) {
-					setDirectoryError('Choose a directory to continue.');
+					setDirectoryError(
+						__(
+							'Choose a directory to continue.',
+							'playground-website'
+						)
+					);
 					setIsSubmitting(false);
 					return;
 				}
@@ -297,7 +320,10 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 				setDirectoryPermission(permission);
 				if (permission !== 'granted') {
 					setDirectoryError(
-						'Allow Playground to edit that directory in the browser prompt to continue.'
+						__(
+							'Allow Playground to edit that directory in the browser prompt to continue.',
+							'playground-website'
+						)
 					);
 					setIsSubmitting(false);
 					return;
@@ -320,7 +346,10 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 			setSubmitError(
 				error instanceof Error
 					? error.message
-					: 'Saving failed. Please try again.'
+					: __(
+							'Saving failed. Please try again.',
+							'playground-website'
+						)
 			);
 			setIsSubmitting(false);
 		}
@@ -343,10 +372,15 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 		savingProgress &&
 		savingProgress.total > 0 &&
 		savingProgress.files >= savingProgress.total
-			? 'Finalizing save...'
+			? __('Finalizing save...', 'playground-website')
 			: savingProgress
-				? `Saving ${savingProgress.files} / ${savingProgress.total} files...`
-				: 'Preparing to save...';
+				? sprintf(
+						/* translators: 1: Number of files saved so far, 2: Total number of files to save. */
+						__('Saving %1$d / %2$d files...', 'playground-website'),
+						savingProgress.files,
+						savingProgress.total
+					)
+				: __('Preparing to save...', 'playground-website');
 
 	const handleRequestClose = () => {
 		const closeIsBlocked = asPane ? isSubmitting : isSaving;
@@ -354,6 +388,13 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 			closeSurface();
 		}
 	};
+
+	const browserStorageLabel = asPane
+		? __('Save in browser storage', 'playground-website')
+		: __('Save in this browser', 'playground-website');
+	const localStorageLabel = asPane
+		? __('Save in a local directory', 'playground-website')
+		: __('Save to a local directory', 'playground-website');
 
 	return (
 		<SaveSurface
@@ -383,13 +424,22 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					}}
 				>
 					{isAutosaved
-						? 'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save it to a local directory.'
+						? __(
+								'This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save it to a local directory.',
+								'playground-website'
+							)
 						: asPane
-							? 'This Playground is temporary and will be lost when you refresh or close this page. Store it permanently in this browser or save it to a local directory to keep your work and find it later in Your Playgrounds.'
-							: 'This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.'}
+							? __(
+									'This Playground is temporary and will be lost when you refresh or close this page. Store it permanently in this browser or save it to a local directory to keep your work and find it later in Your Playgrounds.',
+									'playground-website'
+								)
+							: __(
+									'This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.',
+									'playground-website'
+								)}
 				</p>
 				<TextControl
-					label="Playground name"
+					label={__('Playground name', 'playground-website')}
 					value={name}
 					onChange={(value) => setName(value)}
 					autoFocus
@@ -400,23 +450,33 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					disabled={isSaving}
 				/>
 				<RadioControl
-					label="Storage location"
+					label={__('Storage location', 'playground-website')}
 					selected={selectedStorage}
 					options={[
 						{
-							label:
-								(asPane
-									? 'Save in browser storage'
-									: 'Save in this browser') +
-								(!isOpfsAvailable ? ' (not available)' : ''),
+							label: isOpfsAvailable
+								? browserStorageLabel
+								: sprintf(
+										/* translators: %s: Storage option label. */
+										__(
+											'%s (not available)',
+											'playground-website'
+										),
+										browserStorageLabel
+									),
 							value: 'opfs',
 						},
 						{
-							label:
-								(asPane
-									? 'Save in a local directory'
-									: 'Save to a local directory') +
-								(!localIsAvailable ? ' (not available)' : ''),
+							label: localIsAvailable
+								? localStorageLabel
+								: sprintf(
+										/* translators: %s: Storage option label. */
+										__(
+											'%s (not available)',
+											'playground-website'
+										),
+										localStorageLabel
+									),
 							value: 'local-fs',
 						},
 					]}
@@ -424,13 +484,20 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					disabled={isSaving}
 				/>
 				{!isOpfsAvailable && selectedStorage === 'opfs' && (
-					<p style={helpTextStyle}>Not available in this browser</p>
+					<p style={helpTextStyle}>
+						{__(
+							'Not available in this browser',
+							'playground-website'
+						)}
+					</p>
 				)}
 				{!localIsAvailable && selectedStorage === 'local-fs' && (
 					<p style={helpTextStyle}>{localUnavailableMessage}</p>
 				)}
 				{selectedStorage === 'local-fs' && (
-					<BaseControl label="Local directory">
+					<BaseControl
+						label={__('Local directory', 'playground-website')}
+					>
 						<div
 							style={{
 								display: 'flex',
@@ -443,7 +510,10 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 								className="components-text-control__input"
 								value={directoryHandle?.name ?? ''}
 								readOnly
-								placeholder="Choose a directory..."
+								placeholder={__(
+									'Choose a directory...',
+									'playground-website'
+								)}
 								style={{ flexGrow: 1 }}
 							/>
 							<Button
@@ -452,7 +522,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 								onClick={handlePickDirectory}
 								disabled={isSaving}
 							>
-								Choose...
+								{__('Choose...', 'playground-website')}
 							</Button>
 						</div>
 						{directoryError ? (
@@ -487,7 +557,7 @@ export function SaveSiteModal(props: SaveSiteModalProps = {}) {
 					</Notice>
 				) : null}
 				<ModalButtons
-					submitText="Save"
+					submitText={__('Save', 'playground-website')}
 					onCancel={handleRequestClose}
 					areDisabled={saveDisabled}
 					cancelDisabled={asPane ? isSubmitting : undefined}
@@ -516,8 +586,8 @@ function SaveSurface({
 	}
 	return (
 		<Modal
-			title="Save Playground"
-			contentLabel="Save Playground"
+			title={__('Save Playground', 'playground-website')}
+			contentLabel={__('Save Playground', 'playground-website')}
 			onRequestClose={onRequestClose}
 			isDismissible={isDismissible}
 			small

@@ -1,7 +1,8 @@
+import { __ } from '@wordpress/i18n';
 import type { Address, Email } from 'postal-mime';
 
 export function getMailSubject(mail: Email): string {
-	return mail.subject || '(No subject)';
+	return mail.subject || __('(No subject)', 'playground-website');
 }
 
 export function formatAddressList(addresses: Address[] | undefined): string {

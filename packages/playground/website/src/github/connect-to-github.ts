@@ -1,3 +1,4 @@
+import { __ } from '@wordpress/i18n';
 import { startGitHubOAuthFlow } from './oauth-popup';
 import { oAuthState, setOAuthToken } from './state';
 
@@ -38,5 +39,5 @@ export async function connectToGitHub({
 function getOAuthErrorMessage(error: unknown) {
 	return error instanceof Error && error.message
 		? error.message
-		: 'GitHub authorization failed.';
+		: __('GitHub authorization failed.', 'playground-website');
 }

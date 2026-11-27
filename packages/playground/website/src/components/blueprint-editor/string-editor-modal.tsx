@@ -26,6 +26,7 @@ import {
 	lineNumbers,
 } from '@codemirror/view';
 import { Button, Flex, FlexItem, SelectControl } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal } from '../modal';
 import {
@@ -208,13 +209,13 @@ export function StringEditorModal({
 
 	return (
 		<Modal
-			title="Edit String"
+			title={__('Edit String', 'playground-website')}
 			onRequestClose={onClose}
 			className={css.stringEditorModal}
 		>
 			<div className={css.languageSelector}>
 				<SelectControl
-					label="Language"
+					label={__('Language', 'playground-website')}
 					value={language}
 					options={Object.entries(languageLabels).map(
 						([value, label]) => ({ value, label })
@@ -227,12 +228,12 @@ export function StringEditorModal({
 			<Flex justify="flex-end" className={css.buttons}>
 				<FlexItem>
 					<Button variant="tertiary" onClick={onClose}>
-						Cancel
+						{__('Cancel', 'playground-website')}
 					</Button>
 				</FlexItem>
 				<FlexItem>
 					<Button variant="primary" onClick={handleSave}>
-						Save
+						{__('Save', 'playground-website')}
 					</Button>
 				</FlexItem>
 			</Flex>

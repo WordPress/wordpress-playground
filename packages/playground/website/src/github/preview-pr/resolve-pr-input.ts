@@ -1,3 +1,5 @@
+import { __ } from '@wordpress/i18n';
+
 export type ResolvedRef = {
 	target: 'wordpress' | 'gutenberg';
 	ref: string;
@@ -10,8 +12,12 @@ export type ResolvePrInputResult =
 
 // WordPress Core builds artifacts per pull request, not per branch, so a branch
 // name (or branch URL) can't be previewed. Gutenberg branches still work.
-const WP_BRANCH_ERROR =
-	"Branch names aren't supported for WordPress Core — paste a pull request number or URL instead. (To preview a Gutenberg branch, paste its full GitHub branch URL.)";
+function getWpBranchError(): string {
+	return __(
+		"Branch names aren't supported for WordPress Core — paste a pull request number or URL instead. (To preview a Gutenberg branch, paste its full GitHub branch URL.)",
+		'playground-website'
+	);
+}
 const PULL_REQUEST_NUMBER = /^[1-9]\d*$/;
 const FIRST_WORDPRESS_PREVIEWABLE_PR = 5749;
 
@@ -26,7 +32,13 @@ export function resolvePrInput(
 ): ResolvePrInputResult {
 	const input = raw.trim();
 	if (!input) {
-		return { ok: false, error: 'Enter a pull request number or URL.' };
+		return {
+			ok: false,
+			error: __(
+				'Enter a pull request number or URL.',
+				'playground-website'
+			),
+		};
 	}
 
 	// Extract number from a GitHub URL. Recognized URLs decide the
@@ -40,7 +52,10 @@ export function resolvePrInput(
 		) {
 			return {
 				ok: false,
-				error: 'Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch URL.',
+				error: __(
+					'Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch URL.',
+					'playground-website'
+				),
 			};
 		}
 		let githubPath = undefined;
@@ -49,7 +64,10 @@ export function resolvePrInput(
 		} catch {
 			return {
 				ok: false,
-				error: 'Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch URL.',
+				error: __(
+					'Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch URL.',
+					'playground-website'
+				),
 			};
 		}
 		const [owner, repoRaw, kindRaw, ...rest] = githubPath
@@ -58,7 +76,10 @@ export function resolvePrInput(
 		if (owner?.toLowerCase() !== 'wordpress') {
 			return {
 				ok: false,
-				error: 'Only WordPress/wordpress-develop and WordPress/gutenberg URLs are supported.',
+				error: __(
+					'Only WordPress/wordpress-develop and WordPress/gutenberg URLs are supported.',
+					'playground-website'
+				),
 			};
 		}
 		const repo = repoRaw?.toLowerCase();
@@ -102,11 +123,14 @@ export function resolvePrInput(
 			};
 		}
 		if (repo === 'wordpress-develop' && kind === 'tree') {
-			return { ok: false, error: WP_BRANCH_ERROR };
+			return { ok: false, error: getWpBranchError() };
 		}
 		return {
 			ok: false,
-			error: 'Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch URL.',
+			error: __(
+				'Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch URL.',
+				'playground-website'
+			),
 		};
 	}
 
@@ -118,7 +142,13 @@ export function resolvePrInput(
 		};
 	}
 	if (/^\d+$/.test(input)) {
-		return { ok: false, error: 'Enter a valid pull request number.' };
+		return {
+			ok: false,
+			error: __(
+				'Enter a valid pull request number.',
+				'playground-website'
+			),
+		};
 	}
 
 	// Bare, non-numeric, no recognized URL: treat as a branch name. Gutenberg
@@ -129,7 +159,7 @@ export function resolvePrInput(
 			value: { target: 'gutenberg', ref: input, isBranch: true },
 		};
 	}
-	return { ok: false, error: WP_BRANCH_ERROR };
+	return { ok: false, error: getWpBranchError() };
 }
 
 export function isWordPressPrBeforePreviewer(resolved: ResolvedRef) {

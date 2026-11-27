@@ -1,3 +1,4 @@
+import { __, _n, sprintf } from '@wordpress/i18n';
 import type { Attachment } from 'postal-mime';
 import { useEffect, useState } from 'react';
 import attachmentStylesheetUrl from './mail-attachments.css?url';
@@ -50,10 +51,16 @@ export function MailAttachments({
 		return null;
 	}
 
-	const heading =
-		attachments.length === 1
-			? '1 attachment'
-			: `${attachments.length} attachments`;
+	const heading = sprintf(
+		/* translators: %d: Number of email attachments. */
+		_n(
+			'%d attachment',
+			'%d attachments',
+			attachments.length,
+			'playground-website'
+		),
+		attachments.length
+	);
 
 	return (
 		<div id="mail-attachments-host" className="mail-attachments">
@@ -72,11 +79,12 @@ export function MailAttachments({
 					</h2>
 					<ul
 						className="mail-attachments__list"
-						aria-label="Attachments"
+						aria-label={__('Attachments', 'playground-website')}
 					>
 						{attachments.map((attachment, index) => {
 							const filename =
-								attachment.filename || 'Unnamed attachment';
+								attachment.filename ||
+								__('Unnamed attachment', 'playground-website');
 							const resource = resources.get(attachment);
 
 							let preview = (
@@ -163,13 +171,27 @@ export function MailAttachments({
 											{resource && (
 												<div className="mail-attachments__actions">
 													<span className="mail-attachments__size">
-														Size: {formattedSize}
+														{sprintf(
+															/* translators: %s: Formatted file size, e.g. "12.4 KB". */
+															__(
+																'Size: %s',
+																'playground-website'
+															),
+															formattedSize
+														)}
 													</span>
 													<a
 														className="mail-attachments__download-link"
 														href={resource.url}
 														download={filename}
-														aria-label={`Download ${filename}`}
+														aria-label={sprintf(
+															/* translators: %s: Attachment filename. */
+															__(
+																'Download %s',
+																'playground-website'
+															),
+															filename
+														)}
 													>
 														<span
 															className="mail-attachments__download-icon"
@@ -177,7 +199,10 @@ export function MailAttachments({
 														>
 															&#8595;
 														</span>{' '}
-														Download
+														{__(
+															'Download',
+															'playground-website'
+														)}
 													</a>
 												</div>
 											)}

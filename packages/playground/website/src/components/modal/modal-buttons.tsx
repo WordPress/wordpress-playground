@@ -1,4 +1,5 @@
 import { Button, Flex } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import React from 'react';
 import css from './style.module.css';
 
@@ -16,7 +17,7 @@ interface ModalButtonsProps {
 	style?: React.CSSProperties;
 }
 export default function ModalButtons({
-	submitText = 'Submit',
+	submitText = __('Submit', 'playground-website'),
 	areDisabled = false,
 	cancelDisabled,
 	areBusy,
@@ -35,7 +36,7 @@ export default function ModalButtons({
 				variant="link"
 				onClick={onCancel}
 			>
-				Cancel
+				{__('Cancel', 'playground-website')}
 			</Button>
 			<Button
 				type="submit"

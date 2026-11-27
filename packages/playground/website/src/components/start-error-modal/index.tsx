@@ -1,4 +1,5 @@
 import { Button } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { LogModal } from '../log-modal';
 import { useState } from '@wordpress/element';
 
@@ -23,27 +24,31 @@ export function StartErrorModal() {
 	const description = (
 		<>
 			<p>
-				Oops! There was a problem starting Playground. To figure out
-				what went wrong, please take a look at the error logs provided
-				below. If you see an "Invalid blueprint error," the logs will
-				point out the specific step causing the issue. You can then
-				double-check your blueprint. For more help, you can also{' '}
+				{__(
+					'Oops! There was a problem starting Playground. To figure out what went wrong, please take a look at the error logs provided below. If you see an "Invalid blueprint error," the logs will point out the specific step causing the issue. You can then double-check your blueprint. For more help, you can also',
+					'playground-website'
+				)}{' '}
 				<a
 					href="https://wordpress.github.io/wordpress-playground/blueprints/troubleshoot-and-debug/"
 					target="_blank"
 					rel="noreferrer"
 				>
-					visit our documentation.
+					{__('visit our documentation.', 'playground-website')}
 				</a>{' '}
 			</p>
 			<Button
 				className={css.startErrorModalDismiss}
-				text="Don't show again"
+				text={__("Don't show again", 'playground-website')}
 				onClick={dismiss}
 				variant="secondary"
 				isSmall={true}
 			/>
 		</>
 	);
-	return <LogModal title="Error" description={description} />;
+	return (
+		<LogModal
+			title={__('Error', 'playground-website')}
+			description={description}
+		/>
+	);
 }

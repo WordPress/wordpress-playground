@@ -1,3 +1,5 @@
+import { __, sprintf } from '@wordpress/i18n';
+
 /**
  * Prevents WordPress fatal-error documents and PHP stack traces from flooding
  * the terminal.
@@ -17,15 +19,40 @@ export function getTerminalErrorMessage(
 		/^ParseError: (?:syntax error, )?(?:unexpected end of file|Unclosed\b).*?(?: on line (\d+))?$/
 	);
 	if (incompletePhp) {
-		const location = syntaxErrorPosition
-			? ` on line ${syntaxErrorPosition.line}, character ${syntaxErrorPosition.character}`
-			: incompletePhp[1]
-				? ` on line ${incompletePhp[1]}`
-				: '';
-		return `ParseError${location}: Incomplete PHP code. Check for a missing semicolon or closing delimiter.`;
+		if (syntaxErrorPosition) {
+			return sprintf(
+				/* translators: 1: Line number, 2: Character offset. */
+				__(
+					'ParseError on line %1$d, character %2$d: Incomplete PHP code. Check for a missing semicolon or closing delimiter.',
+					'playground-website'
+				),
+				syntaxErrorPosition.line,
+				syntaxErrorPosition.character
+			);
+		}
+		if (incompletePhp[1]) {
+			return sprintf(
+				/* translators: %s: Line number. */
+				__(
+					'ParseError on line %s: Incomplete PHP code. Check for a missing semicolon or closing delimiter.',
+					'playground-website'
+				),
+				incompletePhp[1]
+			);
+		}
+		return __(
+			'ParseError: Incomplete PHP code. Check for a missing semicolon or closing delimiter.',
+			'playground-website'
+		);
 	}
 	if (syntaxErrorPosition && message.startsWith('ParseError:')) {
-		return `${message.replace(/ on line \d+$/, '')} on line ${syntaxErrorPosition.line}, character ${syntaxErrorPosition.character}`;
+		return sprintf(
+			/* translators: 1: PHP ParseError message, 2: Line number, 3: Character offset. */
+			__('%1$s on line %2$d, character %3$d', 'playground-website'),
+			message.replace(/ on line \d+$/, ''),
+			syntaxErrorPosition.line,
+			syntaxErrorPosition.character
+		);
 	}
 
 	const htmlStart = message.indexOf('<!DOCTYPE html>');
@@ -41,5 +68,8 @@ export function getTerminalErrorMessage(
 		'.wp-die-message > p:first-child'
 	)?.textContent;
 
-	return wordpressError?.trim() || 'WordPress encountered a critical error.';
+	return (
+		wordpressError?.trim() ||
+		__('WordPress encountered a critical error.', 'playground-website')
+	);
 }

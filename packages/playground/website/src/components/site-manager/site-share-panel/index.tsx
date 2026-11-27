@@ -1,5 +1,6 @@
 import { logger } from '@php-wasm/logger';
 import { Button, Icon } from '@wordpress/components';
+import { __ } from '@wordpress/i18n';
 import { download, link } from '@wordpress/icons';
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { GitHubIcon } from '../../../github/github';
@@ -70,7 +71,10 @@ export function SiteSharePanel() {
 		} catch (error) {
 			logger.error('Failed to download Playground zip', error);
 			setDownloadError(
-				'Unable to prepare the .zip download. Please try again.'
+				__(
+					'Unable to prepare the .zip download. Please try again.',
+					'playground-website'
+				)
 			);
 		} finally {
 			setIsDownloading(false);
@@ -103,7 +107,7 @@ export function SiteSharePanel() {
 		return (
 			<section
 				className={`${css.sharePanel} ${css.githubExportPanel}`}
-				aria-label="Export to GitHub form"
+				aria-label={__('Export to GitHub form', 'playground-website')}
 			>
 				{playground ? (
 					<Suspense
@@ -130,7 +134,10 @@ export function SiteSharePanel() {
 				) : (
 					<PlaygroundBootNotice
 						show
-						message="The Playground is still loading — Export to GitHub will be ready in a moment."
+						message={__(
+							'The Playground is still loading — Export to GitHub will be ready in a moment.',
+							'playground-website'
+						)}
 					/>
 				)}
 			</section>
@@ -138,20 +145,30 @@ export function SiteSharePanel() {
 	}
 
 	return (
-		<section className={css.sharePanel} aria-label="Export options">
+		<section
+			className={css.sharePanel}
+			aria-label={__('Export options', 'playground-website')}
+		>
 			<PlaygroundBootNotice
 				show={!playground}
-				message="The Playground is still loading — Download and Export to GitHub will be ready in a moment."
+				message={__(
+					'The Playground is still loading — Download and Export to GitHub will be ready in a moment.',
+					'playground-website'
+				)}
 			/>
 			<div className={css.group}>
 				<span className={css.groupIcon} aria-hidden="true">
 					<Icon icon={download} size={22} />
 				</span>
 				<div className={css.groupBody}>
-					<h3 className={css.groupTitle}>Download a copy</h3>
+					<h3 className={css.groupTitle}>
+						{__('Download a copy', 'playground-website')}
+					</h3>
 					<p className={css.hint}>
-						Saves everything as it is right now — files, database,
-						and your edits — to a .zip you can re-import later.
+						{__(
+							'Saves everything as it is right now — files, database, and your edits — to a .zip you can re-import later.',
+							'playground-website'
+						)}
 					</p>
 					<div className={css.actions}>
 						<Button
@@ -161,8 +178,8 @@ export function SiteSharePanel() {
 							onClick={downloadZip}
 						>
 							{isDownloading
-								? 'Preparing .zip…'
-								: 'Download as .zip'}
+								? __('Preparing .zip…', 'playground-website')
+								: __('Download as .zip', 'playground-website')}
 						</Button>
 						{downloadError && (
 							<p className={css.error} role="alert">
@@ -178,18 +195,20 @@ export function SiteSharePanel() {
 					<Icon icon={link} size={22} />
 				</span>
 				<div className={css.groupBody}>
-					<h3 className={css.groupTitle}>Copy original setup link</h3>
+					<h3 className={css.groupTitle}>
+						{__('Copy original setup link', 'playground-website')}
+					</h3>
 					<p className={css.hint}>
-						Copies a URL that rebuilds this Playground from its
-						original Blueprint on any device. It restores the
-						starting setup only — your edits to files and content
-						aren&apos;t included.
+						{__(
+							"Copies a URL that rebuilds this Playground from its original Blueprint on any device. It restores the starting setup only — your edits to files and content aren't included.",
+							'playground-website'
+						)}
 					</p>
 					<div className={css.actions}>
 						<Button variant="secondary" onClick={copySetupUrl}>
 							{copyStatus === 'copied'
-								? 'Link copied'
-								: 'Copy link'}
+								? __('Link copied', 'playground-website')
+								: __('Copy link', 'playground-website')}
 						</Button>
 						{copyStatus !== 'idle' && (
 							<p
@@ -203,8 +222,14 @@ export function SiteSharePanel() {
 								}
 							>
 								{copyStatus === 'failed'
-									? 'Clipboard access was blocked. Please try again.'
-									: 'Setup URL copied to the clipboard.'}
+									? __(
+											'Clipboard access was blocked. Please try again.',
+											'playground-website'
+										)
+									: __(
+											'Setup URL copied to the clipboard.',
+											'playground-website'
+										)}
 							</p>
 						)}
 					</div>
@@ -216,10 +241,14 @@ export function SiteSharePanel() {
 					<Icon icon={GitHubIcon} size={22} />
 				</span>
 				<div className={css.groupBody}>
-					<h3 className={css.groupTitle}>Export to GitHub</h3>
+					<h3 className={css.groupTitle}>
+						{__('Export to GitHub', 'playground-website')}
+					</h3>
 					<p className={css.hint}>
-						Pushes the current state — including your edits — to a
-						GitHub repository.
+						{__(
+							'Pushes the current state — including your edits — to a GitHub repository.',
+							'playground-website'
+						)}
 					</p>
 					<div className={css.actions}>
 						<Button
@@ -230,7 +259,7 @@ export function SiteSharePanel() {
 							onFocus={preloadExportForm}
 							onClick={() => dispatch(setShareExportOpen(true))}
 						>
-							Export to GitHub
+							{__('Export to GitHub', 'playground-website')}
 						</Button>
 					</div>
 				</div>
