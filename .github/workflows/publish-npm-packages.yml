@@ -103,6 +103,15 @@ jobs:
               # On non-trunk branches, --no-push avoids pushing the version
               # bump commit back to the branch. The published packages still
               # get the version bump in their package.json on npm.
+              #
+              # NX_TUI=false disables Nx's terminal UI mode, which otherwise
+              # buffers all task output until the run ends. lerna runs the
+              # build via the prepublishOnly lifecycle script; without this,
+              # if the build crashes mid-run (e.g. an OOM kill), the entire
+              # buffer is lost and the only signal in the log is
+              # "lifecycle 'prepublishOnly' errored" with no diagnostics.
+              env:
+                  NX_TUI: 'false'
               run: >
                   lerna publish ${{ inputs.version_bump || 'patch' }}
                   --yes --no-private --loglevel=verbose
