@@ -4,6 +4,21 @@ export {
 	registerWebMCPTools,
 	unregisterWebMCPTools,
 	getModelContext,
+	createWebMCPSiteAccess,
 } from './webmcp';
-export { startWebMCPSiteToolProxy } from './webmcp-site-tools';
+export type { WebMCPConfig } from './webmcp';
+export {
+	startWebMCPSiteToolGateway,
+	startWebMCPSiteToolProxy,
+	startWebMCPSiteToolMirror,
+} from './webmcp-site-tools';
 export type { WebMCPSiteToolProxy } from './webmcp-site-tools';
+export { createSiteAccessPrompt } from './webmcp-site-access';
+export type {
+	SiteAccess,
+	SiteAccessDecision,
+	SiteAccessPrompt,
+	SiteAccessRequest,
+	SiteAccessSiteRef,
+	SiteAccessSnapshot,
+} from './webmcp-site-access';

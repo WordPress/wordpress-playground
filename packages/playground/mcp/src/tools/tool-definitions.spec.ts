@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
 	getSiteToolDefinitions,
+	getWebMCPSiteAccessToolDefinitions,
 	paramsToJsonSchema,
 	playgroundUrl,
 	toolDefinitions,
@@ -36,6 +37,7 @@ describe('README tool list', () => {
 		const registered = [
 			...Object.keys(toolDefinitions),
 			...Object.keys(getSiteToolDefinitions()),
+			...Object.keys(getWebMCPSiteAccessToolDefinitions()),
 		].sort();
 
 		const readme = readFileSync(

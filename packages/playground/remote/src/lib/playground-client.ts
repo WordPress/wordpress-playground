@@ -5,7 +5,10 @@ import type { ProgressReceiver } from '@php-wasm/progress';
 import type { MessageListener, UniversalPHP } from '@php-wasm/universal';
 import type { RemoteAPI, SyncProgressCallback } from '@php-wasm/web';
 import type { ProgressBarOptions } from './progress-bar';
-import type { WebMCPToolDescriptor } from './webmcp-frame-bridge';
+import type {
+	WebMCPToolDescriptor,
+	WebMCPUserInteractionHandler,
+} from './webmcp-frame-bridge';
 import type {
 	PlaygroundWorkerEndpoint,
 	MountDescriptor,
@@ -13,7 +16,10 @@ import type {
 } from './playground-worker-endpoint';
 
 export type { BootProgressEvent } from './playground-worker-endpoint';
-export type { WebMCPToolDescriptor } from './webmcp-frame-bridge';
+export type {
+	WebMCPToolDescriptor,
+	WebMCPUserInteractionHandler,
+} from './webmcp-frame-bridge';
 
 export interface WebClientMixin extends ProgressReceiver {
 	/**
@@ -84,11 +90,14 @@ export interface WebClientMixin extends ProgressReceiver {
 	 * @param args The tool input.
 	 * @param callId An optional identifier used to cancel this call. Use a fresh ID
 	 * for each invocation; an already-pending ID is rejected.
+	 * @param onUserInteraction Handles the tool's `requestUserInteraction()`
+	 * calls. Without it, those requests are refused.
 	 */
 	callWebMCPTool(
 		name: string,
 		args: Record<string, unknown>,
-		callId?: string
+		callId?: string,
+		onUserInteraction?: WebMCPUserInteractionHandler
 	): Promise<unknown>;
 
 	/** Signals cancellation to a pending tool inside the WordPress document. */

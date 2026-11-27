@@ -6,18 +6,82 @@
  * with the running Playground site.
  */
 
-import type { PlaygroundClient } from '@wp-playground/remote';
 import {
 	toolDefinitions,
 	getSiteToolDefinitions,
+	getWebMCPSiteAccessToolDefinitions,
 	formatStorageLabel,
 	paramsToJsonSchema,
+	siteAccessParams,
 	stringifyError,
 } from './tools/tool-definitions';
 import { toolExecutors, createToolClient } from './tools/tool-executors';
 import type { PlaygroundBridgeConfig } from './bridge-client';
+import type { SiteAccess, SiteAccessOptions } from './webmcp-site-access';
+import { createSiteAccess } from './webmcp-site-access';
+import { createSiteToolGatewayTools } from './webmcp-site-tools';
+import {
+	boundedResponse,
+	filePage,
+	listPage,
+	withCursor,
+} from './webmcp-response';
+
+const cursorParam = {
+	name: 'cursor',
+	type: 'string' as const,
+	description: 'Continue the same read with its returned nextCursor.',
+	required: false,
+};
+
+const listFields: Record<string, string> = {
+	playground_list_files: 'files',
+	playground_list_emails: 'emails',
+};
+
+// Browser tool descriptions and continuation parameters are independent of the desktop MCP server.
+const webDescriptions: Record<string, string> = {
+	playground_execute_php:
+		'Run PHP inside the selected WordPress site when its HTTP API cannot provide the data or action. Include the opening <?php tag and load /wordpress/wp-load.php to use WordPress. Check exitCode and errors. Large output is returned as a truncated preview.',
+	playground_request:
+		'Make an authenticated HTTP request to the selected site to work with WordPress content or abilities, or inspect HTTP behavior. Check httpStatusCode. Select only needed fields and page large collections. Large responses are returned as a truncated preview.',
+	playground_read_file:
+		'Read a text file from the selected site. Append each page of contents using nextCursor until the file is complete.',
+	playground_list_files:
+		'List files and directories immediately inside a directory when exploring the site. Continue with nextCursor. Join any fragments of an oversized entry before parsing its JSON.',
+	playground_list_emails:
+		'Read captured WordPress emails in send order to verify delivery attempts or find a message. Continue with nextCursor. Join any fragments of an oversized email before parsing its JSON.',
+};
 
 const siteToolDefinitions = getSiteToolDefinitions();
+const siteAccessToolDefinitions = getWebMCPSiteAccessToolDefinitions();
+
+export interface WebMCPConfig extends PlaygroundBridgeConfig {
+	/** Stable site identities for grants; slugs are used only for routing. */
+	list(): Array<
+		ReturnType<PlaygroundBridgeConfig['list']>[number] & {
+			id: string;
+			persistence?: 'autosave' | 'explicit';
+		}
+	>;
+	rename(newName: string, siteSlug?: string): Promise<void>;
+	saveInBrowser(
+		name?: string,
+		siteSlug?: string
+	): ReturnType<PlaygroundBridgeConfig['saveInBrowser']>;
+	/**
+	 * Grants agent access to sites. Created from this config when omitted, so
+	 * pass one to show its state in the UI.
+	 */
+	siteAccess?: SiteAccess;
+	/**
+	 * Asks the user to grant access. Without it, access is granted only when
+	 * `list()` returns exactly one site.
+	 */
+	confirmSiteAccess?: SiteAccessOptions['confirm'];
+	/** Makes another site current. Enables `playground_switch_site`. */
+	switchSite?(slug: string): Promise<void>;
+}
 
 // -- WebMCP type declarations --
 
@@ -38,7 +102,7 @@ export interface ModelContextTool {
 	};
 }
 
-interface ModelContextClient {
+export interface ModelContextClient {
 	signal?: AbortSignal;
 	requestUserInteraction?(callback: () => Promise<unknown>): Promise<unknown>;
 }
@@ -62,13 +126,32 @@ declare global {
 
 let registrationController: AbortController | null = null;
 
-function getActiveSite(config: PlaygroundBridgeConfig) {
-	const sites = config.list();
-	const active = sites.find((s) => s.isActive);
-	if (!active) {
-		throw new Error('No active Playground site');
+/** Creates the site access controller `registerWebMCPTools()` would create. */
+export function createWebMCPSiteAccess(config: WebMCPConfig): SiteAccess {
+	return createSiteAccess({
+		listSites: config.list.bind(config),
+		getActiveClient: () => {
+			try {
+				return config.getClient();
+			} catch {
+				// No site is selected.
+				return undefined;
+			}
+		},
+		confirm: config.confirmSiteAccess,
+	});
+}
+
+function getSite(config: WebMCPConfig, siteId: string, requireActive = true) {
+	const site = config
+		.list()
+		.find((s) => s.id === siteId && (!requireActive || s.isActive));
+	if (!site) {
+		throw new Error(
+			'The selected site changed. List sites and request access again.'
+		);
 	}
-	return active;
+	return site;
 }
 
 /**
@@ -77,9 +160,7 @@ function getActiveSite(config: PlaygroundBridgeConfig) {
  * registered by this attempt and rejects. An aborted registration returns after its
  * pending registration operations settle.
  */
-export async function registerWebMCPTools(
-	config: PlaygroundBridgeConfig
-): Promise<void> {
+export async function registerWebMCPTools(config: WebMCPConfig): Promise<void> {
 	const modelContext = getModelContext();
 	if (!modelContext) {
 		return;
@@ -91,20 +172,20 @@ export async function registerWebMCPTools(
 	const controller = registrationController;
 	const signal = controller.signal;
 
-	function getActiveClient(): PlaygroundClient {
-		const client = config.getClient();
-		if (!client) {
-			throw new Error('No client for active site');
-		}
-		return client;
-	}
+	const siteAccess = config.siteAccess ?? createWebMCPSiteAccess(config);
 
-	// Per-site tools
+	// Per-site tools. Each needs a grant, which decides the site it acts on.
 	const tools: ModelContextTool[] = Object.entries(toolDefinitions).map(
 		([name, def]) => ({
 			name,
-			description: def.description,
-			inputSchema: paramsToJsonSchema(def.params),
+			description: webDescriptions[name] ?? def.description,
+			inputSchema: paramsToJsonSchema([
+				...siteAccessParams,
+				...def.params,
+				...(name === 'playground_read_file' || listFields[name]
+					? [cursorParam]
+					: []),
+			]),
 			annotations: def.annotations,
 			execute: async (input, client) => {
 				try {
@@ -115,13 +196,39 @@ export async function registerWebMCPTools(
 							error: `No executor for "${name}"`,
 						};
 					}
-					const adapter = createToolClient(getActiveClient());
+					const { siteId, grant, cursor, ...toolInput } = input;
+					const playground = await siteAccess.authorize(
+						String(siteId ?? ''),
+						String(grant ?? '')
+					);
+					client?.signal?.throwIfAborted();
+					siteAccess.recordCall({
+						siteId: String(siteId),
+						tool: name,
+						input: toolInput,
+					});
+					const adapter = createToolClient(playground);
+					client?.signal?.throwIfAborted();
 					const result = await executor(
 						adapter,
-						input,
+						toolInput,
 						client?.signal
 					);
 					client?.signal?.throwIfAborted();
+					if (name === 'playground_read_file') {
+						return filePage(
+							(result as { contents: string }).contents,
+							cursor
+						);
+					}
+					const field = listFields[name];
+					if (field) {
+						return listPage(
+							(result as Record<string, unknown[]>)[field],
+							field,
+							cursor
+						);
+					}
 					return result;
 				} catch (error) {
 					return {
@@ -133,11 +240,20 @@ export async function registerWebMCPTools(
 	);
 
 	// Site management tools
-	tools.push(...createSiteManagementTools(config));
+	tools.push(...createSiteManagementTools(config, siteAccess));
+	tools.push(...createSiteAccessTools(config, siteAccess));
+	tools.push(...createSiteToolGatewayTools(siteAccess));
 
 	const results = await Promise.allSettled(
 		tools.map(async (tool) => {
-			await modelContext.registerTool(tool, { signal });
+			await modelContext.registerTool(
+				{
+					...tool,
+					execute: async (input, client) =>
+						boundedResponse(await tool.execute(input, client)),
+				},
+				{ signal }
+			);
 		})
 	);
 	if (signal.aborted) {
@@ -188,8 +304,74 @@ export function getModelContext(): ModelContext | undefined {
 		: undefined;
 }
 
+function createSiteAccessTools(
+	config: WebMCPConfig,
+	siteAccess: SiteAccess
+): ModelContextTool[] {
+	const requestDef =
+		siteAccessToolDefinitions['playground_request_site_access'];
+	const switchDef = siteAccessToolDefinitions['playground_switch_site'];
+	const tools: ModelContextTool[] = [
+		{
+			name: 'playground_request_site_access',
+			description: requestDef.description,
+			inputSchema: paramsToJsonSchema(requestDef.params),
+			annotations: requestDef.annotations,
+			execute: async (input, client) => {
+				try {
+					client?.signal?.throwIfAborted();
+					const reason =
+						typeof input['reason'] === 'string' &&
+						input['reason'].trim()
+							? input['reason'].trim()
+							: undefined;
+					// Hand control to the user while they decide, so the agent
+					// does not act on the dialog itself where browsers support it.
+					return await siteAccess.request(String(input['siteId']), {
+						reason,
+						interact: client?.requestUserInteraction?.bind(client),
+						signal: client?.signal,
+					});
+				} catch (error) {
+					return {
+						error: `${requestDef.errorPrefix}: ${stringifyError(error)}`,
+					};
+				}
+			},
+		},
+	];
+	const switchSite = config.switchSite?.bind(config);
+	if (switchSite) {
+		tools.push({
+			name: 'playground_switch_site',
+			description: switchDef.description,
+			inputSchema: paramsToJsonSchema(switchDef.params),
+			annotations: switchDef.annotations,
+			execute: async (input, client) => {
+				try {
+					client?.signal?.throwIfAborted();
+					const siteId = String(input['siteId'] ?? '');
+					await siteAccess.authorizeSwitch(
+						siteId,
+						String(input['grant'] ?? '')
+					);
+					client?.signal?.throwIfAborted();
+					await switchSite(getSite(config, siteId, false).slug);
+					return { success: true, siteId };
+				} catch (error) {
+					return {
+						error: `${switchDef.errorPrefix}: ${stringifyError(error)}`,
+					};
+				}
+			},
+		});
+	}
+	return tools;
+}
+
 function createSiteManagementTools(
-	config: PlaygroundBridgeConfig
+	config: WebMCPConfig,
+	siteAccess: SiteAccess
 ): ModelContextTool[] {
 	const listDef = siteToolDefinitions['playground_list_sites'];
 	const saveDef = siteToolDefinitions['playground_save_in_browser'];
@@ -199,21 +381,25 @@ function createSiteManagementTools(
 	return [
 		{
 			name: 'playground_list_sites',
-			description: listDef.description,
-			inputSchema: paramsToJsonSchema(listDef.params),
-			annotations: listDef.annotations,
-			execute: async (_input, client) => {
+			description:
+				'Find available Playground sites and their IDs before requesting access. Continue with nextCursor. Join any fragments of an oversized entry before parsing its JSON.',
+			inputSchema: paramsToJsonSchema([...listDef.params, cursorParam]),
+			annotations: { ...listDef.annotations, untrustedContentHint: true },
+			execute: async (input, client) => {
 				try {
 					client?.signal?.throwIfAborted();
-					return {
-						connectedTabs: 1,
-						sites: config.list().map((s) => ({
-							siteId: s.slug,
+					return listPage(
+						config.list().map((s) => ({
+							siteId: s.id,
 							name: s.name,
 							storage: formatStorageLabel(s.storage),
 							isActive: s.isActive,
 						})),
-					};
+						'sites',
+						input['cursor'],
+						(content, next) =>
+							withCursor({ connectedTabs: 1, ...content }, next)
+					);
 				} catch (error) {
 					return {
 						error: `${listDef.errorPrefix}: ${stringifyError(error)}`,
@@ -224,29 +410,38 @@ function createSiteManagementTools(
 		{
 			name: 'playground_save_in_browser',
 			description: saveDef.description,
-			inputSchema: paramsToJsonSchema(saveDef.params),
-			annotations: saveDef.annotations,
-			execute: async (_input, client) => {
+			inputSchema: paramsToJsonSchema([
+				...siteAccessParams,
+				...saveDef.params,
+			]),
+			annotations: { ...saveDef.annotations, untrustedContentHint: true },
+			execute: async (input, client) => {
 				try {
 					client?.signal?.throwIfAborted();
-					const site = getActiveSite(config);
-					const storage = formatStorageLabel(site.storage);
-					if (storage !== 'temporary') {
-						return {
-							success: true,
-							alreadySaved: true,
-							siteId: site.slug,
-							name: site.name,
-							storage,
-						};
-					}
+					const siteId = String(input['siteId'] ?? '');
+					await siteAccess.authorize(
+						siteId,
+						String(input['grant'] ?? '')
+					);
+					client?.signal?.throwIfAborted();
+					siteAccess.recordCall({
+						siteId,
+						tool: 'playground_save_in_browser',
+					});
+					const site = getSite(config, siteId);
+					const alreadySaved =
+						formatStorageLabel(site.storage) !== 'temporary' &&
+						site.persistence !== 'autosave';
 					// Storage operations do not currently expose an interrupt API.
-					const saved = await config.saveInBrowser();
+					const saved = await config.saveInBrowser(
+						undefined,
+						site.slug
+					);
 					client?.signal?.throwIfAborted();
 					return {
 						success: true,
-						alreadySaved: false,
-						siteId: saved.slug,
+						alreadySaved,
+						siteId,
 						name: site.name ?? saved.slug,
 						storage: formatStorageLabel(saved.storage),
 					};
@@ -260,19 +455,32 @@ function createSiteManagementTools(
 		{
 			name: 'playground_rename_site',
 			description: renameDef.description,
-			inputSchema: paramsToJsonSchema(renameDef.params),
+			inputSchema: paramsToJsonSchema([
+				...siteAccessParams,
+				...renameDef.params,
+			]),
 			annotations: renameDef.annotations,
 			execute: async (input, client) => {
 				try {
 					client?.signal?.throwIfAborted();
 					const newName = input['newName'] as string;
-					const sites = config.list();
-					const activeSite = sites.find((s) => s.isActive);
-					await config.rename(newName);
+					const siteId = String(input['siteId'] ?? '');
+					await siteAccess.authorize(
+						siteId,
+						String(input['grant'] ?? '')
+					);
+					client?.signal?.throwIfAborted();
+					siteAccess.recordCall({
+						siteId,
+						tool: 'playground_rename_site',
+						input: { newName },
+					});
+					const site = getSite(config, siteId);
+					await config.rename(newName, site.slug);
 					client?.signal?.throwIfAborted();
 					return {
 						success: true,
-						siteId: activeSite?.slug,
+						siteId,
 						newName,
 					};
 				} catch (error) {

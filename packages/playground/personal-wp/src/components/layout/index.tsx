@@ -11,6 +11,7 @@ import { MissingSiteModal } from '../missing-site-modal';
 import { modalSlugs } from '../../lib/state/redux/slice-ui';
 import { SiteManager } from '../site-manager';
 import { useAutoBackup } from '../../lib/hooks/use-auto-backup';
+import { SiteAccessDialog, SiteInteractionBanner } from '../agent-site-access';
 
 export function Layout() {
 	const siteManagerIsOpen = useAppSelector(
@@ -23,6 +24,7 @@ export function Layout() {
 	return (
 		<div className={`${css.layout}`}>
 			<Modals />
+			<SiteAccessDialog />
 			<CSSTransition
 				nodeRef={siteManagerWrapperRef}
 				in={siteManagerIsOpen}
@@ -43,6 +45,7 @@ export function Layout() {
 				</div>
 			</CSSTransition>
 			<div className={css.siteView}>
+				<SiteInteractionBanner />
 				<div className={css.siteViewContent}>
 					<PlaygroundViewport />
 				</div>

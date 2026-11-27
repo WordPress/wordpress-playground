@@ -8,10 +8,15 @@ import type {
 	WebMCPSiteToolProxy,
 } from '@wp-playground/mcp/client';
 import {
+	createWebMCPSiteAccess,
 	registerWebMCPTools,
 	startMcpBridge,
-	startWebMCPSiteToolProxy,
+	startWebMCPSiteToolGateway,
 } from '@wp-playground/mcp/client';
+import {
+	agentSiteAccessPrompt,
+	setAgentSiteAccess,
+} from '../../agent-site-access';
 import { isMcpServerEnabled } from '../url/router';
 import { logTrackingEvent } from '../../tracking';
 import { logger } from '@php-wasm/logger';
@@ -51,18 +56,26 @@ startListening({
 		 * breaks, we must not let it crash the Playground website — the MCP
 		 * integration is a progressive enhancement, not a critical feature.
 		 */
-		void registerWebMCPTools(mcpConfig).catch((error) => {
-			logger.warn('WebMCP registration failed:', error);
-		});
+		const webMCPConfig = {
+			...mcpConfig,
+			confirmSiteAccess: agentSiteAccessPrompt.confirm,
+			switchSite: (siteSlug: string) => sitesAPI.setActiveSite(siteSlug),
+		};
+		const siteAccess = createWebMCPSiteAccess(webMCPConfig);
+		setAgentSiteAccess(siteAccess);
+		void registerWebMCPTools({ ...webMCPConfig, siteAccess }).catch(
+			(error) => {
+				logger.warn('WebMCP registration failed:', error);
+			}
+		);
 
 		/**
-		 * Mirrors the WebMCP tools a plugin registers inside the WordPress
-		 * document onto this page, so an agent driving Playground can call
-		 * them.
+		 * Makes the WebMCP tools a plugin registers inside the WordPress
+		 * document reachable through Playground's site tool gateway.
 		 *
-		 * A tab shows one site at a time, so the proxy follows the active
-		 * site's client and restarts when the user switches sites or the site
-		 * reboots. Tool names need no per-site qualifier for the same reason.
+		 * Site tools act only on the current site, so the gateway follows the
+		 * active site's client and restarts when the user switches sites or
+		 * the site reboots.
 		 */
 		let siteToolProxy: WebMCPSiteToolProxy | null = null;
 		let proxiedClient: PlaygroundClient | undefined;
@@ -79,7 +92,7 @@ startListening({
 			}
 			proxiedClient = client;
 			siteToolProxy?.stop();
-			siteToolProxy = client ? startWebMCPSiteToolProxy(client) : null;
+			siteToolProxy = client ? startWebMCPSiteToolGateway(client) : null;
 		};
 		syncSiteToolProxy();
 
@@ -90,6 +103,18 @@ startListening({
 					action.type.startsWith('sites/') ||
 					action.type === 'ui/setActiveSite'),
 			effect: syncSiteToolProxy,
+		});
+
+		// Deleting a site revokes this tab's grants for it.
+		startListening({
+			predicate: (action) =>
+				typeof action.type === 'string' &&
+				action.type.startsWith('sites/'),
+			effect: () => {
+				void siteAccess.sitesChanged().catch((error) => {
+					logger.warn('Failed to update agent site access:', error);
+				});
+			},
 		});
 
 		// Only start the WebSocket bridge when explicitly requested
