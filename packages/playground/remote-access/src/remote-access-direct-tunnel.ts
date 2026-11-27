@@ -46,7 +46,6 @@ export interface TunnelHostEvents {
 
 interface CreateSessionResponse {
 	sessionId: string;
-	shareUrl: string;
 	accessCode: string;
 	hostToken: string;
 }
@@ -446,7 +445,6 @@ export class DirectTunnelHost {
 	private peerConnection: RTCPeerConnection | null = null;
 	private dataChannel: RTCDataChannel | null = null;
 	private sessionId: string | null = null;
-	private shareUrl: string | null = null;
 	private accessCode: string | null = null;
 	private hostToken: string | null = null;
 	private isActive = false;
@@ -496,7 +494,7 @@ export class DirectTunnelHost {
 		this.relayUrl = relayUrl;
 	}
 
-	async startSharing(): Promise<string> {
+	async startSharing(): Promise<void> {
 		if (this.isActive) {
 			throw new Error('Already sharing');
 		}
@@ -517,7 +515,6 @@ export class DirectTunnelHost {
 
 		const data: CreateSessionResponse = await response.json();
 		this.sessionId = data.sessionId;
-		this.shareUrl = data.shareUrl;
 		this.accessCode = data.accessCode;
 		this.hostToken = data.hostToken;
 		this.isActive = true;
@@ -525,7 +522,6 @@ export class DirectTunnelHost {
 		this.updateMetrics({ handshakeState: 'Waiting for remote device' });
 		this.startSignalPolling();
 		this.startHeartbeat();
-		return this.shareUrl;
 	}
 
 	async stopSharing(): Promise<void> {
@@ -545,7 +541,6 @@ export class DirectTunnelHost {
 		this.pendingVerificationCode = null;
 		this.pendingRemoteCandidates.clear();
 		this.sessionId = null;
-		this.shareUrl = null;
 		this.accessCode = null;
 		this.hostToken = null;
 		this.setStatus('disconnected');

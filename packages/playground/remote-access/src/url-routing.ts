@@ -11,13 +11,6 @@ const DEFAULT_SCOPE = 'default';
 const DEFAULT_RELAY_VIEW_PARAM = 'remote-access-view';
 const DEFAULT_URL_BASE = 'https://example.com';
 
-export function getRemoteAccessSessionId(
-	url: string,
-	{ shareParam = DEFAULT_SHARE_PARAM }: RemoteAccessRouteOptions = {}
-): string | null {
-	return parseRemoteAccessUrl(url).searchParams.get(shareParam);
-}
-
 export function stripRemoteAccessSessionId(
 	url: string,
 	{

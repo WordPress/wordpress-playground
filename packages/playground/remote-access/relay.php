@@ -16,7 +16,7 @@
  *
  * That approval only binds the right device if the host role is authenticated,
  * so host-side signaling requires a secret token issued once at session
- * creation and never carried in the share URL.
+ * creation and never carried in a viewer URL.
  */
 
 define('SESSION_TIMEOUT_MS', 5 * 60 * 1000);
@@ -160,7 +160,6 @@ function handleCreateSession(): void {
         // The only response that ever carries the host token.
         jsonResponse([
             'sessionId' => $sessionId,
-            'shareUrl' => buildShareUrl($sessionId),
             'accessCode' => $accessCode,
             'hostToken' => $hostToken,
         ]);
@@ -187,7 +186,6 @@ function handleResolveAccessCode(string $rawAccessCode): void {
 
     jsonResponse([
         'sessionId' => $sessionId,
-        'shareUrl' => buildShareUrl($sessionId),
         'accessCode' => $accessCode,
     ]);
 }
@@ -908,24 +906,6 @@ function isValidSignal(string $from, string $to, string $type): bool {
             ['offer', 'answer', 'candidate', 'heartbeat', 'retry-request'],
             true
         );
-}
-
-function buildShareUrl(string $sessionId): string {
-    $publicBase = getenv('PLAYGROUND_RELAY_PUBLIC_BASE_URL') ?: '';
-    if ($publicBase !== '') {
-        return rtrim($publicBase, '/') . '/?share=' . $sessionId;
-    }
-
-    $protocol = $_SERVER['HTTP_X_FORWARDED_PROTO'] ??
-        ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? 'https' : 'http');
-    $host = $_SERVER['HTTP_X_FORWARDED_HOST']
-        ?? $_SERVER['HTTP_HOST']
-        ?? 'localhost';
-    $basePath = strpos($_SERVER['REQUEST_URI'] ?? '', '/website-server') === 0
-        ? '/website-server/'
-        : '/';
-
-    return "{$protocol}://{$host}{$basePath}?share={$sessionId}";
 }
 
 function isExpired(array $session, int $now): bool {

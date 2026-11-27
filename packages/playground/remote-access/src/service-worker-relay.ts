@@ -429,11 +429,7 @@ async function postRequestToRemoteAccessClient(
 	const fallbackClient = clients.find((candidate: Client) => {
 		try {
 			const url = new URL(candidate.url);
-			return (
-				url.searchParams.get('share') === mapping.sessionId ||
-				(url.pathname.startsWith('/connect') &&
-					!url.pathname.startsWith('/scope:'))
-			);
+			return url.pathname.startsWith('/connect');
 		} catch {
 			return false;
 		}
