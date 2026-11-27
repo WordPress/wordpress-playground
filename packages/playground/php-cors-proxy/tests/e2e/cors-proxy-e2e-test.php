@@ -595,6 +595,46 @@ try {
 }
 
 // ──────────────────────────────────────────────
+// Uploads must preserve the method and raw bytes, while retaining auth opt-in and size limits.
+echo "\nTest 22: PUT uploads preserve bytes and require authorization opt-in\n";
+$upload_body = "SQLite format 3\0" . str_repeat("\0\xff", 128);
+$response = proxy_request($proxy_port, "http://127.0.0.1:$upstream_port/upload", [
+    'Content-Type: application/octet-stream',
+    'Authorization: Bearer upload-token',
+    'X-Cors-Proxy-Allowed-Request-Headers: authorization',
+], 'PUT', $upload_body);
+$upload = json_decode($response['body'], true);
+assert_true($response['http_code'] === 200, 'PUT upload should reach the upstream');
+assert_true(($upload['method'] ?? null) === 'PUT', 'PUT method should be preserved');
+assert_true(($upload['sha256'] ?? null) === hash('sha256', $upload_body), 'Binary upload bytes should be preserved');
+assert_true(($upload['authorization'] ?? null) === 'Bearer upload-token', 'Opted-in upload authorization should be forwarded');
+$response = proxy_request($proxy_port, "http://127.0.0.1:$upstream_port/upload", [
+    'Authorization: Bearer upload-token',
+], 'PUT', $upload_body);
+$upload = json_decode($response['body'], true);
+assert_true(($upload['authorization'] ?? null) === null, 'PUT must not bypass authorization opt-in');
+
+echo "\nTest 23: Request size caps apply to both POST and PUT and can be configured\n";
+$large_body = str_repeat('x', 1024 * 1024);
+foreach (['POST', 'PUT'] as $method) {
+    $response = proxy_request($proxy_port, "http://127.0.0.1:$upstream_port/upload", [], $method, $large_body);
+    assert_true($response['http_code'] === 413, "$method should enforce the default request size cap");
+}
+$old_limit = getenv('PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE');
+putenv('PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE=2097152');
+$upload_proxy_port = find_free_port();
+$upload_proxy_proc = start_php_server($upload_proxy_port, $proxy_router, $proxy_dir);
+putenv($old_limit === false ? 'PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE' : 'PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE=' . $old_limit);
+try {
+    $response = proxy_request($upload_proxy_port, "http://127.0.0.1:$upstream_port/upload", [], 'PUT', $large_body);
+    $upload = json_decode($response['body'], true);
+    assert_true($response['http_code'] === 200, 'A configured larger request cap should allow the upload');
+    assert_true(($upload['size'] ?? null) === strlen($large_body), 'The complete large upload should reach the upstream');
+} finally {
+    proc_terminate($upload_proxy_proc);
+    proc_close($upload_proxy_proc);
+}
+
 // Clean up
 // ──────────────────────────────────────────────
 proc_terminate($upstream_proc);
@@ -724,10 +764,15 @@ function get_header_list($headers_raw, $name) {
     return $values;
 }
 
-function proxy_request($proxy_port, $upstream_url, $extra_headers = [], $method = 'GET') {
+function proxy_request($proxy_port, $upstream_url, $extra_headers = [], $method = 'GET', $request_body = null) {
     $ch = curl_init("http://127.0.0.1:$proxy_port/cors-proxy.php?$upstream_url");
     if ($method === 'HEAD') {
         curl_setopt($ch, CURLOPT_NOBODY, true);
+    } else {
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+    }
+    if ($request_body !== null) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $request_body);
     }
     curl_setopt($ch, CURLOPT_HTTPHEADER, $extra_headers);
     curl_setopt($ch, CURLOPT_TIMEOUT, 10);

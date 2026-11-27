@@ -107,6 +107,17 @@ proxy responds with `400 Bad Request` rather than guess which one is right.
 Once `Range` reaches PHP on WP Cloud, remove the workaround from
 `cors-proxy.php` along with this note.
 
+### Upload requests
+
+POST and PUT bodies are limited to less than 1 MiB by default. Deployments can
+set `PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE` to a positive integer number of bytes
+to raise or lower that limit. For example, `16777216` allows bodies below 16 MiB.
+The default remains unchanged when the value is missing or invalid. Configure
+matching body-size limits on the web server when increasing it.
+
+PUT preserves raw upload bytes and supports presigned upload targets. Forwarding
+`Authorization` still requires `X-Cors-Proxy-Allowed-Request-Headers: authorization`.
+
 ### Usage
 
 Request http://127.0.0.1:5263/proxy.php/https://w.org/?test=1 to get the response from https://w.org/?test=1 plus the CORS headers.
@@ -132,6 +143,6 @@ DNS queries or simulate an attacker changing DNS answers.
 - Don't pass auth headers in either direction.
     - Opt-in for request headers possible using `X-Cors-Proxy-Allowed-Request-Headers`.
 - Refuse to request private IPs.
-- Refuse to process requests other than GET, HEAD, POST, and OPTIONS.
-- Refuse to process POST request body larger than, say, 100KB.
+- Refuse to process requests other than GET, HEAD, POST, PUT, and OPTIONS.
+- Limit POST and PUT request bodies (1 MiB by default, configurable).
 - Refuse to process responses larger than, say, 100MB.

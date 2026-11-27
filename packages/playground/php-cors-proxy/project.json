@@ -8,7 +8,7 @@
 			"executor": "nx:run-commands",
 			"options": {
 				"commands": [
-					"PLAYGROUND_CORS_PROXY_DISABLE_RATE_LIMIT=true php -S 127.0.0.1:5263"
+					"PLAYGROUND_CORS_PROXY_DISABLE_RATE_LIMIT=true PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE=${PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE:-104857600} php -S 127.0.0.1:5263"
 				],
 				"cwd": "packages/playground/php-cors-proxy"
 			}

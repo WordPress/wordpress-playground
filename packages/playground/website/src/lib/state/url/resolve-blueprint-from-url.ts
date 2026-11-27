@@ -13,6 +13,18 @@ import { parseBlueprint, isMcpServerEnabled } from './router';
 import { OverlayFilesystem, InMemoryFilesystem } from '@wp-playground/storage';
 import { decodeBlueprintHash } from './decode-blueprint-hash';
 import { getDefaultPhpVersionForWordPress } from '../../wordpress-version-compatibility';
+import { fetchWithCorsProxy } from '@php-wasm/web-service-worker';
+import { corsProxyUrl } from 'virtual:cors-proxy-url';
+
+const remoteBlueprintOptions = {
+	corsProxy: corsProxyUrl,
+	fetch: (input: RequestInfo | URL, init?: RequestInit) =>
+		fetchWithCorsProxy(
+			input instanceof URL ? input.href : input,
+			init,
+			corsProxyUrl
+		),
+};
 
 export { decodeBlueprintHash };
 
@@ -77,7 +89,10 @@ export async function resolveBlueprintFromURL(
 		defaultBlueprint
 	) {
 		return {
-			blueprint: await resolveRemoteBlueprint(defaultBlueprint),
+			blueprint: await resolveRemoteBlueprint(
+				defaultBlueprint,
+				remoteBlueprintOptions
+			),
 			source: {
 				type: 'remote-url',
 				url: defaultBlueprint,
@@ -98,7 +113,10 @@ export async function resolveBlueprintFromURL(
 		 */
 		const blueprintUrl = normalizeBlueprintUrl(query.get('blueprint-url')!);
 		return {
-			blueprint: await resolveRemoteBlueprint(blueprintUrl),
+			blueprint: await resolveRemoteBlueprint(
+				blueprintUrl,
+				remoteBlueprintOptions
+			),
 			source: {
 				type: 'remote-url',
 				url: blueprintUrl,

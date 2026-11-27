@@ -3,7 +3,12 @@
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
-define('MAX_REQUEST_SIZE', 1 * 1024 * 1024); // 1MB
+$configured_request_size = filter_var(
+    getenv('PLAYGROUND_CORS_PROXY_MAX_REQUEST_SIZE'),
+    FILTER_VALIDATE_INT,
+    ['options' => ['min_range' => 1]]
+);
+define('MAX_REQUEST_SIZE', $configured_request_size ?: 1 * 1024 * 1024);
 define('MAX_RESPONSE_SIZE', 100 * 1024 * 1024); // 100MB
 require_once __DIR__ . '/cors-proxy-functions.php';
 
@@ -21,8 +26,8 @@ if (should_respond_with_cors_headers($server_host, $origin)) {
     $allow_origin = (is_local_dev_server() && empty($origin)) ? '*' : $origin;
     header('Access-Control-Allow-Origin: ' . $allow_origin);
     header('Access-Control-Allow-Credentials: true');
-    header('Access-Control-Allow-Methods: GET, HEAD, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, git-protocol, Range, wp_blog, wp_install, x-cors-proxy-allowed-request-headers, x-cors-proxy-content-type, x-cors-proxy-range');
+    header('Access-Control-Allow-Methods: GET, HEAD, POST, PUT, OPTIONS');
+    header('Access-Control-Allow-Headers: Accept, Authorization, Content-Type, Idempotency-Key, git-protocol, Range, wp_blog, wp_install, x-cors-proxy-allowed-request-headers, x-cors-proxy-content-type, x-cors-proxy-range');
     // Identify this response as coming from the legitimate CORS proxy.
     // Network firewalls may intercept requests and return error responses
     // without this header, allowing clients to detect interference.
@@ -33,18 +38,19 @@ if (should_respond_with_cors_headers($server_host, $origin)) {
     header('Access-Control-Expose-Headers: X-Playground-Cors-Proxy, Content-Range, Accept-Ranges, ETag');
 }
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    header("Allow: GET, HEAD, POST, OPTIONS");
+    header("Allow: GET, HEAD, POST, PUT, OPTIONS");
     exit;
 }
 
-// Handle only GET, HEAD, and POST requests
-if (!in_array($_SERVER['REQUEST_METHOD'], ['GET', 'HEAD', 'POST'], true)) {
+// PUT supports presigned file uploads as well as POST-based APIs.
+if (!in_array($_SERVER['REQUEST_METHOD'], ['GET', 'HEAD', 'POST', 'PUT'], true)) {
     http_response_code(405);
     echo "Method Not Allowed";
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_SERVER['CONTENT_LENGTH'] >= MAX_REQUEST_SIZE) {
+if (in_array($_SERVER['REQUEST_METHOD'], ['POST', 'PUT'], true) &&
+    ($_SERVER['CONTENT_LENGTH'] ?? 0) >= MAX_REQUEST_SIZE) {
     http_response_code(413);
     echo "Request Entity Too Large";
     exit;
