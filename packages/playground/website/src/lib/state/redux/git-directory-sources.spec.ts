@@ -7,7 +7,6 @@ import {
 	deriveFolderNameFromGitUrl,
 	extractGitDirectorySource,
 	normalizeGitUrl,
-	parseGitHubTreeUrl,
 } from './git-directory-sources';
 import {
 	buildGitDirectoryStep,
@@ -344,36 +343,6 @@ describe('normalizeGitUrl', () => {
 		expect(normalizeGitUrl('  github.com/owner/repo  ')).toBe(
 			'https://github.com/owner/repo'
 		);
-	});
-});
-
-describe('parseGitHubTreeUrl', () => {
-	it('splits a tree URL into the repo URL and the full remainder as ref', () => {
-		expect(
-			parseGitHubTreeUrl(
-				'https://github.com/akirk/ai-assistant/tree/dist/main'
-			)
-		).toEqual({
-			url: 'https://github.com/akirk/ai-assistant',
-			ref: 'dist/main',
-		});
-	});
-
-	it('works without a scheme', () => {
-		expect(parseGitHubTreeUrl('github.com/owner/repo/tree/main')).toEqual({
-			url: 'https://github.com/owner/repo',
-			ref: 'main',
-		});
-	});
-
-	it('returns null for a plain (non-tree) repo URL', () => {
-		expect(parseGitHubTreeUrl('https://github.com/owner/repo')).toBeNull();
-	});
-
-	it('returns null for a non-GitHub URL', () => {
-		expect(
-			parseGitHubTreeUrl('https://gitlab.com/owner/repo/tree/main')
-		).toBeNull();
 	});
 });
 

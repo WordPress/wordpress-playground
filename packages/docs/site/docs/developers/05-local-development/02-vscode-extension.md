@@ -19,12 +19,12 @@ The VS Code extension is maintained in a different GitHub repository, [Playgroun
 
 </div>
 
-## Installation and Usage:
+## Installation and Usage
 
 1.  **Install the Extension**: Search for “WordPress Playground” in the VS Code extensions marketplace and install it.
 2.  **Setup**: Follow the setup instructions provided in the extension to configure your development environment.
 3.  **Develop and Debug**: Use the integrated tools to develop and debug your WordPress site.
 
-The extension ships with a portable WebAssembly version of PHP and sets up WordPress to use SQLite. Once installed, all you have to do is click the **Start WordPress Server** button in VS Code:
+The extension ships with a portable WebAssembly version of PHP and sets up WordPress to use SQLite. Once installed, click the WordPress icon in the VS Code Activity Bar, then click the **Start WordPress Server** button:
 
 ![Start WordPress Server button in the VS Code extension](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/start-wordpress-server.webp)

@@ -105,6 +105,12 @@ describe('resolveWordPressRelease', () => {
 		expect(result.source).toBe('api');
 	});
 
+	it('throws an error if beta is requested but no beta/RC offer exists', async () => {
+		await expect(resolveWordPressRelease('beta')).rejects.toThrow(
+			'No WordPress beta or RC release is currently offered. Use "latest" or "trunk".'
+		);
+	});
+
 	it('resolves exact version match for minor release with .0 suffix', async () => {
 		const result = await resolveWordPressRelease('6.8.0');
 		expect(result.version).toBe('6.8');
@@ -201,5 +207,31 @@ describe('resolveWordPressRelease', () => {
 			'https://wordpress.org/wordpress-6.8.3.zip'
 		);
 		expect(result.source).toBe('api');
+	});
+
+	it.each([
+		'../../backups/site',
+		'6.8/../../backups/site',
+		'/var/backups/site',
+		'C:\\backups\\site',
+		'file:///var/backups/site.zip',
+	])('rejects the unsupported version %s', async (version) => {
+		await expect(resolveWordPressRelease(version)).rejects.toThrow(
+			'Unrecognized WordPress version'
+		);
+		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
+	it('derives distinct cache versions for URLs sharing a SHA-1 prefix', async () => {
+		// Both URLs' SHA-1 digests start with 81ccfa40.
+		const first = await resolveWordPressRelease(
+			'https://example.com/wordpress-55453.zip'
+		);
+		const second = await resolveWordPressRelease(
+			'https://example.com/wordpress-73764.zip'
+		);
+		expect(first.version).toMatch(/^custom-[0-9a-f]{64}$/);
+		expect(second.version).toMatch(/^custom-[0-9a-f]{64}$/);
+		expect(first.version).not.toBe(second.version);
 	});
 });

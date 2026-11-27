@@ -49,7 +49,7 @@ Ce hub de documentation se concentre sur la prise en main de WordPress Playgroun
 
 <!-- This docs hub is focused on starting with WordPress Playground and is divided into the following major sections. -->
 
-- **[Guide rapide](./quick-start-guide.md)** : pour celles et ceux qui débutent avec WordPress Playground, c'est ici que vous pouvez rapidement être opérationnel avec WordPress Playground pour [créer un nouveau site WordPress](/quick-start-guide#start-a-new-wordpress-site), et [tester un bloc/thème/extension](/quick-start-guide#try-a-block-a-theme-or-a-plugin) ou [tester une version spécifique de WordPress/PHP](/quick-start-guide#use-a-specific-wordpress-or-php-version).
+- **[Guide rapide](/quick-start-guide/)** : pour celles et ceux qui débutent avec WordPress Playground, c'est ici que vous pouvez rapidement être opérationnel avec WordPress Playground pour [créer un nouveau site WordPress](/quick-start-guide#start-a-new-wordpress-site), et [tester un bloc/thème/extension](/quick-start-guide#try-a-block-a-theme-or-a-plugin) ou [tester une version spécifique de WordPress/PHP](/quick-start-guide#use-a-specific-wordpress-or-php-version).
     <!-- -   **[Quick Start Guide](/quick-start-guide)**: For those just starting out with WordPress Playground, this is where you can get up and running with WordPress Playground quickly to [start a new WordPress site](/quick-start-guide#start-a-new-wordpress-site) and [try a block/theme/plugin](/quick-start-guide#try-a-block-a-theme-or-a-plugin) or [test a specific WordPress/PHP version](/quick-start-guide#use-a-specific-wordpress-or-php-version). -->
 
 - **[Instance web Playground](/web-instance)** : apprenez-en davantage sur l’instance Playground que vous utilisez sur https://playground.wordpress.net/

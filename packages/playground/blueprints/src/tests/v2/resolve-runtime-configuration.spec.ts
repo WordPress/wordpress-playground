@@ -472,6 +472,23 @@ describe('Blueprint v2 runtime configuration', () => {
 		});
 	});
 
+	it('selects a stable release when no prerelease is offered', async () => {
+		wordpressMocks.resolveWordPressRelease.mockRejectedValue(
+			new Error('No WordPress beta or RC release is currently offered.')
+		);
+
+		await expect(
+			resolveRuntimeConfiguration({
+				version: 2,
+				wordpressVersion: {
+					min: '6.8-beta1',
+				},
+			})
+		).resolves.toMatchObject({
+			wpVersion: '6.9.0',
+		});
+	});
+
 	it('rejects preferred WordPress versions absent from the catalog', async () => {
 		await expect(
 			resolveRuntimeConfiguration({

@@ -9,17 +9,18 @@ import {
 import type { BlueprintV1Declaration } from '@wp-playground/blueprints';
 import {
 	compileBlueprintV1,
+	getBlueprintDeclaration,
 	isBlueprintBundle,
 	resolveRuntimeConfiguration,
 } from '@wp-playground/blueprints';
 import { RecommendedPHPVersion, zipDirectory } from '@wp-playground/common';
+import { InMemoryFilesystem, OverlayFilesystem } from '@wp-playground/storage';
 import fs from 'fs';
-import path from 'path';
 import { resolveWordPressRelease } from '@wp-playground/wordpress';
 import {
-	CACHE_FOLDER,
 	cachedDownload,
 	fetchSqliteIntegration,
+	getCachePath,
 	readAsFile,
 } from './download';
 import type { PlaygroundCliBlueprintV1Worker } from './worker-thread-v1';
@@ -66,7 +67,7 @@ export class BlueprintsV1Handler {
 		workerPostInstallMountsPort: NodeMessagePort
 	) {
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			this.getEffectiveBlueprint()
+			await this.getEffectiveBlueprint()
 		);
 		let wpDetails: any = undefined;
 		let wordPressZip: any = undefined;
@@ -101,8 +102,7 @@ export class BlueprintsV1Handler {
 			wpDetails = await resolveWordPressRelease(
 				runtimeConfiguration.wpVersion
 			);
-			preinstalledWpContentPath = path.join(
-				CACHE_FOLDER,
+			preinstalledWpContentPath = getCachePath(
 				`prebuilt-wp-content-for-wp-${wpDetails.version}.zip`
 			);
 			wordPressZip = fs.existsSync(preinstalledWpContentPath)
@@ -188,7 +188,7 @@ export class BlueprintsV1Handler {
 
 		await playground.isConnected();
 		const runtimeConfiguration = await resolveRuntimeConfiguration(
-			this.getEffectiveBlueprint()
+			await this.getEffectiveBlueprint()
 		);
 		await playground.useFileLockManager(fileLockManagerPort);
 		await playground.bootRequestHandler({
@@ -209,7 +209,7 @@ export class BlueprintsV1Handler {
 	}
 
 	async compileInputBlueprint(additionalBlueprintSteps: any[]) {
-		const blueprint = this.getEffectiveBlueprint();
+		const blueprint = await this.getEffectiveBlueprint();
 
 		const tracker = new ProgressTracker();
 		let lastCaption = '';
@@ -233,7 +233,7 @@ export class BlueprintsV1Handler {
 		});
 	}
 
-	private getEffectiveBlueprint() {
+	private async getEffectiveBlueprint() {
 		const resolvedBlueprint = this.args.blueprint as BlueprintV1Declaration;
 		/**
 		 * @TODO This looks similar to the resolveBlueprint() call in the website package:
@@ -242,22 +242,36 @@ export class BlueprintsV1Handler {
 		 * 		 Also the Blueprint Builder tool does something similar.
 		 *       Perhaps all these cases could be handled by the same function?
 		 */
-		return isBlueprintBundle(resolvedBlueprint)
-			? resolvedBlueprint
-			: {
-					login: this.args.login,
-					...(resolvedBlueprint || {}),
-					preferredVersions: {
-						php:
-							this.args.php ??
-							resolvedBlueprint?.preferredVersions?.php ??
-							RecommendedPHPVersion,
-						wp:
-							this.args.wp ??
-							resolvedBlueprint?.preferredVersions?.wp ??
-							'latest',
-						...(resolvedBlueprint?.preferredVersions || {}),
-					},
-				};
+		const blueprintDeclaration = (
+			isBlueprintBundle(resolvedBlueprint)
+				? await getBlueprintDeclaration(resolvedBlueprint)
+				: resolvedBlueprint
+		) as BlueprintV1Declaration;
+		const effectiveBlueprint = {
+			login: this.args.login,
+			...(blueprintDeclaration || {}),
+			preferredVersions: {
+				php:
+					this.args.php ??
+					blueprintDeclaration?.preferredVersions?.php ??
+					RecommendedPHPVersion,
+				wp:
+					this.args.wp ??
+					blueprintDeclaration?.preferredVersions?.wp ??
+					'latest',
+				...(blueprintDeclaration?.preferredVersions || {}),
+			},
+		};
+		if (!isBlueprintBundle(resolvedBlueprint)) {
+			return effectiveBlueprint;
+		}
+		// Layer the merged blueprint.json over the bundle so bundled
+		// resources keep resolving.
+		return new OverlayFilesystem([
+			new InMemoryFilesystem({
+				'blueprint.json': JSON.stringify(effectiveBlueprint),
+			}),
+			resolvedBlueprint,
+		]);
 	}
 }

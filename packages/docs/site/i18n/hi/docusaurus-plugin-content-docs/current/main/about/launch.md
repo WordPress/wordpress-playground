@@ -24,9 +24,9 @@ description: वेबसाइटों पर इंटरैक्टिव �
 
 इसके बारे में और जानकारी [How to use WordPress Playground for interactive demos](https://developer.wordpress.org/news/2024/04/25/how-to-use-wordpress-playground-for-interactive-demos/) में पढ़ें।
 
-<!-- Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) -->
+<!-- Get inspiration about the type of interactive demos you can create at the [Blueprints Gallery](https://wordpress.github.io/blueprints/) -->
 
-आप किस तरह के इंटरैक्टिव डेमो बना सकते हैं, इसके लिए [Blueprints गैलरी](https://github.com/WordPress/blueprints/blob/trunk/GALLERY.md) से प्रेरणा लें।
+आप किस तरह के इंटरैक्टिव डेमो बना सकते हैं, इसके लिए [Blueprints गैलरी](https://wordpress.github.io/blueprints/) से प्रेरणा लें।
 
 <!-- The [Blueprints builder](https://playground.wordpress.net/builder/builder.html) tool allows you edit your blueprint online and run it directly in a Playground instance. -->
 

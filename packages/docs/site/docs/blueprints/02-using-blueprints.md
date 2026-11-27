@@ -9,13 +9,15 @@ description: Discover the different ways to use Blueprints, including via URL fr
 You can use Blueprints in one of the following ways:
 
 - Open **New → Blueprint gallery** in the Playground Dock and choose an example.
-- Open **New → Blueprint URL** and enter a public Blueprint JSON or ZIP bundle URL.
+- Open **New → From a URL** and enter a public Blueprint JSON or ZIP bundle URL.
 - Open **New → Write a Blueprint** to author a Blueprint in the browser.
 - Open **Blueprint** to inspect or edit the current Playground's Blueprint.
 - Pass a Blueprint as a URL fragment.
 - Load a Blueprint from a URL using the `blueprint-url` parameter.
 - Use Blueprint bundles (ZIP files or directories).
 - Use the JavaScript API.
+
+When the Playground URL includes the `mcp-port` parameter, Playground rejects Blueprints passed as a URL fragment or through the `blueprint-url` parameter. This prevents prompt injection while the MCP server is active. Remove `mcp-port` from the URL to load a Blueprint this way.
 
 ![The New Playground pane with the Blueprint gallery selected](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/dock/dock-new-playground.webp)
 

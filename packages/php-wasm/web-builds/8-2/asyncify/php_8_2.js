@@ -1,8 +1,8 @@
-const dependencyFilename = new URL('./8_2_35/php_8_2.wasm', import.meta.url)
+const dependencyFilename = new URL('./8_2_36/php_8_2.wasm', import.meta.url)
 	.href;
 export { dependencyFilename };
-export const dependenciesTotalSize = 18016349;
-const phpVersionString = '8.2.35';
+export const dependenciesTotalSize = 18017527;
+const phpVersionString = '8.2.36';
 export function init(RuntimeName, PHPLoader) {
 	// The rest of the code comes from the built php.js file and esm-suffix.js
 	var Module = typeof PHPLoader != 'undefined' ? PHPLoader : {};
@@ -9196,37 +9196,37 @@ export function init(RuntimeName, PHPLoader) {
 		__indirect_function_table = wasmTable =
 			wasmExports['__indirect_function_table'];
 	}
-	var _executor_globals = (Module['_executor_globals'] = 12200312);
-	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 12055672);
-	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 12055676);
-	var _zend_ce_countable = (Module['_zend_ce_countable'] = 12055688);
-	var _zend_ce_exception = (Module['_zend_ce_exception'] = 12196652);
-	var _zend_empty_string = (Module['_zend_empty_string'] = 12197656);
+	var _executor_globals = (Module['_executor_globals'] = 12200568);
+	var _zend_ce_aggregate = (Module['_zend_ce_aggregate'] = 12055928);
+	var _zend_ce_iterator = (Module['_zend_ce_iterator'] = 12055932);
+	var _zend_ce_countable = (Module['_zend_ce_countable'] = 12055944);
+	var _zend_ce_exception = (Module['_zend_ce_exception'] = 12196908);
+	var _zend_empty_string = (Module['_zend_empty_string'] = 12197912);
 	var _zend_string_init_interned = (Module['_zend_string_init_interned'] =
-		12197724);
-	var _std_object_handlers = (Module['_std_object_handlers'] = 11671260);
+		12197980);
+	var _std_object_handlers = (Module['_std_object_handlers'] = 11671516);
 	var ___memory_base = (Module['___memory_base'] = 0);
 	var ___table_base = (Module['___table_base'] = 1);
-	var _stdout = (Module['_stdout'] = 12048896);
-	var _timezone = (Module['_timezone'] = 12530872);
-	var _tzname = (Module['_tzname'] = 12530880);
-	var ___heap_base = 13592576;
+	var _stdout = (Module['_stdout'] = 12049152);
+	var _timezone = (Module['_timezone'] = 12531128);
+	var _tzname = (Module['_tzname'] = 12531136);
+	var ___heap_base = 13592832;
 	var __ZNSt3__25ctypeIcE2idE = (Module['__ZNSt3__25ctypeIcE2idE'] =
-		12543988);
+		12544244);
 	var __ZTVN10__cxxabiv120__si_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv120__si_class_type_infoE'
-	] = 12049144);
+	] = 12049400);
 	var __ZTVN10__cxxabiv117__class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv117__class_type_infoE'
-	] = 12049104);
+	] = 12049360);
 	var __ZTVN10__cxxabiv121__vmi_class_type_infoE = (Module[
 		'__ZTVN10__cxxabiv121__vmi_class_type_infoE'
-	] = 12049196);
+	] = 12049452);
 	var __ZTISt20bad_array_new_length = (Module[
 		'__ZTISt20bad_array_new_length'
-	] = 12049268);
-	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 12049312);
-	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 12049332);
+	] = 12049524);
+	var __ZTVSt12length_error = (Module['__ZTVSt12length_error'] = 12049568);
+	var __ZTISt12length_error = (Module['__ZTISt12length_error'] = 12049588);
 	var wasmImports = {
 		__assert_fail: ___assert_fail,
 		__asyncify_data: ___asyncify_data,
