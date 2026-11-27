@@ -10,6 +10,7 @@ import {
 	BlueprintBundleEditor,
 	type BlueprintBundleEditorHandle,
 } from './BlueprintBundleEditor';
+import { DockPane } from '../dock/dock-pane';
 
 type SiteInfo = SliceSitesModule.SiteInfo;
 
@@ -610,6 +611,90 @@ describe('BlueprintBundleEditor Run barrier', () => {
 				JSON.stringify({ marker: 'second' }, null, 2)
 			);
 		});
+	});
+
+	it('closes the Dock pane when running a Blueprint on a temporary site', async () => {
+		await renderEditor({ dockPresentation: true, site: temporarySite });
+
+		await act(async () => {
+			getRunButton().click();
+			await Promise.resolve();
+		});
+
+		await vi.waitFor(() => {
+			expect(mocks.updateSite).toHaveBeenCalledTimes(1);
+		});
+		expect(mocks.setDockPaneOpen).toHaveBeenCalledWith(false);
+	});
+
+	it('keeps the Dock pane open when recreating a temporary site fails', async () => {
+		const updateSiteAction = { type: 'update-site' };
+		mocks.updateSite.mockReturnValue(updateSiteAction);
+		mocks.dispatch.mockImplementation((action) => {
+			if (action === updateSiteAction) {
+				return Promise.reject(new Error('recreate failed'));
+			}
+			return undefined;
+		});
+		await renderEditor({ dockPresentation: true, site: temporarySite });
+
+		await act(async () => {
+			getRunButton().click();
+			await Promise.resolve();
+		});
+
+		await vi.waitFor(() => {
+			expect(container.textContent).toContain(
+				'Could not recreate Playground. Try again.'
+			);
+		});
+		expect(mocks.setDockPaneOpen).not.toHaveBeenCalled();
+	});
+
+	it('toggles desktop expand and file sidebar controls inside an editor DockPane', async () => {
+		const onToggleExpanded = vi.fn();
+		const editorRef = createRef<BlueprintBundleEditorHandle>();
+		await act(async () => {
+			root.render(
+				<DockPane
+					title="Blueprint"
+					isEditor
+					showHeader={false}
+					isExpanded={false}
+					onToggleExpanded={onToggleExpanded}
+				>
+					<BlueprintBundleEditor
+						ref={editorRef}
+						filesystem={filesystem}
+						site={temporarySite}
+						dockPresentation
+					/>
+				</DockPane>
+			);
+			await Promise.resolve();
+		});
+
+		const expandButton = container.querySelector<HTMLButtonElement>(
+			'button[aria-label="Expand Blueprint editor"]'
+		);
+		expect(expandButton).not.toBeNull();
+		await act(async () => {
+			expandButton!.click();
+		});
+		expect(onToggleExpanded).toHaveBeenCalledTimes(1);
+
+		const sidebarToggle = container.querySelector<HTMLButtonElement>(
+			'button[aria-label="Blueprint files"]'
+		);
+		expect(sidebarToggle).not.toBeNull();
+		expect(sidebarToggle!.getAttribute('aria-expanded')).toBe('true');
+		expect(container.querySelector('h2')?.textContent).toBeUndefined();
+
+		await act(async () => {
+			sidebarToggle!.click();
+		});
+		expect(sidebarToggle!.getAttribute('aria-expanded')).toBe('false');
+		expect(container.querySelector('h2')?.textContent).toBe('Blueprint');
 	});
 
 	async function renderEditor({

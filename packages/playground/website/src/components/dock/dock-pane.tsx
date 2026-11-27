@@ -5,6 +5,7 @@ import {
 	useContext,
 	useEffect,
 	useId,
+	useMemo,
 	useState,
 } from 'react';
 import type {
@@ -44,6 +45,7 @@ export type DockPaneProps = {
 	className?: string;
 	style?: CSSProperties;
 	isEditor?: boolean;
+	isExpanded?: boolean;
 	isFixedHeight?: boolean;
 	isCompact?: boolean;
 	showHeader?: boolean;
@@ -55,9 +57,16 @@ export type DockPaneProps = {
 	closeDisabled?: boolean;
 	closeTitle?: string;
 	onClose?: MouseEventHandler<HTMLButtonElement>;
+	onToggleExpanded?: () => void;
+};
+
+export type DockPaneExpandControl = {
+	isExpanded: boolean;
+	toggleExpanded: () => void;
 };
 
 const DockPaneEditorHeaderSlotContext = createContext<HTMLElement | null>(null);
+const DockPaneExpandContext = createContext<DockPaneExpandControl | null>(null);
 
 /**
  * Shared shell for floating dock panes. It owns the dialog semantics, optional
@@ -73,6 +82,7 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 			className,
 			style,
 			isEditor = false,
+			isExpanded = false,
 			isFixedHeight = false,
 			isCompact = false,
 			showHeader = true,
@@ -84,12 +94,20 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 			closeDisabled = false,
 			closeTitle,
 			onClose,
+			onToggleExpanded,
 		},
 		ref
 	) {
 		const closeDescriptionId = useId();
 		const [editorHeaderSlot, setEditorHeaderSlot] =
 			useState<HTMLDivElement | null>(null);
+		const expandControl = useMemo<DockPaneExpandControl | null>(
+			() =>
+				isEditor && onToggleExpanded
+					? { isExpanded, toggleExpanded: onToggleExpanded }
+					: null,
+			[isEditor, isExpanded, onToggleExpanded]
+		);
 		const displayedTitle = headerOverride?.title ?? title;
 		const displayedDescription = headerOverride
 			? headerOverride.description
@@ -125,6 +143,7 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 					css.pane,
 					{
 						[css.paneEditor]: isEditor,
+						[css.paneExpanded]: isEditor && isExpanded,
 						[css.paneFixedHeight]: isFixedHeight,
 						[css.paneCompact]: isCompact,
 					},
@@ -193,11 +212,13 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 						{closeButton}
 					</div>
 				)}
-				<DockPaneEditorHeaderSlotContext.Provider
-					value={editorHeaderSlot}
-				>
-					<div className={css.paneBody}>{children}</div>
-				</DockPaneEditorHeaderSlotContext.Provider>
+				<DockPaneExpandContext.Provider value={expandControl}>
+					<DockPaneEditorHeaderSlotContext.Provider
+						value={editorHeaderSlot}
+					>
+						<div className={css.paneBody}>{children}</div>
+					</DockPaneEditorHeaderSlotContext.Provider>
+				</DockPaneExpandContext.Provider>
 			</section>
 		);
 	}
@@ -206,4 +227,9 @@ export const DockPane = forwardRef<HTMLElement, DockPaneProps>(
 /** Returns the mobile title-row slot exposed by editor Dock panes. */
 export function useDockPaneEditorHeaderSlot() {
 	return useContext(DockPaneEditorHeaderSlotContext);
+}
+
+/** Returns expand/restore controls for desktop editor Dock panes. */
+export function useDockPaneExpand() {
+	return useContext(DockPaneExpandContext);
 }

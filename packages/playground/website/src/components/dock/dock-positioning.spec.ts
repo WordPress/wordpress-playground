@@ -247,4 +247,74 @@ describe('Dock positioning', () => {
 			})
 		).toBe(762);
 	});
+
+	it('centers expanded desktop editor panes and fills the available height', () => {
+		expect(
+			getDockPaneStyle({
+				isMobile: false,
+				dockSize: { width: 800, height: 80 },
+				toolsHeight: 60,
+				isCollapsed: false,
+				dockCenter: 200,
+				viewportSize: { width: 1440, height: 900 },
+				isEditorSection: true,
+				isWideSection: false,
+				isFixedHeightSection: false,
+				isPlaygroundsSection: false,
+				isExpanded: true,
+			})
+		).toEqual({
+			left: '720px',
+			bottom: `${80 + DOCK_PANE_GAP}px`,
+			top: 'auto',
+			maxHeight: `${900 - 80 - DOCK_PANE_GAP - DOCK_DRAG_EDGE}px`,
+			height: `${900 - 80 - DOCK_PANE_GAP - DOCK_DRAG_EDGE}px`,
+		});
+	});
+
+	it('centers operation notices over an expanded desktop editor pane', () => {
+		expect(
+			getDockOperationToastStyle({
+				isMobile: false,
+				dockSize: { width: 800, height: 80 },
+				toolsHeight: 60,
+				isCollapsed: false,
+				dockCenter: 200,
+				viewportSize: { width: 1440, height: 900 },
+				paneHeight: 800,
+				toastHeight: 62,
+				paneOpen: true,
+				isEditorSection: true,
+				isWideSection: false,
+				isExpanded: true,
+			})
+		).toEqual({
+			bottom: `${80 + 2 * DOCK_PANE_GAP}px`,
+			left: '720px',
+		});
+	});
+
+	it('keeps expanded desktop editor panes inside short viewports', () => {
+		expect(
+			getDockPaneStyle({
+				isMobile: false,
+				dockSize: { width: 800, height: 80 },
+				toolsHeight: 60,
+				isCollapsed: false,
+				dockCenter: 200,
+				viewportSize: { width: 1440, height: 200 },
+				isEditorSection: true,
+				isWideSection: false,
+				isFixedHeightSection: false,
+				isPlaygroundsSection: false,
+				isExpanded: true,
+			})
+		).toEqual({
+			left: '720px',
+			bottom: `${80 + DOCK_PANE_GAP}px`,
+			top: 'auto',
+			maxHeight: `${200 - 80 - DOCK_PANE_GAP - DOCK_DRAG_EDGE}px`,
+			height: `${200 - 80 - DOCK_PANE_GAP - DOCK_DRAG_EDGE}px`,
+		});
+	});
 });

@@ -317,6 +317,12 @@
 	width: min(1120px, calc(100vw - 40px));
 }
 
+@media (min-width: 1025px) {
+	.pane-editor.pane-expanded {
+		width: calc(100dvw - 16px);
+	}
+}
+
 /* The New pane runs at a fixed height (set inline) so its tab strip stays put
    as tabs change; the header stays at the top and the body scrolls within. */
 .pane-fixed-height {

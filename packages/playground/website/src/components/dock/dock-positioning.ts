@@ -22,6 +22,7 @@ export function getDockPaneStyle({
 	isWideSection,
 	isFixedHeightSection,
 	isPlaygroundsSection,
+	isExpanded = false,
 }: {
 	isMobile: boolean;
 	dockSize: Size;
@@ -33,6 +34,7 @@ export function getDockPaneStyle({
 	isWideSection: boolean;
 	isFixedHeightSection: boolean;
 	isPlaygroundsSection: boolean;
+	isExpanded?: boolean;
 }): CSSProperties | undefined {
 	if (!dockSize.height) {
 		return undefined;
@@ -50,16 +52,22 @@ export function getDockPaneStyle({
 		isCollapsed,
 	});
 	const dockTop = viewportSize.height - visibleDockHeight;
-	const center = getDockPaneCenter({
-		dockCenter,
-		viewportWidth: viewportSize.width,
-		isEditorSection,
-		isWideSection,
-	});
-	const availableHeight = Math.max(
-		DOCK_PANE_MIN_HEIGHT,
+	const isExpandedEditorPane = isEditorSection && isExpanded;
+	const center = isExpandedEditorPane
+		? viewportSize.width / 2
+		: getDockPaneCenter({
+				dockCenter,
+				viewportWidth: viewportSize.width,
+				isEditorSection,
+				isWideSection,
+			});
+	const remainingHeight = Math.max(
+		0,
 		dockTop - DOCK_PANE_GAP - DOCK_DRAG_EDGE
 	);
+	const availableHeight = isExpandedEditorPane
+		? remainingHeight
+		: Math.max(DOCK_PANE_MIN_HEIGHT, remainingHeight);
 	const stableHeight = Math.min(LIST_PANE_HEIGHT, availableHeight);
 	const maxHeight = isPlaygroundsSection ? stableHeight : availableHeight;
 
@@ -68,7 +76,11 @@ export function getDockPaneStyle({
 		bottom: `${visibleDockHeight + DOCK_PANE_GAP}px`,
 		top: 'auto',
 		maxHeight: `${maxHeight}px`,
-		...(isFixedHeightSection ? { height: `${stableHeight}px` } : {}),
+		...(isExpandedEditorPane
+			? { height: `${availableHeight}px` }
+			: isFixedHeightSection
+				? { height: `${stableHeight}px` }
+				: {}),
 	};
 }
 
@@ -89,6 +101,7 @@ export function getDockOperationToastStyle({
 	paneOpen,
 	isEditorSection,
 	isWideSection,
+	isExpanded = false,
 }: {
 	isMobile: boolean;
 	dockSize: Size;
@@ -101,6 +114,7 @@ export function getDockOperationToastStyle({
 	paneOpen: boolean;
 	isEditorSection: boolean;
 	isWideSection: boolean;
+	isExpanded?: boolean;
 }): CSSProperties | undefined {
 	if (!dockSize.height) {
 		return undefined;
@@ -136,14 +150,15 @@ export function getDockOperationToastStyle({
 		Math.max(0, viewportSize.width - 2 * DOCK_PANE_GAP)
 	);
 	const halfToastWidth = toastWidth / 2;
-	const desiredCenter = isMobile
-		? viewportSize.width / 2
-		: getDockPaneCenter({
-				dockCenter,
-				viewportWidth: viewportSize.width,
-				isEditorSection,
-				isWideSection,
-			});
+	const desiredCenter =
+		isMobile || (paneOpen && isEditorSection && isExpanded)
+			? viewportSize.width / 2
+			: getDockPaneCenter({
+					dockCenter,
+					viewportWidth: viewportSize.width,
+					isEditorSection,
+					isWideSection,
+				});
 	const minCenter = halfToastWidth + DOCK_PANE_GAP;
 	const maxCenter = viewportSize.width - halfToastWidth - DOCK_PANE_GAP;
 	const center =
