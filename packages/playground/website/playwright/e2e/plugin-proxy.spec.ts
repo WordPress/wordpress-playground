@@ -175,6 +175,40 @@ test('reports no runs when only other repositories ran on the branch', async ({
 	});
 });
 
+test('reads further pages when other repositories fill the first one', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({
+			mode: 'pr',
+			prHead: '1',
+			runs: [...Array(100).fill('2'), '1'].join(','),
+		})
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		artifactListRequests: [100],
+	});
+});
+
+test('stops reading runs after three pages', async ({ request }) => {
+	const response = await request.get(
+		urlForRunLookup({
+			mode: 'pr',
+			prHead: '1',
+			runs: [...Array(300).fill('2'), '1'].join(','),
+		})
+	);
+
+	expect(response.status()).toBe(400);
+	expect(await response.json()).toEqual({
+		error: 'no_ci_runs',
+		artifactListRequests: [],
+	});
+});
+
 test('serves nothing for a pull request whose fork was deleted', async ({
 	request,
 }) => {

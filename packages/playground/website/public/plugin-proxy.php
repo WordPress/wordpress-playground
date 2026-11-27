@@ -64,6 +64,10 @@ class PluginDownloader
 	// List of allow-listed GitHub organizations. Intentionally lowercased
 	// for a case-insensitive check later on.
 	public const ALLOWED_ORGS = ['wordpress', 'automattic', 'woocommerce'];
+	// GitHub's maximum page size, and how many pages of workflow runs one
+	// lookup may read before it gives up.
+	private const RUNS_PER_PAGE = 100;
+	private const MAX_RUN_PAGES = 3;
 
 	public function __construct($githubToken)
 	{
@@ -132,17 +136,24 @@ class PluginDownloader
 			throw new ApiException('workflow_not_found');
 		}
 
-		$ciRuns = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/workflows/$workflow_id/runs?branch=$branchName")['body'];
-		if (!$ciRuns || !$ciRuns->workflow_runs) {
-			throw new ApiException('no_ci_runs');
-		}
-
+		// Runs from other repositories can fill whole pages on a busy branch
+		// name, so keep reading until a run from the expected repository
+		// shows up. The page cap bounds the API calls one request can make.
 		$artifactsUrls = [];
-		foreach ($ciRuns->workflow_runs as $run) {
-			if (!$this->isRunFromRepository($run, $head_repository_id)) {
-				continue;
+		for ($page = 1; $page <= self::MAX_RUN_PAGES && !$artifactsUrls; $page++) {
+			$ciRuns = $this->gitHubRequest("https://api.github.com/repos/$organization/$repo/actions/workflows/$workflow_id/runs?branch=$branchName&per_page=" . self::RUNS_PER_PAGE . "&page=$page")['body'];
+			if (!$ciRuns || !$ciRuns->workflow_runs) {
+				break;
 			}
-			$artifactsUrls[] = $run->artifacts_url;
+			foreach ($ciRuns->workflow_runs as $run) {
+				if (!$this->isRunFromRepository($run, $head_repository_id)) {
+					continue;
+				}
+				$artifactsUrls[] = $run->artifacts_url;
+			}
+			if (count($ciRuns->workflow_runs) < self::RUNS_PER_PAGE) {
+				break;
+			}
 		}
 		if (!$artifactsUrls) {
 			// Runs from other repositories say nothing about this branch's
