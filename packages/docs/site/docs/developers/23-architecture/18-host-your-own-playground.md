@@ -69,12 +69,20 @@ connects your app to an already hosted browser runtime. The
 `@wp-playground/cli` npm package runs WordPress locally with Node.js. Neither
 installs the browser website and its Dock.
 
-The [Deploy Playground website workflow](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml)
-produces a temporary self-hosting artifact, built separately without production
-origins or release-specific asset paths. It expires; use the source build below
-when the artifact is unavailable or you need a different configuration.
-Running the deploy workflow in a fork without the deployment secrets skips
-the build, too.
+### Download the standalone build
+
+Sign in to GitHub and open a recent successful run of the
+[Deploy Playground website workflow](https://github.com/WordPress/wordpress-playground/actions/workflows/deploy-website.yml).
+Download `playground-website` from **Artifacts**. Unzip the download, then extract
+`wasm-wordpress-net.tar.gz`. Serve the contents of
+`dist/packages/playground/wasm-wordpress-net` as your site root.
+
+The standalone build uses root-relative asset paths and serves the Playground app
+and WordPress from the same origin. If the artifact has expired or you need custom
+build settings, [build locally](#build-locally).
+
+The workflow builds the artifact only on `trunk` and requires the deployment
+secrets. Manual runs require an authorized maintainer or the GitHub Actions bot.
 
 ### Build locally
 
