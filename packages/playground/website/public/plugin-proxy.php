@@ -254,25 +254,24 @@ class PluginDownloader
 	 *
 	 * @param object   $run                Workflow run returned by the GitHub API.
 	 * @param int|null $head_repository_id Expected head repository ID. Null means
-	 *                                     the repository the run belongs to,
-	 *                                     excluding pull_request_target runs.
+	 *                                     the repository the run belongs to.
 	 * @return bool
 	 */
 	private function isRunFromRepository($run, $head_repository_id)
 	{
+		// A pull_request_target run reports the base repository and the
+		// pull request's base branch, even when a fork opened the pull
+		// request, and its workflow may check out the fork's code. It is
+		// never a build of the branch being looked up.
+		if (($run->event ?? null) === 'pull_request_target') {
+			return false;
+		}
 		$run_head_repository_id = $run->head_repository->id ?? null;
 		if ($run_head_repository_id === null) {
 			// The head repository was deleted, so the run cannot be attributed.
 			return false;
 		}
 		if ($head_repository_id === null) {
-			// A pull_request_target run reports the base repository as its
-			// head repository even when a fork opened the pull request, and
-			// its workflow may check out the fork's code. It is not a build
-			// of this repository's branch.
-			if (($run->event ?? null) === 'pull_request_target') {
-				return false;
-			}
 			$head_repository_id = $run->repository->id ?? null;
 		}
 		return $run_head_repository_id === $head_repository_id;

@@ -265,6 +265,24 @@ test('skips pull_request_target runs for a branch preview', async ({
 	});
 });
 
+test('skips pull_request_target runs for a same-repository pull request', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({
+			mode: 'pr',
+			prHead: '1',
+			runs: '1:pull_request_target,1',
+		})
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		artifactListRequests: [1],
+	});
+});
+
 test('follows absolute and relative redirects within the allowlist', async ({
 	request,
 }) => {
