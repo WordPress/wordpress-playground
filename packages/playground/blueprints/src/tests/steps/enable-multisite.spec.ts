@@ -89,6 +89,29 @@ describe('Blueprint step enableMultisite', () => {
 			expect(response.text).toContain('My Sites');
 			expect(response.text).toContain('Network Admin');
 		});
+
+		it(`should allow loading wp-load.php in later steps without request context on a ${
+			scoped ? 'scoped' : 'scopeless'
+		} URL`, async () => {
+			const { php } = await doBootWordPress({
+				absoluteUrl,
+			});
+			await enableMultisite(php, {});
+
+			const result = await php.run({
+				code: `<?php
+				require '/wordpress/wp-load.php';
+				echo json_encode([
+					'isMultisite' => is_multisite(),
+					'siteLoaded' => true,
+				]);
+			`,
+			});
+			expect(result.json).toEqual({
+				isMultisite: true,
+				siteLoaded: true,
+			});
+		});
 	});
 
 	it('should run with later WP-CLI steps through the Blueprint v2 compiler', async () => {
