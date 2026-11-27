@@ -1,4 +1,5 @@
-import { resetLocaleData, setLocaleData } from '@wordpress/i18n';
+import { logger } from '@php-wasm/logger';
+import { resetLocaleData } from '@wordpress/i18n';
 
 export const TEXT_DOMAIN = 'playground-website';
 export const DEFAULT_LOCALE = 'en_US';
@@ -11,7 +12,7 @@ const DEFAULT_LOCALE_DATA = {
 	},
 };
 
-export const SUPPORTED_LOCALES = ['en_US', 'es_ES', 'pt_BR', 'ja'] as const;
+export const SUPPORTED_LOCALES = ['en_US', 'es_ES', 'pt_BR'] as const;
 export type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
 
 type RuntimeLocale = Exclude<SupportedLocale, typeof DEFAULT_LOCALE>;
@@ -29,36 +30,39 @@ const runtimeLocaleLoaders: Record<
 > = {
 	es_ES: () => import('./locales/es_ES.json'),
 	pt_BR: () => import('./locales/pt_BR.json'),
-	ja: () => import('./locales/ja.json'),
 };
 
 const localeAliases: Record<string, SupportedLocale> = {
 	en: 'en_US',
-	en_us: 'en_US',
-	'en-us': 'en_US',
 	es: 'es_ES',
-	es_es: 'es_ES',
-	'es-es': 'es_ES',
-	ja: 'ja',
-	ja_jp: 'ja',
-	'ja-jp': 'ja',
 	pt: 'pt_BR',
-	pt_br: 'pt_BR',
-	'pt-br': 'pt_BR',
 };
 
 let activeLocale: SupportedLocale = DEFAULT_LOCALE;
 
-export function normalizeLocale(locale: string | null | undefined) {
-	if (!locale) {
-		return null;
+export async function initializeI18n(locale = getInitialLocale()) {
+	try {
+		await loadLocale(locale);
+		activeLocale = locale;
+	} catch (error) {
+		logger.error(
+			`Failed to load locale "${locale}", falling back to "${DEFAULT_LOCALE}".`,
+			error
+		);
+		await loadLocale(DEFAULT_LOCALE);
+		activeLocale = DEFAULT_LOCALE;
 	}
-	const normalized = locale.toLowerCase().replace(/_/g, '-');
-	return (
-		localeAliases[normalized] ||
-		localeAliases[normalized.split('-')[0]] ||
-		null
-	);
+	if (typeof document !== 'undefined') {
+		document.documentElement.lang = getActiveLanguageTag();
+	}
+	return activeLocale;
+}
+
+export function getInitialLocale() {
+	if (typeof window === 'undefined') {
+		return DEFAULT_LOCALE;
+	}
+	return getLocaleFromSearch(window.location.search) || DEFAULT_LOCALE;
 }
 
 export function getLocaleFromSearch(search: string) {
@@ -69,23 +73,19 @@ export function getLocaleFromSearch(search: string) {
 	);
 }
 
-export function getInitialLocale() {
-	if (typeof window === 'undefined') {
-		return DEFAULT_LOCALE;
+export function normalizeLocale(locale: string | null | undefined) {
+	if (!locale) {
+		return null;
 	}
-	return getLocaleFromSearch(window.location.search) || DEFAULT_LOCALE;
-}
-
-export async function initializeI18n(locale = getInitialLocale()) {
-	try {
-		await loadLocale(locale);
-		activeLocale = locale;
-		return locale;
-	} catch {
-		await loadLocale(DEFAULT_LOCALE);
-		activeLocale = DEFAULT_LOCALE;
-		return DEFAULT_LOCALE;
+	const normalized = locale.trim().toLowerCase().replace(/_/g, '-');
+	if (!normalized) {
+		return null;
 	}
+	return (
+		localeAliases[normalized] ||
+		localeAliases[normalized.split('-')[0]] ||
+		null
+	);
 }
 
 export function getActiveLocale() {
@@ -103,5 +103,5 @@ async function loadLocale(locale: SupportedLocale) {
 	}
 
 	const localeData = await runtimeLocaleLoaders[locale]();
-	setLocaleData(localeData.default.locale_data[TEXT_DOMAIN], TEXT_DOMAIN);
+	resetLocaleData(localeData.default.locale_data[TEXT_DOMAIN], TEXT_DOMAIN);
 }

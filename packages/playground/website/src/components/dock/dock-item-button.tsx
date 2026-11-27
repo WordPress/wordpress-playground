@@ -1,4 +1,5 @@
 import classNames from 'classnames';
+import { __, sprintf } from '@wordpress/i18n';
 import { forwardRef } from 'react';
 import type { MouseEventHandler, ReactNode } from 'react';
 import css from './style.module.css';
@@ -33,15 +34,23 @@ export const DockItemButton = forwardRef<
 		isPrimary = false,
 		hasSeparator = false,
 		hasNotification = false,
-		notificationAriaSuffix = 'notification available',
+		notificationAriaSuffix,
 		disabled = false,
 		dataCy,
 		onClick,
 	},
 	ref
 ) {
+	const resolvedNotificationSuffix =
+		notificationAriaSuffix ??
+		__('notification available', 'playground-website');
 	const buttonAriaLabel = hasNotification
-		? `${ariaLabel} — ${notificationAriaSuffix}`
+		? sprintf(
+				/* translators: 1: Dock button accessible label, 2: Notification status suffix. */
+				__('%1$s — %2$s', 'playground-website'),
+				ariaLabel,
+				resolvedNotificationSuffix
+			)
 		: ariaLabel;
 
 	return (

@@ -69,7 +69,7 @@ npm run format:uncommitted               # Format only uncommitted files
 # Website i18n
 npm run i18n:website:extract             # Extract website strings to POT
 npm run i18n:website:update              # Update website PO files from POT
-npm run i18n:website:compile             # Compile PO to MO and runtime JSON
+npm run i18n:website:compile             # Compile PO to runtime JSON
 
 # PHP Recompilation (see compile-php-wasm skill for details)
 npm run recompile:php:web                # Recompile all PHP versions for web

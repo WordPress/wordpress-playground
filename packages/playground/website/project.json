@@ -142,7 +142,7 @@
 		"i18n-update": {
 			"executor": "nx:run-commands",
 			"dependsOn": ["i18n-extract"],
-			"outputs": ["{projectRoot}/languages"],
+			"outputs": ["{projectRoot}/languages/playground-website-*.po"],
 			"options": {
 				"command": "node packages/playground/website/bin/i18n.cjs update"
 			}
@@ -150,10 +150,7 @@
 		"i18n-compile": {
 			"executor": "nx:run-commands",
 			"dependsOn": ["i18n-update"],
-			"outputs": [
-				"{projectRoot}/languages",
-				"{projectRoot}/src/lib/i18n/locales"
-			],
+			"outputs": ["{projectRoot}/src/lib/i18n/locales"],
 			"options": {
 				"command": "node packages/playground/website/bin/i18n.cjs compile"
 			}

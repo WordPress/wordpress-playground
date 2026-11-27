@@ -497,18 +497,22 @@ export default function GitHubExportForm({
 				return;
 			}
 
-			let eMessage = (e as any)?.message;
-			eMessage = eMessage ? `(${eMessage})` : '';
+			const eMessage = (e as any)?.message;
 			setError(
 				'repoUrl',
-				sprintf(
-					/* translators: %s: Optional error message in parentheses. */
-					__(
-						'There was an unexpected error %s, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.',
-						'playground-website'
-					),
-					eMessage
-				)
+				eMessage
+					? sprintf(
+							/* translators: %s: Error message details. */
+							__(
+								'There was an unexpected error (%s), please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.',
+								'playground-website'
+							),
+							eMessage
+						)
+					: __(
+							'There was an unexpected error, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.',
+							'playground-website'
+						)
 			);
 			throw e;
 		} finally {

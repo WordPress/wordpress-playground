@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { useState } from 'react';
 import { Button, Notice, TextControl } from '@wordpress/components';
-import { __, sprintf } from '@wordpress/i18n';
+import { createInterpolateElement } from '@wordpress/element';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { chevronRight, Icon, wordpress } from '@wordpress/icons';
 import css from './style.module.css';
 import gutenbergLogoUrl from './gutenberg-logo.svg';
@@ -237,20 +238,32 @@ export default function PreviewPRForm({
 	}
 
 	function renderRetryIn(retryIn: number, resolved: ResolvedRef) {
+		const retrySeconds = Math.round(retryIn / 1000);
 		setFeedback({
 			title: __('Preview build in progress', 'playground-website'),
-			message: sprintf(
-				/* translators: 1: Ref type, 2: Branch or PR number, 3: Retry seconds. */
-				__(
-					'GitHub is still building %1$s %2$s. This can take 15 minutes or more. Retrying in %3$d seconds…',
-					'playground-website'
-				),
-				resolved.isBranch
-					? __('branch', 'playground-website')
-					: __('PR', 'playground-website'),
-				resolved.ref,
-				retryIn / 1000
-			),
+			message: resolved.isBranch
+				? sprintf(
+						/* translators: 1: Branch name, 2: Retry delay in seconds. */
+						_n(
+							'GitHub is still building branch %1$s. This can take 15 minutes or more. Retrying in %2$d second…',
+							'GitHub is still building branch %1$s. This can take 15 minutes or more. Retrying in %2$d seconds…',
+							retrySeconds,
+							'playground-website'
+						),
+						resolved.ref,
+						retrySeconds
+					)
+				: sprintf(
+						/* translators: 1: Pull request number, 2: Retry delay in seconds. */
+						_n(
+							'GitHub is still building PR %1$s. This can take 15 minutes or more. Retrying in %2$d second…',
+							'GitHub is still building PR %1$s. This can take 15 minutes or more. Retrying in %2$d seconds…',
+							retrySeconds,
+							'playground-website'
+						),
+						resolved.ref,
+						retrySeconds
+					),
 			status: 'warning',
 		});
 	}
@@ -728,19 +741,27 @@ export default function PreviewPRForm({
 																css.repositoryChoiceOpened
 															}
 														>
-															{__(
-																'opened',
-																'playground-website'
-															)}{' '}
-															<time
-																dateTime={
-																	match
-																		.verification
-																		.openedAt
+															{createInterpolateElement(
+																sprintf(
+																	/* translators: %s: Date or relative time when the pull request was opened. */
+																	__(
+																		'opened <time>%s</time>',
+																		'playground-website'
+																	),
+																	openedAt
+																),
+																{
+																	time: (
+																		<time
+																			dateTime={
+																				match
+																					.verification
+																					.openedAt
+																			}
+																		/>
+																	),
 																}
-															>
-																{openedAt}
-															</time>
+															)}
 														</span>
 													</>
 												)}
@@ -906,7 +927,7 @@ function formatPullRequestOpenedAt(
 	const yesterday = new Date(today);
 	yesterday.setDate(today.getDate() - 1);
 	const time = date
-		.toLocaleTimeString('en-US', {
+		.toLocaleTimeString(undefined, {
 			hour: 'numeric',
 			hour12: true,
 			minute: '2-digit',

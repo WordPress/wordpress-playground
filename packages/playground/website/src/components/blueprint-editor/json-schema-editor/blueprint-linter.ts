@@ -1,6 +1,7 @@
 import { linter, lintGutter, type Diagnostic } from '@codemirror/lint';
 import { type Extension, StateEffect, StateField } from '@codemirror/state';
 import type { EditorView } from '@codemirror/view';
+import { __ } from '@wordpress/i18n';
 import {
 	findNodeAtLocation,
 	parseTree,
@@ -102,6 +103,10 @@ export function createBlueprintLinter(
 
 				// Validate against Blueprint schema
 				if (typeof parsedJson !== 'object' || parsedJson === null) {
+					const message = __(
+						'Blueprint must be an object',
+						'playground-website'
+					);
 					const result: BlueprintValidationResult = {
 						valid: false,
 						errors: [
@@ -110,7 +115,7 @@ export function createBlueprintLinter(
 								schemaPath: '',
 								keyword: 'type',
 								params: { type: 'object' },
-								message: 'Blueprint must be an object',
+								message,
 							},
 						],
 					};
@@ -121,7 +126,7 @@ export function createBlueprintLinter(
 							from: 0,
 							to: docText.length,
 							severity: 'error',
-							message: 'Blueprint must be an object',
+							message,
 						},
 					];
 				}
@@ -305,7 +310,7 @@ function formatErrorMessage(error: {
 	instancePath?: string;
 }): string {
 	const path = error.instancePath || '(root)';
-	let message = error.message || 'Validation error';
+	let message = error.message || __('Validation error', 'playground-website');
 
 	// Add more context based on the error type
 	if (error.keyword === 'additionalProperties' && error.params) {

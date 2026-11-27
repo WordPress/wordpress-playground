@@ -8,6 +8,7 @@ import {
 	setSiteSlugToSave,
 } from '../../../lib/state/redux/slice-ui';
 import React from 'react';
+import { __ } from '@wordpress/i18n';
 
 export function SitePersistButton({
 	siteSlug,
@@ -34,7 +35,10 @@ export function SitePersistButton({
 				{button}
 				{clientInfo?.opfsSync?.status === 'error' && (
 					<div className={css.error}>
-						There has been an error. Please try again.
+						{__(
+							'There has been an error. Please try again.',
+							'playground-website'
+						)}
 					</div>
 				)}
 			</>
@@ -44,6 +48,6 @@ export function SitePersistButton({
 	return React.cloneElement(children as React.ReactElement, {
 		className: css.inProgress,
 		disabled: true,
-		children: 'Saving...',
+		children: __('Saving...', 'playground-website'),
 	});
 }

@@ -649,22 +649,43 @@ function networkFirewallInterferenceView({
 					</strong>
 				</p>
 				<p>
-					{__(
-						'Allow outbound HTTPS requests to',
-						'playground-website'
-					)}{' '}
-					<code>
-						{corsProxyHost ||
-							__('the CORS proxy domain', 'playground-website')}
-					</code>
-					{window.location.hostname !== corsProxyHost && (
-						<>
-							{' '}
-							{__('and', 'playground-website')}{' '}
-							<code>{window.location.hostname}</code>
-						</>
-					)}
-					.
+					{window.location.hostname !== corsProxyHost
+						? createInterpolateElement(
+								sprintf(
+									/* translators: 1: CORS proxy hostname, 2: Current site hostname. */
+									__(
+										'Allow outbound HTTPS requests to <primaryHost>%1$s</primaryHost> and <currentHost>%2$s</currentHost>.',
+										'playground-website'
+									),
+									corsProxyHost ||
+										__(
+											'the CORS proxy domain',
+											'playground-website'
+										),
+									window.location.hostname
+								),
+								{
+									primaryHost: <code />,
+									currentHost: <code />,
+								}
+							)
+						: createInterpolateElement(
+								sprintf(
+									/* translators: %s: CORS proxy hostname. */
+									__(
+										'Allow outbound HTTPS requests to <primaryHost>%s</primaryHost>.',
+										'playground-website'
+									),
+									corsProxyHost ||
+										__(
+											'the CORS proxy domain',
+											'playground-website'
+										)
+								),
+								{
+									primaryHost: <code />,
+								}
+							)}
 				</p>
 			</>
 		),

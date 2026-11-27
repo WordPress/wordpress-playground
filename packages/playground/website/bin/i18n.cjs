@@ -26,11 +26,6 @@ const LOCALES = [
 		englishName: 'Portuguese (Brazil)',
 		pluralForms: 'nplurals=2; plural=(n > 1);',
 	},
-	{
-		locale: 'ja',
-		englishName: 'Japanese',
-		pluralForms: 'nplurals=1; plural=0;',
-	},
 ];
 
 main();
@@ -55,21 +50,20 @@ function extract() {
 }
 
 function update() {
-	extract();
-	const messages = readMessagesFromPo(POT_FILE);
+	const pot = parsePo(POT_FILE);
+	const messages = readMessagesFromPo(pot);
+	const potCreationDate = getHeaderValue(pot.headers, 'POT-Creation-Date');
 	ensureDir(LANGUAGES_DIR);
 	for (const locale of LOCALES) {
-		writeLocalePo(locale, messages);
+		writeLocalePo(locale, messages, potCreationDate);
 	}
 }
 
 function compile() {
-	update();
 	ensureDir(LOCALES_DIR);
 	for (const locale of LOCALES) {
 		const poFile = getPoFile(locale.locale);
 		const po = parsePo(poFile);
-		writeMo(poFile, po);
 		writeLocaleJson(locale, po);
 	}
 }
@@ -114,16 +108,47 @@ function extractMessages() {
 }
 
 function writePot(messages) {
+	const potCreationDate = getStablePotCreationDate(messages);
 	const pot = createPoFile({
-		headers: getPotHeaders(),
+		headers: getPotHeaders(potCreationDate),
 		messages,
 	});
 	ensureDir(LANGUAGES_DIR);
-	writeIfChanged(POT_FILE, gettextParser.po.compile(pot));
+	writeIfChanged(POT_FILE, compilePo(pot));
 }
 
-function readMessagesFromPo(poFile) {
-	const po = parsePo(poFile);
+function getStablePotCreationDate(messages) {
+	if (!fs.existsSync(POT_FILE)) {
+		return getTodayHeaderDate();
+	}
+	const existingContents = fs.readFileSync(POT_FILE, 'utf8');
+	const existingPot = gettextParser.po.parse(existingContents, 'utf-8');
+	const existingDate = getHeaderValue(
+		existingPot.headers,
+		'POT-Creation-Date'
+	);
+	if (!existingDate) {
+		return getTodayHeaderDate();
+	}
+	const candidate = compilePo(
+		createPoFile({
+			headers: getPotHeaders(existingDate),
+			messages,
+		})
+	);
+	if (stripHeaderBlock(candidate) === stripHeaderBlock(existingContents)) {
+		return existingDate;
+	}
+	return getTodayHeaderDate();
+}
+
+function stripHeaderBlock(poContents) {
+	const normalized = poContents.replace(/\r\n/g, '\n');
+	const separatorIndex = normalized.indexOf('\n\n');
+	return separatorIndex === -1 ? '' : normalized.slice(separatorIndex + 2);
+}
+
+function readMessagesFromPo(po) {
 	const messages = new Map();
 	for (const [context, translations] of Object.entries(po.translations)) {
 		for (const translation of Object.values(translations)) {
@@ -142,11 +167,11 @@ function readMessagesFromPo(poFile) {
 	return messages;
 }
 
-function writeLocalePo(locale, messages) {
+function writeLocalePo(locale, messages, potCreationDate) {
 	const poFile = getPoFile(locale.locale);
 	const existingPo = fs.existsSync(poFile) ? parsePo(poFile) : null;
 	const po = createPoFile({
-		headers: getLocaleHeaders(locale, existingPo),
+		headers: getLocaleHeaders(locale, existingPo, potCreationDate),
 		messages,
 		getMsgstr(message) {
 			const existing = getExistingTranslation(existingPo, message);
@@ -156,14 +181,8 @@ function writeLocalePo(locale, messages) {
 			return getEmptyMsgstr(message, locale);
 		},
 	});
-	writeIfChanged(poFile, gettextParser.po.compile(po));
+	writeIfChanged(poFile, compilePo(po));
 	console.log(`Updated ${relative(poFile)}`);
-}
-
-function writeMo(poFile, po) {
-	const moFile = poFile.replace(/\.po$/, '.mo');
-	writeIfChanged(moFile, gettextParser.mo.compile(po));
-	console.log(`Compiled ${relative(moFile)}`);
 }
 
 function writeLocaleJson(locale, po) {
@@ -190,7 +209,8 @@ function writeLocaleJson(locale, po) {
 
 	const output = {
 		'translation-revision-date':
-			po.headers['PO-Revision-Date'] || 'YEAR-MO-DA HO:MI+ZONE',
+			getHeaderValue(po.headers, 'PO-Revision-Date') ||
+			'YEAR-MO-DA HO:MI+ZONE',
 		generator: 'WordPress Playground i18n tooling',
 		domain: TEXT_DOMAIN,
 		locale_data: {
@@ -228,6 +248,18 @@ function createPoFile({ headers, messages, getMsgstr = () => [''] }) {
 		headers,
 		translations,
 	};
+}
+
+function compilePo(po) {
+	// gettext-parser normalizes the charset parameter to lowercase "utf-8";
+	// restore canonical "UTF-8" while keeping a single Content-Type header.
+	return gettextParser.po
+		.compile(po)
+		.toString('utf8')
+		.replace(
+			'"Content-Type: text/plain; charset=utf-8\\n"',
+			'"Content-Type: text/plain; charset=UTF-8\\n"'
+		);
 }
 
 function getMessageFromCall(node) {
@@ -328,16 +360,26 @@ function addMessage(messages, message) {
 		messages.set(key, {
 			...message,
 			references: message.reference
-				? new Set([message.reference])
+				? new Set(message.reference.split('\n').filter(Boolean))
+				: new Set(),
+			extractedComments: message.extracted
+				? new Set(message.extracted.split('\n').filter(Boolean))
 				: new Set(),
 		});
 		return;
 	}
+	if (message.msgidPlural && !existing.msgidPlural) {
+		existing.msgidPlural = message.msgidPlural;
+	}
 	if (message.reference) {
-		existing.references.add(message.reference);
+		for (const ref of message.reference.split('\n').filter(Boolean)) {
+			existing.references.add(ref);
+		}
 	}
 	if (message.extracted) {
-		existing.extracted = message.extracted;
+		for (const comment of message.extracted.split('\n').filter(Boolean)) {
+			existing.extractedComments.add(comment);
+		}
 	}
 }
 
@@ -374,23 +416,27 @@ function getComments(message) {
 	} else if (message.reference) {
 		comments.reference = message.reference;
 	}
-	if (message.extracted) {
+	if (message.extractedComments?.size) {
+		comments.extracted = [...message.extractedComments].join('\n');
+	} else if (message.extracted) {
 		comments.extracted = message.extracted;
 	}
 	return comments;
 }
 
-function getPotHeaders() {
+function getPotHeaders(potCreationDate = getTodayHeaderDate()) {
 	return {
 		'Project-Id-Version': 'WordPress Playground Website',
 		'Report-Msgid-Bugs-To':
 			'https://github.com/WordPress/wordpress-playground/issues',
-		'POT-Creation-Date': getTodayHeaderDate(),
+		'POT-Creation-Date': potCreationDate,
 		'PO-Revision-Date': 'YEAR-MO-DA HO:MI+ZONE',
 		'Last-Translator': 'FULL NAME <EMAIL@ADDRESS>',
 		'Language-Team': 'LANGUAGE <LL@li.org>',
 		'MIME-Version': '1.0',
-		'Content-Type': 'text/plain; charset=UTF-8',
+		// Use lowercase "content-type" so gettext-parser updates it in place
+		// instead of appending a duplicate "Content-Type: text/plain;" header.
+		'content-type': 'text/plain; charset=UTF-8',
 		'Content-Transfer-Encoding': '8bit',
 		'X-Generator': 'WordPress Playground i18n tooling',
 		'X-Domain': TEXT_DOMAIN,
@@ -410,10 +456,14 @@ function getHeaderValue(headers, name) {
 	return undefined;
 }
 
-function getLocaleHeaders(locale, existingPo) {
+function getLocaleHeaders(locale, existingPo, potCreationDate) {
 	const existingHeaders = existingPo?.headers;
 	return {
-		...getPotHeaders(),
+		...getPotHeaders(
+			potCreationDate ||
+				getHeaderValue(existingHeaders, 'POT-Creation-Date') ||
+				getTodayHeaderDate()
+		),
 		'PO-Revision-Date':
 			getHeaderValue(existingHeaders, 'PO-Revision-Date') ||
 			'YEAR-MO-DA HO:MI+ZONE',
@@ -423,7 +473,6 @@ function getLocaleHeaders(locale, existingPo) {
 		Language: locale.locale,
 		'Language-Team': `${locale.englishName} <LL@li.org>`,
 		'Plural-Forms': locale.pluralForms,
-		'Content-Type': 'text/plain; charset=UTF-8',
 		'X-Domain': TEXT_DOMAIN,
 	};
 }
@@ -433,7 +482,15 @@ function getTodayHeaderDate() {
 }
 
 function compareMessages(a, b) {
-	return getMessageKey(a).localeCompare(getMessageKey(b));
+	const keyA = getMessageKey(a);
+	const keyB = getMessageKey(b);
+	if (keyA < keyB) {
+		return -1;
+	}
+	if (keyA > keyB) {
+		return 1;
+	}
+	return 0;
 }
 
 function parsePo(poFile) {

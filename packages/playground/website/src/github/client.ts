@@ -1,3 +1,4 @@
+import { __ } from '@wordpress/i18n';
 import { createClient } from '@wp-playground/storage';
 import type { GithubClient } from '@wp-playground/storage';
 import { oAuthState } from './state';
@@ -11,7 +12,9 @@ let octokitClientToken: string | undefined;
 export function getAuthenticatedGitHubClient() {
 	const token = oAuthState.value.token;
 	if (!token) {
-		throw new Error('GitHub authentication is required.');
+		throw new Error(
+			__('GitHub authentication is required.', 'playground-website')
+		);
 	}
 	// OAuth can replace the token while this module stays loaded. Reusing a
 	// client across token changes would keep sending the stale Authorization

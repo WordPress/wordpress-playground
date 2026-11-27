@@ -9,17 +9,12 @@
 				"lang": "pt_BR",
 				"plural-forms": "nplurals=2; plural=(n > 1);"
 			},
-			"-- Select a plugin --": ["-- Selecione um plugin --"],
-			"-- Select a theme --": ["-- Selecione um tema --"],
-			"-- Select a version --": ["-- Selecione uma versão --"],
-			"-- Select an option --": ["-- Selecione uma opção --"],
-			"(no output)": ["(sem saída)"],
-			"(No subject)": ["(Sem assunto)"],
 			"%1$s / %2$s files": ["%1$s / %2$s arquivos"],
 			"%1$s and %2$s": ["%1$s e %2$s"],
 			"%1$s on line %2$d, character %3$d": [
 				"%1$s na linha %2$d, caractere %3$d"
 			],
+			"%1$s — %2$s": ["%1$s — %2$s"],
 			"%1$s, and %2$s": ["%1$s e %2$s"],
 			"%d attachment": ["%d anexo", "%d anexos"],
 			"%d validation error": [
@@ -31,9 +26,13 @@
 			"%s cloned": ["%s clonado"],
 			"%s file": ["%s arquivo", "%s arquivos"],
 			"%s pane": ["Painel %s"],
+			"(No subject)": ["(Sem assunto)"],
+			"(no output)": ["(sem saída)"],
 			"+ Add path": ["+ Adicionar caminho"],
-			"── Current versions ──": ["── Versões atuais ──"],
-			"── Older versions ──": ["── Versões anteriores ──"],
+			"-- Select a plugin --": ["-- Selecione um plugin --"],
+			"-- Select a theme --": ["-- Selecione um tema --"],
+			"-- Select a version --": ["-- Selecione uma versão --"],
+			"-- Select an option --": ["-- Selecione uma opção --"],
 			"1. Copy your migration key": ["1. Copie sua chave de migração"],
 			"2. Authorize on %s": ["2. Autorize em %s"],
 			"3. Return here and clone your site": [
@@ -42,13 +41,13 @@
 			"3. Return here and pull your site": [
 				"3. Volte aqui e puxe seu site"
 			],
+			"A Pull Request:": ["Um Pull Request:"],
 			"A clean WordPress install — the default starting point.": [
 				"Uma instalação limpa do WordPress — o ponto de partida padrão."
 			],
 			"A firewall, proxy, or VPN may be blocking the download.": [
 				"Um firewall, proxy ou VPN pode estar bloqueando o download."
 			],
-			"a moment ago": ["há um instante"],
 			"A path inside a repository:": [
 				"Um caminho dentro de um repositório:"
 			],
@@ -56,7 +55,6 @@
 			"A proxy, firewall, or security plugin is changing the signed request before it reaches WordPress. Ask your host to pass the request path, headers, and body through unchanged. A new migration key will not help.": [
 				"Um proxy, firewall ou plugin de segurança está alterando a solicitação assinada antes que ela chegue ao WordPress. Peça à sua hospedagem para repassar o caminho, os cabeçalhos e o corpo da solicitação sem alterações. Uma nova chave de migração não resolverá o problema."
 			],
-			"A Pull Request:": ["Um Pull Request:"],
 			"A repository:": ["Um repositório:"],
 			"A required resource is not available for download.": [
 				"Um recurso obrigatório não está disponível para download."
@@ -73,12 +71,15 @@
 			],
 			"Add your migration key": ["Adicione sua chave de migração"],
 			"All": ["Todos"],
-			"Allow network access": ["Permitir acesso à rede"],
-			"Allow outbound HTTPS requests to": [
-				"Permitir solicitações HTTPS de saída para"
-			],
 			"Allow Playground to edit that directory in the browser prompt to continue.": [
 				"Permita que o Playground edite esse diretório no prompt do navegador para continuar."
+			],
+			"Allow network access": ["Permitir acesso à rede"],
+			"Allow outbound HTTPS requests to <primaryHost>%1$s</primaryHost> and <currentHost>%2$s</currentHost>.": [
+				"Permita solicitações HTTPS de saída para <primaryHost>%1$s</primaryHost> e <currentHost>%2$s</currentHost>."
+			],
+			"Allow outbound HTTPS requests to <primaryHost>%s</primaryHost>.": [
+				"Permita solicitações HTTPS de saída para <primaryHost>%s</primaryHost>."
 			],
 			"Already active?": ["Já está ativo?"],
 			"Also export the changes as a zip file, so they can be imported into another Playground instance.": [
@@ -88,7 +89,6 @@
 				"Uma redefinição anterior foi interrompida e arquivos antigos do site ainda estão neste Playground salvo."
 			],
 			"Analyzing the repository...": ["Analisando o repositório..."],
-			"and": ["e"],
 			"Apply to this Playground": ["Aplicar a este Playground"],
 			"Are you sure you want to delete the site \"%s\"? This action cannot be undone.": [
 				"Tem certeza de que deseja excluir o site \"%s\"? Esta ação não pode ser desfeita."
@@ -106,9 +106,9 @@
 			"Autosaving": ["Salvando automaticamente"],
 			"Autosaving…": ["Salvando automaticamente…"],
 			"Autosaving… %d%%": ["Salvando automaticamente… %d%%"],
+			"Back to New Playground": ["Voltar para Novo Playground"],
 			"Back to export options": ["Voltar às opções de exportação"],
 			"Back to migration key": ["Voltar à chave de migração"],
-			"Back to New Playground": ["Voltar para Novo Playground"],
 			"Back to site address": ["Voltar ao endereço do site"],
 			"Back to the GitHub repository URL": [
 				"Voltar à URL do repositório do GitHub"
@@ -117,6 +117,9 @@
 				"Devido às restrições de acesso definidas pela sua organização, estas alterações não puderam ser enviadas diretamente ao repositório. Em vez disso, foram enviadas para o seu fork do repositório."
 			],
 			"Blueprint": ["Blueprint"],
+			"Blueprint URL": ["URL do Blueprint"],
+			"Blueprint URL on %s": ["URL do Blueprint em %s"],
+			"Blueprint URL:": ["URL do Blueprint:"],
 			"Blueprint could not be downloaded": [
 				"Não foi possível baixar o Blueprint"
 			],
@@ -133,15 +136,12 @@
 				"O Blueprint está em execução em um novo Playground"
 			],
 			"Blueprint issue": ["Problema no Blueprint"],
+			"Blueprint must be an object": ["O Blueprint deve ser um objeto"],
 			"Blueprint run did not finish": [
 				"A execução do Blueprint não foi concluída"
 			],
 			"Blueprint run failed": ["Falha na execução do Blueprint"],
-			"Blueprint URL": ["URL do Blueprint"],
-			"Blueprint URL on %s": ["URL do Blueprint em %s"],
-			"Blueprint URL:": ["URL do Blueprint:"],
 			"Blueprint validation error": ["Erro de validação do Blueprint"],
-			"branch": ["branch"],
 			"Branch": ["Branch"],
 			"Branch names aren't supported for WordPress Core — paste a pull request number or URL instead. (To preview a Gutenberg branch, paste its full GitHub branch URL.)": [
 				"Nomes de branch não são suportados para o WordPress Core — cole o número ou a URL de um pull request. (Para visualizar uma branch do Gutenberg, cole a URL completa da branch no GitHub.)"
@@ -159,9 +159,6 @@
 			],
 			"Bundled resources used outside of a Blueprint bundle": [
 				"Recursos empacotados usados fora de um pacote de Blueprint"
-			],
-			"but it was loaded as a standalone JSON file.": [
-				"mas ele foi carregado como um arquivo JSON independente."
 			],
 			"Calculating…": ["Calculando…"],
 			"Cancel": ["Cancelar"],
@@ -182,9 +179,12 @@
 			"Changing %s requires a fresh Playground.": [
 				"Alterar %s exige um novo Playground."
 			],
-			"Check again": ["Verificar novamente"],
 			"Check Reprint installation": ["Verifique a instalação do Reprint"],
+			"Check again": ["Verificar novamente"],
 			"Check site": ["Verificar site"],
+			"Check the WordPress address and make sure Reprint is active. A sign-in page or a security rule can also hide its response.": [
+				"Verifique o endereço do WordPress e confirme se o Reprint está ativo. Uma página de acesso ou regra de segurança também pode ocultar a resposta."
+			],
 			"Check the clocks": ["Verifique os relógios"],
 			"Check the connection to the live site": [
 				"Verifique a conexão com o site publicado"
@@ -199,51 +199,49 @@
 			"Check the pull request number or URL and try again.": [
 				"Verifique o número ou a URL do pull request e tente novamente."
 			],
-			"Check the WordPress address and make sure Reprint is active. A sign-in page or a security rule can also hide its response.": [
-				"Verifique o endereço do WordPress e confirme se o Reprint está ativo. Uma página de acesso ou regra de segurança também pode ocultar a resposta."
-			],
 			"Check your internet connection and try again.": [
 				"Verifique sua conexão com a internet e tente novamente."
 			],
 			"Check your internet connection, then try previewing the pull request again.": [
 				"Verifique sua conexão com a internet e tente pré-visualizar o pull request novamente."
 			],
-			"Checking availability…": ["Verificando disponibilidade…"],
 			"Checking GitHub for a preview build…": [
 				"Verificando compilação de pré-visualização no GitHub…"
 			],
 			"Checking WordPress Core and Gutenberg…": [
 				"Verificando WordPress Core e Gutenberg…"
 			],
+			"Checking availability…": ["Verificando disponibilidade…"],
 			"Checking…": ["Verificando…"],
 			"Choose <strong>Activate</strong>, then come back here.": [
 				"Escolha <strong>Ativar</strong> e depois volte aqui."
+			],
+			"Choose a WordPress Playground .zip export.": [
+				"Escolha uma exportação .zip do WordPress Playground."
 			],
 			"Choose a directory to continue.": [
 				"Escolha um diretório para continuar."
 			],
 			"Choose a directory...": ["Escolher um diretório..."],
-			"Choose a WordPress Playground .zip export.": [
-				"Escolha uma exportação .zip do WordPress Playground."
-			],
 			"Choose the change you want to preview.": [
 				"Escolha a alteração que deseja pré-visualizar."
 			],
 			"Choose...": ["Escolher..."],
+			"Clear PHP history": ["Limpar histórico do PHP"],
+			"Clear WP-CLI history": ["Limpar histórico do WP-CLI"],
 			"Clear filters": ["Limpar filtros"],
 			"Clear history": ["Limpar histórico"],
-			"Clear PHP history": ["Limpar histórico do PHP"],
 			"Clear the object cache.": ["Limpa o cache de objetos."],
-			"Clear WP-CLI history": ["Limpar histórico do WP-CLI"],
 			"Clipboard access was blocked. Please try again.": [
 				"O acesso à área de transferência foi bloqueado. Tente novamente."
 			],
-			"Clone a live site": ["Clonar um site publicado"],
 			"Clone a WordPress site": ["Clonar um site WordPress"],
+			"Clone a live site": ["Clonar um site publicado"],
 			"Clone site": ["Clonar site"],
 			"Cloning %s": ["Clonando %s"],
 			"Cloning paused": ["Clonagem pausada"],
 			"Close": ["Fechar"],
+			"Close Playground tools": ["Fechar ferramentas do Playground"],
 			"Close any other Playground tabs that may be using this saved site, then click <reload>Reload</reload>. If no other Playground tabs are open, make sure your browser has free storage, then reload.": [
 				"Feche quaisquer outras abas do Playground que possam estar usando este site salvo e clique em <reload>Recarregar</reload>. Se não houver outras abas do Playground abertas, verifique se o navegador tem espaço livre de armazenamento e recarregue."
 			],
@@ -253,7 +251,6 @@
 			"Close other Playground tabs, then reload": [
 				"Feche outras abas do Playground e recarregue"
 			],
-			"Close Playground tools": ["Fechar ferramentas do Playground"],
 			"Commit message:": ["Mensagem de commit:"],
 			"Confirm that referenced files exist next to the blueprint.json file inside the bundle.": [
 				"Confirme se os arquivos referenciados existem ao lado do arquivo blueprint.json dentro do pacote."
@@ -271,10 +268,10 @@
 			"Copies a URL that rebuilds this Playground from its original Blueprint on any device. It restores the starting setup only — your edits to files and content aren't included.": [
 				"Copia uma URL que recria este Playground a partir do Blueprint original em qualquer dispositivo. Ela restaura apenas a configuração inicial — suas edições em arquivos e conteúdo não são incluídas."
 			],
+			"Copy Blueprint URL": ["Copiar URL do Blueprint"],
 			"Copy a live site into a new Playground with Reprint. Your live site stays unchanged.": [
 				"Copie um site publicado para um novo Playground com o Reprint. Seu site publicado permanece inalterado."
 			],
-			"Copy Blueprint URL": ["Copiar URL do Blueprint"],
 			"Copy link": ["Copiar link"],
 			"Copy link to blueprint": ["Copiar link para o Blueprint"],
 			"Copy log entry": ["Copiar entrada de log"],
@@ -297,6 +294,9 @@
 			"Could not create Playground. Try again.": [
 				"Não foi possível criar o Playground. Tente novamente."
 			],
+			"Could not download WP-CLI from %s.": [
+				"Não foi possível baixar o WP-CLI de %s."
+			],
 			"Could not download bundle. Try again.": [
 				"Não foi possível baixar o pacote. Tente novamente."
 			],
@@ -305,9 +305,6 @@
 			],
 			"Could not download the database. Please try again.": [
 				"Não foi possível baixar o banco de dados. Tente novamente."
-			],
-			"Could not download WP-CLI from %s.": [
-				"Não foi possível baixar o WP-CLI de %s."
 			],
 			"Could not generate a migration key: %s": [
 				"Não foi possível gerar uma chave de migração: %s"
@@ -358,16 +355,16 @@
 			"Couldn’t store “%s” in browser storage": [
 				"Não foi possível salvar “%s” no armazenamento do navegador"
 			],
+			"Create Playground": ["Criar Playground"],
+			"Create Pull Request": ["Criar Pull Request"],
 			"Create a fresh Playground": ["Criar um novo Playground"],
 			"Create a multisite network": ["Criar uma rede multisite"],
+			"Create a new PR": ["Criar um novo PR"],
 			"Create a new Playground from this draft. The full Blueprint editor opens this Playground's stored Blueprint instead.": [
 				"Crie um novo Playground a partir deste rascunho. O editor completo de Blueprint abre o Blueprint armazenado deste Playground."
 			],
-			"Create a new PR": ["Criar um novo PR"],
 			"Create a post.": ["Criar um post."],
-			"Create Playground": ["Criar Playground"],
 			"Create post": ["Criar post"],
-			"Create Pull Request": ["Criar Pull Request"],
 			"Creating a new Playground…": ["Criando um novo Playground…"],
 			"Creating the Pull Request": ["Criando o Pull Request"],
 			"Current Blueprint": ["Blueprint atual"],
@@ -378,7 +375,6 @@
 				"O arquivo de banco de dados não existe"
 			],
 			"Default": ["Padrão"],
-			"default WordPress": ["WordPress padrão"],
 			"Delete": ["Excluir"],
 			"Delete Playground": ["Excluir Playground"],
 			"Deleting failed. Please try again.": [
@@ -412,49 +408,47 @@
 			"Do you want to update an existing PR or create a new one?": [
 				"Você quer atualizar um PR existente ou criar um novo?"
 			],
+			"Don't show again": ["Não mostrar novamente"],
+			"Done": ["Concluído"],
 			"Don’t notify me about autosaves": [
 				"Não me notificar sobre salvamentos automáticos"
 			],
-			"Don't show again": ["Não mostrar novamente"],
-			"Done": ["Concluído"],
 			"Download": ["Baixar"],
 			"Download %s": ["Baixar %s"],
+			"Download Zip": ["Baixar ZIP"],
 			"Download a copy": ["Baixar uma cópia"],
 			"Download as .zip": ["Baixar como .zip"],
 			"Download bundle": ["Baixar pacote"],
 			"Download database.sqlite": ["Baixar database.sqlite"],
 			"Download details": ["Baixar detalhes"],
-			"Download Zip": ["Baixar ZIP"],
 			"Drag out or click to show Playground tools": [
 				"Arraste ou clique para mostrar as ferramentas do Playground"
 			],
 			"Driver:": ["Driver:"],
 			"Drop a Playground ZIP here": ["Solte um ZIP do Playground aqui"],
-			"e.g. Testing Gutenberg 24.17": ["ex: Testando Gutenberg 24.17"],
 			"Early access": ["Acesso antecipado"],
 			"Edit Blueprint": ["Editar Blueprint"],
-			"Edit site address": ["Editar endereço do site"],
 			"Edit String": ["Editar string"],
+			"Edit site address": ["Editar endereço do site"],
 			"Edit string (Cmd/Ctrl+E)": ["Editar string (Cmd/Ctrl+E)"],
 			"Email": ["E-mail"],
 			"Emails sent by this Playground will appear here.": [
 				"Os e-mails enviados por este Playground aparecerão aqui."
 			],
-			"emulates MySQL with SQLite": ["emula MySQL com SQLite"],
 			"Enable networking and use PHP 8.1 or newer.": [
 				"Ative o acesso à rede e use PHP 8.1 ou superior."
 			],
 			"Ensure you are loading a Blueprint bundle (for example, a blueprint.zip file or a URL).": [
-				"Certifique-se de que você está carregando um pacote de Blueprint (por exemplo, um arquivo blueprint.zip ou um URL)."
+				"Certifique-se de que você está carregando um pacote de Blueprint (por exemplo, um arquivo blueprint.zip ou uma URL)."
+			],
+			"Enter a WordPress Core or Gutenberg PR number or GitHub URL to open it in a fresh Playground.": [
+				"Informe um número de PR do WordPress Core ou do Gutenberg, ou uma URL do GitHub, para abri-lo em um novo Playground."
 			],
 			"Enter a pull request number or URL.": [
 				"Informe um número ou URL de pull request."
 			],
 			"Enter a valid pull request number.": [
 				"Informe um número de pull request válido."
-			],
-			"Enter a WordPress Core or Gutenberg PR number or GitHub URL to open it in a fresh Playground.": [
-				"Informe um número de PR do WordPress Core ou do Gutenberg, ou um URL do GitHub, para abri-lo em um novo Playground."
 			],
 			"Enter the path in the repository where the changes should be committed:": [
 				"Informe o caminho no repositório onde as alterações devem ser enviadas por commit:"
@@ -496,9 +490,9 @@
 			],
 			"Flush rewrite rules.": ["Limpar regras de reescrita."],
 			"For IT administrators": ["Para administradores de TI"],
-			"From a URL": ["De um URL"],
 			"From GitHub": ["Do GitHub"],
 			"From Playground path": ["Do caminho do Playground"],
+			"From a URL": ["De uma URL"],
 			"From the following path in the repo:": [
 				"A partir do seguinte caminho no repositório:"
 			],
@@ -506,17 +500,32 @@
 			"Full width": ["Largura total"],
 			"Generating a migration key…": ["Gerando uma chave de migração…"],
 			"GitHub": ["GitHub"],
+			"GitHub OAuth popup timed out.": [
+				"O pop-up de OAuth do GitHub expirou."
+			],
+			"GitHub OAuth popup was closed.": [
+				"O pop-up de OAuth do GitHub foi fechado."
+			],
+			"GitHub authentication is required.": [
+				"A autenticação no GitHub é obrigatória."
+			],
+			"GitHub authorization failed.": ["Falha na autorização do GitHub."],
 			"GitHub hasn’t started a preview build for PR %s. Check that its preview workflow is enabled, then try again.": [
 				"O GitHub ainda não iniciou uma compilação de pré-visualização para o PR %s. Verifique se o fluxo de trabalho de pré-visualização está ativado e tente novamente."
 			],
-			"GitHub is still building %1$s %2$s. This can take 15 minutes or more. Retrying in %3$d seconds…": [
-				"O GitHub ainda está compilando %1$s %2$s. Isso pode levar 15 minutos ou mais. Tentando novamente em %3$d segundos…"
+			"GitHub is still building PR %1$s. This can take 15 minutes or more. Retrying in %2$d second…": [
+				"O GitHub ainda está compilando o PR %1$s. Isso pode levar 15 minutos ou mais. Tentando novamente em %2$d segundo…",
+				"O GitHub ainda está compilando o PR %1$s. Isso pode levar 15 minutos ou mais. Tentando novamente em %2$d segundos…"
+			],
+			"GitHub is still building branch %1$s. This can take 15 minutes or more. Retrying in %2$d second…": [
+				"O GitHub ainda está compilando a branch %1$s. Isso pode levar 15 minutos ou mais. Tentando novamente em %2$d segundo…",
+				"O GitHub ainda está compilando a branch %1$s. Isso pode levar 15 minutos ou mais. Tentando novamente em %2$d segundos…"
 			],
 			"GitHub only keeps pull-request build artifacts for a limited time. Re-run the workflow or restart without that PR.": [
 				"O GitHub mantém os artefatos de compilação de pull requests apenas por tempo limitado. Execute o fluxo de trabalho novamente ou reinicie sem esse PR."
 			],
-			"Gutenberg branch %s": ["Branch %s do Gutenberg"],
 			"Gutenberg PR #%s": ["PR #%s do Gutenberg"],
+			"Gutenberg branch %s": ["Branch %s do Gutenberg"],
 			"Here's a few examples of URLs you can use:": [
 				"Veja alguns exemplos de URLs que você pode usar:"
 			],
@@ -536,9 +545,61 @@
 				"Quero que meu Pull Request aponte para este repositório do GitHub:"
 			],
 			"I want to import from this GitHub URL:": [
-				"Quero importar deste URL do GitHub:"
+				"Quero importar desta URL do GitHub:"
 			],
 			"I want to update the PR number:": ["Quero atualizar o PR número:"],
+			"If this is a Gutenberg PR, paste its full GitHub URL instead.": [
+				"Se este for um PR do Gutenberg, cole a URL completa do GitHub."
+			],
+			"If you have a GitHub account with access to this repository, you can connect it to continue.": [
+				"Se você tiver uma conta do GitHub com acesso a este repositório, conecte-a para continuar."
+			],
+			"If you want to preserve your changes, you can save the Playground to browser storage.": [
+				"Se você deseja preservar suas alterações, pode salvar o Playground no armazenamento do navegador."
+			],
+			"Import": ["Importar"],
+			"Import a .zip export": ["Importar uma exportação .zip"],
+			"Import a WordPress Playground <code>.zip</code> export to start a new Playground from it.": [
+				"Importe uma exportação <code>.zip</code> do WordPress Playground para iniciar um novo Playground a partir dela."
+			],
+			"Import finished! Your Playground has been updated.": [
+				"Importação concluída! Seu Playground foi atualizado."
+			],
+			"Import finished! Your Playground site has been updated.": [
+				"Importação concluída! Seu site do Playground foi atualizado."
+			],
+			"Import from GitHub": ["Importar do GitHub"],
+			"Import zip": ["Importar ZIP"],
+			"Importing from Pull Request #%1$s at %2$s/%3$s": [
+				"Importando do Pull Request #%1$s em %2$s/%3$s"
+			],
+			"Importing from branch %1$s at %2$s/%3$s": [
+				"Importando da branch %1$s em %2$s/%3$s"
+			],
+			"Importing from the %1$s/%2$s repository": [
+				"Importando do repositório %1$s/%2$s"
+			],
+			"Importing plugins, themes, and wp-content directories directly from your public GitHub repositories.": [
+				"Importação de plugins, temas e diretórios wp-content diretamente dos seus repositórios públicos do GitHub."
+			],
+			"Importing... %1$d/%2$d files downloaded": [
+				"Importando... %1$d/%2$d arquivos baixados"
+			],
+			"Include older versions": ["Incluir versões mais antigas"],
+			"Info": ["Informações"],
+			"Insert example: %s": ["Inserir exemplo: %s"],
+			"Inspect and edit the SQLite database behind this Playground.": [
+				"Inspecione e edite o banco de dados SQLite deste Playground."
+			],
+			"Inspection details": ["Detalhes da inspeção"],
+			"Install Reprint": ["Instalar Reprint"],
+			"Install Reprint Server": ["Instalar Reprint Server"],
+			"It seems like the local directory backing this site was removed. This Playground copy will not load anymore.": [
+				"Parece que o diretório local vinculado a este site foi removido. Esta cópia do Playground não será mais carregada."
+			],
+			"It’s still open but will be lost on refresh. Your earlier autosave is unchanged.": [
+				"Ele continua aberto, mas será perdido ao atualizar a página. Seu salvamento automático anterior permanece inalterado."
+			],
 			"I’ve added the key — continue": [
 				"Já adicionei a chave — continuar"
 			],
@@ -560,60 +621,6 @@
 			"I’ve updated Reprint — continue": [
 				"Já atualizei o Reprint — continuar"
 			],
-			"If this is a Gutenberg PR, paste its full GitHub URL instead.": [
-				"Se este for um PR do Gutenberg, cole o URL completo do GitHub."
-			],
-			"If you have a GitHub account with access to this repository, you can connect it to continue.": [
-				"Se você tiver uma conta do GitHub com acesso a este repositório, conecte-a para continuar."
-			],
-			"If you want to preserve your changes, you can save the Playground to browser storage.": [
-				"Se você deseja preservar suas alterações, pode salvar o Playground no armazenamento do navegador."
-			],
-			"Import": ["Importar"],
-			"Import a .zip export": ["Importar uma exportação .zip"],
-			"Import a WordPress Playground <code>.zip</code> export to start a new Playground from it.": [
-				"Importe uma exportação <code>.zip</code> do WordPress Playground para iniciar um novo Playground a partir dela."
-			],
-			"Import finished! Your Playground has been updated.": [
-				"Importação concluída! Seu Playground foi atualizado."
-			],
-			"Import finished! Your Playground site has been updated.": [
-				"Importação concluída! Seu site do Playground foi atualizado."
-			],
-			"Import from GitHub": ["Importar do GitHub"],
-			"Import zip": ["Importar ZIP"],
-			"Importing from branch %1$s at %2$s/%3$s": [
-				"Importando da branch %1$s em %2$s/%3$s"
-			],
-			"Importing from Pull Request #%1$s at %2$s/%3$s": [
-				"Importando do Pull Request #%1$s em %2$s/%3$s"
-			],
-			"Importing from the %1$s/%2$s repository": [
-				"Importando do repositório %1$s/%2$s"
-			],
-			"Importing plugins, themes, and wp-content directories directly from your public GitHub repositories.": [
-				"Importação de plugins, temas e diretórios wp-content diretamente dos seus repositórios públicos do GitHub."
-			],
-			"Importing... %1$d/%2$d files downloaded": [
-				"Importando... %1$d/%2$d arquivos baixados"
-			],
-			"Include older versions": ["Incluir versões mais antigas"],
-			"Info": ["Informações"],
-			"inline Blueprint": ["Blueprint inline"],
-			"Insert example: %s": ["Inserir exemplo: %s"],
-			"Inspect and edit the SQLite database behind this Playground.": [
-				"Inspecione e edite o banco de dados SQLite deste Playground."
-			],
-			"Inspection details": ["Detalhes da inspeção"],
-			"Install Reprint": ["Instalar Reprint"],
-			"Install Reprint Server": ["Instalar Reprint Server"],
-			"issue on GitHub": ["issue no GitHub"],
-			"It seems like the local directory backing this site was removed. This Playground copy will not load anymore.": [
-				"Parece que o diretório local vinculado a este site foi removido. Esta cópia do Playground não será mais carregada."
-			],
-			"It’s still open but will be lost on refresh. Your earlier autosave is unchanged.": [
-				"Ele continua aberto, mas será perdido ao atualizar a página. Seu salvamento automático anterior permanece inalterado."
-			],
 			"Keep autosave permanently": [
 				"Manter salvamento automático permanentemente"
 			],
@@ -627,7 +634,6 @@
 			"Kept in this browser as a periodic snapshot — not every change is saved.": [
 				"Mantido neste navegador como um snapshot periódico — nem todas as alterações são salvas."
 			],
-			"language": ["idioma"],
 			"Language": ["Idioma"],
 			"Learn how Blueprint Bundles work": [
 				"Saiba como funcionam os pacotes de Blueprint"
@@ -647,9 +653,9 @@
 			"List posts.": ["Listar posts."],
 			"List users.": ["Listar usuários."],
 			"Live site URL": ["URL do site publicado"],
+			"Loading Terminal…": ["Carregando terminal…"],
 			"Loading modal...": ["Carregando modal..."],
 			"Loading site transfer…": ["Carregando transferência de site…"],
-			"Loading Terminal…": ["Carregando terminal…"],
 			"Loading the Blueprint editor…": [
 				"Carregando o editor de Blueprint…"
 			],
@@ -687,7 +693,6 @@
 				"Blueprints de vários arquivos não podem ser compartilhados como URL — baixe um ZIP."
 			],
 			"Multiline Edit": ["Edição multilinha"],
-			"multisite": ["multisite"],
 			"MySQL emulation backed by SQLite": [
 				"Emulação de MySQL baseada em SQLite"
 			],
@@ -707,26 +712,26 @@
 			"New Post": ["Novo post"],
 			"Next result": ["Próximo resultado"],
 			"Next step": ["Próximo passo"],
+			"No Blueprints found matching your criteria.": [
+				"Nenhum Blueprint encontrado com seus critérios."
+			],
+			"No Playgrounds available yet.": [
+				"Nenhum Playground disponível ainda."
+			],
 			"No account or migration key needed.": [
 				"Não é necessária conta nem chave de migração."
 			],
 			"No active Playground to import into.": [
 				"Nenhum Playground ativo para importar."
 			],
-			"No Blueprints found matching your criteria.": [
-				"Nenhum Blueprint encontrado com seus critérios."
-			],
 			"No changes were made to this Playground.": [
 				"Nenhuma alteração foi feita neste Playground."
 			],
 			"No emails yet": ["Nenhum e-mail ainda"],
-			"No logs match “%s”.": ["Nenhum log corresponde a “%s”."],
 			"No logs match the current filter.": [
 				"Nenhum log corresponde ao filtro atual."
 			],
-			"No Playgrounds available yet.": [
-				"Nenhum Playground disponível ainda."
-			],
+			"No logs match “%s”.": ["Nenhum log corresponde a “%s”."],
 			"No site is selected": ["Nenhum site selecionado"],
 			"Not available in this browser": ["Não disponível neste navegador"],
 			"Not available on this site": ["Não disponível neste site"],
@@ -734,24 +739,25 @@
 				"Não salvo no armazenamento do navegador"
 			],
 			"Nothing logged yet": ["Nada registrado ainda"],
-			"Only the migration key goes to your live site. The private key stays in this tab and is reused when you retry.": [
-				"Apenas a chave de migração vai para o seu site publicado. A chave privada permanece nesta aba e é reutilizada quando você tenta novamente."
-			],
 			"Only WordPress/wordpress-develop and WordPress/gutenberg URLs are supported.": [
 				"Apenas URLs de WordPress/wordpress-develop e WordPress/gutenberg são compatíveis."
+			],
+			"Only the migration key goes to your live site. The private key stays in this tab and is reused when you retry.": [
+				"Apenas a chave de migração vai para o seu site publicado. A chave privada permanece nesta aba e é reutilizada quando você tenta novamente."
 			],
 			"Oops! There was a problem starting Playground. To figure out what went wrong, please take a look at the error logs provided below. If you see an \"Invalid blueprint error,\" the logs will point out the specific step causing the issue. You can then double-check your blueprint. For more help, you can also": [
 				"Ops! Houve um problema ao iniciar o Playground. Para descobrir o que deu errado, consulte os logs de erro fornecidos abaixo. Se você ver um \"Erro de blueprint inválido\", os logs apontarão a etapa específica que está causando o problema. Você pode então verificar novamente seu blueprint. Para mais ajuda, você também pode"
 			],
 			"Open %s": ["Abrir %s"],
 			"Open Adminer": ["Abrir Adminer"],
-			"open an issue on GitHub": ["abrir uma issue no GitHub"],
+			"Open Reprint settings": ["Abrir configurações do Reprint"],
+			"Open Reprint settings ↗": ["Abrir configurações do Reprint ↗"],
+			"Open WordPress admin": ["Abrir painel do WordPress"],
+			"Open Wordfence": ["Abrir Wordfence"],
 			"Open cloned site": ["Abrir site clonado"],
 			"Open installed plugins": ["Abrir plugins instalados"],
 			"Open live site": ["Abrir site publicado"],
 			"Open phpMyAdmin": ["Abrir phpMyAdmin"],
-			"Open Reprint settings": ["Abrir configurações do Reprint"],
-			"Open Reprint settings ↗": ["Abrir configurações do Reprint ↗"],
 			"Open site": ["Abrir site"],
 			"Open the full Blueprint editor": [
 				"Abrir o editor completo de Blueprint"
@@ -762,16 +768,31 @@
 			"Open this Playground to save it to a local directory.": [
 				"Abra este Playground para salvá-lo em um diretório local."
 			],
-			"Open Wordfence": ["Abrir Wordfence"],
-			"Open WordPress admin": ["Abrir painel do WordPress"],
-			"opened": ["aberto"],
 			"Opening the new Playground now.": [
 				"Abrindo o novo Playground agora."
 			],
 			"Operation failed": ["A operação falhou"],
 			"Operation succeeded": ["Operação concluída com sucesso"],
-			"or": ["ou"],
-			"or click to choose a file": ["ou clique para escolher um arquivo"],
+			"PHP Version": ["Versão do PHP"],
+			"PHP Version is required": ["A versão do PHP é obrigatória"],
+			"PHP code": ["Código PHP"],
+			"PHP error log": ["Log de erros do PHP"],
+			"PHP errors, warnings, and notices from your site appear here as they are written to the debug log.": [
+				"Erros, avisos e notificações de PHP do seu site aparecem aqui conforme são gravados no log de depuração."
+			],
+			"PR #%s": ["PR #%s"],
+			"PR %s couldn’t be previewed. Try again later or file an issue in the WordPress Playground repository.": [
+				"Não foi possível visualizar o PR %s. Tente novamente mais tarde ou abra uma issue no repositório do WordPress Playground."
+			],
+			"PR %s predates the Pull Request previewer. Rebase it to create a preview build.": [
+				"O PR %s é anterior ao visualizador de Pull Requests. Faça rebase para criar uma compilação de visualização."
+			],
+			"PR %s wasn’t found": ["PR %s não encontrado"],
+			"PR number or GitHub URL": ["Número do PR ou URL do GitHub"],
+			"PR number or URL": ["Número do PR ou URL"],
+			"PR number, URL, or a branch name": [
+				"Número do PR, URL ou nome de uma branch"
+			],
 			"ParseError on line %1$d, character %2$d: Incomplete PHP code. Check for a missing semicolon or closing delimiter.": [
 				"ParseError na linha %1$d, caractere %2$d: código PHP incompleto. Verifique se falta um ponto e vírgula ou um delimitador de fechamento."
 			],
@@ -782,7 +803,7 @@
 				"ParseError: código PHP incompleto. Verifique se falta um ponto e vírgula ou um delimitador de fechamento."
 			],
 			"Paste a WordPress Core or Gutenberg pull request URL, or a Gutenberg branch URL.": [
-				"Cole o URL de um pull request do WordPress Core ou do Gutenberg, ou o URL de uma branch do Gutenberg."
+				"Cole a URL de um pull request do WordPress Core ou do Gutenberg, ou a URL de uma branch do Gutenberg."
 			],
 			"Paste into <token>Migration Token</token>, then choose <authorize>Authorize client</authorize>.": [
 				"Cole em <token>Token de migração</token> e escolha <authorize>Autorizar cliente</authorize>."
@@ -791,22 +812,12 @@
 			"Paths to export - relative to the path root": [
 				"Caminhos para exportar - relativos à raiz do caminho"
 			],
-			"PHP code": ["Código PHP"],
-			"PHP error log": ["Log de erros do PHP"],
-			"PHP errors, warnings, and notices from your site appear here as they are written to the debug log.": [
-				"Erros, avisos e notificações de PHP do seu site aparecem aqui conforme são gravados no log de depuração."
-			],
-			"PHP Version": ["Versão do PHP"],
-			"PHP Version is required": ["A versão do PHP é obrigatória"],
 			"Playground <sqliteLink>emulates MySQL with SQLite</sqliteLink>. These tools are a work in progress — <issuesLink>report issues</issuesLink>.": [
 				"O Playground <sqliteLink>emula o MySQL com SQLite</sqliteLink>. Estas ferramentas estão em desenvolvimento — <issuesLink>relate problemas</issuesLink>."
 			],
 			"Playground actions": ["Ações do Playground"],
 			"Playground could not download one or more files it needs to run. This is usually caused by a network problem.": [
 				"O Playground não pôde baixar um ou mais arquivos necessários para funcionar. Isso geralmente é causado por um problema de rede."
-			],
-			"Playground couldn’t check GitHub right now.": [
-				"O Playground não pôde verificar o GitHub agora."
 			],
 			"Playground couldn't download a file from <host>%s</host>.": [
 				"O Playground não pôde baixar um arquivo de <host>%s</host>."
@@ -816,6 +827,9 @@
 			],
 			"Playground couldn't download the Blueprint file. Make sure the file is reachable, responds with valid JSON or a blueprint.zip archive, and is still available at the link before trying again.": [
 				"O Playground não pôde baixar o arquivo do Blueprint. Verifique se o arquivo está acessível, retorna um JSON válido ou um arquivo blueprint.zip e ainda está disponível no link antes de tentar novamente."
+			],
+			"Playground couldn’t check GitHub right now.": [
+				"O Playground não pôde verificar o GitHub agora."
 			],
 			"Playground crashed": ["O Playground apresentou uma falha"],
 			"Playground files are still loading…": [
@@ -838,34 +852,20 @@
 			"Playground title": ["Título do Playground"],
 			"Playground tools": ["Ferramentas do Playground"],
 			"Playground treated %s as a WordPress Core PR but couldn’t verify it. If this is a Gutenberg PR, paste its full GitHub URL instead.": [
-				"O Playground tratou %s como um PR do WordPress Core, mas não pôde verificá-lo. Se for um PR do Gutenberg, cole o URL completo do GitHub."
+				"O Playground tratou %s como um PR do WordPress Core, mas não pôde verificá-lo. Se for um PR do Gutenberg, cole a URL completa do GitHub."
 			],
 			"Playground tried to remove those old files again before opening the site, but the browser still would not remove them.": [
 				"O Playground tentou remover esses arquivos antigos novamente antes de abrir o site, mas o navegador ainda não permitiu removê-los."
 			],
 			"Playgrounds": ["Playgrounds"],
 			"Please enter a PR number": ["Informe o número de um PR"],
-			"Please enter a URL": ["Informe um URL"],
+			"Please enter a URL": ["Informe uma URL"],
 			"Please select an option": ["Selecione uma opção"],
 			"Please select what you want to import": [
 				"Selecione o que você deseja importar"
 			],
 			"Plugin": ["Plugin"],
 			"Plugins": ["Plugins"],
-			"PR": ["PR"],
-			"PR #%s": ["PR #%s"],
-			"PR %s couldn’t be previewed. Try again later or file an issue in the WordPress Playground repository.": [
-				"Não foi possível visualizar o PR %s. Tente novamente mais tarde ou abra uma issue no repositório do WordPress Playground."
-			],
-			"PR %s predates the Pull Request previewer. Rebase it to create a preview build.": [
-				"O PR %s é anterior ao visualizador de Pull Requests. Faça rebase para criar uma compilação de visualização."
-			],
-			"PR %s wasn’t found": ["PR %s não encontrado"],
-			"PR number or GitHub URL": ["Número do PR ou URL do GitHub"],
-			"PR number or URL": ["Número do PR ou URL"],
-			"PR number, URL, or a branch name": [
-				"Número do PR, URL ou nome de uma branch"
-			],
 			"Preparing .zip…": ["Preparando .zip…"],
 			"Preparing to save...": ["Preparando para salvar..."],
 			"Preview": ["Visualizar"],
@@ -874,11 +874,11 @@
 				"Visualizar um PR ou branch do Gutenberg"
 			],
 			"Preview a PR": ["Visualizar um PR"],
+			"Preview a WordPress PR": ["Visualizar um PR do WordPress"],
 			"Preview a pull request": ["Visualizar um pull request"],
 			"Preview a search and replace.": [
 				"Visualizar uma pesquisa e substituição."
 			],
-			"Preview a WordPress PR": ["Visualizar um PR do WordPress"],
 			"Preview build expired": ["Compilação de visualização expirada"],
 			"Preview build in progress": [
 				"Compilação de visualização em andamento"
@@ -891,9 +891,9 @@
 			],
 			"Preview unavailable": ["Visualização indisponível"],
 			"Previous result": ["Resultado anterior"],
-			"Pull request %s": ["Pull request %s"],
 			"Pull Request created!": ["Pull Request criado!"],
 			"Pull Request updated!": ["Pull Request atualizado!"],
+			"Pull request %s": ["Pull request %s"],
 			"Pull site": ["Importar site"],
 			"Pulling %s": ["Importando %s"],
 			"Pushes the current state — including your edits — to a GitHub repository.": [
@@ -910,9 +910,6 @@
 			"Recent autosave — deleted after %d newer autosaves. Click to store it permanently.": [
 				"Salvamento automático recente — excluído após %d salvamentos automáticos mais novos. Clique para armazenar permanentemente."
 			],
-			"recent autosave available": [
-				"salvamento automático recente disponível"
-			],
 			"Recent autosaved Playground": [
 				"Playground com salvamento automático recente"
 			],
@@ -922,9 +919,9 @@
 			],
 			"Refresh page": ["Atualizar página"],
 			"Reload": ["Recarregar"],
+			"Reload Fresh Playground": ["Recarregar novo Playground"],
 			"Reload and try again": ["Recarregar e tentar novamente"],
 			"Reload files from disk": ["Recarregar arquivos do disco"],
-			"Reload Fresh Playground": ["Recarregar novo Playground"],
 			"Reload page": ["Recarregar página"],
 			"Reload the page to try browser storage again.": [
 				"Recarregue a página para tentar usar o armazenamento do navegador novamente."
@@ -936,13 +933,11 @@
 				"Recarregue para carregar as edições feitas na pasta fora do Playground."
 			],
 			"Reloading…": ["Recarregando…"],
-			"remote Blueprint": ["Blueprint remoto"],
 			"Rename": ["Renomear"],
 			"Rename Playground": ["Renomear Playground"],
 			"Renaming failed. Please try again.": [
 				"Falha ao renomear. Tente novamente."
 			],
-			"report issues": ["relatar problemas"],
 			"Report this crash": ["Relatar esta falha"],
 			"Reprint could not make a secure connection. Check that the live site opens normally. Your host may need to correct its HTTPS settings. Retrying unchanged may fail again.": [
 				"O Reprint não pôde estabelecer uma conexão segura. Verifique se o site publicado abre normalmente. Sua hospedagem pode precisar corrigir as configurações de HTTPS. Tentar novamente sem alterações pode falhar de novo."
@@ -966,20 +961,21 @@
 			"Review the Blueprint data format": [
 				"Revisar o formato de dados do Blueprint"
 			],
-			"right now": ["agora mesmo"],
 			"Run": ["Executar"],
-			"Run a WP-CLI command to see the result.": [
-				"Execute um comando WP-CLI para ver o resultado."
-			],
 			"Run Blueprint": ["Executar Blueprint"],
-			"Run Blueprint from URL": ["Executar Blueprint a partir de um URL"],
-			"Run in a new Playground": ["Executar em um novo Playground"],
+			"Run Blueprint from URL": [
+				"Executar Blueprint a partir de uma URL"
+			],
 			"Run PHP code to see the result.": [
 				"Execute um código PHP para ver o resultado."
 			],
 			"Run PHP snippets or WP-CLI commands in this Playground.": [
 				"Execute trechos de PHP ou comandos WP-CLI neste Playground."
 			],
+			"Run a WP-CLI command to see the result.": [
+				"Execute um comando WP-CLI para ver o resultado."
+			],
+			"Run in a new Playground": ["Executar em um novo Playground"],
 			"Run will wait for this Playground to finish saving.": [
 				"A execução aguardará este Playground terminar de salvar."
 			],
@@ -990,20 +986,20 @@
 				"Executar este Blueprint cria um novo Playground salvo automaticamente. “%s” permanece em Playgrounds salvos."
 			],
 			"Runs a Blueprint hosted at a public URL as a fresh Playground.": [
-				"Executa um Blueprint hospedado em um URL público como um novo Playground."
+				"Executa um Blueprint hospedado em uma URL pública como um novo Playground."
 			],
 			"Runtime error": ["Erro em tempo de execução"],
 			"Save": ["Salvar"],
+			"Save Playground": ["Salvar Playground"],
+			"Save Playground to browser storage": [
+				"Salvar Playground no armazenamento do navegador"
+			],
 			"Save complete": ["Salvo com sucesso"],
 			"Save failed": ["Falha ao salvar"],
 			"Save in a local directory": ["Salvar em um diretório local"],
 			"Save in a local directory…": ["Salvar em um diretório local…"],
 			"Save in browser storage": ["Salvar no armazenamento do navegador"],
 			"Save in this browser": ["Salvar neste navegador"],
-			"Save Playground": ["Salvar Playground"],
-			"Save Playground to browser storage": [
-				"Salvar Playground no armazenamento do navegador"
-			],
 			"Save progress": ["Progresso do salvamento"],
 			"Save to a local directory": ["Salvar em um diretório local"],
 			"Save to browser storage?": [
@@ -1015,7 +1011,6 @@
 			],
 			"Saved in a local directory": ["Salvo em um diretório local"],
 			"Saved in browser storage": ["Salvo no armazenamento do navegador"],
-			"saved Playground files": ["arquivos salvos do Playground"],
 			"Saved to a local directory.": ["Salvo em um diretório local."],
 			"Saves everything as it is right now — files, database, and your edits — to a .zip you can re-import later.": [
 				"Salva tudo como está agora — arquivos, banco de dados e suas edições — em um arquivo .zip que você pode reimportar depois."
@@ -1028,6 +1023,7 @@
 			"Saving failed. Please try again.": [
 				"Falha ao salvar. Por favor, tente novamente."
 			],
+			"Saving...": ["Salvando..."],
 			"Saving…": ["Salvando…"],
 			"Saving… %d%%": ["Salvando… %d%%"],
 			"Search": ["Pesquisar"],
@@ -1047,12 +1043,13 @@
 			"Sent emails": ["E-mails enviados"],
 			"Sent:": ["Enviado:"],
 			"Setup URL copied to the clipboard.": [
-				"URL de configuração copiado para a área de transferência."
+				"URL de configuração copiada para a área de transferência."
 			],
 			"Show %d more Playground": [
 				"Mostrar mais %d Playground",
 				"Mostrar mais %d Playgrounds"
 			],
+			"Show Playground tools": ["Mostrar ferramentas do Playground"],
 			"Show all %d lines": ["Mostrar todas as %d linhas"],
 			"Show fewer Playgrounds": ["Mostrar menos Playgrounds"],
 			"Show key and connection details": [
@@ -1060,7 +1057,6 @@
 			],
 			"Show less": ["Mostrar menos"],
 			"Show more": ["Mostrar mais"],
-			"Show Playground tools": ["Mostrar ferramentas do Playground"],
 			"Show the site title.": ["Mostrar o título do site."],
 			"Show tools": ["Mostrar ferramentas"],
 			"Sign in if asked. Choose <strong>Install Now</strong>.": [
@@ -1070,13 +1066,13 @@
 			"Signing in to the cloned site…": [
 				"Fazendo login no site clonado…"
 			],
+			"Site Editor": ["Editor do site"],
+			"Site Settings": ["Configurações do site"],
+			"Site URL": ["URL do site"],
 			"Site cloned": ["Site clonado"],
 			"Site cloned. Sign-in needs attention.": [
 				"Site clonado. O login precisa de atenção."
 			],
-			"Site Editor": ["Editor do site"],
-			"Site Settings": ["Configurações do site"],
-			"Site URL": ["URL do site"],
 			"Size:": ["Tamanho:"],
 			"Size: %s": ["Tamanho: %s"],
 			"Some features may not be available because you are offline.": [
@@ -1150,9 +1146,6 @@
 			"The %s Playground does not exist, so we loaded an Unsaved Playground instead.": [
 				"O Playground %s não existe, então carregamos um Playground não salvo."
 			],
-			"The authentication flow opens in a popup. Your running Playground will stay open.": [
-				"O fluxo de autenticação abre em uma janela pop-up. Seu Playground em execução permanecerá aberto."
-			],
 			"The Blueprint does not conform to the required JSON schema. Fix the validation output and retry.": [
 				"O Blueprint não está em conformidade com o esquema JSON obrigatório. Corrija os erros de validação e tente novamente."
 			],
@@ -1162,17 +1155,34 @@
 			"The Blueprint run did not finish.": [
 				"A execução do Blueprint não foi concluída."
 			],
+			"The CI build artifact has expired for PR %s. Push a new commit, rebase, or rerun the CI job to create a fresh build.": [
+				"O artefato de compilação de CI expirou para o PR %s. Envie um novo commit, faça rebase ou execute novamente o job de CI para gerar uma nova compilação."
+			],
+			"The Playground in your browser is unchanged.": [
+				"O Playground no seu navegador não foi alterado."
+			],
+			"The Playground is still loading — Download and Export to GitHub will be ready in a moment.": [
+				"O Playground ainda está carregando — Baixar e Exportar para o GitHub estarão prontos em instantes."
+			],
+			"The Playground is still loading — Export to GitHub will be ready in a moment.": [
+				"O Playground ainda está carregando — Exportar para o GitHub estará pronto em instantes."
+			],
+			"The Playground is still loading — database tools will be ready in a moment.": [
+				"O Playground ainda está carregando — as ferramentas de banco de dados estarão prontas em instantes."
+			],
+			"The Playground is still loading — these tools will be ready in a moment.": [
+				"O Playground ainda está carregando — estas ferramentas estarão prontas em instantes."
+			],
+			"The authentication flow opens in a popup. Your running Playground will stay open.": [
+				"O fluxo de autenticação abre em uma janela pop-up. Seu Playground em execução permanecerá aberto."
+			],
 			"The browser could no longer access your local directory handle. Re-importing the folder will be necessary to continue.": [
 				"O navegador não conseguiu mais acessar o identificador do seu diretório local. Será necessário importar a pasta novamente para continuar."
 			],
 			"The browser no longer lets Playground access your previously shared local directory.": [
 				"O navegador não permite mais que o Playground acesse o diretório local compartilhado anteriormente."
 			],
-			"The CI build artifact has expired for PR %s. Push a new commit, rebase, or rerun the CI job to create a fresh build.": [
-				"O artefato de compilação de CI expirou para o PR %s. Envie um novo commit, faça rebase ou execute novamente o job de CI para gerar uma nova compilação."
-			],
 			"The connection was interrupted": ["A conexão foi interrompida"],
-			"the CORS proxy domain": ["o domínio do proxy CORS"],
 			"The downloaded files are still here, but Playground could not finish setting them up. Check the details below. You can retry local setup without downloading those files again.": [
 				"Os arquivos baixados ainda estão aqui, mas o Playground não conseguiu concluir a configuração. Confira os detalhes abaixo. Você pode tentar novamente a configuração local sem baixar esses arquivos de novo."
 			],
@@ -1209,21 +1219,6 @@
 			"The local directory became unavailable": [
 				"O diretório local ficou indisponível"
 			],
-			"The Playground in your browser is unchanged.": [
-				"O Playground no seu navegador não foi alterado."
-			],
-			"The Playground is still loading — database tools will be ready in a moment.": [
-				"O Playground ainda está carregando — as ferramentas de banco de dados estarão prontas em instantes."
-			],
-			"The Playground is still loading — Download and Export to GitHub will be ready in a moment.": [
-				"O Playground ainda está carregando — Baixar e Exportar para o GitHub estarão prontos em instantes."
-			],
-			"The Playground is still loading — Export to GitHub will be ready in a moment.": [
-				"O Playground ainda está carregando — Exportar para o GitHub estará pronto em instantes."
-			],
-			"The Playground is still loading — these tools will be ready in a moment.": [
-				"O Playground ainda está carregando — estas ferramentas estarão prontas em instantes."
-			],
 			"The repository was fetched, but Playground could not determine where it was installed.": [
 				"O repositório foi obtido, mas o Playground não conseguiu determinar onde ele foi instalado."
 			],
@@ -1244,8 +1239,14 @@
 			"There are no changes to export. Make an edit in the Playground before exporting to GitHub.": [
 				"Não há alterações para exportar. Faça uma edição no Playground antes de exportar para o GitHub."
 			],
-			"There was an unexpected error %s, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.": [
-				"Ocorreu um erro inesperado %s. Tente novamente. Se o problema persistir, relate-o em https://github.com/WordPress/wordpress-playground/issues."
+			"There has been an error. Please try again.": [
+				"Ocorreu um erro. Tente novamente."
+			],
+			"There was an unexpected error (%s), please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.": [
+				"Ocorreu um erro inesperado (%s). Tente novamente. Se o problema persistir, relate-o em https://github.com/WordPress/wordpress-playground/issues."
+			],
+			"There was an unexpected error, please try again. If the problem persists, please report it at https://github.com/WordPress/wordpress-playground/issues.": [
+				"Ocorreu um erro inesperado. Tente novamente. Se o problema persistir, relate-o em https://github.com/WordPress/wordpress-playground/issues."
 			],
 			"This Blueprint bundle contains multiple files and cannot be shared via URL. Use the download button to export the bundle as a zip file.": [
 				"Este pacote de Blueprint contém vários arquivos e não pode ser compartilhado por URL. Use o botão de download para exportar o pacote como um arquivo zip."
@@ -1253,16 +1254,29 @@
 			"This Blueprint references bundled files via": [
 				"Este Blueprint faz referência a arquivos empacotados via"
 			],
-			"This blueprint requires access to a private GitHub repository:": [
-				"Este Blueprint requer acesso a um repositório privado do GitHub:"
-			],
 			"This Blueprint run stopped before its WordPress files finished saving.": [
 				"A execução deste Blueprint foi interrompida antes que todos os arquivos do WordPress fossem salvos."
+			],
+			"This GitHub artifact expired": ["Este artefato do GitHub expirou"],
+			"This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save it to a local directory.": [
+				"Este Playground é salvo automaticamente neste navegador e pode ser removido após salvamentos automáticos mais recentes. Armazene-o permanentemente neste navegador ou salve-o em um diretório local."
+			],
+			"This Playground is still available in your list.": [
+				"Este Playground ainda está disponível na sua lista."
+			],
+			"This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.": [
+				"Este Playground é temporário e será perdido quando você atualizar ou fechar esta página. Salve-o para manter seu trabalho e encontrá-lo depois em Seus Playgrounds."
+			],
+			"This Playground is temporary and will be lost when you refresh or close this page. Store it permanently in this browser or save it to a local directory to keep your work and find it later in Your Playgrounds.": [
+				"Este Playground é temporário e será perdido quando você atualizar ou fechar esta página. Armazene-o permanentemente neste navegador ou salve-o em um diretório local para manter seu trabalho e encontrá-lo depois em Seus Playgrounds."
+			],
+			"This URL is not supported": ["Esta URL não é compatível"],
+			"This blueprint requires access to a private GitHub repository:": [
+				"Este Blueprint requer acesso a um repositório privado do GitHub:"
 			],
 			"This can happen if the tab was closed or reloaded, the browser suspended the page, or the browser ran out of space for saved sites.": [
 				"Isso pode acontecer se a aba foi fechada ou recarregada, se o navegador suspendeu a página ou se o navegador ficou sem espaço para sites salvos."
 			],
-			"This GitHub artifact expired": ["Este artefato do GitHub expirou"],
 			"This host cannot verify migration keys. Use Reprint’s command-line tool with a connection token instead. Retrying in this browser will not help.": [
 				"Este servidor de hospedagem não consegue verificar chaves de migração. Use a ferramenta de linha de comando do Reprint com um token de conexão. Tentar novamente neste navegador não resolverá o problema."
 			],
@@ -1279,23 +1293,11 @@
 				"Esta é uma janela de diálogo que se sobrepõe ao conteúdo principal da página. O modal começa com um título 2 chamado \"Renomear Playground\". Pressionar o botão Fechar fechará o modal e o levará de volta para onde você estava na página."
 			],
 			"This is a dialog window which overlays the main content of the page. The modal begins with a heading 2 called \"Run Blueprint from URL\". Pressing the Close button will close the modal and bring you back to where you were on the page.": [
-				"Esta é uma janela de diálogo sobreposta ao conteúdo principal da página. O modal começa com um título de nível 2 chamado \"Executar Blueprint a partir de URL\". Pressionar o botão Fechar encerrará o modal e levará você de volta ao ponto em que estava na página."
+				"Esta é uma janela de diálogo sobreposta ao conteúdo principal da página. O modal começa com um título de nível 2 chamado \"Executar Blueprint a partir de uma URL\". Pressionar o botão Fechar encerrará o modal e levará você de volta ao ponto em que estava na página."
 			],
 			"This message has no body.": ["Esta mensagem não tem corpo."],
 			"This might be a bug in Playground. Please <githubIssueLink>open an issue on GitHub</githubIssueLink> so we can investigate.": [
-				"Isso pode ser um bug no Playground. <githubIssueLink>Abra um issue no GitHub</githubIssueLink> para que possamos investigar."
-			],
-			"This Playground is autosaved in this browser and may be removed after newer autosaves. Store it permanently in this browser or save it to a local directory.": [
-				"Este Playground é salvo automaticamente neste navegador e pode ser removido após salvamentos automáticos mais recentes. Armazene-o permanentemente neste navegador ou salve-o em um diretório local."
-			],
-			"This Playground is still available in your list.": [
-				"Este Playground ainda está disponível na sua lista."
-			],
-			"This Playground is temporary and will be lost when you refresh or close this page. Save it to keep your work and find it later in Your Playgrounds.": [
-				"Este Playground é temporário e será perdido quando você atualizar ou fechar esta página. Salve-o para manter seu trabalho e encontrá-lo depois em Seus Playgrounds."
-			],
-			"This Playground is temporary and will be lost when you refresh or close this page. Store it permanently in this browser or save it to a local directory to keep your work and find it later in Your Playgrounds.": [
-				"Este Playground é temporário e será perdido quando você atualizar ou fechar esta página. Armazene-o permanentemente neste navegador ou salve-o em um diretório local para manter seu trabalho e encontrá-lo depois em Seus Playgrounds."
+				"Isso pode ser um bug no Playground. <githubIssueLink>Abra uma issue no GitHub</githubIssueLink> para que possamos investigar."
 			],
 			"This pull request cannot be imported because its source repository is unavailable.": [
 				"Este pull request não pode ser importado porque o repositório de origem está indisponível."
@@ -1312,7 +1314,6 @@
 			"This temporary Playground will be lost forever.": [
 				"Este Playground temporário será perdido para sempre."
 			],
-			"This URL is not supported": ["Esta URL não é compatível"],
 			"This usually means the download was interrupted or a cached copy was damaged.": [
 				"Isso geralmente significa que o download foi interrompido ou que uma cópia em cache foi corrompida."
 			],
@@ -1321,7 +1322,6 @@
 			],
 			"To repository path": ["Para o caminho do repositório"],
 			"To:": ["Para:"],
-			"today %s": ["hoje às %s"],
 			"Today at %s": ["Hoje às %s"],
 			"Tools cannot be hidden right now": [
 				"As ferramentas não podem ser ocultadas no momento"
@@ -1345,11 +1345,17 @@
 				"Ajuste o Blueprint deste Playground e crie um novo Playground a partir dele — ou continue no editor completo de Blueprints para ter uma árvore de arquivos e mais espaço."
 			],
 			"Two pull requests found": ["Dois pull requests encontrados"],
+			"URL to visit in the WordPress site, like \"/wp-admin\"": [
+				"URL para visitar no site WordPress, como \"/wp-admin\""
+			],
 			"Unable to access the selected directory.": [
 				"Não foi possível acessar o diretório selecionado."
 			],
 			"Unable to import this file. Is it a valid WordPress Playground export?": [
 				"Não foi possível importar este arquivo. Ele é uma exportação válida do WordPress Playground?"
+			],
+			"Unable to open GitHub OAuth popup.": [
+				"Não foi possível abrir o pop-up de OAuth do GitHub."
 			],
 			"Unable to prepare the .zip download. Please try again.": [
 				"Não foi possível preparar o download do arquivo .zip. Tente novamente."
@@ -1362,18 +1368,15 @@
 			"Unnamed attachment": ["Anexo sem nome"],
 			"Unsaved": ["Não salvo"],
 			"Unsaved Playground": ["Playground não salvo"],
-			"Update an existing PR": ["Atualizar um PR existente"],
-			"Update plugin %s": ["Atualizar plugin %s"],
 			"Update Pull Request #%s": ["Atualizar Pull Request #%s"],
 			"Update Reprint on the live site": [
 				"Atualize o Reprint no site publicado"
 			],
+			"Update an existing PR": ["Atualizar um PR existente"],
+			"Update plugin %s": ["Atualizar plugin %s"],
 			"Update theme %s": ["Atualizar tema %s"],
 			"Update wp-content": ["Atualizar wp-content"],
 			"Updating the Pull Request": ["Atualizando o Pull Request"],
-			"URL to visit in the WordPress site, like \"/wp-admin\"": [
-				"URL para visitar no site WordPress, como \"/wp-admin\""
-			],
 			"Use the Reprint CLI": ["Usar a CLI do Reprint"],
 			"Validation error": ["Erro de validação"],
 			"Validation output": ["Saída de validação"],
@@ -1387,7 +1390,7 @@
 			],
 			"Versions": ["Versões"],
 			"View migration key": ["Ver chave de migração"],
-			"visit our documentation.": ["visitar nossa documentação."],
+			"WP-CLI command": ["Comando WP-CLI"],
 			"Wait for the current action to finish before closing": [
 				"Aguarde a conclusão da ação atual antes de fechar"
 			],
@@ -1411,7 +1414,7 @@
 				"Não foi possível copiar automaticamente. Selecione e copie a chave abaixo."
 			],
 			"We were unable to submit the error report. Please try again or open an <githubIssueLink>issue on GitHub</githubIssueLink>.": [
-				"Não foi possível enviar o relatório de erro. Tente novamente ou abra um <githubIssueLink>issue no GitHub</githubIssueLink>."
+				"Não foi possível enviar o relatório de erro. Tente novamente ou abra uma <githubIssueLink>issue no GitHub</githubIssueLink>."
 			],
 			"We’ll check access before copying your site.": [
 				"Verificaremos o acesso antes de copiar seu site."
@@ -1422,8 +1425,14 @@
 			],
 			"Which plugin?": ["Qual plugin?"],
 			"Which theme?": ["Qual tema?"],
-			"Wordfence blocked the connection": [
-				"O Wordfence bloqueou a conexão"
+			"WordPress PHP reference": ["Referência PHP do WordPress"],
+			"WordPress PR #%s": ["PR #%s do WordPress"],
+			"WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)": [
+				"Wrapper do WordPress Playground (o site WordPress real está em outro iframe aninhado)"
+			],
+			"WordPress Version": ["Versão do WordPress"],
+			"WordPress Version is required": [
+				"A versão do WordPress é obrigatória"
 			],
 			"WordPress download was incomplete": [
 				"O download do WordPress ficou incompleto"
@@ -1437,20 +1446,11 @@
 			"WordPress is still loading. The WP-CLI runner will be ready in a moment.": [
 				"O WordPress ainda está carregando. O executor do WP-CLI estará pronto em instantes."
 			],
-			"WordPress PHP reference": ["Referência PHP do WordPress"],
-			"WordPress Playground wrapper (the actual WordPress site is in another, nested iframe)": [
-				"Wrapper do WordPress Playground (o site WordPress real está em outro iframe aninhado)"
-			],
-			"WordPress PR #%s": ["PR #%s do WordPress"],
 			"WordPress version": ["Versão do WordPress"],
-			"WordPress Version": ["Versão do WordPress"],
-			"WordPress Version is required": [
-				"A versão do WordPress é obrigatória"
+			"Wordfence blocked the connection": [
+				"O Wordfence bloqueou a conexão"
 			],
-			"WP-CLI command": ["Comando WP-CLI"],
-			"wp-content directory": ["Diretório wp-content"],
 			"Write a Blueprint": ["Escrever um Blueprint"],
-			"yesterday at %s": ["ontem às %s"],
 			"Yesterday at %s": ["Ontem às %s"],
 			"You may export WordPress plugins, themes, and entire wp-content directories as pull requests to any public GitHub repository.": [
 				"Você pode exportar plugins, temas e diretórios wp-content inteiros do WordPress como pull requests para qualquer repositório público do GitHub."
@@ -1458,15 +1458,13 @@
 			"You may import WordPress plugins, themes, and entire wp-content directories from any public GitHub repository.": [
 				"Você pode importar plugins, temas e diretórios wp-content inteiros do WordPress de qualquer repositório público do GitHub."
 			],
-			"You’ll need admin access to this site.": [
-				"Você precisará de acesso de administrador a este site."
+			"Your Playground is ready. Autosave will finish in the background.": [
+				"Seu Playground está pronto. O salvamento automático será concluído em segundo plano."
 			],
-			"You’ll paste it into Reprint on your live site.": [
-				"Você vai colar a chave no Reprint do seu site publicado."
+			"Your Playground is ready. It’s available until you close this page.": [
+				"Seu Playground está pronto. Ele ficará disponível até você fechar esta página."
 			],
-			"You’re signed in as an administrator. Your live site was not changed.": [
-				"Você entrou como administrador. Seu site publicado não foi alterado."
-			],
+			"Your Playgrounds": ["Seus Playgrounds"],
 			"Your access token is not stored anywhere, which means you'll have to re-authenticate after every page refresh.": [
 				"Seu token de acesso não é armazenado em nenhum lugar, o que significa que você precisará se autenticar novamente após cada atualização da página."
 			],
@@ -1485,16 +1483,48 @@
 			"Your network is blocking the proxy. Try a different network (mobile data, personal Wi-Fi), use a VPN, or contact your IT administrator.": [
 				"Sua rede está bloqueando o proxy. Tente outra rede (dados móveis, Wi-Fi pessoal), use uma VPN ou entre em contato com o administrador de TI."
 			],
-			"Your Playground is ready. Autosave will finish in the background.": [
-				"Seu Playground está pronto. O salvamento automático será concluído em segundo plano."
-			],
-			"Your Playground is ready. It’s available until you close this page.": [
-				"Seu Playground está pronto. Ele ficará disponível até você fechar esta página."
-			],
-			"Your Playgrounds": ["Seus Playgrounds"],
 			"Your report has been submitted to the <slackLink>Making WordPress #playground-logs Slack channel</slackLink> and will be reviewed by the team.": [
 				"Seu relatório foi enviado para o <slackLink>canal #playground-logs do Slack Making WordPress</slackLink> e será analisado pela equipe."
 			],
+			"You’ll need admin access to this site.": [
+				"Você precisará de acesso de administrador a este site."
+			],
+			"You’ll paste it into Reprint on your live site.": [
+				"Você vai colar a chave no Reprint do seu site publicado."
+			],
+			"You’re signed in as an administrator. Your live site was not changed.": [
+				"Você entrou como administrador. Seu site publicado não foi alterado."
+			],
+			"a moment ago": ["há um instante"],
+			"but it was loaded as a standalone JSON file.": [
+				"mas ele foi carregado como um arquivo JSON independente."
+			],
+			"default WordPress": ["WordPress padrão"],
+			"e.g. Testing Gutenberg 24.17": ["ex: Testando Gutenberg 24.17"],
+			"emulates MySQL with SQLite": ["emula MySQL com SQLite"],
+			"inline Blueprint": ["Blueprint inline"],
+			"issue on GitHub": ["issue no GitHub"],
+			"language": ["idioma"],
+			"multisite": ["multisite"],
+			"notification available": ["notificação disponível"],
+			"open an issue on GitHub": ["abrir uma issue no GitHub"],
+			"opened <time>%s</time>": ["aberto <time>%s</time>"],
+			"or": ["ou"],
+			"or click to choose a file": ["ou clique para escolher um arquivo"],
+			"recent autosave available": [
+				"salvamento automático recente disponível"
+			],
+			"remote Blueprint": ["Blueprint remoto"],
+			"report issues": ["relatar problemas"],
+			"right now": ["agora mesmo"],
+			"saved Playground files": ["arquivos salvos do Playground"],
+			"the CORS proxy domain": ["o domínio do proxy CORS"],
+			"today %s": ["hoje às %s"],
+			"visit our documentation.": ["visitar nossa documentação."],
+			"wp-content directory": ["Diretório wp-content"],
+			"yesterday at %s": ["ontem às %s"],
+			"── Current versions ──": ["── Versões atuais ──"],
+			"── Older versions ──": ["── Versões anteriores ──"],
 			"dock navigation item\u0004Export": ["Exportar"],
 			"dock navigation item\u0004New": ["Novo"]
 		}
