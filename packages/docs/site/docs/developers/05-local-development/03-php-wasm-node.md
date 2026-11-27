@@ -497,7 +497,7 @@ const php = new PHP(await loadNodeRuntime('8.3', { emscriptenOptions: { processI
 
 // Add a PHP script to serve
 php.mkdir('/www');
-php.writeFile('/www/index.php', '<?php echo "Hello, " . ($_GET["name"] ?? "guest");');
+php.writeFile('/www/index.php', '<?php echo "Hello, " . htmlspecialchars($_GET["name"] ?? "guest", ENT_QUOTES, "UTF-8");');
 
 // PHP execution middleware
 app.use('/php', async (req, res, next) => {
@@ -552,6 +552,7 @@ describe('PHP Functions', () => {
 		});
 
 		expect(await result.stdoutText).toBe('8');
+		expect(await result.exitCode).toBe(0);
 	});
 
 	it('should handle JSON operations', async () => {
@@ -569,6 +570,7 @@ describe('PHP Functions', () => {
 
 		const output = JSON.parse(await result.stdoutText);
 		expect(output.doubled).toBe(84);
+		expect(await result.exitCode).toBe(0);
 	});
 });
 ```
