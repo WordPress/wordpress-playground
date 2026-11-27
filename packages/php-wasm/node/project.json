@@ -274,7 +274,8 @@
 					"unzip-file.spec.ts",
 					"php-vars.spec.ts",
 					"php-memory.spec.ts",
-					"php-opcache.spec.ts"
+					"php-opcache.spec.ts",
+					"php-openssl.spec.ts"
 				]
 			}
 		},
@@ -291,7 +292,8 @@
 					"php-worker.spec.ts",
 					"unzip-file.spec.ts",
 					"php-vars.spec.ts",
-					"php-memory.spec.ts"
+					"php-memory.spec.ts",
+					"php-openssl.spec.ts"
 				]
 			}
 		},
