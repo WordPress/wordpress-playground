@@ -175,6 +175,14 @@ export async function resolveBlueprintFromURL(
 	}
 }
 
+/**
+ * Applies Query API params to a Blueprint and returns the Blueprint to boot.
+ *
+ * Blueprint v1 accepts every override, for example `php`, `wp`, `language`,
+ * and `networking`. Blueprint v2 accepts only `networking=yes` or
+ * `networking=no`. A Blueprint bundle keeps its files; only its
+ * `blueprint.json` is replaced.
+ */
 export async function applyQueryOverrides(
 	blueprint: Blueprint,
 	query: URLSearchParams
