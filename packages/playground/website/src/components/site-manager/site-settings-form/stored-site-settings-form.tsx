@@ -26,6 +26,7 @@ export function StoredSiteSettingsForm({
 		await sitesAPI.updateRuntimeSettings({
 			phpVersion: data.phpVersion,
 			networking: data.withNetworking,
+			enableMultisite: data.multisite && !defaultValues.multisite,
 		});
 	};
 	const createFreshSite = async (data: SiteFormData) => {
