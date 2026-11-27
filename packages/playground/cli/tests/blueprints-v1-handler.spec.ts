@@ -8,6 +8,8 @@ import {
 	cachedDownload,
 	fetchSqliteIntegration,
 } from '../src/blueprints-v1/download';
+import { InMemoryFilesystem, OverlayFilesystem } from '@wp-playground/storage';
+import { RecommendedPHPVersion } from '@wp-playground/common';
 
 vi.mock('../src/blueprints-v1/download', async (importOriginal) => {
 	const actual = (await importOriginal()) as Record<string, unknown>;
@@ -48,28 +50,14 @@ describe('BlueprintsV1Handler', () => {
 	});
 
 	test('prepares the WordPress version declared by the Blueprint', async () => {
-		const handler = new BlueprintsV1Handler(
-			{
-				command: 'server',
-				wordpressInstallMode: 'download-and-install',
-				'mount-before-install': [
-					{
-						hostPath: '/mounted',
-						vfsPath: '/wordpress',
-					},
-				],
-				blueprint: {
-					preferredVersions: {
-						php: '7.4',
-						wp: '6.2',
-					},
+		const handler = createHandler({
+			blueprint: {
+				preferredVersions: {
+					php: '7.4',
+					wp: '6.2',
 				},
-			} as RunCLIArgs,
-			{
-				siteUrl: 'http://127.0.0.1:9400',
-				cliOutput,
-			}
-		);
+			},
+		});
 		const playground = {
 			bootWordPress: vi.fn().mockResolvedValue(undefined),
 		};
@@ -87,6 +75,127 @@ describe('BlueprintsV1Handler', () => {
 		);
 	});
 
+	test('applies the --wp and --php flags to a Blueprint file bundle', async () => {
+		const handler = createHandler({
+			blueprint: new OverlayFilesystem([
+				new InMemoryFilesystem({
+					'blueprint.json': JSON.stringify({ steps: [] }),
+				}),
+			]),
+			wp: '6.4',
+			php: '8.1',
+		});
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(resolveWordPressRelease).toHaveBeenCalledWith('6.4');
+		expect(playground.bootWordPress).toHaveBeenCalledWith(
+			expect.objectContaining({
+				phpVersion: '8.1',
+				wpVersion: '6.4',
+			}),
+			expect.anything()
+		);
+	});
+
+	test('prefers bundle preferredVersions over --wp and --php', async () => {
+		const handler = createHandler({
+			blueprint: new OverlayFilesystem([
+				new InMemoryFilesystem({
+					'blueprint.json': JSON.stringify({
+						steps: [],
+						preferredVersions: {
+							php: '7.4',
+							wp: '6.2',
+						},
+					}),
+				}),
+			]),
+			wp: '6.4',
+			php: '8.1',
+		});
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(resolveWordPressRelease).toHaveBeenCalledWith('6.2');
+		expect(playground.bootWordPress).toHaveBeenCalledWith(
+			expect.objectContaining({
+				phpVersion: '7.4',
+				wpVersion: '6.2',
+			}),
+			expect.anything()
+		);
+	});
+
+	test('keeps the default versions for a Blueprint file bundle without flags', async () => {
+		const handler = createHandler({
+			blueprint: new OverlayFilesystem([
+				new InMemoryFilesystem({
+					'blueprint.json': JSON.stringify({ steps: [] }),
+				}),
+			]),
+		});
+		const playground = {
+			bootWordPress: vi.fn().mockResolvedValue(undefined),
+		};
+
+		await handler.bootWordPress(playground as any, {} as any);
+
+		expect(resolveWordPressRelease).toHaveBeenCalledWith('latest');
+		expect(playground.bootWordPress).toHaveBeenCalledWith(
+			expect.objectContaining({
+				phpVersion: RecommendedPHPVersion,
+				wpVersion: 'latest',
+			}),
+			expect.anything()
+		);
+	});
+
+	test('honors --login and resolves bundled resources for a Blueprint file bundle', async () => {
+		const handler = createHandler({
+			blueprint: new OverlayFilesystem([
+				new InMemoryFilesystem({
+					'blueprint.json': JSON.stringify({
+						steps: [
+							{
+								step: 'writeFile',
+								path: '/wordpress/hello.txt',
+								data: {
+									resource: 'bundled',
+									path: 'hello.txt',
+								},
+							},
+						],
+					}),
+					'hello.txt': 'hello from bundle',
+				}),
+			]),
+			login: true,
+		});
+		const playground = {
+			defineConstant: vi.fn().mockResolvedValue(undefined),
+			writeFile: vi.fn().mockResolvedValue(undefined),
+		};
+
+		const compiled = await handler.compileInputBlueprint([]);
+		await compiled.run(playground as any);
+
+		expect(playground.defineConstant).toHaveBeenCalledWith(
+			'PLAYGROUND_AUTO_LOGIN_AS_USER',
+			'admin'
+		);
+		expect(playground.writeFile).toHaveBeenCalledWith(
+			'/wordpress/hello.txt',
+			new TextEncoder().encode('hello from bundle')
+		);
+	});
+
 	test.each(['../../backups/site', 'C:\\backups\\site'])(
 		'rejects the Blueprint WordPress version %s',
 		async (wp) => {
@@ -98,7 +207,14 @@ describe('BlueprintsV1Handler', () => {
 			};
 
 			await expect(
-				createHandler(wp).bootWordPress(playground as any, {} as any)
+				createHandler({
+					blueprint: {
+						preferredVersions: {
+							php: '7.4',
+							wp,
+						},
+					},
+				}).bootWordPress(playground as any, {} as any)
 			).rejects.toThrow('Unrecognized WordPress version');
 			expect(cachedDownload).not.toHaveBeenCalled();
 			expect(playground.bootWordPress).not.toHaveBeenCalled();
@@ -111,10 +227,14 @@ describe('BlueprintsV1Handler', () => {
 		};
 
 		await expect(
-			createHandler('../../backups/site').bootWordPress(
-				playground as any,
-				{} as any
-			)
+			createHandler({
+				blueprint: {
+					preferredVersions: {
+						php: '7.4',
+						wp: '../../backups/site',
+					},
+				},
+			}).bootWordPress(playground as any, {} as any)
 		).rejects.toThrow('Invalid cache file name');
 		expect(cachedDownload).not.toHaveBeenCalled();
 		expect(playground.bootWordPress).not.toHaveBeenCalled();
@@ -129,7 +249,14 @@ describe('BlueprintsV1Handler', () => {
 		};
 		const url = 'https://example.com/wordpress.zip';
 
-		await createHandler(url).bootWordPress(playground as any, {} as any);
+		await createHandler({
+			blueprint: {
+				preferredVersions: {
+					php: '7.4',
+					wp: url,
+				},
+			},
+		}).bootWordPress(playground as any, {} as any);
 
 		expect(cachedDownload).toHaveBeenCalledWith(
 			url,
@@ -138,7 +265,7 @@ describe('BlueprintsV1Handler', () => {
 		);
 	});
 
-	function createHandler(wp: string) {
+	function createHandler(overrides: Partial<RunCLIArgs> = {}) {
 		return new BlueprintsV1Handler(
 			{
 				command: 'server',
@@ -149,12 +276,7 @@ describe('BlueprintsV1Handler', () => {
 						vfsPath: '/wordpress',
 					},
 				],
-				blueprint: {
-					preferredVersions: {
-						php: '7.4',
-						wp,
-					},
-				},
+				...overrides,
 			} as RunCLIArgs,
 			{
 				siteUrl: 'http://127.0.0.1:9400',
