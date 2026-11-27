@@ -26,9 +26,10 @@ export async function getPlaygroundDefinedPHPConstants(
 /**
  * Returns the PHP constants to keep when saving or reopening a Playground.
  *
- * The worker sets `USE_FETCH_FOR_REQUESTS` when it installs the network
- * transport for the current Network access setting. For example, an old
- * `false` can keep requests offline after the user turns networking back on.
+ * The worker sets `USE_FETCH_FOR_REQUESTS` to `true` when it installs the
+ * network transport, and saved constants are defined again after the worker
+ * boots. For example, a saved `true` keeps the fetch transport selected after
+ * the user turns Network access off, when nothing handles its requests.
  * Leave the flag out of new saves and ignore it when loading older saves.
  */
 export function filterPHPConstantsForSavedSite(
