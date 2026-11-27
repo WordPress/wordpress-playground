@@ -26,28 +26,39 @@ if ($test_route === '/__test-run-lookup') {
 	// gitHubRequest() keeps the production lookup and removes the network.
 	//
 	// `runs` lists the head repository ID of each run, newest first; `null`
-	// stands for a deleted head repository. Every run belongs to repository 1.
+	// stands for a deleted head repository. An entry may add the run's event
+	// after a colon, as in `1:pull_request_target`; the default is
+	// `pull_request`. Every run belongs to repository 1.
 	$parse_id = function ($value) {
 		return $value === 'null' ? null : (int) $value;
 	};
 	$mode = $_GET['mode'];
-	$run_head_repository_ids = array_map($parse_id, explode(',', $_GET['runs']));
+	$runs = [];
+	if (($_GET['runs'] ?? '') !== '') {
+		foreach (explode(',', $_GET['runs']) as $entry) {
+			$parts = explode(':', $entry, 2);
+			$runs[] = [
+				'head_repository_id' => $parse_id($parts[0]),
+				'event' => $parts[1] ?? 'pull_request',
+			];
+		}
+	}
 	$pr_head_repository_id = $parse_id($_GET['pr-head'] ?? '1');
-	register_shutdown_function(function () use ($mode, $run_head_repository_ids, $pr_head_repository_id) {
+	register_shutdown_function(function () use ($mode, $runs, $pr_head_repository_id) {
 		ob_clean();
 		header_remove();
 		http_response_code(200);
 		header('Content-Type: application/json');
 
-		$downloader = new class('test-token', $run_head_repository_ids, $pr_head_repository_id) extends PluginDownloader {
+		$downloader = new class('test-token', $runs, $pr_head_repository_id) extends PluginDownloader {
 			public $artifactListRequests = [];
-			private $runHeadRepositoryIds;
+			private $runs;
 			private $prHeadRepositoryId;
 
-			public function __construct($githubToken, $runHeadRepositoryIds, $prHeadRepositoryId)
+			public function __construct($githubToken, $runs, $prHeadRepositoryId)
 			{
 				parent::__construct($githubToken);
-				$this->runHeadRepositoryIds = $runHeadRepositoryIds;
+				$this->runs = $runs;
 				$this->prHeadRepositoryId = $prHeadRepositoryId;
 			}
 
@@ -71,21 +82,26 @@ if ($test_route === '/__test-run-lookup') {
 						'workflows' => [['id' => 1, 'name' => 'Target workflow']],
 					];
 				} else if (preg_match('#/actions/workflows/\d+/runs$#', $path)) {
+					// Serve one page of runs, as GitHub does.
+					parse_str(parse_url($url, PHP_URL_QUERY) ?? '', $query);
+					$per_page = (int) ($query['per_page'] ?? 30);
+					$page = (int) ($query['page'] ?? 1);
 					$runs = [];
-					foreach ($this->runHeadRepositoryIds as $index => $head_repository_id) {
+					foreach (array_slice($this->runs, ($page - 1) * $per_page, $per_page, true) as $index => $run) {
 						$runs[] = [
+							'event' => $run['event'],
 							'repository' => ['id' => 1],
-							'head_repository' => $head_repository_id === null
+							'head_repository' => $run['head_repository_id'] === null
 								? null
-								: ['id' => $head_repository_id],
+								: ['id' => $run['head_repository_id']],
 							'artifacts_url' => "https://api.github.com/test-artifacts/$index",
 						];
 					}
 					$body = ['workflow_runs' => $runs];
-				} else {
+				} else if (preg_match('#^/test-artifacts/(\d+)$#', $path, $matches)) {
 					// Every run has an artifact with the requested name, as a
 					// fork that copies the name would.
-					$this->artifactListRequests[] = (int) basename($path);
+					$this->artifactListRequests[] = (int) $matches[1];
 					$body = [
 						'artifacts' => [
 							[
@@ -96,6 +112,8 @@ if ($test_route === '/__test-run-lookup') {
 							],
 						],
 					];
+				} else {
+					throw new LogicException("Unexpected GitHub API request: $url");
 				}
 
 				return [
