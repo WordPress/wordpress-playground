@@ -681,7 +681,7 @@ function getAdditionalStepProgressCaption(step: BlueprintV2Step): string {
 		case 'activatePlugin':
 			return 'Activating plugin';
 		case 'activateTheme':
-			return 'Activating theme';
+			return `Activating ${step.humanReadableName || step.themeDirectoryName}`;
 		case 'cp':
 			return 'Copying files';
 		case 'defineConstants':

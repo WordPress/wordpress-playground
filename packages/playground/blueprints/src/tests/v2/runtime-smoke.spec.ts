@@ -1,5 +1,6 @@
 import type { PHP, PHPRequestHandler } from '@php-wasm/universal';
 import { bootWordPressAndRequestHandler } from '@wp-playground/wordpress';
+import { ProgressTracker } from '@php-wasm/progress';
 import { loadNodeRuntime } from '@php-wasm/node';
 import { RecommendedPHPVersion } from '@wp-playground/common';
 import {
@@ -653,6 +654,40 @@ add_action('init', function () {
 			activeThemeStylesheet: 'active-runtime-theme-target',
 			inactiveThemeInstalled: true,
 		});
+	});
+
+	it('uses the declared theme name during both v2 activation paths', async () => {
+		const progress = new ProgressTracker();
+		const captions = new Set<string>();
+		progress.addEventListener('progress', () =>
+			captions.add(progress.caption)
+		);
+		const compiled = await compileBlueprintForExecution(
+			{
+				version: 2,
+				activeTheme: {
+					source: {
+						directoryName: 'demo-theme',
+						files: {
+							'style.css': '/* Theme Name: Demo */',
+							'index.php': '<?php',
+						},
+					},
+					humanReadableName: 'Demo Preview',
+				},
+				additionalStepsAfterExecution: [
+					{
+						step: 'activateTheme',
+						themeDirectoryName: 'demo-theme',
+						humanReadableName: 'Demo Release',
+					},
+				],
+			},
+			{ progress }
+		);
+		await compiled.run(php);
+		expect(captions).toContain('Activating Demo Preview');
+		expect(captions).toContain('Activating Demo Release');
 	});
 
 	it('registers post types through generated mu-plugins', async () => {

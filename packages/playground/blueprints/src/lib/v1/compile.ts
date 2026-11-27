@@ -696,9 +696,9 @@ function compileStep<S extends StepDefinition>(
 		gitAdditionalHeadersCallback,
 	}: CompileStepArgsOptions
 ): { run: CompiledV1Step; step: S; resources: Array<Resource<any>> } {
+	// Set the caption in run() so a later step cannot mask the one currently executing.
 	const stepProgress = rootProgressTracker.stage(
-		(step.progress?.weight || 1) / totalProgressWeight,
-		step.progress?.caption
+		(step.progress?.weight || 1) / totalProgressWeight
 	);
 
 	const args: any = {};
@@ -721,9 +721,26 @@ function compileStep<S extends StepDefinition>(
 				stepProgress.setCaption(step.progress.caption);
 			}
 			stepProgress.fillSlowly();
+			const resolvedArgs = await resolveArguments(args);
+			if (
+				(step.step === 'installPlugin' &&
+					step.pluginData.resource === 'wordpress.org/plugins') ||
+				(step.step === 'installTheme' &&
+					step.themeData.resource === 'wordpress.org/themes')
+			) {
+				const resource = args[
+					step.step === 'installPlugin' ? 'pluginData' : 'themeData'
+				] as Resource<File>;
+				resolvedArgs.options = {
+					...resolvedArgs.options,
+					humanReadableName:
+						resolvedArgs.options?.humanReadableName ||
+						resource.humanReadableName,
+				};
+			}
 			return await keyedStepHandlers[step.step](
 				playground,
-				await resolveArguments(args),
+				resolvedArgs,
 				{
 					tracker: stepProgress,
 					initialCaption: step.progress?.caption,
