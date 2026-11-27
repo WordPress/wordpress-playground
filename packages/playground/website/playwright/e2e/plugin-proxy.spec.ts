@@ -251,6 +251,20 @@ test('serves no branch preview when only forks or deleted forks ran', async ({
 	});
 });
 
+test('skips pull_request_target runs for a branch preview', async ({
+	request,
+}) => {
+	const response = await request.get(
+		urlForRunLookup({ mode: 'branch', runs: '1:pull_request_target,1' })
+	);
+
+	expect(response.status()).toBe(200);
+	expect(await response.json()).toEqual({
+		error: null,
+		artifactListRequests: [1],
+	});
+});
+
 test('follows absolute and relative redirects within the allowlist', async ({
 	request,
 }) => {
