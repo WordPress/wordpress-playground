@@ -169,7 +169,7 @@ PR के कोड को लिखने की अनुमतियों �
 -->
 
 - एक बिल्ड वर्कफ़्लो, जो सिर्फ़ पढ़ने की अनुमतियों के साथ `pull_request` पर चलता है, आपकी बिल्ड कमांड चलाता है और ZIP फ़ाइलों को GitHub Actions आर्टिफ़ैक्ट के रूप में अपलोड करता है।
-- एक पब्लिश वर्कफ़्लो, जो बिल्ड सफल होने के बाद `workflow_run` पर चलता है, उन ZIP फ़ाइलों को एक सार्वजनिक रिलीज़ URL पर अपलोड करता है, एक Blueprint बनाता है और पूर्वावलोकन बटन पोस्ट करता है।
+- एक पब्लिश वर्कफ़्लो, जो बिल्ड सफल होने के बाद `workflow_run` पर चलता है, उन ZIP फ़ाइलों को एक सार्वजनिक रिलीज़ URL पर अपलोड करता है, एक ब्लूप्रिंट बनाता है और पूर्वावलोकन बटन पोस्ट करता है।
 
 <!-- ### Build workflow -->
 
@@ -231,7 +231,7 @@ jobs:
 
 <!-- Use `kind: theme` for one theme ZIP. For multiple ZIPs or extra setup steps, use a custom `blueprint:` instead of `kind`, as shown in [Built artifacts with a custom blueprint](#built-artifacts-with-a-custom-blueprint). -->
 
-एक थीम ZIP के लिए `kind: theme` उपयोग करें। कई ZIP या सेटअप के अतिरिक्त चरणों के लिए, `kind` की जगह कस्टम `blueprint:` उपयोग करें, जैसा [कस्टम Blueprint के साथ बने आर्टिफ़ैक्ट](#built-artifacts-with-a-custom-blueprint) में दिखाया गया है।
+एक थीम ZIP के लिए `kind: theme` उपयोग करें। कई ZIP या सेटअप के अतिरिक्त चरणों के लिए, `kind` की जगह कस्टम `blueprint:` उपयोग करें, जैसा [कस्टम ब्लूप्रिंट के साथ बने आर्टिफ़ैक्ट](#built-artifacts-with-a-custom-blueprint) में दिखाया गया है।
 
 <!-- Open a pull request. The build workflow runs your build command. After it succeeds, the publish workflow creates or updates the `ci-artifacts` prerelease, uploads the built ZIP, and adds a Preview button to the PR description. -->
 
@@ -251,15 +251,15 @@ GitHub एक ही वर्कफ़्लो को फ़ोर्क PR �
 
 <!-- ## Custom blueprints -->
 
-## कस्टम Blueprint {#custom-blueprints}
+## कस्टम ब्लूप्रिंट {#custom-blueprints}
 
 <!-- Use Blueprints to configure the Playground environment. You can install companion plugins, set WordPress options, import content, pin PHP and WordPress versions, open a specific page, or log in as an admin user. -->
 
-Playground एनवायरनमेंट कॉन्फ़िगर करने के लिए Blueprint उपयोग करें। आप साथ में चलने वाले प्लगइन स्थापित कर सकते हैं, WordPress के विकल्प सेट कर सकते हैं, सामग्री इम्पोर्ट कर सकते हैं, PHP और WordPress के संस्करण तय कर सकते हैं, कोई ख़ास पेज खोल सकते हैं या एडमिन उपयोगकर्ता के रूप में लॉग इन कर सकते हैं।
+Playground एनवायरनमेंट कॉन्फ़िगर करने के लिए ब्लूप्रिंट उपयोग करें। आप साथ में चलने वाले प्लगइन स्थापित कर सकते हैं, WordPress के विकल्प सेट कर सकते हैं, सामग्री इम्पोर्ट कर सकते हैं, PHP और WordPress के संस्करण तय कर सकते हैं, कोई ख़ास पेज खोल सकते हैं या एडमिन उपयोगकर्ता के रूप में लॉग इन कर सकते हैं।
 
 <!-- For a no-build preview, provide a full Blueprint with the direct action: -->
 
-बिना बिल्ड वाले पूर्वावलोकन के लिए, सीधे एक्शन के साथ पूरा Blueprint दें:
+बिना बिल्ड वाले पूर्वावलोकन के लिए, सीधे एक्शन के साथ पूरा ब्लूप्रिंट दें:
 
 ```yaml
 - uses: WordPress/action-wp-playground-pr-preview@v4
@@ -295,7 +295,7 @@ Playground एनवायरनमेंट कॉन्फ़िगर कर�
 
 <!-- Or reference a hosted Blueprint: -->
 
-या कहीं होस्ट किए गए Blueprint का संदर्भ दें:
+या कहीं होस्ट किए गए ब्लूप्रिंट का संदर्भ दें:
 
 ```yaml
 - uses: WordPress/action-wp-playground-pr-preview@v4
@@ -306,7 +306,7 @@ Playground एनवायरनमेंट कॉन्फ़िगर कर�
 
 <!-- Choose the Blueprint input based on where the JSON comes from: -->
 
-JSON कहाँ से आता है, इसके आधार पर Blueprint इनपुट चुनें:
+JSON कहाँ से आता है, इसके आधार पर ब्लूप्रिंट इनपुट चुनें:
 
 <!--
 - Use `blueprint` when the direct action or publish workflow can include the full JSON string.
@@ -324,11 +324,11 @@ JSON कहाँ से आता है, इसके आधार पर Blue
 
 <!-- ## Built artifacts with a custom blueprint -->
 
-## कस्टम Blueprint के साथ बने आर्टिफ़ैक्ट {#built-artifacts-with-a-custom-blueprint}
+## कस्टम ब्लूप्रिंट के साथ बने आर्टिफ़ैक्ट {#built-artifacts-with-a-custom-blueprint}
 
 <!-- Use a custom Blueprint in the publish workflow when a built preview needs more than the default “install and activate” behavior. Common reasons include installing multiple ZIP files, opening a specific admin page, installing PHP extension bundles, or logging in automatically. -->
 
-जब बने हुए पूर्वावलोकन को डिफ़ॉल्ट “स्थापित और सक्रिय करें” वाले व्यवहार से ज़्यादा कुछ चाहिए, तब पब्लिश वर्कफ़्लो में कस्टम Blueprint उपयोग करें। आम वजहों में कई ZIP फ़ाइलें स्थापित करना, कोई ख़ास एडमिन पेज खोलना, PHP एक्सटेंशन बंडल स्थापित करना या अपने-आप लॉग इन करना शामिल है।
+जब बने हुए पूर्वावलोकन को डिफ़ॉल्ट “स्थापित और सक्रिय करें” वाले व्यवहार से ज़्यादा कुछ चाहिए, तब पब्लिश वर्कफ़्लो में कस्टम ब्लूप्रिंट उपयोग करें। आम वजहों में कई ZIP फ़ाइलें स्थापित करना, कोई ख़ास एडमिन पेज खोलना, PHP एक्सटेंशन बंडल स्थापित करना या अपने-आप लॉग इन करना शामिल है।
 
 <!-- Put `artifacts` and `build-command` under `jobs.build.with` in `.github/workflows/pr-preview-build.yml`: -->
 
@@ -389,11 +389,11 @@ jobs:
 
 <!-- For a theme ZIP, use `installTheme` with `themeData`. Custom Blueprints must use `pluginData` or `themeData` to satisfy the current Blueprint schema; the older `pluginZipFile` and `themeZipFile` fields are deprecated. -->
 
-थीम ZIP के लिए `themeData` के साथ `installTheme` उपयोग करें। मौजूदा Blueprint स्कीमा के अनुसार कस्टम Blueprint में `pluginData` या `themeData` ही उपयोग होना चाहिए। पुराने `pluginZipFile` और `themeZipFile` फ़ील्ड अप्रचलित हो चुके हैं।
+थीम ZIP के लिए `themeData` के साथ `installTheme` उपयोग करें। मौजूदा ब्लूप्रिंट स्कीमा के अनुसार कस्टम ब्लूप्रिंट में `pluginData` या `themeData` ही उपयोग होना चाहिए। पुराने `pluginZipFile` और `themeZipFile` फ़ील्ड अप्रचलित हो चुके हैं।
 
 <!-- For a monorepo with multiple plugins or themes, add one `artifacts` entry per ZIP and reference each one with `{{ARTIFACT_URL:<name>}}` in the Blueprint. -->
 
-कई प्लगइन या थीम वाली मोनोरेपो के लिए, हर ZIP के लिए एक `artifacts` एंट्री जोड़ें और Blueprint में हर एक का संदर्भ `{{ARTIFACT_URL:<name>}}` से दें।
+कई प्लगइन या थीम वाली मोनोरेपो के लिए, हर ZIP के लिए एक `artifacts` एंट्री जोड़ें और ब्लूप्रिंट में हर एक का संदर्भ `{{ARTIFACT_URL:<name>}}` से दें।
 
 <!-- ## Button placement and templates -->
 
@@ -552,7 +552,7 @@ After editing, verify that any artifacts path listed in artifacts: is actually c
 -->
 
 - [action-wp-playground-pr-preview के उदाहरण](https://wordpress.github.io/action-wp-playground-pr-preview/#see-it-live): v4 वर्कफ़्लो उपयोग करने वाली लाइव रिपॉज़िटरी
-- [WordPress/blueprints](https://github.com/WordPress/blueprints/pull/155): Blueprint के पूर्वावलोकन
+- [WordPress/blueprints](https://github.com/WordPress/blueprints/pull/155): ब्लूप्रिंट के पूर्वावलोकन
 
 <!-- ## Next steps -->
 
@@ -564,4 +564,4 @@ After editing, verify that any artifacts path listed in artifacts: is actually c
 -->
 
 - डेमो सामग्री जोड़ें ([गाइड](/guides/providing-content-for-your-demo))
-- कस्टम Blueprint बनाएँ ([दस्तावेज़](/blueprints))
+- कस्टम ब्लूप्रिंट बनाएँ ([दस्तावेज़](/blueprints))
