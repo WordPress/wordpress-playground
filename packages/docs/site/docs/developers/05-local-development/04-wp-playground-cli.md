@@ -6,7 +6,7 @@ slug: /developers/local-development/wp-playground-cli
 # Playground CLI
 
 [@wp-playground/cli](https://www.npmjs.com/package/@wp-playground/cli) is a command-line tool that simplifies the WordPress development and testing flow.
-Playground CLI supports auto-mounting a directory with a plugin, theme, or WordPress installation. But if you need flexibility, the CLI supports mounting commands to personalize your local environment.
+Playground CLI supports auto-mounting a directory with a plugin, theme, or WordPress installation. But if you need flexibility, the CLI supports mount options to personalize your local environment.
 
 **Key features:**
 
@@ -21,7 +21,7 @@ The Playground CLI includes two main commands for running WordPress locally:
 
 ## Requirements
 
-The Playground CLI requires Node.js 20.18 or higher, which is the recommended Long-Term Support (LTS) version. You can download it from the [Node.js website](https://nodejs.org/en/download).
+The Playground CLI requires Node.js 24.18 or higher. You can download it from the [Node.js website](https://nodejs.org/en/download).
 
 ## Quickstart
 
@@ -47,6 +47,200 @@ npx @wp-playground/cli@latest start
 - Auto-login is enabled by default
 - Opens browser automatically
 - Auto-mounts the project by default
+
+### Using `server` (Advanced)
+
+The `server` command provides full control over configuration:
+
+```bash
+npx @wp-playground/cli@latest server
+```
+
+![Playground CLI in Action](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/npx-wp-playground-server.gif)
+
+### Choosing a WordPress and PHP Version
+
+By default, the CLI loads the latest stable version of WordPress and PHP 8.3. To specify your preferred versions, use the `--wp=<version>` and `--php=<version>` flags:
+
+```bash
+npx @wp-playground/cli@latest server --wp=6.8 --php=8.4
+```
+
+### Loading Blueprints
+
+One way to take your Playground CLI development experience to the next level is to integrate with [Blueprints](/blueprints/getting-started/). Blueprints let developers configure the initial state of their WordPress Playground instances.
+
+Using the `--blueprint=<blueprint-address>` flag, developers can run a Playground with a custom initial state. We’ll use the example below to do this.
+
+**(my-blueprint.json)**
+
+```json
+{
+	"landingPage": "/wp-admin/",
+	"login": true,
+	"plugins": ["hello-dolly", "https://raw.githubusercontent.com/adamziel/blueprints/trunk/docs/assets/hello-from-the-dashboard.zip"]
+}
+```
+
+CLI command that loads the Blueprint:
+
+```bash
+npx @wp-playground/cli@latest server --blueprint=my-blueprint.json
+```
+
+#### Missing constants after a login step in CLI 3.1.64 and 3.1.65
+
+In CLI 3.1.64 and 3.1.65, running `login` followed by `defineWpConfigConsts` with multiple workers can lose constants, including `SQLITE_JOURNAL_MODE`. CLI 3.1.66 fixes this, so upgrade if you can. On an older version, run the `server` command with `--workers=1`. If you need multiple workers, set `"method": "rewrite-wp-config"` on the `defineWpConfigConsts` step to write those constants to `wp-config.php`. See the [SQLite corruption report](https://github.com/WordPress/wordpress-playground/issues/4615) for details.
+
+### Mounting folders manually
+
+Some projects need a custom setup, for example when auto-mount does not detect your project type. In this case, use the `--mount` flag to tell Playground CLI where to mount your project. This example mounts the current directory as a plugin:
+
+```bash
+npx @wp-playground/cli@latest server --mount=.:/wordpress/wp-content/plugins/MY-PLUGIN-DIRECTORY
+```
+
+### Mounting before WordPress installation
+
+Consider mounting your WordPress project files before the WordPress installation begins. This approach is beneficial if you want to override the Playground boot process, as it can help connect Playground with `WP-CLI`. The `--mount-before-install` flag supports this process.
+
+```bash
+npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
+```
+
+<div class="callout callout-info">
+
+On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve this, use the flags `--mount-dir` and `--mount-dir-before-install`. These flags let you specify host and virtual file system paths in an alternative format: `"/host/path"` `"/vfs/path"`.
+
+</div>
+
+### Understanding Data Persistence and SQLite Location in `server` mode
+
+By default, Playground CLI stores WordPress files and the SQLite database in **temporary directories on your operating system**:
+
+```
+<OS-TEMP-DIR>/node-playground-cli-site-<id>/
+├── wordpress/         # WordPress installation
+├── internal/          # Playground runtime config
+├── tools/             # Playground tools
+├── tmp/               # Temporary PHP files
+└── home/              # Home directory for the PHP runtime
+```
+
+**Finding Your Temp Directory:**
+
+The actual location depends on your OS (these are examples or common possibilities):
+
+- **macOS/Linux**: May be under `/tmp/` or `/private/var/folders/` (varies by system)
+- **Windows**: `C:\Users\<username>\AppData\Local\Temp\`
+
+To see the exact temp directory path being used, run the CLI with the `--verbosity=debug` flag:
+
+```bash
+npx @wp-playground/cli@latest server --verbosity=debug
+```
+
+This will output something like:
+
+```
+Native temp dir for VFS root:
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC
+Mount before WP install: /home ->
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/home
+Mount before WP install: /tmp ->
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/tmp
+Mount before WP install: /tools ->
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/tools
+Mount before WP install: /wordpress ->
+/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/wordpress
+```
+
+**Where is the SQLite Database Stored?**
+
+The database location depends on what you mount:
+
+- **Auto-mounting a full WordPress directory**:
+    - Database directory: `<your-local-project>/wp-content/database/`
+    - ✅ **Persisted locally** in your project folder
+
+- **Auto-mounting a wp-content directory**:
+    - Auto-mount mounts each item inside `wp-content` separately, so the database persists in `<your-local-project>/wp-content/database/` only if that folder already exists
+    - ⚠️ Otherwise, the database is created in the temporary directory and is **lost when the server stops**
+
+- **Auto-mounting plugin/theme only**:
+    - Database directory: `<OS-TEMP-DIR>/node-playground-cli-site-<id>/wordpress/wp-content/database/`
+    - ⚠️ **Lost when server stops** (temp directories are cleaned up)
+
+- **Custom mounts**: Database location follows your mount configuration
+
+**Automatic Cleanup:**
+Playground CLI automatically removes temp directories that are:
+
+- Older than 2 days
+- No longer associated with a running process
+
+**Recommendation:** To persist both your code and database when developing plugins or themes, mount the entire `wp-content` directory before installation with `--mount-before-install`, instead of mounting only the plugin or theme directory.
+
+**Example: Mounting wp-content for persistence**
+
+```bash
+# Mount wp-content before installation so the database is written there
+cd my-wordpress-project
+npx @wp-playground/cli@latest server --mount-before-install=./wp-content:/wordpress/wp-content
+```
+
+### Data Persistence in `start` mode
+
+When `start` manages the WordPress root directory, Playground CLI
+**automatically persists** your WordPress site in a dedicated directory:
+
+```
+~/.wordpress-playground/sites/<path-hash>/
+├── wp-admin/
+├── wp-content/
+├── wp-includes/
+└── wp-config.php
+```
+
+This directory is the WordPress root itself.
+
+The `<path-hash>` is derived from the command's current working directory.
+This ensures isolation between different projects when you run `start` from each
+project directory.
+
+#### Persistence behavior
+
+- **Default (no WordPress root mount)**: WordPress files and database persist in `~/.wordpress-playground/sites/<path-hash>/`. Changes survive between CLI restarts.
+- **Full WordPress directory or explicit `/wordpress` mount**: Automatic persistence in `~/.wordpress-playground/sites/<path-hash>/` is skipped. The mounted WordPress directory is the persistent store.
+
+The database location depends on your configuration:
+
+- **Default (automatic persistence)**:
+    - Database directory: `~/.wordpress-playground/sites/<path-hash>/wp-content/database/`
+    - **Persisted automatically** between sessions
+- **Full WordPress directory or explicit `/wordpress` mount**:
+    - Database: Follows the mounted WordPress directory
+    - **Persisted in that mounted directory**
+
+#### Resetting a persisted site
+
+To start fresh, use the `--reset` flag with the `start` command:
+
+```bash
+npx @wp-playground/cli@latest start --reset
+```
+
+Use `--reset` when:
+
+- You want a clean WordPress installation
+- You are testing fresh installation scenarios
+- Your site data became corrupted or inconsistent
+
+<div class="callout callout-info">
+
+The `--reset` flag works only with `start`. The `server` command keeps the site in a temporary directory that is removed after the server stops. If you mount your own `/wordpress` directory, delete or restore that directory manually.
+
+</div>
 
 ## Migrating from wp-now
 
@@ -79,208 +273,16 @@ The main workflow change is where the saved site lives:
 Use `start` for the familiar wp-now-style flow. Use `server` only when you want
 to spell out mounts, storage, or automation yourself.
 
-### Using `server` (Advanced)
-
-The `server` command provides full control over configuration:
-
-```bash
-npx @wp-playground/cli@latest server
-```
-
-![Playground CLI in Action](https://raw.githubusercontent.com/WordPress/wordpress-playground/refs/heads/trunk/packages/docs/site/static/img/developers/npx-wp-playground-server.gif)
-
-**Automatic site persistence:** When the `start` command manages the WordPress
-root directory, it keeps your WordPress site persistent across sessions. Your
-files and database are stored in `~/.wordpress-playground/sites/<path-hash>/`,
-where `<path-hash>` is derived from the command's current working directory. If
-you start from a full WordPress installation, or explicitly mount `/wordpress`,
-that mounted directory becomes the persistent store instead.
-
-This is useful when:
-
-- You want a clean WordPress installation
-- Testing fresh installation scenarios
-- Your site data became corrupted or inconsistent
-
-<div class="callout callout-info">
-
-The `--reset` flag works only with `start`. For `server`, manually delete the persisted site directory at `~/.wordpress-playground/sites/<path-hash>/`.
-
-</div>
-
-### Choosing a WordPress and PHP Version
-
-By default, the CLI loads the latest stable version of WordPress and PHP 8.3 due to its improved performance. To specify your preferred versions, you can use the flag `--wp=<version>` and `--php=<version>`:
-
-```bash
-npx @wp-playground/cli@latest server --wp=6.8 --php=8.4
-```
-
-### Loading Blueprints
-
-One way to take your Playground CLI development experience to the next level is to integrate with [Blueprints](/blueprints/getting-started/). For those unfamiliar with this technology, it allows developers to configure the initial state for their WordPress Playground instances.
-
-Using the `--blueprint=<blueprint-address>` flag, developers can run a Playground with a custom initial state. We’ll use the example below to do this.
-
-**(my-blueprint.json)**
-
-```bash
-{
-  "landingPage": "/wp-admin/options-general.php?page=akismet-key-config",
-  "login": true,
-  "plugins": [
-    "hello-dolly",
-    "https://raw.githubusercontent.com/adamziel/blueprints/trunk/docs/assets/hello-from-the-dashboard.zip"
-  ]
-}
-```
-
-CLI command loading a blueprint:
-
-```bash
-npx @wp-playground/cli@latest server --blueprint=my-blueprint.json
-```
-
-#### Missing constants after a login step in CLI 3.1.64
-
-In CLI 3.1.64, running `login` followed by `defineWpConfigConsts` with multiple workers can lose constants, including `SQLITE_JOURNAL_MODE`. If you encounter this, start the server with `--workers=1`. If you need multiple workers, set `"method": "rewrite-wp-config"` on the `defineWpConfigConsts` step to write those constants to `wp-config.php`. The [SQLite corruption report](https://github.com/WordPress/wordpress-playground/issues/4615) tracks the underlying issue.
-
-### Mounting folders manually
-
-Some projects have a specific structure that requires a custom configuration; for example, your repository contains all the files in the `/wp-content/` folder. So in this scenario, you can specify to the Playground CLI that it will mount your project from that folder using the `--mount` flag.
-
-```bash
-npx @wp-playground/cli@latest server --mount=.:/wordpress/wp-content/plugins/MY-PLUGIN-DIRECTORY
-```
-
-### Mounting before WordPress installation
-
-Consider mounting your WordPress project files before the WordPress installation begins. This approach is beneficial if you want to override the Playground boot process, as it can help connect Playground with `WP-CLI`. The `--mount-before-install` flag supports this process.
-
-```bash
-npx @wp-playground/cli@latest server --mount-before-install=.:/wordpress/
-```
-
-<div class="callout callout-info">
-
-On Windows, the path format `/host/path:/vfs/path` can cause issues. To resolve this, use the flags `--mount-dir` and `--mount-dir-before-install`. These flags let you specify host and virtual file system paths in an alternative format: `"/host/path"` `"/vfs/path"`.
-
-</div>
-
-### Understanding Data Persistence and SQLite Location in `server` mode
-
-By default, Playground CLI stores WordPress files and the SQLite database in **temporary directories on your operating system**:
-
-```
-<OS-TEMP-DIR>/playground-<random-id>/
-├── wordpress/          # WordPress installation
-├── internal/          # Playground runtime config
-└── tmp/              # Temporary PHP files
-```
-
-**Finding Your Temp Directory:**
-
-The actual location depends on your OS (these are examples or common possibilities):
-
-- **macOS/Linux**: May be under `/tmp/` or `/private/var/folders/` (varies by system)
-- **Windows**: `C:\Users\<username>\AppData\Local\Temp\`
-
-To see the exact temp directory path being used, run the CLI with the `--verbosity=debug` flag:
-
-```bash
-npx @wp-playground/cli@latest server --verbosity=debug
-```
-
-This will output something like:
-
-```
-Native temp dir for VFS root:
-/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC
-Mount before WP install: /home ->
-/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/home
-Mount before WP install: /tmp ->
-/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/tmp
-Mount before WP install: /wordpress ->
-/private/var/folders/c8/mwz12ycx4s509056kby3hk180000gn/T/node-playground-cli-site-62926--62926-yQNOdvJVIgYC/wordpress
-```
-
-**Where is the SQLite Database Stored?**
-
-The database location depends on what you mount:
-
-- **Auto-mounting wp-content or full WordPress**:
-    - Database directory: `<your-local-project>/wp-content/database/`
-    - ✅ **Persisted locally** in your project folder
-
-- **Auto-mounting plugin/theme only**:
-    - Database directory: `<OS-TEMP-DIR>/playground-<id>/wordpress/wp-content/database/`
-    - ⚠️ **Lost when server stops** (temp directories are cleaned up)
-
-- **Custom mounts**: Database location follows your mount configuration
-
-**Automatic Cleanup:**
-Playground CLI automatically removes temp directories that are:
-
-- Older than 2 days
-- No longer associated with a running process
-
-**Recommendation:** To persist both your code and database when developing plugins or themes, mount the entire `wp-content` directory instead of just the plugin/theme folder.
-
-**Example: Mounting wp-content for persistence**
-
-```bash
-# Mount your entire wp-content directory
-cd my-wordpress-project
-npx @wp-playground/cli@latest server --mount=./wp-content:/wordpress/wp-content
-```
-
-### Data Persistence in `start` mode
-
-When `start` manages the WordPress root directory, Playground CLI
-**automatically persists** your WordPress site in a dedicated directory:
-
-```
-~/.wordpress-playground/sites/<path-hash>/
-├── wordpress/          # WordPress installation
-├── internal/          # Playground runtime config
-└── tmp/              # Temporary PHP files
-```
-
-The `<path-hash>` is derived from the command's current working directory.
-This ensures isolation between different projects when you run `start` from each
-project directory.
-
-#### Persistence behavior
-
-- **Default (no WordPress root mount)**: WordPress files and database persist in `~/.wordpress-playground/sites/<path-hash>/`. Changes survive between CLI restarts.
-- **Full WordPress directory or explicit `/wordpress` mount**: Automatic persistence in `~/.wordpress-playground/sites/<path-hash>/` is skipped. The mounted WordPress directory is the persistent store.
-
-The database location depends on your configuration:
-
-- **Default (automatic persistence)**:
-    - Database directory: `~/.wordpress-playground/sites/<path-hash>/wordpress/wp-content/database/`
-    - **Persisted automatically** between sessions
-- **Full WordPress directory or explicit `/wordpress` mount**:
-    - Database: Follows the mounted WordPress directory
-    - **Persisted in that mounted directory**
-
-#### Resetting a persisted site
-
-To start fresh, use the `--reset` flag with the `start` command:
-
-```bash
-npx @wp-playground/cli@latest start --reset
-```
-
 ## Command and Arguments
 
-Playground CLI is simple, configurable, and unopinionated. You can set it up according
+Playground CLI is simple and configurable. You can set it up according
 to your unique WordPress setup. With the Playground CLI, you can use the following top-level commands:
 
 - **`start`**: (Simplified) Starts a local WordPress server with automatic project detection, site persistence, and browser opening.
 - **`server`**: (Advanced) Starts a local WordPress server with full manual control over configuration.
 - **`run-blueprint`**: Executes a Blueprint file without starting a web server.
 - **`build-snapshot`**: Builds a ZIP snapshot of a WordPress site based on a Blueprint.
+- **`php`**: Runs a PHP script or command in the Playground PHP runtime.
 
 The `start` command supports these common optional arguments. Run
 `npx @wp-playground/cli@latest start --help` for the full list:
@@ -289,7 +291,7 @@ The `start` command supports these common optional arguments. Run
 - `--wp=<version>`: WordPress version to use. Defaults to the latest.
 - `--php=<version>`: PHP version to use. Defaults to PHP 8.3.
 - `--port=<port>`: The port number for the server to listen on. Defaults to 9400 when available.
-- `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
+- `--blueprint=<path>`: The Blueprint to execute: a local `.json` file, a `.zip` bundle, a directory that contains `blueprint.json`, or an http(s) URL.
 - `--login`: Automatically log the user in as an administrator. Defaults to true.
 - `--skip-browser`: Do not open the site in your default browser.
 - `--reset`: Delete the stored site and start fresh. Defaults to false.
@@ -298,33 +300,39 @@ The `start` command supports these common optional arguments. Run
 
 The `server` command supports these common optional arguments. Run `npx @wp-playground/cli@latest server --help` for the full list:
 
-- `--port=<port>`: The port number for the server to listen on. Defaults to 9400.
+- `--port=<port>`: The port number for the server to listen on. Defaults to 9400 when available.
 - `--codespaces-public-port`: In GitHub Codespaces, make the forwarded port public so anyone with the URL can open the site without signing in to GitHub. Ports stay private by default. ⚠️ Combined with `--login`, every visitor is signed in as an administrator and can change mounted files.
 - `--version`: Show version number.
 - `--site-url=<url>`: Site URL to use for WordPress. Defaults to `http://127.0.0.1:{port}`.
 - `--wp=<version>`: The version of WordPress to use. Defaults to the latest.
-- `--php=<version>`: PHP version to use. Choices: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`. Defaults to `8.3`.
+- `--php=<version>`: PHP version to use. Choices: `8.5`, `8.4`, `8.3`, `8.2`, `8.1`, `8.0`, `7.4`, `5.2`. Defaults to `8.3`.
 - `--auto-mount[=<path>]`: Automatically mount a directory. If no path is provided, mounts the current working directory. You can mount a WordPress directory, a plugin directory, a theme directory, a wp-content directory, or any directory containing PHP and HTML files.
 - `--mount=<mapping>`: Manually mount a directory (can be used multiple times). Format: `"/host/path:/vfs/path"`.
 - `--mount-before-install`: Mount a directory to the PHP runtime before WordPress installation (can be used multiple times). Format: `"/host/path:/vfs/path"`.
 - `--mount-dir`: Mount a directory to the PHP runtime (can be used multiple times). Format: `"/host/path"` `"/vfs/path"`.
-- `--mount-dir-before-install`: Mount a directory before WordPress installation (can be used multiple times). Format: `"/host/path"` `"/vfs/path"`
-- `--blueprint=<path>`: The path to a JSON Blueprint file to execute.
+- `--mount-dir-before-install`: Mount a directory before WordPress installation (can be used multiple times). Format: `"/host/path"` `"/vfs/path"`.
+- `--blueprint=<path>`: The Blueprint to execute: a local `.json` file, a `.zip` bundle, a directory that contains `blueprint.json`, or an http(s) URL.
 - `--blueprint-may-read-adjacent-files`: Consent flag: Allow "bundled" resources in a local blueprint to read files in the same directory as the blueprint file.
 - `--login`: Automatically log the user in as an administrator.
-- `--wordpress-install-mode <mode>`: Control how Playground prepares WordPress before booting. Defaults to `download-and-install`. Other options: `install-from-existing-files` (install using files you've mounted), `install-from-existing-files-if-needed` (skip setup when an existing site is detected), and `do-not-attempt-installing` (never download or install WordPress).
+- `--wordpress-install-mode=<mode>`: Control how Playground prepares WordPress before booting. Defaults to `download-and-install`. Other options: `install-from-existing-files` (install using files you've mounted), `install-from-existing-files-if-needed` (skip setup when an existing site is detected), and `do-not-attempt-installing` (never download or install WordPress).
 - `--skip-sqlite-setup`: Do not set up the SQLite database integration.
 - `--verbosity=<level>`: Output logs and progress messages. Choices: `quiet`, `normal`, `debug`. Defaults to `normal`.
-- `--debug`: Print the PHP error log if an error occurs during boot.
+- `--debug`: Deprecated. Use `--verbosity=debug` instead.
 - `--follow-symlinks`: Allow Playground to follow symlinks by automatically mounting symlinked directories and files encountered in mounted directories.
 - `--internal-cookie-store`: Enable internal cookie handling. When enabled, Playground will manage cookies internally using an HttpCookieStore that persists cookies across requests. When disabled, cookies are handled externally (e.g., by a browser in Node.js environments). Defaults to false.
 - `--phpmyadmin[=<path>]`: Install phpMyAdmin for database management. The phpMyAdmin URL will be printed after boot. Optionally specify a custom URL path (default: `/phpmyadmin`).
 - `--xdebug`: Enable Xdebug. Defaults to false.
 - `--php-extension=<manifest>`: Load a PHP.wasm extension manifest before PHP starts. Accepts local paths, `file:` URLs, and HTTP(S) URLs. Can be used multiple times.
 - `--experimental-devtools`: Enable experimental browser development tools. Defaults to false.
-- `--experimental-unsafe-ide-integration=<ide>`: Set up the Xdebug integration on VS Code (`vscode`) and PhpStorm (`phpstorm`).
+- `--experimental-unsafe-ide-integration=<ide>`: Set up the Xdebug integration on VS Code (`vscode`) and PhpStorm (`phpstorm`). Pass no value to set up both. Works only with `--xdebug` on PHP versions below 8.5, and cannot be combined with `--experimental-devtools`. It edits your IDE config files, so back them up first.
 - `--workers=<n|auto>`: Number of request-handling worker threads. Pass a positive integer, or `auto` to use one worker per CPU core (minus one). Defaults to `min(6, cpus-1)`. Useful for multi-client workloads (e.g. parallel e2e suites) that need more than 6 in-flight requests.
 - `--experimental-multi-worker=<number>`: Deprecated. Use `--workers=<n|auto>` instead. The value of this flag is ignored.
+
+<div class="callout callout-warning">
+
+With `--follow-symlinks`, Playground follows symlinks, which can expose files outside mounted directories and could be a security risk.
+
+</div>
 
 ### Loading PHP.wasm extensions
 
@@ -360,18 +368,18 @@ and
 [Building PHP extensions](/developers/apis/javascript-api/build-php-extensions)
 for manifest format, compiler helpers, and dependency notes.
 
-<div class="callout callout-warning">
-
-With the flag `--follow-symlinks`, the following symlinks will expose files outside mounted directories to Playground and could be a security risk.
-
-</div>
-
 ## Need some help with the CLI?
 
 With the Playground CLI, you can use the `--help` flag to get the full list of available commands and arguments.
 
 ```bash
 npx @wp-playground/cli@latest --help
+```
+
+To see the options of a single command, add `--help` after the command name:
+
+```bash
+npx @wp-playground/cli@latest server --help
 ```
 
 ## Programmatic usage
