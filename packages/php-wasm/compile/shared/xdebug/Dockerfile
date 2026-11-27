@@ -6,6 +6,8 @@ FROM playground-php-wasm:base
 # compatible with a particular Zend Engine API version.
 ARG PHP_VERSION
 
+ARG PLATFORM
+
 ARG JSPI
 
 ARG DEBUG
@@ -99,7 +101,12 @@ RUN	cd xdebug; \
 	# with the main module.
 	/root/replace.sh 's/^(XDEBUG_SHARED_LIBADD\s*=.*\s*)-lm\b/$1/' Makefile; \
 
-	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv -Dgetpid=__wrap_getpid"; \
+	export EMCC_FLAGS="-sSIDE_MODULE -D__x86_64__ -sWASM_BIGINT -Dsetsockopt=wasm_setsockopt -Drecv=wasm_recv"; \
+
+	# Only the Node main module wraps getpid.
+	if [ "$PLATFORM" = "node" ]; then \
+		export EMCC_FLAGS="${EMCC_FLAGS} -Dgetpid=__wrap_getpid"; \
+	fi; \
 
 	if [ "$DEBUG" = "yes" ]; then \
 		export EMCC_FLAGS="${EMCC_FLAGS} -O0 -g3"; \
