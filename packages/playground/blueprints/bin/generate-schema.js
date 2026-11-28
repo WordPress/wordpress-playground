@@ -4,6 +4,7 @@ import Ajv from 'ajv';
 import ajvStandaloneCode from 'ajv/dist/standalone/index.js';
 import prettier from 'prettier';
 import { generateBlueprintV2SchemaValidator } from './generate-v2-schema-validator.js';
+import { makePortableSchema } from './make-portable-schema.js';
 
 /** @type {import('ts-json-schema-generator/dist/src/Config').Config} */
 const config = {
@@ -66,6 +67,7 @@ const prettierConfig = JSON.parse(fs.readFileSync('.prettierrc', 'utf8'));
 
 const v1Ajv = new Ajv({
 	discriminator: true,
+	allowUnionTypes: true,
 	code: {
 		source: true,
 		esm: true,
@@ -77,7 +79,9 @@ const v2Schema = await generateBlueprintV2SchemaValidator(
 	exponentialBackoff,
 	prettierConfig
 );
-const publicSchema = createPublicSchema(v1Schema, v2Schema);
+const publicSchema = makePortableSchema(createPublicSchema(v1Schema, v2Schema));
+// Fail generation if consumers would need AJV-specific options to compile it.
+new Ajv({ strict: true }).compile(publicSchema);
 const rawSchemaString = JSON.stringify(publicSchema, null, 2);
 const formattedSchemaString = await prettier.format(rawSchemaString, {
 	...prettierConfig,
