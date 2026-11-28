@@ -12,6 +12,7 @@ import {
 import { compileBlueprintForExecution } from '../../lib/compile';
 import type { BlueprintV2Declaration } from '../../lib/v2/blueprint-v2-declaration';
 import { resolveBlueprintV2WordPressSource } from '../../lib/v2/compile';
+import { buildTestPhar } from '../build-test-phar';
 import {
 	v2SchemaConformanceCases,
 	v2SchemaConformanceFileContents,
@@ -53,10 +54,6 @@ const emptyZip = new Uint8Array([
 	0x50, 0x4b, 0x05, 0x06, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0,
 ]);
-// The WP-CLI step owns command semantics. This suite only needs a local binary
-// that proves the v2 declaration reaches that step without a network download.
-const wpCliStub = '<?php exit(0);';
-
 describe('Blueprint v2 schema runtime conformance', () => {
 	let php: PHP;
 	let handler: PHPRequestHandler;
@@ -66,6 +63,7 @@ describe('Blueprint v2 schema runtime conformance', () => {
 	>;
 	let importerPluginZip: Uint8Array;
 	let installableZip: Uint8Array;
+	let wpCliStub: Uint8Array;
 	let fetchSpy: { mockRestore(): void };
 
 	beforeAll(async () => {
@@ -74,11 +72,15 @@ describe('Blueprint v2 schema runtime conformance', () => {
 			sqliteIntegrationPluginZip,
 			importerPluginZip,
 			installableZip,
+			wpCliStub,
 		] = await Promise.all([
 			loadWordPressModule(),
 			getSqliteDriverModule(),
 			createImporterPluginZip(),
 			createInstallableZip(),
+			// The WP-CLI step owns command semantics. This suite only needs a local
+			// binary that proves the v2 declaration reaches it without a download.
+			buildTestPhar({ 'php/wp-cli.php': '<?php exit(0);' }),
 		]);
 	}, 30_000);
 

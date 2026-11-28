@@ -356,6 +356,31 @@ test('wp-cli step should create a post', async ({
 	).toBeVisible();
 });
 
+test('PHP should report the cli-server SAPI by default', async ({
+	website,
+	wordpress,
+}) => {
+	const blueprint: Blueprint = {
+		landingPage: '/sapi-test.php',
+		steps: [
+			{
+				step: 'runPHP',
+				code: `<?php file_put_contents('/wordpress/sapi-run.txt', PHP_SAPI);`,
+			},
+			{
+				step: 'writeFile',
+				path: '/wordpress/sapi-test.php',
+				data: `<?php echo 'run:' . file_get_contents('/wordpress/sapi-run.txt');
+					echo ' request:' . PHP_SAPI;`,
+			},
+		],
+	};
+	await website.goto(`/#${JSON.stringify(blueprint)}`);
+	await expect(wordpress.locator('body')).toContainText(
+		'run:cli-server request:cli-server'
+	);
+});
+
 test('Intl functions should be disabled by default', async ({
 	website,
 	wordpress,

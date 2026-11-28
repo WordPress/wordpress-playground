@@ -105,7 +105,7 @@ export interface StartPlaygroundOptions {
 	 */
 	onClientConnected?: (playground: PlaygroundClient) => void;
 	/**
-	 * The SAPI name PHP will use.
+	 * The SAPI name PHP will use. Defaults to cli-server.
 	 * @internal
 	 * @private
 	 */

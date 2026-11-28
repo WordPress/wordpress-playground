@@ -19,7 +19,7 @@ describe('Blueprint step enableMultisite', () => {
 			createPhpRuntime: async () =>
 				await loadNodeRuntime(RecommendedPHPVersion),
 			siteUrl: options.absoluteUrl,
-			sapiName: 'cli',
+			sapiName: 'cli-server',
 
 			wordPressZip: await getWordPressModule(),
 			sqliteIntegrationPluginZip: await getSqliteDriverModule(),

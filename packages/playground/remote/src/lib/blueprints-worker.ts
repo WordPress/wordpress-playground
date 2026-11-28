@@ -80,6 +80,7 @@ export class PlaygroundWorkerEndpointBlueprints extends PlaygroundWorkerEndpoint
 		wordPressZip,
 		sqliteDriverVersion = LatestSqliteDriverVersion,
 		phpVersion,
+		// Older clients' wp-cli step needs this. Current clients always send cli-server.
 		sapiName = 'cli',
 		extensions = [],
 		withNetworking = true,

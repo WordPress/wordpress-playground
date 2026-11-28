@@ -59,9 +59,8 @@ class Playground_SQLite_Integration_Loader {
     }
 }
 /**
- * The Query Monitor plugin short-circuits in the CLI SAPI. However, in Playground,
- * the SAPI is always "cli" at the moment. Let's set a constant to disable the CLI
- * detection.
+ * The Query Monitor plugin short-circuits in the CLI SAPI. Let's set a constant to
+ * disable the CLI detection.
  *
  * @see https://github.com/WordPress/sqlite-database-integration/pull/212
  * @see https://github.com/WordPress/sqlite-database-integration/pull/215

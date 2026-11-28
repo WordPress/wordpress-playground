@@ -33,7 +33,7 @@ export class BlueprintsV1Handler {
 			corsProxy,
 			gitAdditionalHeadersCallback,
 			mounts,
-			sapiName,
+			sapiName = 'cli-server',
 			scope,
 			shouldInstallWordPress,
 			sqliteDriverVersion,
