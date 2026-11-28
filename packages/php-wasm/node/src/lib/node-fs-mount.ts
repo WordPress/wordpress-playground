@@ -5,9 +5,16 @@ import {
 } from '@php-wasm/universal';
 import { isParentOf } from '@php-wasm/util';
 import { realpathSync, statSync } from 'fs';
-import { dirname } from 'path';
+import { dirname, resolve } from 'path';
 
-export function createNodeFsMountHandler(localPath: string): MountHandler {
+export interface NodeFsMountHandlerOptions {
+	followSymlinks?: boolean;
+}
+
+export function createNodeFsMountHandler(
+	localPath: string,
+	options: NodeFsMountHandlerOptions = {}
+): MountHandler {
 	return function (php, FS, vfsMountPoint) {
 		/**
 		 * When Emscripten attempt to mount a local path into VFS, it looks up the path
@@ -28,6 +35,17 @@ export function createNodeFsMountHandler(localPath: string): MountHandler {
 			mountRoot = realpathSync(localPath);
 		} catch (e) {
 			throw markMissingMountSource(e, localPath);
+		}
+		if (
+			options.followSymlinks === false &&
+			mountRoot !== resolve(localPath)
+		) {
+			throw Object.assign(
+				new Error(
+					`Unable to mount ${localPath}: the path resolves through a symlink to ${mountRoot}.`
+				),
+				{ phpWasmMountSourceMissing: true }
+			);
 		}
 		if (!FSHelpers.fileExists(FS, vfsMountPoint)) {
 			// Resolve symlinks so both the VFS placeholder and NODEFS root

@@ -77,9 +77,11 @@ export function parseMountDirArguments(mounts: string[]): Mount[] {
 export async function mountResources(php: PHP, mounts: Mount[]) {
 	for (const mount of mounts) {
 		try {
+			const followSymlinks =
+				!mount.autoMounted || mount.followSymlinks === true;
 			await php.mount(
 				mount.vfsPath,
-				createNodeFsMountHandler(mount.hostPath)
+				createNodeFsMountHandler(mount.hostPath, { followSymlinks })
 			);
 		} catch (error) {
 			// Wrap the raw mount failure with the offending paths and a
@@ -122,7 +124,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 	if (typeof args.autoMount !== 'string') {
 		return args;
 	}
-	const path = args.autoMount;
+	const path = fs.realpathSync(args.autoMount);
 
 	const mount = [...(args.mount || [])];
 	const mountBeforeInstall = [...(args['mount-before-install'] || [])];
@@ -165,6 +167,7 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 		 * Mount each wp-content file and directory individually.
 		 */
 		const files = fs.readdirSync(path);
+
 		for (const file of files) {
 			/**
 			 * WordPress already ships with the wp-content/index.php file
@@ -174,10 +177,20 @@ export function expandAutoMounts(args: RunCLIArgs): RunCLIArgs {
 			if (file === 'index.php') {
 				continue;
 			}
+			const hostPath = join(path, file);
+
+			const followSymlinks = args.followSymlinks === true;
+
+			if (!followSymlinks && fs.lstatSync(hostPath).isSymbolicLink()) {
+				throw new Error(
+					`Auto-mount does not follow the symlink ${hostPath}. Use --follow-symlinks to mount its target.`
+				);
+			}
 			mount.push({
-				hostPath: join(path, file),
+				hostPath,
 				vfsPath: `/wordpress/wp-content/${file}`,
 				autoMounted: true,
+				followSymlinks,
 			});
 		}
 		newArgs['additional-blueprint-steps'].push(ACTIVATE_FIRST_THEME_STEP);
