@@ -206,7 +206,7 @@ type GitDirectoryReference = {
 	resource: 'git:directory';
 	url: string; // Repository URL (https://, ssh git@..., etc.)
 	path?: string; // Optional subdirectory inside the repository
-	ref?: string; // Branch, tag, or commit SHA (defaults to HEAD)
+	ref: string; // Branch, tag, or commit SHA, for example "HEAD"
 	refType?: 'branch' | 'tag' | 'commit'; // Hint for resolving the ref
 	'.git'?: boolean; // Experimental: include a .git directory with fetched metadata
 };
@@ -248,7 +248,6 @@ The _CoreThemeReference_ resource is used to reference WordPress core themes. Th
 type CoreThemeReference = {
 	resource: 'wordpress.org/themes';
 	slug: string;
-	version?: string;
 };
 ```
 
@@ -269,7 +268,6 @@ The _CorePluginReference_ resource is used to reference WordPress core plugins. 
 type CorePluginReference = {
 	resource: 'wordpress.org/plugins';
 	slug: string;
-	version?: string;
 };
 ```
 
