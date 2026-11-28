@@ -1086,6 +1086,41 @@ phpLoaderOptions.forEach((options) => {
 				const response3 = await php.cli(['php', '-r', 'echo "Hello";']);
 				expect(await response3.stdoutText).toBe('Hello');
 			});
+
+			it('should rotate the runtime for a php.cli() call made during a php.runStream() rotation', async () => {
+				const recreateRuntimeSpy = vi.fn(() =>
+					loadNodeRuntime(phpVersion as any, options)
+				);
+				php.enableRuntimeRotation({
+					recreateRuntime: recreateRuntimeSpy,
+				});
+				// The first php.cli() call schedules a rotation for the next call.
+				const response = await php.cli(['php', '-r', 'echo "Hello";']);
+				expect(await response.stdoutText).toBe('Hello');
+
+				// Rotation re-applies every mount after it exits the old runtime.
+				// This mount handler calls php.cli() once, at that exact moment.
+				let isMounted = false;
+				let cliResponse: ReturnType<PHP['cli']> | undefined;
+				php.mkdir('/cli-during-rotation');
+				await php.mount('/cli-during-rotation', () => {
+					if (isMounted) {
+						cliResponse ??= php.cli(['php', '-r', 'echo "Hello";']);
+					}
+					isMounted = true;
+					return () => {};
+				});
+
+				const response2 = await php.runStream({
+					code: `<?php echo "Hello";`,
+				});
+				expect(await response2.stdoutText).toBe('Hello');
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(1);
+
+				const response3 = await cliResponse!;
+				expect(await response3.stdoutText).toBe('Hello');
+				expect(recreateRuntimeSpy).toHaveBeenCalledTimes(2);
+			});
 		});
 
 		describe('Response parsing', { skip }, () => {
