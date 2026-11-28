@@ -178,7 +178,7 @@ const blueprintJson = `{
 		"wp": "6.5"
 	}
 }`;
-const minifiedBlueprintJson = btoa(blueprintJson); // eyIkc2NoZW1hIjogImh0dHBzOi8vcGxheWdyb3VuZC53b3JkcHJlc3MubmV0L2JsdWVwcmludC1zY2hlbWEuanNvbiIsInByZWZlcnJlZFZlcnNpb25zIjogeyJwaHAiOiAiOC4zIiwid3AiOiAiNi41In19
+const minifiedBlueprintJson = btoa(blueprintJson); // ewoJIiRzY2hlbWEiOiAiaHR0cHM6Ly9wbGF5Z3JvdW5kLndvcmRwcmVzcy5uZXQvYmx1ZXByaW50LXNjaGVtYS5qc29uIiwKCSJwcmVmZXJyZWRWZXJzaW9ucyI6IHsKCQkicGhwIjogIjguMyIsCgkJIndwIjogIjYuNSIKCX0KfQ==
 ```
 
 </div>
