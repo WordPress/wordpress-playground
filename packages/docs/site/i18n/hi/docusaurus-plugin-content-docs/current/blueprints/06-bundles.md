@@ -98,7 +98,7 @@ npx @wp-playground/cli --blueprint=./my-blueprint.zip server
 npx @wp-playground/cli --blueprint=https://example.com/my-blueprint.zip server
 
 # Using a local directory
-npx @wp-playground/cli --blueprint=./my-blueprint-directory server
+npx @wp-playground/cli --blueprint=./my-blueprint-directory --blueprint-may-read-adjacent-files server
 ```
 
 <!-- By default, the CLI restricts access to local files for security reasons. If your Blueprint needs to access files in the same parent directory, you need to explicitly grant permission using the `--blueprint-may-read-adjacent-files` flag: -->
@@ -124,6 +124,7 @@ npx @wp-playground/cli --blueprint=./my-blueprint.json --blueprint-may-read-adja
 ```
 my-blueprint-bundle/
 ├── blueprint.json
+├── bundled-text-file.txt
 ├── theme.zip
 ├── plugin.zip
 └── content/
@@ -215,21 +216,21 @@ zip -r ../my-blueprint-bundle.zip .
 
 ## ZIP फ़ाइल के ढाँचे में लचीलापन {#zip-file-structure-flexibility}
 
-<!-- Blueprint bundles support `blueprint.json` at two locations within a ZIP file: -->
+<!-- Playground looks for `blueprint.json` in a ZIP file in this order: -->
 
-ब्लूप्रिंट बंडल में `blueprint.json` ZIP फ़ाइल के अंदर दो में से किसी भी जगह हो सकती है:
+Playground, ZIP फ़ाइल में `blueprint.json` को इस क्रम में ढूँढता है:
 
 <!--
-1. **Root level** (standard): `blueprint.json` sits directly at the ZIP root
-2. **One directory deep**: `blueprint.json` sits inside a single top-level directory
+1. **Root level** (standard): if `blueprint.json` sits directly at the ZIP root, Playground uses it.
+2. **One directory deep**: if there is no `blueprint.json` at the root, the ZIP must contain exactly one top-level directory, not counting `__MACOSX`, and that directory must contain `blueprint.json`.
 -->
 
-1. **रूट लेवल** (स्टैंडर्ड): `blueprint.json` सीधे ZIP के रूट पर होती है
-2. **एक डायरेक्टरी अंदर**: `blueprint.json` सबसे ऊपरी लेवल की एक अकेली डायरेक्टरी के अंदर होती है
+1. **रूट लेवल** (स्टैंडर्ड): अगर `blueprint.json` सीधे ZIP के रूट पर है, तो Playground उसी को इस्तेमाल करता है।
+2. **एक डायरेक्टरी अंदर**: अगर रूट पर `blueprint.json` नहीं है, तो ZIP में `__MACOSX` को छोड़कर सबसे ऊपरी लेवल पर ठीक एक डायरेक्टरी होनी चाहिए, और उस डायरेक्टरी में `blueprint.json` होनी चाहिए।
 
-<!-- This means ZIP files created with macOS's right-click "Compress" feature (which wraps contents in a folder) work automatically. The `__MACOSX` metadata directory is ignored during detection. -->
+<!-- This means ZIP files created with macOS's right-click "Compress" feature (which wraps contents in a folder) work automatically. -->
 
-इसका मतलब है कि macOS में राइट क्लिक करके "Compress" से बनी ZIP फ़ाइलें (जो कंटेंट को एक फ़ोल्डर में रख देती हैं) अपने आप काम करती हैं। बंडल पहचानते समय `__MACOSX` मेटाडेटा डायरेक्टरी को अनदेखा किया जाता है।
+इसका मतलब है कि macOS में राइट क्लिक करके "Compress" से बनी ZIP फ़ाइलें (जो कंटेंट को एक फ़ोल्डर में रख देती हैं) अपने आप काम करती हैं।
 
 <!-- **Example: Both of these ZIP structures work:** -->
 
@@ -251,9 +252,9 @@ my-bundle.zip/
 └── __MACOSX/         ← ignored
 ```
 
-<!-- If multiple top-level directories contain a `blueprint.json`, Playground returns an error to avoid ambiguity. -->
+<!-- If there is no `blueprint.json` at the root and the ZIP contains more than one top-level directory, Playground returns an error, even if only one of them contains a `blueprint.json`. -->
 
-अगर सबसे ऊपरी लेवल की एक से ज़्यादा डायरेक्टरी में `blueprint.json` हो, तो किसी भ्रम से बचने के लिए Playground एक एरर लौटाता है।
+अगर रूट पर `blueprint.json` नहीं है और ZIP में सबसे ऊपरी लेवल पर एक से ज़्यादा डायरेक्टरी हैं, तो Playground एक एरर लौटाता है, भले ही उनमें से सिर्फ़ एक में `blueprint.json` हो।
 
 <!-- ## Troubleshooting -->
 

@@ -54,7 +54,7 @@ npx @wp-playground/cli --blueprint=./my-blueprint.zip server
 npx @wp-playground/cli --blueprint=https://example.com/my-blueprint.zip server
 
 # Using a local directory
-npx @wp-playground/cli --blueprint=./my-blueprint-directory server
+npx @wp-playground/cli --blueprint=./my-blueprint-directory --blueprint-may-read-adjacent-files server
 ```
 
 By default, the CLI restricts access to local files for security reasons. If your Blueprint needs to access files in the same parent directory, you need to explicitly grant permission using the `--blueprint-may-read-adjacent-files` flag:
@@ -72,6 +72,7 @@ A basic Blueprint bundle might look like this:
 ```
 my-blueprint-bundle/
 ├── blueprint.json
+├── bundled-text-file.txt
 ├── theme.zip
 ├── plugin.zip
 └── content/
@@ -144,12 +145,12 @@ zip -r ../my-blueprint-bundle.zip .
 
 ## ZIP File Structure Flexibility
 
-Blueprint bundles support `blueprint.json` at two locations within a ZIP file:
+Playground looks for `blueprint.json` in a ZIP file in this order:
 
-1. **Root level** (standard): `blueprint.json` sits directly at the ZIP root
-2. **One directory deep**: `blueprint.json` sits inside a single top-level directory
+1. **Root level** (standard): if `blueprint.json` sits directly at the ZIP root, Playground uses it.
+2. **One directory deep**: if there is no `blueprint.json` at the root, the ZIP must contain exactly one top-level directory, not counting `__MACOSX`, and that directory must contain `blueprint.json`.
 
-This means ZIP files created with macOS's right-click "Compress" feature (which wraps contents in a folder) work automatically. The `__MACOSX` metadata directory is ignored during detection.
+This means ZIP files created with macOS's right-click "Compress" feature (which wraps contents in a folder) work automatically.
 
 **Example: Both of these ZIP structures work:**
 
@@ -169,7 +170,7 @@ my-bundle.zip/
 └── __MACOSX/         ← ignored
 ```
 
-If multiple top-level directories contain a `blueprint.json`, Playground returns an error to avoid ambiguity.
+If there is no `blueprint.json` at the root and the ZIP contains more than one top-level directory, Playground returns an error, even if only one of them contains a `blueprint.json`.
 
 ## Troubleshooting
 
