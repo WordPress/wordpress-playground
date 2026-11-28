@@ -86,8 +86,7 @@ Use
 
 ```json
 {
-	"step": "defineWpConfigConsts",
-	"consts": {
+	"constants": {
 		"WP_DISABLE_FATAL_ERROR_HANDLER": true,
 		"WP_DEBUG": true,
 		"WP_DEBUG_DISPLAY": true
