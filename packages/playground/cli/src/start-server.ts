@@ -5,6 +5,7 @@ import type { Request, Response } from 'express';
 import express from 'express';
 import type { IncomingMessage, Server, ServerResponse } from 'http';
 import type { AddressInfo } from 'net';
+import { isIPv4, isIPv6 } from 'net';
 import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import type { RunCLIServer } from './run-cli';
@@ -14,9 +15,15 @@ const exec = promisify(execCb);
 
 export interface ServerOptions {
 	port: number;
+	/**
+	 * The URL WordPress uses for the site. The server answers to the
+	 * hostname of this URL, besides `localhost` and IP addresses.
+	 */
+	siteUrl?: string;
 	onBind: (
 		server: Server,
-		port: number
+		port: number,
+		siteUrl?: string
 	) => Promise<RunCLIServer | number | void>;
 	/**
 	 * Handler for requests. Always returns StreamedPHPResponse.
@@ -47,6 +54,9 @@ export async function startServer(
 	options: ServerOptions
 ): Promise<RunCLIServer | number | void> {
 	const app = express();
+	const siteHostname = options.siteUrl
+		? new URL(options.siteUrl).hostname
+		: undefined;
 
 	const server = await new Promise<
 		Server<typeof IncomingMessage, typeof ServerResponse>
@@ -64,6 +74,14 @@ export async function startServer(
 	});
 
 	app.use('/', async (req, res) => {
+		if (!isAllowedHost(req.headers.host, siteHostname)) {
+			res.statusCode = 403;
+			res.end(
+				'Forbidden: unexpected Host header. ' +
+					'Pass --site-url to serve another hostname.'
+			);
+			return;
+		}
 		try {
 			const phpRequest: PHPRequest = {
 				url: req.url,
@@ -101,7 +119,7 @@ export async function startServer(
 	}
 
 	try {
-		return await options.onBind(server, port);
+		return await options.onBind(server, port, options.siteUrl);
 	} catch (error) {
 		// The server is already listening when onBind runs. If onBind
 		// throws (e.g., a blueprint file is missing, port allocation
@@ -116,6 +134,33 @@ export async function startServer(
 		}
 		throw error;
 	}
+}
+
+/**
+ * Tells whether the Host header names this server.
+ *
+ * A web page can point its own domain name at 127.0.0.1 (DNS rebinding) and
+ * then read every response as same-origin. Its requests still carry that
+ * domain name in the Host header, so the server only answers to hostnames
+ * it expects. An IP address is always expected because DNS rebinding needs
+ * a domain name. The port is ignored because port forwarding may change it.
+ */
+function isAllowedHost(
+	hostHeader: string | undefined,
+	siteHostname: string | undefined
+): boolean {
+	if (!hostHeader) return false;
+
+	let hostname: string;
+	try {
+		hostname = new URL(`http://${hostHeader}`).hostname;
+	} catch {
+		return false;
+	}
+
+	const isIpAddress = isIPv4(hostname) || isIPv6(hostname.slice(1, -1));
+
+	return isIpAddress || hostname === 'localhost' || hostname === siteHostname;
 }
 
 /**

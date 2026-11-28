@@ -1128,11 +1128,12 @@ export async function runCLI(
 			: !(await isPortInUse(selectedPort))
 				? selectedPort
 				: 0,
+		siteUrl: args['site-url'],
 		codespacesPublicPort: args.codespacesPublicPort,
-		onBind: async (server: Server, port: number) => {
+		onBind: async (server: Server, port: number, url?: string) => {
 			const host = '127.0.0.1';
 			const serverUrl = `http://${host}:${port}`;
-			const siteUrl = args['site-url'] || serverUrl;
+			const siteUrl = url || serverUrl;
 
 			if (args['experimental-multi-worker'] !== undefined) {
 				logger.warn(
