@@ -210,7 +210,7 @@ project directory.
 
 #### Persistence behavior
 
-- **Default (no WordPress root mount)**: WordPress files and database persist in `~/.wordpress-playground/sites/<path-hash>/`. Changes survive between CLI restarts.
+- **Default (no WordPress root mount)**: WordPress files and database persist in `~/.wordpress-playground/sites/<path-hash>/`, except content mounted from your project, including an existing auto-mounted `wp-content/database/` folder (see the database list below). Changes survive between CLI restarts.
 - **Full WordPress directory or explicit `/wordpress` mount**: Automatic persistence in `~/.wordpress-playground/sites/<path-hash>/` is skipped. The mounted WordPress directory is the persistent store.
 
 The database location depends on your configuration:
@@ -218,6 +218,9 @@ The database location depends on your configuration:
 - **Default (automatic persistence)**:
     - Database directory: `~/.wordpress-playground/sites/<path-hash>/wp-content/database/`
     - **Persisted automatically** between sessions
+- **Auto-mounting a `wp-content` directory that already has a `database/` folder**:
+    - Database directory: `<your-local-project>/wp-content/database/`
+    - **Persisted in your project folder**, not in `~/.wordpress-playground/sites/<path-hash>/`
 - **Full WordPress directory or explicit `/wordpress` mount**:
     - Database: Follows the mounted WordPress directory
     - **Persisted in that mounted directory**
@@ -238,7 +241,7 @@ Use `--reset` when:
 
 <div class="callout callout-info">
 
-The `--reset` flag works only with `start`. The `server` command keeps the site in a temporary directory that is removed after the server stops. If you mount your own `/wordpress` directory, delete or restore that directory manually.
+The `--reset` flag works only with `start`. The `server` command keeps the site in a temporary directory that is removed after the server stops. If you mount your own `/wordpress` directory, delete or restore that directory manually. `--reset` removes only the site directory in `~/.wordpress-playground/sites/<path-hash>/`. A `wp-content/database/` folder auto-mounted from your project is not reset.
 
 </div>
 

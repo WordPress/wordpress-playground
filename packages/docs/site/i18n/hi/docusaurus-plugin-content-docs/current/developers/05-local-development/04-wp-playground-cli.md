@@ -327,10 +327,10 @@ project directory. -->
 
 #### साइट सहेजने का व्यवहार {#persistence-behavior}
 
-<!-- - **Default (no WordPress root mount)**: WordPress files and database persist in `~/.wordpress-playground/sites/<path-hash>/`. Changes survive between CLI restarts.
+<!-- - **Default (no WordPress root mount)**: WordPress files and database persist in `~/.wordpress-playground/sites/<path-hash>/`, except content mounted from your project, including an existing auto-mounted `wp-content/database/` folder (see the database list below). Changes survive between CLI restarts.
 - **Full WordPress directory or explicit `/wordpress` mount**: Automatic persistence in `~/.wordpress-playground/sites/<path-hash>/` is skipped. The mounted WordPress directory is the persistent store. -->
 
-- **डिफ़ॉल्ट (WordPress रूट का कोई माउंट नहीं)**: WordPress फ़ाइलें और डेटाबेस `~/.wordpress-playground/sites/<path-hash>/` में सहेजे रहते हैं। CLI को दोबारा शुरू करने पर भी बदलाव बने रहते हैं।
+- **डिफ़ॉल्ट (WordPress रूट का कोई माउंट नहीं)**: WordPress फ़ाइलें और डेटाबेस `~/.wordpress-playground/sites/<path-hash>/` में सहेजे रहते हैं, सिवाय उस कंटेंट के जो आपके प्रोजेक्ट से माउंट होता है, जिसमें पहले से मौजूद और अपने-आप माउंट हुआ `wp-content/database/` फ़ोल्डर भी शामिल है (नीचे डेटाबेस की सूची देखें)। CLI को दोबारा शुरू करने पर भी बदलाव बने रहते हैं।
 - **पूरी WordPress डायरेक्टरी या `/wordpress` पर किया गया स्पष्ट माउंट**: `~/.wordpress-playground/sites/<path-hash>/` में अपने-आप सहेजना छोड़ दिया जाता है। माउंट की गई WordPress डायरेक्टरी ही साइट को सहेजकर रखती है।
 
 <!-- The database location depends on your configuration: -->
@@ -340,6 +340,9 @@ project directory. -->
 <!-- - **Default (automatic persistence)**:
     - Database directory: `~/.wordpress-playground/sites/<path-hash>/wp-content/database/`
     - **Persisted automatically** between sessions
+- **Auto-mounting a `wp-content` directory that already has a `database/` folder**:
+    - Database directory: `<your-local-project>/wp-content/database/`
+    - **Persisted in your project folder**, not in `~/.wordpress-playground/sites/<path-hash>/`
 - **Full WordPress directory or explicit `/wordpress` mount**:
     - Database: Follows the mounted WordPress directory
     - **Persisted in that mounted directory** -->
@@ -347,6 +350,9 @@ project directory. -->
 - **डिफ़ॉल्ट (अपने-आप सहेजना)**:
     - डेटाबेस डायरेक्टरी: `~/.wordpress-playground/sites/<path-hash>/wp-content/database/`
     - एक सेशन से दूसरे सेशन तक **अपने-आप सहेजा जाता है**
+- **पहले से `database/` फ़ोल्डर वाली `wp-content` डायरेक्टरी को ऑटो-माउंट करने पर**:
+    - डेटाबेस डायरेक्टरी: `<your-local-project>/wp-content/database/`
+    - **आपके प्रोजेक्ट फ़ोल्डर में सहेजा जाता है**, `~/.wordpress-playground/sites/<path-hash>/` में नहीं
 - **पूरी WordPress डायरेक्टरी या `/wordpress` पर किया गया स्पष्ट माउंट**:
     - डेटाबेस: माउंट की गई WordPress डायरेक्टरी के साथ रहता है
     - **उसी माउंट की गई डायरेक्टरी में सहेजा जाता है**
@@ -377,9 +383,9 @@ npx @wp-playground/cli@latest start --reset
 
 <div class="callout callout-info">
 
-<!-- The `--reset` flag works only with `start`. The `server` command keeps the site in a temporary directory that is removed after the server stops. If you mount your own `/wordpress` directory, delete or restore that directory manually. -->
+<!-- The `--reset` flag works only with `start`. The `server` command keeps the site in a temporary directory that is removed after the server stops. If you mount your own `/wordpress` directory, delete or restore that directory manually. `--reset` removes only the site directory in `~/.wordpress-playground/sites/<path-hash>/`. A `wp-content/database/` folder auto-mounted from your project is not reset. -->
 
-सिर्फ़ `start` कमांड के साथ `--reset` फ़्लैग काम करता है। `server` कमांड साइट को एक अस्थायी डायरेक्टरी में रखती है, जो सर्वर रुकने के बाद हटा दी जाती है। अगर आप अपनी खुद की `/wordpress` डायरेक्टरी माउंट करते हैं, तो उसे मैन्युअल रूप से हटाएँ या रीस्टोर करें।
+सिर्फ़ `start` कमांड के साथ `--reset` फ़्लैग काम करता है। `server` कमांड साइट को एक अस्थायी डायरेक्टरी में रखती है, जो सर्वर रुकने के बाद हटा दी जाती है। अगर आप अपनी खुद की `/wordpress` डायरेक्टरी माउंट करते हैं, तो उसे मैन्युअल रूप से हटाएँ या रीस्टोर करें। `--reset` सिर्फ़ `~/.wordpress-playground/sites/<path-hash>/` वाली साइट डायरेक्टरी हटाता है। आपके प्रोजेक्ट से अपने-आप माउंट हुआ `wp-content/database/` फ़ोल्डर रीसेट नहीं होता।
 
 </div>
 
