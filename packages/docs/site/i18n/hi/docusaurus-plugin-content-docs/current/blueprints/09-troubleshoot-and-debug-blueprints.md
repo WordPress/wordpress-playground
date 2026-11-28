@@ -36,14 +36,14 @@ Playground में दिखाए गए एरर के सटीक ना
 <!--
 - Paste the Blueprint into the [Blueprints editor](https://playground.wordpress.net/builder/builder.html) to validate the JSON schema.
 - If the Blueprint is loaded from a URL, open that URL directly in a private browser window and confirm it downloads valid JSON or a Blueprint ZIP bundle.
-- If a step fails, note the step number in `BlueprintStepExecutionError`. The failed step is usually the item at that position after Blueprint shorthands have been expanded.
+- If a step fails, note the step number in `BlueprintStepExecutionError`. It is the position in the compiled list of steps, after Blueprint shorthands have been expanded and any steps Playground adds itself have been inserted.
 - Open browser developer tools and check the Console and Network tabs for download, CORS, PHP, or plugin activation details.
 - For plugin/theme activation failures, check the Playground **Logs** panel or the browser console for PHP warnings and fatal errors.
 -->
 
 - JSON स्कीमा जाँचने के लिए ब्लूप्रिंट को [Blueprints editor](https://playground.wordpress.net/builder/builder.html) में पेस्ट करें।
 - अगर ब्लूप्रिंट किसी URL से लोड होता है, तो वह URL सीधे किसी प्राइवेट ब्राउज़र विंडो में खोलें और पक्का करें कि उससे सही JSON या ब्लूप्रिंट ZIP बंडल डाउनलोड होता है।
-- अगर कोई स्टेप फ़ेल होता है, तो `BlueprintStepExecutionError` में स्टेप नंबर नोट करें। फ़ेल हुआ स्टेप आम तौर पर ब्लूप्रिंट शॉर्टहैंड के स्टेप में बदलने के बाद उसी जगह पर होता है।
+- अगर कोई स्टेप फ़ेल होता है, तो `BlueprintStepExecutionError` में स्टेप नंबर नोट करें। यह स्टेप की कंपाइल की गई सूची में उसकी जगह है, यानी ब्लूप्रिंट शॉर्टहैंड के स्टेप में बदलने और Playground के खुद जोड़े गए स्टेप शामिल होने के बाद की जगह।
 - ब्राउज़र डेवलपर टूल खोलें और डाउनलोड, CORS, PHP या प्लगइन एक्टिवेशन की जानकारी के लिए Console और Network टैब देखें।
 - प्लगइन या थीम एक्टिवेशन फ़ेल होने पर PHP चेतावनियों और फ़ेटल एरर के लिए Playground का **Logs** पैनल या ब्राउज़र कंसोल देखें।
 
@@ -314,6 +314,16 @@ order matters.
 -->
 
 उस नंबर से मेल खाने वाला स्टेप देखें। अगर आपका ब्लूप्रिंट `plugins`, `login`, `siteOptions` या `constants` जैसे शॉर्टहैंड इस्तेमाल करता है, तो Playground ब्लूप्रिंट चलाने से पहले उन्हें स्टेप में बदल देता है। जब क्रम मायने रखता हो, तो `steps` साफ़ तौर पर लिखें।
+
+<!--
+The step number is the position in the compiled list of steps, which can include
+steps that Playground adds itself. For example, if the only declared step is
+`wp-cli`, Playground first inserts a `writeFile` step that installs WP-CLI, so a
+failure in the command is reported as step 2. This can happen even in a
+Blueprint without shorthands.
+-->
+
+स्टेप नंबर, स्टेप की कंपाइल की गई सूची में उसकी जगह होता है, और इस सूची में वे स्टेप भी हो सकते हैं जो Playground खुद जोड़ता है। उदाहरण के लिए, अगर ब्लूप्रिंट में घोषित इकलौता स्टेप `wp-cli` है, तो Playground पहले WP-CLI इंस्टॉल करने वाला एक `writeFile` स्टेप जोड़ता है, इसलिए कमांड के फ़ेल होने पर स्टेप 2 बताया जाता है। ऐसा बिना शॉर्टहैंड वाले ब्लूप्रिंट में भी हो सकता है।
 
 <!--
 URL query parameters such as `?plugin=...`, `?theme=...`, `?php=...`,
@@ -678,6 +688,15 @@ directory.
 -->
 
 माउंट की गई Playground साइट के साथ `wp-cli` इस्तेमाल करते समय, जैसे `--mount-before-install` के ज़रिए, आपको "Error establishing a database connection." दिख सकता है। ऐसा इसलिए होता है क्योंकि WordPress Playground डिफ़ॉल्ट रूप से SQLite डेटाबेस इंटीग्रेशन प्लगइन अपनी अंदरूनी फ़ाइलों से लोड करता है, माउंट की गई डायरेक्टरी से नहीं।
+
+<!--
+If the mounted directory already contains `wp-content/db.php`, Playground skips
+its SQLite preload and uses that drop-in instead. A broken drop-in stops
+WordPress from loading, so the plugin activation below never runs. Before you
+try the Blueprint, check that the existing drop-in can connect to its database.
+-->
+
+अगर माउंट की गई डायरेक्टरी में पहले से `wp-content/db.php` है, तो Playground अपना SQLite प्रीलोड छोड़ देता है और उसी drop-in को इस्तेमाल करता है। खराब drop-in से WordPress लोड नहीं हो पाता, इसलिए नीचे दिया गया प्लगइन एक्टिवेशन कभी नहीं चलता। ब्लूप्रिंट आज़माने से पहले जाँच लें कि मौजूदा drop-in अपने डेटाबेस से जुड़ पा रहा है।
 
 <!-- Add the SQLite integration plugin to the mounted WordPress site explicitly: -->
 

@@ -283,7 +283,7 @@ type GitDirectoryReference = {
 	resource: 'git:directory';
 	url: string; // Repository URL (https://, ssh git@..., etc.)
 	path?: string; // Optional subdirectory inside the repository
-	ref?: string; // Branch, tag, or commit SHA (defaults to HEAD)
+	ref: string; // Branch, tag, or commit SHA, for example "HEAD"
 	refType?: 'branch' | 'tag' | 'commit'; // Hint for resolving the ref
 	'.git'?: boolean; // Experimental: include a .git directory with fetched metadata
 };
@@ -343,7 +343,6 @@ _CoreThemeReference_ रिसोर्स का इस्तेमाल WordP
 type CoreThemeReference = {
 	resource: 'wordpress.org/themes';
 	slug: string;
-	version?: string;
 };
 ```
 
@@ -370,7 +369,6 @@ _CorePluginReference_ रिसोर्स का इस्तेमाल Word
 type CorePluginReference = {
 	resource: 'wordpress.org/plugins';
 	slug: string;
-	version?: string;
 };
 ```
 

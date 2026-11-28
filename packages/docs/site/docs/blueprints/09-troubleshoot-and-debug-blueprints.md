@@ -19,7 +19,7 @@ section below.
 
 - Paste the Blueprint into the [Blueprints editor](https://playground.wordpress.net/builder/builder.html) to validate the JSON schema.
 - If the Blueprint is loaded from a URL, open that URL directly in a private browser window and confirm it downloads valid JSON or a Blueprint ZIP bundle.
-- If a step fails, note the step number in `BlueprintStepExecutionError`. The failed step is usually the item at that position after Blueprint shorthands have been expanded.
+- If a step fails, note the step number in `BlueprintStepExecutionError`. It is the position in the compiled list of steps, after Blueprint shorthands have been expanded and any steps Playground adds itself have been inserted.
 - Open browser developer tools and check the Console and Network tabs for download, CORS, PHP, or plugin activation details.
 - For plugin/theme activation failures, check the Playground **Logs** panel or the browser console for PHP warnings and fatal errors.
 
@@ -173,6 +173,12 @@ Use that number to inspect the matching step. If your Blueprint uses shorthands
 such as `plugins`, `login`, `siteOptions`, or `constants`, Playground expands
 them into steps before running the Blueprint. Use explicit `steps` when the
 order matters.
+
+The step number is the position in the compiled list of steps, which can include
+steps that Playground adds itself. For example, if the only declared step is
+`wp-cli`, Playground first inserts a `writeFile` step that installs WP-CLI, so a
+failure in the command is reported as step 2. This can happen even in a
+Blueprint without shorthands.
 
 URL query parameters such as `?plugin=...`, `?theme=...`, `?php=...`,
 `?wp=...`, and `?networking=yes` also create an implicit Blueprint. Errors from
@@ -391,6 +397,11 @@ When using `wp-cli` with a mounted Playground site, for example via
 connection." This happens because WordPress Playground loads the SQLite database
 integration plugin from its internal files by default, not from the mounted
 directory.
+
+If the mounted directory already contains `wp-content/db.php`, Playground skips
+its SQLite preload and uses that drop-in instead. A broken drop-in stops
+WordPress from loading, so the plugin activation below never runs. Before you
+try the Blueprint, check that the existing drop-in can connect to its database.
 
 Add the SQLite integration plugin to the mounted WordPress site explicitly:
 
