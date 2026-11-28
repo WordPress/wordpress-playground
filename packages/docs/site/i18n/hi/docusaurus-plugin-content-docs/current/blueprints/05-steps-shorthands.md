@@ -115,14 +115,11 @@ description: login, plugins और siteOptions जैसे आम ब्लू�
 यह लिखें
 
 ```json
-{
-	"step": "defineWpConfigConsts",
-	"consts": {
+	"constants": {
 		"WP_DISABLE_FATAL_ERROR_HANDLER": true,
 		"WP_DEBUG": true,
 		"WP_DEBUG_DISPLAY": true
 	}
-}
 ```
 
 <!-- Or -->
